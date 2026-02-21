@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { getSession } from '@/lib/session'
+import { logout } from '@/app/actions/auth'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
@@ -8,11 +10,13 @@ const navItems = [
   { href: '/accounts', label: 'Accounts' },
 ]
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const session = await getSession()
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 border-r border-gray-200 bg-white px-4 py-6">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white px-4 py-6">
         <Link href="/" className="mb-8 block text-xl font-bold text-brand-700">
           Clear-path
         </Link>
@@ -29,8 +33,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <div className="mt-auto pt-6">
-          <button className="btn-secondary w-full text-left text-sm">Sign out</button>
+        <div className="mt-auto space-y-3 pt-6">
+          {session && (
+            <p className="truncate px-1 text-xs text-gray-400" title={session.email}>
+              {session.name ?? session.email}
+            </p>
+          )}
+          <form action={logout}>
+            <button type="submit" className="btn-secondary w-full text-sm">
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 
