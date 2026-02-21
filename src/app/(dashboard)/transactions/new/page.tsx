@@ -36,7 +36,7 @@ export default async function NewTransactionPage() {
     <div className="max-w-lg">
       <h1 className="mb-6 text-2xl font-bold text-gray-900">New transaction</h1>
       <div className="card">
-        <TransactionForm accounts={accounts as never} categories={categories as never} />
+        <TransactionForm accounts={accounts} categories={categories} />
       </div>
     </div>
   )

@@ -8,6 +8,7 @@ const navItems = [
   { href: '/transactions', label: 'Transactions' },
   { href: '/budgets', label: 'Budgets' },
   { href: '/accounts', label: 'Accounts' },
+  { href: '/categories', label: 'Categories' },
 ]
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {

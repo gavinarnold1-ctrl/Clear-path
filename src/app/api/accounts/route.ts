@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSession } from '@/lib/session'
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const userId = searchParams.get('userId') // TODO: replace with session user ID
+const VALID_TYPES = new Set(['CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH'])
 
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(_req: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const accounts = await db.account.findMany({
-    where: { userId },
+    where: { userId: session.userId },
     orderBy: { name: 'asc' },
   })
 
@@ -16,13 +17,23 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const { userId, name, type, balance, currency } = body
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const body = await req.json()
+  const { name, type, balance, currency } = body
+
+  if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
 
   const account = await db.account.create({
-    data: { userId, name, type, balance: balance ?? 0, currency: currency ?? 'USD' },
+    data: {
+      userId: session.userId,
+      name,
+      type,
+      balance: balance ?? 0,
+      currency: currency ?? 'USD',
+    },
   })
 
   return NextResponse.json(account, { status: 201 })

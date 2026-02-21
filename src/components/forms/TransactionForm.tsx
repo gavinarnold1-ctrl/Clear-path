@@ -3,11 +3,20 @@
 import { useActionState } from 'react'
 import Link from 'next/link'
 import { createTransaction } from '@/app/actions/transactions'
-import type { Account, Category } from '@/types'
+// Minimal prop shapes — compatible with Prisma results without unsafe casts
+interface AccountOption {
+  id: string
+  name: string
+}
+interface CategoryOption {
+  id: string
+  name: string
+  type: string
+}
 
 interface Props {
-  accounts: Account[]
-  categories: Category[]
+  accounts: AccountOption[]
+  categories: CategoryOption[]
 }
 
 const initialState = { error: null }

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSession } from '@/lib/session'
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const userId = searchParams.get('userId') // TODO: replace with session user ID
+const VALID_PERIODS = new Set(['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM'])
 
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(_req: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const budgets = await db.budget.findMany({
-    where: { userId },
+    where: { userId: session.userId },
     include: { category: true },
     orderBy: { startDate: 'desc' },
   })
@@ -17,14 +18,22 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const { userId, categoryId, name, amount, period, startDate, endDate } = body
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const body = await req.json()
+  const { categoryId, name, amount, period, startDate, endDate } = body
+
+  if (!name || !amount || !period || !startDate) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+  if (!VALID_PERIODS.has(period)) {
+    return NextResponse.json({ error: 'Invalid budget period' }, { status: 400 })
+  }
 
   const budget = await db.budget.create({
     data: {
-      userId,
+      userId: session.userId,
       categoryId: categoryId ?? null,
       name,
       amount,

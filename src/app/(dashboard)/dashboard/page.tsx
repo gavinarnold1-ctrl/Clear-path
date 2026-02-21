@@ -108,7 +108,7 @@ export default async function DashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-900">{tx.description}</p>
                   <p className="text-xs text-gray-400">
-                    {formatDate(tx.date)} · {tx.account.name}
+                    {formatDate(tx.date)} · {tx.account?.name ?? 'Unknown account'}
                     {tx.category ? ` · ${tx.category.name}` : ''}
                   </p>
                 </div>

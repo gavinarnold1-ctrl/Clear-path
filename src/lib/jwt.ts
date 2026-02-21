@@ -25,10 +25,20 @@ export async function signToken(payload: SessionPayload): Promise<string> {
     .sign(secret())
 }
 
+function isSessionPayload(p: unknown): p is SessionPayload {
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    typeof (p as Record<string, unknown>).userId === 'string' &&
+    typeof (p as Record<string, unknown>).email === 'string'
+  )
+}
+
 export async function verifyToken(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, secret())
-    return payload as unknown as SessionPayload
+    if (!isSessionPayload(payload)) return null
+    return { userId: payload.userId, email: payload.email, name: payload.name }
   } catch {
     return null
   }
