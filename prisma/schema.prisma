@@ -74,8 +74,9 @@ model Category {
 
   userId       String?
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  budgets      Budget[]
+  transactions   Transaction[]
+  budgets        Budget[]
+  annualExpenses AnnualExpense[]
 }
 
 model Transaction {
