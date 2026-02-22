@@ -29,6 +29,12 @@ enum BudgetPeriod {
   CUSTOM
 }
 
+enum BudgetTier {
+  FIXED
+  FLEXIBLE
+  ANNUAL
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -45,6 +51,7 @@ model User {
   categories       Category[]
   insights         Insight[]
   efficiencyScores EfficiencyScore[]
+  annualExpenses   AnnualExpense[]
 }
 
 model Account {
@@ -67,10 +74,11 @@ model Category {
   group     String   // Parent group name (e.g., "Food & Dining", "Housing")
   name      String   // Specific category (e.g., "Groceries", "Mortgage")
   icon      String?  // Emoji icon
-  isDefault Boolean  @default(true)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  budgetTier BudgetTier? // Default budget tier for this expense category
+  isDefault  Boolean     @default(true)
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   userId       String?       // null = system default, set = user custom
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -112,15 +120,50 @@ model Budget {
   amount    Float // target spend / save limit
   spent     Float        @default(0)
   period    BudgetPeriod
+  tier      BudgetTier   @default(FLEXIBLE)
   startDate DateTime
   endDate   DateTime? // null = rolling / no end
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
+  // FIXED tier fields
+  isAutoPay     Boolean? // Is this bill auto-paid?
+  dueDay        Int?     // Day of month bill is due (1-31)
+  varianceLimit Float?   // Max acceptable deviation from expected amount
+
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
+
+  annualExpense AnnualExpense?
+
+  @@index([userId, tier])
+}
+
+model AnnualExpense {
+  id              String   @id @default(cuid())
+  budgetId        String   @unique
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  name            String   // "Summer vacation", "New couch"
+  annualAmount    Float    // Estimated annual cost
+  dueMonth        Int      // 1-12 target month
+  dueYear         Int      // Target year
+  isRecurring     Boolean  @default(false)
+  monthlySetAside Float    // Stored: (annualAmount - funded) / monthsRemaining
+  funded          Float    @default(0)
+  status          String   @default("planned") // "planned" | "funded" | "spent" | "overspent"
+  actualCost      Float?
+  actualDate      DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueYear, dueMonth])
+  @@index([budgetId])
 }
 
 model Insight {
