@@ -8,7 +8,8 @@ const baseBudget = {
   amount: 500,
   spent: 250,
   period: 'MONTHLY',
-  category: { name: 'Food', color: '#22c55e' },
+  tier: 'FLEXIBLE',
+  category: { name: 'Food', icon: '🍏' },
 }
 
 describe('BudgetCard', () => {

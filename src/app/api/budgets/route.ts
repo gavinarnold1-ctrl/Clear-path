@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
-const VALID_PERIODS = new Set(['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM'])
+const VALID_TIERS = new Set(['FIXED', 'FLEXIBLE', 'ANNUAL'])
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const tier = req.nextUrl.searchParams.get('tier')
+
   const budgets = await db.budget.findMany({
-    where: { userId: session.userId },
-    include: { category: true },
+    where: {
+      userId: session.userId,
+      ...(tier && VALID_TIERS.has(tier) ? { tier: tier as 'FIXED' | 'FLEXIBLE' | 'ANNUAL' } : {}),
+    },
+    include: { category: true, annualExpense: true },
     orderBy: { startDate: 'desc' },
   })
 
@@ -22,13 +27,13 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { categoryId, name, amount, period, startDate, endDate } = body
+  const { categoryId, name, amount, period, tier, startDate, endDate } = body
 
-  if (!name || !amount || !period || !startDate) {
+  if (!name || !amount || !startDate) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
-  if (!VALID_PERIODS.has(period)) {
-    return NextResponse.json({ error: 'Invalid budget period' }, { status: 400 })
+  if (tier && !VALID_TIERS.has(tier)) {
+    return NextResponse.json({ error: 'Invalid budget tier' }, { status: 400 })
   }
 
   const budget = await db.budget.create({
@@ -37,11 +42,12 @@ export async function POST(req: NextRequest) {
       categoryId: categoryId ?? null,
       name,
       amount,
-      period,
+      period: period ?? 'MONTHLY',
+      tier: tier ?? 'FLEXIBLE',
       startDate: new Date(startDate),
       endDate: endDate ? new Date(endDate) : null,
     },
-    include: { category: true },
+    include: { category: true, annualExpense: true },
   })
 
   return NextResponse.json(budget, { status: 201 })

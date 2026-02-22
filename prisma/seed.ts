@@ -2,11 +2,19 @@
  * Seed script — populates the database with demo data for local development.
  * Run with: npm run db:seed
  */
-import { PrismaClient, AccountType, BudgetPeriod } from '@prisma/client'
+import { PrismaClient, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
 
 const db = new PrismaClient()
 
-const DEFAULT_CATEGORIES = [
+type SeedCategory = {
+  type: string
+  group: string
+  name: string
+  icon: string
+  budgetTier?: 'FIXED' | 'FLEXIBLE' | 'ANNUAL' | null
+}
+
+const DEFAULT_CATEGORIES: SeedCategory[] = [
   // === INCOME ===
   { type: 'income', group: 'Income', name: 'Paychecks', icon: '💵' },
   { type: 'income', group: 'Income', name: 'Interest', icon: '💸' },
@@ -15,67 +23,67 @@ const DEFAULT_CATEGORIES = [
 
   // === EXPENSES ===
   // Gifts & Donations
-  { type: 'expense', group: 'Gifts & Donations', name: 'Charity', icon: '🎗️' },
-  { type: 'expense', group: 'Gifts & Donations', name: 'Gifts', icon: '🎁' },
+  { type: 'expense', group: 'Gifts & Donations', name: 'Charity', icon: '🎗️', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Gifts & Donations', name: 'Gifts', icon: '🎁', budgetTier: 'ANNUAL' },
 
   // Auto & Transport
-  { type: 'expense', group: 'Auto & Transport', name: 'Auto Payment', icon: '🚗' },
-  { type: 'expense', group: 'Auto & Transport', name: 'Public Transit', icon: '🚃' },
-  { type: 'expense', group: 'Auto & Transport', name: 'Gas', icon: '⛽️' },
-  { type: 'expense', group: 'Auto & Transport', name: 'Auto Maintenance', icon: '🔧' },
-  { type: 'expense', group: 'Auto & Transport', name: 'Parking & Tolls', icon: '🏢' },
-  { type: 'expense', group: 'Auto & Transport', name: 'Taxi & Ride Shares', icon: '🚕' },
+  { type: 'expense', group: 'Auto & Transport', name: 'Auto Payment', icon: '🚗', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Auto & Transport', name: 'Public Transit', icon: '🚃', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Auto & Transport', name: 'Gas', icon: '⛽️', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Auto & Transport', name: 'Auto Maintenance', icon: '🔧', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Auto & Transport', name: 'Parking & Tolls', icon: '🏢', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Auto & Transport', name: 'Taxi & Ride Shares', icon: '🚕', budgetTier: 'FLEXIBLE' },
 
   // Housing
-  { type: 'expense', group: 'Housing', name: 'Mortgage', icon: '🏠' },
-  { type: 'expense', group: 'Housing', name: 'Rent', icon: '🏠' },
-  { type: 'expense', group: 'Housing', name: 'Home Improvement', icon: '🔨' },
+  { type: 'expense', group: 'Housing', name: 'Mortgage', icon: '🏠', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Housing', name: 'Rent', icon: '🏠', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Housing', name: 'Home Improvement', icon: '🔨', budgetTier: 'ANNUAL' },
 
   // Bills & Utilities
-  { type: 'expense', group: 'Bills & Utilities', name: 'Garbage', icon: '🗑️' },
-  { type: 'expense', group: 'Bills & Utilities', name: 'Water', icon: '💧' },
-  { type: 'expense', group: 'Bills & Utilities', name: 'Gas & Electric', icon: '⚡️' },
-  { type: 'expense', group: 'Bills & Utilities', name: 'Internet & Cable', icon: '🌐' },
-  { type: 'expense', group: 'Bills & Utilities', name: 'Phone', icon: '📱' },
+  { type: 'expense', group: 'Bills & Utilities', name: 'Garbage', icon: '🗑️', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Bills & Utilities', name: 'Water', icon: '💧', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Bills & Utilities', name: 'Gas & Electric', icon: '⚡️', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Bills & Utilities', name: 'Internet & Cable', icon: '🌐', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Bills & Utilities', name: 'Phone', icon: '📱', budgetTier: 'FIXED' },
 
   // Food & Dining
-  { type: 'expense', group: 'Food & Dining', name: 'Groceries', icon: '🍏' },
-  { type: 'expense', group: 'Food & Dining', name: 'Restaurants & Bars', icon: '🍽️' },
-  { type: 'expense', group: 'Food & Dining', name: 'Coffee Shops', icon: '☕️' },
+  { type: 'expense', group: 'Food & Dining', name: 'Groceries', icon: '🍏', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Food & Dining', name: 'Restaurants & Bars', icon: '🍽️', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Food & Dining', name: 'Coffee Shops', icon: '☕️', budgetTier: 'FLEXIBLE' },
 
   // Travel & Lifestyle
-  { type: 'expense', group: 'Travel & Lifestyle', name: 'Travel & Vacation', icon: '🏝️' },
-  { type: 'expense', group: 'Travel & Lifestyle', name: 'Entertainment & Recreation', icon: '🎥' },
-  { type: 'expense', group: 'Travel & Lifestyle', name: 'Personal', icon: '👑' },
-  { type: 'expense', group: 'Travel & Lifestyle', name: 'Pets', icon: '🐶' },
-  { type: 'expense', group: 'Travel & Lifestyle', name: 'Fun Money', icon: '😜' },
+  { type: 'expense', group: 'Travel & Lifestyle', name: 'Travel & Vacation', icon: '🏝️', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Travel & Lifestyle', name: 'Entertainment & Recreation', icon: '🎥', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Travel & Lifestyle', name: 'Personal', icon: '👑', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Travel & Lifestyle', name: 'Pets', icon: '🐶', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Travel & Lifestyle', name: 'Fun Money', icon: '😜', budgetTier: 'FLEXIBLE' },
 
   // Shopping
-  { type: 'expense', group: 'Shopping', name: 'Shopping', icon: '🛍️' },
-  { type: 'expense', group: 'Shopping', name: 'Clothing', icon: '👕' },
-  { type: 'expense', group: 'Shopping', name: 'Furniture & Housewares', icon: '🪑' },
-  { type: 'expense', group: 'Shopping', name: 'Electronics', icon: '🖥️' },
+  { type: 'expense', group: 'Shopping', name: 'Shopping', icon: '🛍️', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Shopping', name: 'Clothing', icon: '👕', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Shopping', name: 'Furniture & Housewares', icon: '🪑', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Shopping', name: 'Electronics', icon: '🖥️', budgetTier: 'ANNUAL' },
 
   // Children
-  { type: 'expense', group: 'Children', name: 'Child Care', icon: '👶' },
-  { type: 'expense', group: 'Children', name: 'Child Activities', icon: '⚽️' },
+  { type: 'expense', group: 'Children', name: 'Child Care', icon: '👶', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Children', name: 'Child Activities', icon: '⚽️', budgetTier: 'FLEXIBLE' },
 
   // Education
-  { type: 'expense', group: 'Education', name: 'Student Loans', icon: '🎓' },
-  { type: 'expense', group: 'Education', name: 'Education', icon: '🏫' },
+  { type: 'expense', group: 'Education', name: 'Student Loans', icon: '🎓', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Education', name: 'Education', icon: '🏫', budgetTier: 'ANNUAL' },
 
   // Health & Wellness
-  { type: 'expense', group: 'Health & Wellness', name: 'Medical', icon: '💊' },
-  { type: 'expense', group: 'Health & Wellness', name: 'Dentist', icon: '🦷' },
-  { type: 'expense', group: 'Health & Wellness', name: 'Fitness', icon: '💪' },
+  { type: 'expense', group: 'Health & Wellness', name: 'Medical', icon: '💊', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Health & Wellness', name: 'Dentist', icon: '🦷', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Health & Wellness', name: 'Fitness', icon: '💪', budgetTier: 'FIXED' },
 
   // Financial
-  { type: 'expense', group: 'Financial', name: 'Loan Repayment', icon: '💰' },
-  { type: 'expense', group: 'Financial', name: 'Financial & Legal Services', icon: '🗄️' },
-  { type: 'expense', group: 'Financial', name: 'Financial Fees', icon: '🏦' },
-  { type: 'expense', group: 'Financial', name: 'Cash & ATM', icon: '🏧' },
-  { type: 'expense', group: 'Financial', name: 'Insurance', icon: '☂️' },
-  { type: 'expense', group: 'Financial', name: 'Taxes', icon: '🏛️' },
+  { type: 'expense', group: 'Financial', name: 'Loan Repayment', icon: '💰', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Financial', name: 'Financial & Legal Services', icon: '🗄️', budgetTier: 'ANNUAL' },
+  { type: 'expense', group: 'Financial', name: 'Financial Fees', icon: '🏦', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Financial', name: 'Cash & ATM', icon: '🏧', budgetTier: 'FLEXIBLE' },
+  { type: 'expense', group: 'Financial', name: 'Insurance', icon: '☂️', budgetTier: 'FIXED' },
+  { type: 'expense', group: 'Financial', name: 'Taxes', icon: '🏛️', budgetTier: 'ANNUAL' },
 
   // Other
   { type: 'expense', group: 'Other', name: 'Uncategorized', icon: '❓' },
@@ -83,7 +91,7 @@ const DEFAULT_CATEGORIES = [
   // === TRANSFERS ===
   { type: 'transfer', group: 'Transfers', name: 'Transfer', icon: '🔄' },
   { type: 'transfer', group: 'Transfers', name: 'Credit Card Payment', icon: '💳' },
-] as const
+]
 
 async function seedCategories(userId: string) {
   for (const cat of DEFAULT_CATEGORIES) {
@@ -91,8 +99,15 @@ async function seedCategories(userId: string) {
       where: {
         userId_type_group_name: { userId, type: cat.type, group: cat.group, name: cat.name },
       },
-      update: {},
-      create: { userId, type: cat.type, group: cat.group, name: cat.name, icon: cat.icon },
+      update: { budgetTier: cat.budgetTier ?? null },
+      create: {
+        userId,
+        type: cat.type,
+        group: cat.group,
+        name: cat.name,
+        icon: cat.icon,
+        budgetTier: cat.budgetTier ?? null,
+      },
     })
   }
 }
@@ -150,17 +165,125 @@ async function main() {
     ],
   })
 
-  // Budget
+  // Lookup more categories for budgets
+  const mortgage = await db.category.findFirst({ where: { userId: user.id, name: 'Mortgage' } })
+  const internet = await db.category.findFirst({ where: { userId: user.id, name: 'Internet & Cable' } })
+  const phone = await db.category.findFirst({ where: { userId: user.id, name: 'Phone' } })
+  const dining = await db.category.findFirst({ where: { userId: user.id, name: 'Restaurants & Bars' } })
+  const travel = await db.category.findFirst({ where: { userId: user.id, name: 'Travel & Vacation' } })
+
+  // ─── FIXED budgets ─────────────────────────────────────────────────
+  if (mortgage) {
+    await db.budget.create({
+      data: {
+        userId: user.id,
+        categoryId: mortgage.id,
+        name: 'Mortgage',
+        amount: 1850,
+        spent: 1850,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FIXED,
+        startDate: new Date('2026-02-01'),
+        isAutoPay: true,
+        dueDay: 1,
+        varianceLimit: 0,
+      },
+    })
+  }
+
+  if (internet) {
+    await db.budget.create({
+      data: {
+        userId: user.id,
+        categoryId: internet.id,
+        name: 'Internet',
+        amount: 79.99,
+        spent: 0,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FIXED,
+        startDate: new Date('2026-02-01'),
+        isAutoPay: true,
+        dueDay: 15,
+        varianceLimit: 5,
+      },
+    })
+  }
+
+  if (phone) {
+    await db.budget.create({
+      data: {
+        userId: user.id,
+        categoryId: phone.id,
+        name: 'Phone plan',
+        amount: 55,
+        spent: 55,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FIXED,
+        startDate: new Date('2026-02-01'),
+        isAutoPay: true,
+        dueDay: 20,
+      },
+    })
+  }
+
+  // ─── FLEXIBLE budgets ──────────────────────────────────────────────
   if (groceries) {
     await db.budget.create({
       data: {
         userId: user.id,
         categoryId: groceries.id,
-        name: 'Grocery Budget',
+        name: 'Groceries',
         amount: 500,
         spent: 120.5,
         period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FLEXIBLE,
         startDate: new Date('2026-02-01'),
+      },
+    })
+  }
+
+  if (dining) {
+    await db.budget.create({
+      data: {
+        userId: user.id,
+        categoryId: dining.id,
+        name: 'Dining out',
+        amount: 200,
+        spent: 85,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FLEXIBLE,
+        startDate: new Date('2026-02-01'),
+      },
+    })
+  }
+
+  // ─── ANNUAL budgets ────────────────────────────────────────────────
+  if (travel) {
+    const vacationBudget = await db.budget.create({
+      data: {
+        userId: user.id,
+        categoryId: travel.id,
+        name: 'Summer vacation',
+        amount: 300,
+        spent: 0,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.ANNUAL,
+        startDate: new Date('2026-01-01'),
+      },
+    })
+
+    await db.annualExpense.create({
+      data: {
+        userId: user.id,
+        budgetId: vacationBudget.id,
+        name: 'Summer vacation',
+        annualAmount: 3600,
+        dueMonth: 7,
+        dueYear: 2026,
+        monthlySetAside: 300,
+        funded: 600,
+        isRecurring: false,
+        status: 'planned',
       },
     })
   }

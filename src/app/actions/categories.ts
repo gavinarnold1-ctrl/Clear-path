@@ -22,9 +22,12 @@ export async function createCategory(
   const type = (formData.get('type') as string)?.toLowerCase()
   const group = (formData.get('group') as string)?.trim() || 'Other'
   const icon = (formData.get('icon') as string)?.trim() || null
+  const budgetTier = (formData.get('budgetTier') as string) || null
+  const validTiers = ['FIXED', 'FLEXIBLE', 'ANNUAL']
 
   if (!name) return { error: 'Category name is required.' }
   if (!(VALID_TYPES as readonly string[]).includes(type)) return { error: 'Invalid category type.' }
+  if (budgetTier && !validTiers.includes(budgetTier)) return { error: 'Invalid budget tier.' }
 
   const existing = await db.category.findFirst({
     where: { userId: session.userId, name, type, group },
@@ -39,6 +42,7 @@ export async function createCategory(
       group,
       icon,
       isDefault: false,
+      budgetTier: budgetTier as 'FIXED' | 'FLEXIBLE' | 'ANNUAL' | null,
     },
   })
 

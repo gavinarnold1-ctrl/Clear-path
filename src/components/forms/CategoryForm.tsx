@@ -72,6 +72,19 @@ export default function CategoryForm() {
         />
       </div>
 
+      {/* Budget tier */}
+      <div>
+        <label htmlFor="budgetTier" className="mb-1 block text-sm font-medium text-gray-700">
+          Default budget tier <span className="font-normal text-gray-400">(optional)</span>
+        </label>
+        <select id="budgetTier" name="budgetTier" className="input">
+          <option value="">None</option>
+          <option value="FIXED">Fixed</option>
+          <option value="FLEXIBLE">Flexible</option>
+          <option value="ANNUAL">Annual</option>
+        </select>
+      </div>
+
       <div className="flex gap-3 pt-1">
         <button type="submit" className="btn-primary" disabled={isPending}>
           {isPending ? 'Saving…' : 'Save category'}

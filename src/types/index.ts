@@ -6,6 +6,8 @@ export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' 
 
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM'
 
+export type BudgetTier = 'FIXED' | 'FLEXIBLE' | 'ANNUAL'
+
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
 export interface User {
@@ -30,6 +32,7 @@ export interface Category {
   group: string
   name: string
   icon: string | null
+  budgetTier: BudgetTier | null
   isDefault: boolean
   isActive: boolean
   userId: string | null
@@ -59,13 +62,35 @@ export interface Budget {
   amount: number
   spent: number
   period: BudgetPeriod
+  tier: BudgetTier
   startDate: Date
   endDate: Date | null
+  isAutoPay: boolean | null
+  dueDay: number | null
+  varianceLimit: number | null
   userId: string
   categoryId: string | null
   category?: Category | null
+  annualExpense?: AnnualExpense | null
   createdAt: Date
   updatedAt: Date
+}
+
+export interface AnnualExpense {
+  id: string
+  budgetId: string
+  name: string
+  annualAmount: number
+  dueMonth: number
+  dueYear: number
+  isRecurring: boolean
+  monthlySetAside: number
+  funded: number
+  status: string
+  actualCost: number | null
+  actualDate: Date | null
+  notes: string | null
+  userId: string
 }
 
 // ─── API response shapes ──────────────────────────────────────────────────────
