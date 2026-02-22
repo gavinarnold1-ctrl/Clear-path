@@ -9,6 +9,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 **Clear-path** is a personal budgeting web app. Users can:
 
 - Track income and expenses across multiple accounts
+- Import bank CSV exports with smart column detection
 - Set spending budgets by category and period
 - View summary stats and recent transactions on an overview dashboard
 - Manage account balances (checking, savings, credit, investment, cash)
@@ -52,7 +53,10 @@ Clear-path/
 │   │   │   │   └── GenerateButton.tsx   # Client component for triggering insight generation
 │   │   │   ├── transactions/
 │   │   │   │   ├── page.tsx         # Transaction list
-│   │   │   │   └── new/page.tsx     # Create transaction
+│   │   │   │   ├── new/page.tsx     # Create transaction
+│   │   │   │   └── import/
+│   │   │   │       ├── page.tsx         # CSV import wizard page
+│   │   │   │       └── ImportWizard.tsx # Client component: upload → map → preview → import
 │   │   │   ├── budgets/
 │   │   │   │   ├── page.tsx         # Budget grid
 │   │   │   │   └── new/page.tsx     # Create budget
@@ -72,17 +76,23 @@ Clear-path/
 │   │   │   │   └── [id]/route.ts        # PATCH dismiss/complete insight
 │   │   │   └── transactions/
 │   │   │       ├── route.ts         # GET list, POST create
-│   │   │       └── [id]/route.ts    # GET one, PATCH, DELETE
+│   │   │       ├── [id]/route.ts    # GET one, PATCH, DELETE
+│   │   │       └── import/
+│   │   │           ├── route.ts         # POST: import confirmed transactions
+│   │   │           └── preview/route.ts # POST: parse CSV and return column mappings
 │   │   ├── globals.css
 │   │   ├── layout.tsx           # Root layout (Inter font, metadata)
 │   │   └── page.tsx             # Landing page
 │   ├── components/
 │   │   ├── forms/           # TransactionForm, BudgetForm, AccountForm, CategoryForm, LoginForm, RegisterForm
+│   │   ├── import/          # CsvUploader, ColumnMapper, ImportPreview, ImportSummary
 │   │   ├── insights/        # InsightCard, EfficiencyScoreGauge, SpendingComparison, InsightsList, InsightsSkeleton
 │   │   └── ui/              # BudgetCard, ProgressBar
 │   ├── lib/
 │   │   ├── ai.ts            # Anthropic SDK client + prompt builder for insights
 │   │   ├── benchmarks.ts    # BLS spending benchmark data + efficiency rating
+│   │   ├── column-mapping.ts # Smart CSV column name detection for bank imports
+│   │   ├── csv-parser.ts    # CSV parsing, date/amount handling, row transformation
 │   │   ├── db.ts            # Prisma client singleton (hot-reload safe)
 │   │   ├── insights.ts      # Transaction summary builder + insight generation/storage
 │   │   ├── jwt.ts           # Edge-safe JWT sign / verify (jose)
@@ -97,7 +107,7 @@ Clear-path/
 │   ├── setup.ts             # Vitest global setup (jest-dom matchers, mock cleanup)
 │   ├── actions/             # Server action tests (auth, accounts, transactions)
 │   ├── components/ui/       # Component tests (ProgressBar, BudgetCard)
-│   └── lib/                 # Unit tests (utils, jwt, password)
+│   └── lib/                 # Unit tests (utils, jwt, password, benchmarks, insights, csv-parser, column-mapping)
 ├── .env.example             # Environment variable template
 ├── .gitignore
 ├── next.config.ts
