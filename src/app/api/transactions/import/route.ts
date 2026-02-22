@@ -15,13 +15,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Verify account ownership
-    const account = await db.account.findUnique({
+    // Verify fallback account ownership
+    const fallbackAccount = await db.account.findUnique({
       where: { id: accountId, userId: session.userId },
     })
-    if (!account) {
+    if (!fallbackAccount) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
+
+    // Build account lookup map for CSV account column matching
+    const userAccounts = await db.account.findMany({
+      where: { userId: session.userId },
+    })
+    const accountNameMap = new Map(
+      userAccounts.map((a) => [a.name.toLowerCase(), a.id])
+    )
 
     const { headers, rows } = parseCSV(csvText)
     const result = transformRows(rows, headers, mapping)
@@ -76,9 +84,16 @@ export async function POST(request: Request) {
         if (matched) categoryId = matched.id
       }
 
+      // Match CSV account name to user account, fall back to selected account
+      let resolvedAccountId = accountId
+      if (tx.account) {
+        const matched = accountNameMap.get(tx.account.toLowerCase())
+        if (matched) resolvedAccountId = matched
+      }
+
       toImport.push({
         userId: session.userId,
-        accountId,
+        accountId: resolvedAccountId,
         date: new Date(tx.date),
         description: tx.description,
         amount: tx.amount,

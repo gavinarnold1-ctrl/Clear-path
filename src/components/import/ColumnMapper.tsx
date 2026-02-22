@@ -20,6 +20,7 @@ const FIELD_OPTIONS: { value: AppField; label: string }[] = [
   { value: 'amount', label: 'Amount' },
   { value: 'category', label: 'Category' },
   { value: 'type', label: 'Type' },
+  { value: 'account', label: 'Account' },
   { value: 'ignore', label: 'Ignore' },
 ]
 

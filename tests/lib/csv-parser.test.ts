@@ -195,6 +195,34 @@ describe('transformRows', () => {
     })
   })
 
+  it('extracts account field when mapped', () => {
+    const acctHeaders = ['Date', 'Description', 'Amount', 'Account']
+    const acctMapping: Record<string, string> = {
+      Date: 'date',
+      Description: 'description',
+      Amount: 'amount',
+      Account: 'account',
+    }
+
+    const rows = [
+      ['01/15/2026', 'Coffee Shop', '-5.50', 'Checking'],
+      ['01/16/2026', 'Salary', '3000.00', 'Savings'],
+    ]
+
+    const result = transformRows(rows, acctHeaders, acctMapping)
+
+    expect(result.transactions).toHaveLength(2)
+    expect(result.transactions[0].account).toBe('Checking')
+    expect(result.transactions[1].account).toBe('Savings')
+  })
+
+  it('sets account to undefined when not mapped', () => {
+    const rows = [['01/15/2026', 'Coffee Shop', '-5.50', 'Dining']]
+    const result = transformRows(rows, headers, mapping)
+
+    expect(result.transactions[0].account).toBeUndefined()
+  })
+
   it('handles debit/credit split columns', () => {
     const splitHeaders = ['Date', 'Description', 'Debit', 'Credit']
     const splitMapping: Record<string, string> = {

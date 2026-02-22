@@ -53,6 +53,8 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
   // Result
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
 
+  const hasAccountColumn = mappings.some((m) => m.appField === 'account')
+
   async function handleUpload(file: File) {
     setLoading(true)
     setError(null)
@@ -180,7 +182,9 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
           <div className="flex items-end gap-4">
             <div className="flex-1">
               <label htmlFor="account" className="mb-1 block text-sm font-medium text-gray-700">
-                Import into account
+                {hasAccountColumn
+                  ? 'Fallback account (for rows that don\u2019t match an existing account)'
+                  : 'Import into account'}
               </label>
               <select
                 id="account"
@@ -194,6 +198,11 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
                   </option>
                 ))}
               </select>
+              {hasAccountColumn && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Account column detected — rows will be matched to your accounts by name.
+                </p>
+              )}
             </div>
             <div className="flex gap-3">
               <button

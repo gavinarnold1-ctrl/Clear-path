@@ -12,6 +12,7 @@ interface ImportPreviewProps {
 export default function ImportPreview({ transactions, errors, totalRows }: ImportPreviewProps) {
   const preview = transactions.slice(0, 10)
   const skippedOrErrored = totalRows - transactions.length
+  const hasAccount = transactions.some((tx) => tx.account)
 
   return (
     <div className="space-y-4">
@@ -41,6 +42,9 @@ export default function ImportPreview({ transactions, errors, totalRows }: Impor
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Description</th>
+                {hasAccount && (
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Account</th>
+                )}
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Category</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Amount</th>
               </tr>
@@ -50,6 +54,9 @@ export default function ImportPreview({ transactions, errors, totalRows }: Impor
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500">{tx.date}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{tx.description}</td>
+                  {hasAccount && (
+                    <td className="px-4 py-3 text-gray-500">{tx.account ?? '—'}</td>
+                  )}
                   <td className="px-4 py-3 text-gray-500">{tx.category ?? '—'}</td>
                   <td
                     className={`px-4 py-3 text-right font-semibold ${

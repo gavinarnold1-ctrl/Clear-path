@@ -3,6 +3,7 @@ export interface ParsedTransaction {
   description: string
   amount: number
   category?: string
+  account?: string
   type: 'INCOME' | 'EXPENSE'
   raw: Record<string, string>
 }
@@ -60,6 +61,7 @@ export function transformRows(
     .map((h, i) => ({ header: h, index: i }))
     .filter(({ header }) => mapping[header] === 'amount')
   const categoryCol = headers.findIndex((h) => mapping[h] === 'category')
+  const accountCol = headers.findIndex((h) => mapping[h] === 'account')
 
   if (dateCol === -1) {
     return {
@@ -120,6 +122,7 @@ export function transformRows(
       }
 
       const category = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
+      const account = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
 
       // Negative amount = expense, positive = income
       // Store as positive value with type (matching Clear-path convention)
@@ -135,6 +138,7 @@ export function transformRows(
         description,
         amount: Math.abs(amount),
         category,
+        account,
         type,
         raw,
       })
