@@ -30,9 +30,14 @@ export default async function TransactionsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-        <Link href="/transactions/new" className="btn-primary">
-          + Add transaction
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/transactions/import" className="btn-secondary">
+            Import CSV
+          </Link>
+          <Link href="/transactions/new" className="btn-primary">
+            + Add transaction
+          </Link>
+        </div>
       </div>
 
       {transactions.length === 0 ? (

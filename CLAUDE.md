@@ -9,9 +9,11 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 **Clear-path** is a personal budgeting web app. Users can:
 
 - Track income and expenses across multiple accounts
+- Import bank CSV exports with smart column detection
 - Set spending budgets by category and period
 - View summary stats and recent transactions on an overview dashboard
 - Manage account balances (checking, savings, credit, investment, cash)
+- Get AI-powered financial insights with actionable savings recommendations
 
 ---
 
@@ -23,7 +25,8 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 | Language | TypeScript | ^5.7 |
 | Styling | Tailwind CSS | ^3.4 |
 | ORM | Prisma | ^5.22 |
-| Database | SQLite (dev) — swap `DATABASE_URL` for PostgreSQL in prod | — |
+| Database | PostgreSQL (Neon) | — |
+| AI | Anthropic SDK (`@anthropic-ai/sdk`) | ^0.x |
 | Testing | Vitest + Testing Library | ^2.1 |
 | Runtime | Node.js | ≥ 22 |
 | Package manager | npm | — |
@@ -35,7 +38,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 ```
 Clear-path/
 ├── prisma/
-│   ├── schema.prisma        # Database schema (User, Account, Transaction, Budget, Category)
+│   ├── schema.prisma        # Database schema (User, Account, Transaction, Budget, Category, Insight, EfficiencyScore)
 │   └── seed.ts              # Demo seed data
 ├── src/
 │   ├── app/
@@ -44,33 +47,67 @@ Clear-path/
 │   │   │   └── register/page.tsx
 │   │   ├── (dashboard)/     # Route group: protected pages behind the sidebar layout
 │   │   │   ├── layout.tsx       # Sidebar nav wrapper
-│   │   │   ├── dashboard/page.tsx
-│   │   │   ├── transactions/page.tsx
-│   │   │   ├── budgets/page.tsx
-│   │   │   └── accounts/page.tsx
+│   │   │   ├── dashboard/page.tsx   # Overview with stats, budgets, spending breakdown
+│   │   │   ├── insights/
+│   │   │   │   ├── page.tsx             # AI-powered financial insights
+│   │   │   │   └── GenerateButton.tsx   # Client component for triggering insight generation
+│   │   │   ├── transactions/
+│   │   │   │   ├── page.tsx         # Transaction list
+│   │   │   │   ├── new/page.tsx     # Create transaction
+│   │   │   │   └── import/
+│   │   │   │       ├── page.tsx         # CSV import wizard page
+│   │   │   │       └── ImportWizard.tsx # Client component: upload → map → preview → import
+│   │   │   ├── budgets/
+│   │   │   │   ├── page.tsx         # Budget grid
+│   │   │   │   └── new/page.tsx     # Create budget
+│   │   │   ├── accounts/
+│   │   │   │   ├── page.tsx         # Account list with net worth
+│   │   │   │   └── new/page.tsx     # Create account
+│   │   │   └── categories/
+│   │   │       ├── page.tsx         # Category list
+│   │   │       └── new/page.tsx     # Create category
+│   │   ├── actions/         # Server actions (auth, accounts, transactions, budgets, categories)
 │   │   ├── api/
 │   │   │   ├── accounts/route.ts
 │   │   │   ├── budgets/route.ts
 │   │   │   ├── categories/route.ts
+│   │   │   ├── insights/
+│   │   │   │   ├── route.ts             # GET active insights, POST generate new
+│   │   │   │   └── [id]/route.ts        # PATCH dismiss/complete insight
 │   │   │   └── transactions/
 │   │   │       ├── route.ts         # GET list, POST create
-│   │   │       └── [id]/route.ts    # GET one, PATCH, DELETE
+│   │   │       ├── [id]/route.ts    # GET one, PATCH, DELETE
+│   │   │       └── import/
+│   │   │           ├── route.ts         # POST: import confirmed transactions
+│   │   │           └── preview/route.ts # POST: parse CSV and return column mappings
 │   │   ├── globals.css
 │   │   ├── layout.tsx           # Root layout (Inter font, metadata)
 │   │   └── page.tsx             # Landing page
 │   ├── components/
-│   │   ├── charts/          # Spending / budget visualizations
-│   │   ├── forms/           # TransactionForm, BudgetForm, AccountForm, …
-│   │   └── ui/              # Design-system primitives (Button, Input, Card, …)
-│   ├── hooks/               # Custom React hooks (e.g. useTransactions, useBudgets)
+│   │   ├── forms/           # TransactionForm, BudgetForm, AccountForm, CategoryForm, LoginForm, RegisterForm
+│   │   ├── import/          # CsvUploader, ColumnMapper, ImportPreview, ImportSummary
+│   │   ├── insights/        # InsightCard, EfficiencyScoreGauge, SpendingComparison, InsightsList, InsightsSkeleton
+│   │   └── ui/              # BudgetCard, ProgressBar
 │   ├── lib/
+│   │   ├── ai.ts            # Anthropic SDK client + prompt builder for insights
+│   │   ├── benchmarks.ts    # BLS spending benchmark data + efficiency rating
+│   │   ├── column-mapping.ts # Smart CSV column name detection for bank imports
+│   │   ├── csv-parser.ts    # CSV parsing, date/amount handling, row transformation
 │   │   ├── db.ts            # Prisma client singleton (hot-reload safe)
+│   │   ├── insights.ts      # Transaction summary builder + insight generation/storage
+│   │   ├── jwt.ts           # Edge-safe JWT sign / verify (jose)
+│   │   ├── password.ts      # bcrypt hash / verify
+│   │   ├── session.ts       # Cookie-based session management
 │   │   └── utils.ts         # formatCurrency, formatDate, budgetProgress, cn
 │   └── types/
-│       └── index.ts         # Shared TypeScript types mirroring the Prisma schema
+│       ├── index.ts         # Shared TypeScript types mirroring the Prisma schema
+│       └── insights.ts      # Insight, EfficiencyScore, benchmark, and AI response types
+├── middleware.ts             # Auth guard — redirects unauthenticated users away from protected routes
 ├── tests/
-│   └── lib/
-│       └── utils.test.ts    # Unit tests for utility functions
+│   ├── setup.ts             # Vitest global setup (jest-dom matchers, mock cleanup)
+│   ├── actions/             # Server action tests (auth, accounts, transactions)
+│   ├── components/ui/       # Component tests (ProgressBar, BudgetCard)
+│   └── lib/                 # Unit tests (utils, jwt, password, benchmarks, insights, csv-parser, column-mapping)
 ├── .env.example             # Environment variable template
 ├── .gitignore
 ├── next.config.ts
@@ -90,15 +127,19 @@ Clear-path/
 
 ```
 User
- ├── Account[]        (checking, savings, credit, …)
- ├── Category[]       (Groceries, Salary, Rent, …)
- ├── Transaction[]    (INCOME | EXPENSE | TRANSFER)
- └── Budget[]         (amount limit per category / period)
+ ├── Account[]          (checking, savings, credit, …)
+ ├── Category[]         (Groceries, Salary, Rent, …)
+ ├── Transaction[]      (INCOME | EXPENSE | TRANSFER)
+ ├── Budget[]           (amount limit per category / period)
+ ├── Insight[]          (AI-generated financial recommendations)
+ └── EfficiencyScore[]  (monthly financial efficiency scores)
 ```
 
 Key relationships:
 - A `Transaction` belongs to one `Account` and optionally one `Category`.
 - A `Budget` optionally targets one `Category` and has a `BudgetPeriod` (weekly / monthly / quarterly / yearly / custom).
+- An `Insight` stores AI-generated recommendations with priority, savings estimates, and action items (JSON).
+- An `EfficiencyScore` tracks monthly financial efficiency (0-100) with spending/savings/debt sub-scores; unique per user+period.
 - All resources are scoped to a `User` via `userId`; cascade-delete on user removal.
 
 ---
@@ -109,12 +150,12 @@ Key relationships:
 npm install            # Install dependencies
 cp .env.example .env   # Set up local environment
 
-npm run db:push        # Sync Prisma schema → local SQLite DB
+npm run db:push        # Sync Prisma schema → PostgreSQL
 npm run db:seed        # Populate with demo data
 npm run db:studio      # Open Prisma Studio GUI
 
 npm run dev            # Start dev server at localhost:3000
-npm run build          # Production build
+npm run build          # prisma generate + db push + next build
 npm run lint           # ESLint
 npm run format         # Prettier
 
@@ -143,11 +184,19 @@ npm run test:coverage  # Coverage report
   - `.input` — standard form input
 - Brand colors: `brand-{50..900}`, plus `income` (#22c55e), `expense` (#ef4444), `transfer` (#f59e0b).
 
+### Authentication
+
+- JWT-based sessions stored in an `httpOnly` cookie (`clear-path-session`).
+- `src/lib/jwt.ts` handles sign / verify using `jose` (Edge-compatible, no Node.js built-ins).
+- `src/lib/session.ts` provides `getSession()`, `setSession()`, `clearSession()` helpers for Server Components and Route Handlers.
+- `middleware.ts` guards protected routes (`/dashboard`, `/insights`, `/transactions`, `/budgets`, `/accounts`, `/categories`) and redirects unauthenticated users to `/login`.
+- Server actions in `src/app/actions/` handle auth, CRUD for accounts, transactions, budgets, and categories.
+
 ### API Routes
 
 - Route handlers live in `src/app/api/`.
 - Always return `{ error: string }` with an appropriate HTTP status on failure.
-- User identity is currently passed as a query param (`?userId=…`) — replace with a proper session lookup when auth is wired up.
+- User identity is resolved from the session cookie via `getSession()`.
 - Use `NextResponse.json()` for all responses.
 
 ### Database / Prisma
@@ -158,16 +207,18 @@ npm run test:coverage  # Coverage report
 
 ### Components
 
-- UI primitives go in `src/components/ui/` (Button, Input, Card, Badge, …).
-- Form components go in `src/components/forms/` and should be controlled or use React Hook Form.
-- Data-fetching components should be React Server Components where possible; use `'use client'` only when client interactivity is required.
+- UI primitives go in `src/components/ui/` (BudgetCard, ProgressBar).
+- Form components go in `src/components/forms/` and use `useActionState` with server actions.
+- Data-fetching components should be React Server Components where possible; use `'use client'` only when client interactivity is required (forms).
 
 ### Testing
 
 - Test files live in `tests/` mirroring the `src/` structure.
 - Unit tests use Vitest with `globals: true` (no need to import `describe`, `it`, `expect`).
+- `tests/setup.ts` imports `@testing-library/jest-dom/vitest` for DOM matchers and clears mocks after each test.
 - Component tests use `@testing-library/react`.
-- Mock Prisma in API tests — never hit a real database in CI.
+- Mock Prisma in server action tests — never hit a real database in CI.
+- `tests/` is excluded from `tsconfig.json` so test-only imports (vitest, jest-dom) don't interfere with the Next.js build.
 
 ---
 
@@ -196,6 +247,26 @@ git push -u origin <branch-name>
 
 - Do not force-push `main`.
 - Retry on network failure with exponential backoff (2 s → 4 s → 8 s → 16 s).
+
+---
+
+## Deployment (Vercel + Neon)
+
+The app deploys on **Vercel** with a **Neon PostgreSQL** database.
+
+### Required Environment Variables (Vercel project settings)
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Neon **pooled** connection string |
+| `DIRECT_URL` | Neon **direct** (non-pooled) connection string |
+| `SESSION_SECRET` | Random 32+ character string for JWT signing |
+| `ANTHROPIC_API_KEY` | Anthropic API key for AI Insights feature |
+
+### Build Pipeline
+
+`npm run build` runs: `prisma generate` → `prisma db push` → `next build`.
+This ensures the Prisma client is generated and database tables exist before the Next.js build.
 
 ---
 

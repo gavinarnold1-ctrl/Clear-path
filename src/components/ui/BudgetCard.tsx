@@ -1,5 +1,6 @@
 import ProgressBar from './ProgressBar'
 import { formatCurrency, budgetProgress } from '@/lib/utils'
+import { deleteBudget } from '@/app/actions/budgets'
 
 interface Category {
   name: string
@@ -65,13 +66,29 @@ export default function BudgetCard({ budget }: { budget: Budget }) {
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-gray-100 pt-2">
         <span className="text-xs text-gray-400">Limit: {formatCurrency(budget.amount)}</span>
-        <span
-          className={`text-xs font-semibold ${
-            pct >= 100 ? 'text-red-600' : pct >= 80 ? 'text-amber-600' : 'text-brand-600'
-          }`}
-        >
-          {pct}%
-        </span>
+        <div className="flex items-center gap-3">
+          <span
+            className={`text-xs font-semibold ${
+              pct >= 100 ? 'text-red-600' : pct >= 80 ? 'text-amber-600' : 'text-brand-600'
+            }`}
+          >
+            {pct}%
+          </span>
+          <form
+            action={async () => {
+              'use server'
+              await deleteBudget(budget.id)
+            }}
+          >
+            <button
+              type="submit"
+              className="text-xs text-gray-400 hover:text-red-500"
+              aria-label={`Delete ${budget.name}`}
+            >
+              Delete
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

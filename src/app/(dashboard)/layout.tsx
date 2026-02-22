@@ -5,6 +5,7 @@ import { logout } from '@/app/actions/auth'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
+  { href: '/insights', label: 'Insights' },
   { href: '/transactions', label: 'Transactions' },
   { href: '/budgets', label: 'Budgets' },
   { href: '/accounts', label: 'Accounts' },
