@@ -45,10 +45,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts     Account[]
-  transactions Transaction[]
-  budgets      Budget[]
-  categories   Category[]
+  accounts         Account[]
+  transactions     Transaction[]
+  budgets          Budget[]
+  categories       Category[]
+  insights         Insight[]
+  efficiencyScores EfficiencyScore[]
 }
 
 model Account {
@@ -112,4 +114,42 @@ model Budget {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
+}
+
+model Insight {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      String    // "spending", "debt", "savings", "tax", "subscription"
+  type          String    // "waste", "optimization", "alert", "opportunity"
+  priority      String    // "high", "medium", "low"
+  title         String
+  description   String
+  savingsAmount Float?    // Estimated dollar savings (monthly)
+  actionItems   String    // JSON array of action steps
+  status        String    @default("active") // "active", "dismissed", "completed"
+  metadata      String?   // JSON blob for additional context
+  generatedAt   DateTime  @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, category])
+}
+
+model EfficiencyScore {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  overallScore  Float    // 0-100
+  spendingScore Float    // 0-100
+  savingsScore  Float    // 0-100
+  debtScore     Float    // 0-100
+  period        String   // "2026-02" (year-month)
+  breakdown     String   // JSON with detailed scoring
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, period])
+  @@index([userId])
 }

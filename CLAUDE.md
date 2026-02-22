@@ -12,6 +12,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 - Set spending budgets by category and period
 - View summary stats and recent transactions on an overview dashboard
 - Manage account balances (checking, savings, credit, investment, cash)
+- Get AI-powered financial insights with actionable savings recommendations
 
 ---
 
@@ -24,6 +25,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 | Styling | Tailwind CSS | ^3.4 |
 | ORM | Prisma | ^5.22 |
 | Database | PostgreSQL (Neon) | — |
+| AI | Anthropic SDK (`@anthropic-ai/sdk`) | ^0.x |
 | Testing | Vitest + Testing Library | ^2.1 |
 | Runtime | Node.js | ≥ 22 |
 | Package manager | npm | — |
@@ -35,7 +37,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 ```
 Clear-path/
 ├── prisma/
-│   ├── schema.prisma        # Database schema (User, Account, Transaction, Budget, Category)
+│   ├── schema.prisma        # Database schema (User, Account, Transaction, Budget, Category, Insight, EfficiencyScore)
 │   └── seed.ts              # Demo seed data
 ├── src/
 │   ├── app/
@@ -45,6 +47,9 @@ Clear-path/
 │   │   ├── (dashboard)/     # Route group: protected pages behind the sidebar layout
 │   │   │   ├── layout.tsx       # Sidebar nav wrapper
 │   │   │   ├── dashboard/page.tsx   # Overview with stats, budgets, spending breakdown
+│   │   │   ├── insights/
+│   │   │   │   ├── page.tsx             # AI-powered financial insights
+│   │   │   │   └── GenerateButton.tsx   # Client component for triggering insight generation
 │   │   │   ├── transactions/
 │   │   │   │   ├── page.tsx         # Transaction list
 │   │   │   │   └── new/page.tsx     # Create transaction
@@ -62,6 +67,9 @@ Clear-path/
 │   │   │   ├── accounts/route.ts
 │   │   │   ├── budgets/route.ts
 │   │   │   ├── categories/route.ts
+│   │   │   ├── insights/
+│   │   │   │   ├── route.ts             # GET active insights, POST generate new
+│   │   │   │   └── [id]/route.ts        # PATCH dismiss/complete insight
 │   │   │   └── transactions/
 │   │   │       ├── route.ts         # GET list, POST create
 │   │   │       └── [id]/route.ts    # GET one, PATCH, DELETE
@@ -70,15 +78,20 @@ Clear-path/
 │   │   └── page.tsx             # Landing page
 │   ├── components/
 │   │   ├── forms/           # TransactionForm, BudgetForm, AccountForm, CategoryForm, LoginForm, RegisterForm
+│   │   ├── insights/        # InsightCard, EfficiencyScoreGauge, SpendingComparison, InsightsList, InsightsSkeleton
 │   │   └── ui/              # BudgetCard, ProgressBar
 │   ├── lib/
+│   │   ├── ai.ts            # Anthropic SDK client + prompt builder for insights
+│   │   ├── benchmarks.ts    # BLS spending benchmark data + efficiency rating
 │   │   ├── db.ts            # Prisma client singleton (hot-reload safe)
+│   │   ├── insights.ts      # Transaction summary builder + insight generation/storage
 │   │   ├── jwt.ts           # Edge-safe JWT sign / verify (jose)
 │   │   ├── password.ts      # bcrypt hash / verify
 │   │   ├── session.ts       # Cookie-based session management
 │   │   └── utils.ts         # formatCurrency, formatDate, budgetProgress, cn
 │   └── types/
-│       └── index.ts         # Shared TypeScript types mirroring the Prisma schema
+│       ├── index.ts         # Shared TypeScript types mirroring the Prisma schema
+│       └── insights.ts      # Insight, EfficiencyScore, benchmark, and AI response types
 ├── middleware.ts             # Auth guard — redirects unauthenticated users away from protected routes
 ├── tests/
 │   ├── setup.ts             # Vitest global setup (jest-dom matchers, mock cleanup)
@@ -104,15 +117,19 @@ Clear-path/
 
 ```
 User
- ├── Account[]        (checking, savings, credit, …)
- ├── Category[]       (Groceries, Salary, Rent, …)
- ├── Transaction[]    (INCOME | EXPENSE | TRANSFER)
- └── Budget[]         (amount limit per category / period)
+ ├── Account[]          (checking, savings, credit, …)
+ ├── Category[]         (Groceries, Salary, Rent, …)
+ ├── Transaction[]      (INCOME | EXPENSE | TRANSFER)
+ ├── Budget[]           (amount limit per category / period)
+ ├── Insight[]          (AI-generated financial recommendations)
+ └── EfficiencyScore[]  (monthly financial efficiency scores)
 ```
 
 Key relationships:
 - A `Transaction` belongs to one `Account` and optionally one `Category`.
 - A `Budget` optionally targets one `Category` and has a `BudgetPeriod` (weekly / monthly / quarterly / yearly / custom).
+- An `Insight` stores AI-generated recommendations with priority, savings estimates, and action items (JSON).
+- An `EfficiencyScore` tracks monthly financial efficiency (0-100) with spending/savings/debt sub-scores; unique per user+period.
 - All resources are scoped to a `User` via `userId`; cascade-delete on user removal.
 
 ---
@@ -162,7 +179,7 @@ npm run test:coverage  # Coverage report
 - JWT-based sessions stored in an `httpOnly` cookie (`clear-path-session`).
 - `src/lib/jwt.ts` handles sign / verify using `jose` (Edge-compatible, no Node.js built-ins).
 - `src/lib/session.ts` provides `getSession()`, `setSession()`, `clearSession()` helpers for Server Components and Route Handlers.
-- `middleware.ts` guards protected routes (`/dashboard`, `/transactions`, `/budgets`, `/accounts`, `/categories`) and redirects unauthenticated users to `/login`.
+- `middleware.ts` guards protected routes (`/dashboard`, `/insights`, `/transactions`, `/budgets`, `/accounts`, `/categories`) and redirects unauthenticated users to `/login`.
 - Server actions in `src/app/actions/` handle auth, CRUD for accounts, transactions, budgets, and categories.
 
 ### API Routes
@@ -234,6 +251,7 @@ The app deploys on **Vercel** with a **Neon PostgreSQL** database.
 | `DATABASE_URL` | Neon **pooled** connection string |
 | `DIRECT_URL` | Neon **direct** (non-pooled) connection string |
 | `SESSION_SECRET` | Random 32+ character string for JWT signing |
+| `ANTHROPIC_API_KEY` | Anthropic API key for AI Insights feature |
 
 ### Build Pipeline
 
