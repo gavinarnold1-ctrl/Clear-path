@@ -22,12 +22,12 @@ export async function buildTransactionSummary(
     orderBy: { date: 'desc' },
   })
 
-  // Amounts are always positive; type determines direction
-  const income = transactions.filter((t) => t.type === 'INCOME')
-  const expenses = transactions.filter((t) => t.type === 'EXPENSE')
+  // Signed amounts: positive = income, negative = expense
+  const income = transactions.filter((t) => t.amount > 0)
+  const expenses = transactions.filter((t) => t.amount < 0)
 
   const totalIncome = income.reduce((sum, t) => sum + t.amount, 0)
-  const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0)
+  const totalExpenses = expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
   // Category breakdown with benchmarks
   const categoryMap = new Map<string, typeof expenses>()
@@ -38,7 +38,7 @@ export async function buildTransactionSummary(
   })
 
   const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, txns]) => {
-    const total = txns.reduce((sum, t) => sum + t.amount, 0)
+    const total = txns.reduce((sum, t) => sum + Math.abs(t.amount), 0)
     const monthlyAvg = total / months
     const benchmark = getBenchmark(category)
 
@@ -60,13 +60,13 @@ export async function buildTransactionSummary(
   // Top merchants by spend
   const merchantMap = new Map<string, { total: number; count: number; category: string }>()
   expenses.forEach((t) => {
-    const merchant = t.description
+    const merchant = t.merchant
     const existing = merchantMap.get(merchant) ?? {
       total: 0,
       count: 0,
       category: t.category?.name ?? 'Uncategorized',
     }
-    existing.total += t.amount
+    existing.total += Math.abs(t.amount)
     existing.count += 1
     merchantMap.set(merchant, existing)
   })
@@ -98,7 +98,7 @@ export async function buildTransactionSummary(
 
 interface TransactionWithCategory {
   amount: number
-  description: string
+  merchant: string
   date: Date
   category: { name: string } | null
 }
@@ -106,9 +106,9 @@ interface TransactionWithCategory {
 function detectRecurring(expenses: TransactionWithCategory[]): RecurringCharge[] {
   const groups = new Map<string, number[]>()
   expenses.forEach((t) => {
-    const key = t.description
+    const key = t.merchant
     if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(t.amount)
+    groups.get(key)!.push(Math.abs(t.amount))
   })
 
   const recurring: RecurringCharge[] = []
@@ -147,12 +147,12 @@ function calculateMoMChange(expenses: TransactionWithCategory[]): MonthOverMonth
 
   currentMonth.forEach((t) => {
     const cat = t.category?.name ?? 'Uncategorized'
-    currentByCategory.set(cat, (currentByCategory.get(cat) ?? 0) + t.amount)
+    currentByCategory.set(cat, (currentByCategory.get(cat) ?? 0) + Math.abs(t.amount))
   })
 
   prevMonth.forEach((t) => {
     const cat = t.category?.name ?? 'Uncategorized'
-    prevByCategory.set(cat, (prevByCategory.get(cat) ?? 0) + t.amount)
+    prevByCategory.set(cat, (prevByCategory.get(cat) ?? 0) + Math.abs(t.amount))
   })
 
   const allCategories = new Set([...currentByCategory.keys(), ...prevByCategory.keys()])
