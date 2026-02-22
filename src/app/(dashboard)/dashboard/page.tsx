@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, budgetProgress } from '@/lib/utils'
+import ProgressBar from '@/components/ui/ProgressBar'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [accounts, incomeAgg, expenseAgg, recent] = await Promise.all([
+  const [accounts, incomeAgg, expenseAgg, recent, activeBudgets, categorySpending] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     db.transaction.aggregate({
       where: { userId: session.userId, type: 'INCOME', date: { gte: startOfMonth } },
@@ -53,11 +54,40 @@ export default async function DashboardPage() {
       orderBy: { date: 'desc' },
       take: 5,
     }),
+    db.budget.findMany({
+      where: {
+        userId: session.userId,
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+      },
+      include: { category: true },
+      orderBy: { spent: 'desc' },
+      take: 4,
+    }),
+    db.transaction.groupBy({
+      by: ['categoryId'],
+      where: { userId: session.userId, type: 'EXPENSE', date: { gte: startOfMonth }, categoryId: { not: null } },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: 'desc' } },
+      take: 6,
+    }),
   ])
 
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0)
   const monthlyIncome = incomeAgg._sum.amount ?? 0
   const monthlyExpense = expenseAgg._sum.amount ?? 0
+
+  // Resolve category names for spending breakdown
+  const catIds = categorySpending.map((g) => g.categoryId).filter((id): id is string => id !== null)
+  const categories = catIds.length > 0
+    ? await db.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true, color: true } })
+    : []
+  const catMap = new Map(categories.map((c) => [c.id, c]))
+  const spendingByCategory = categorySpending.map((g) => {
+    const cat = catMap.get(g.categoryId!)
+    return { name: cat?.name ?? 'Unknown', color: cat?.color ?? '#6366f1', amount: g._sum.amount ?? 0 }
+  })
+  const maxCategoryAmount = Math.max(...spendingByCategory.map((s) => s.amount), 1)
 
   return (
     <div>
@@ -82,6 +112,83 @@ export default async function DashboardPage() {
           value={formatCurrency(monthlyExpense)}
           valueClass="text-expense"
         />
+      </div>
+
+      {/* Budget overview + Spending by category */}
+      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Active budgets */}
+        <div className="card">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-900">Active budgets</h2>
+            <Link href="/budgets" className="text-sm text-brand-600 hover:text-brand-700">
+              View all →
+            </Link>
+          </div>
+
+          {activeBudgets.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No active budgets.{' '}
+              <Link href="/budgets/new" className="text-brand-600 hover:underline">
+                Create one
+              </Link>{' '}
+              to track spending.
+            </p>
+          ) : (
+            <ul className="space-y-4">
+              {activeBudgets.map((b) => {
+                const pct = budgetProgress(b.spent, b.amount)
+                return (
+                  <li key={b.id}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="font-medium text-gray-900">{b.name}</span>
+                      <span className="text-gray-500">
+                        {formatCurrency(b.spent)} / {formatCurrency(b.amount)}
+                      </span>
+                    </div>
+                    <ProgressBar value={pct} />
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Spending by category */}
+        <div className="card">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Spending by category</h2>
+
+          {spendingByCategory.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No categorised expenses this month.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {spendingByCategory.map((s) => (
+                <li key={s.name} className="flex items-center gap-3">
+                  <span
+                    className="inline-block h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <div className="flex-1">
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="font-medium text-gray-700">{s.name}</span>
+                      <span className="text-gray-500">{formatCurrency(s.amount)}</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.round((s.amount / maxCategoryAmount) * 100)}%`,
+                          backgroundColor: s.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Recent transactions */}
