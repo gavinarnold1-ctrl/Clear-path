@@ -12,7 +12,10 @@ export default async function NewTransactionPage() {
 
   const [accounts, categories] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId }, orderBy: { name: 'asc' } }),
-    db.category.findMany({ where: { userId: session.userId }, orderBy: { name: 'asc' } }),
+    db.category.findMany({
+      where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }], isActive: true },
+      orderBy: [{ group: 'asc' }, { name: 'asc' }],
+    }),
   ])
 
   return (

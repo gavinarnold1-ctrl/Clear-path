@@ -11,8 +11,8 @@ export default async function NewBudgetPage() {
   if (!session) redirect('/login')
 
   const categories = await db.category.findMany({
-    where: { userId: session.userId },
-    orderBy: { name: 'asc' },
+    where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }], isActive: true },
+    orderBy: [{ group: 'asc' }, { name: 'asc' }],
   })
 
   return (

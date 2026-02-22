@@ -18,8 +18,8 @@ export default async function CategoriesPage() {
   if (!session) redirect('/login')
 
   const categories = await db.category.findMany({
-    where: { userId: session.userId },
-    orderBy: [{ type: 'asc' }, { name: 'asc' }],
+    where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }], isActive: true },
+    orderBy: [{ group: 'asc' }, { type: 'asc' }, { name: 'asc' }],
   })
 
   return (
@@ -68,20 +68,22 @@ export default async function CategoriesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <form
-                      action={async () => {
-                        'use server'
-                        await deleteCategory(cat.id)
-                      }}
-                    >
-                      <button
-                        type="submit"
-                        className="text-xs text-gray-400 hover:text-red-500"
-                        aria-label={`Delete ${cat.name}`}
+                    {cat.userId && (
+                      <form
+                        action={async () => {
+                          'use server'
+                          await deleteCategory(cat.id)
+                        }}
                       >
-                        Delete
-                      </button>
-                    </form>
+                        <button
+                          type="submit"
+                          className="text-xs text-gray-400 hover:text-red-500"
+                          aria-label={`Delete ${cat.name}`}
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    )}
                   </td>
                 </tr>
               ))}

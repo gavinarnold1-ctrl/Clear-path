@@ -3,11 +3,10 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { calculateTierSummary, tierLabel, tierDescription } from '@/lib/budget-engine'
-import TierSummaryHeader from '@/components/ui/TierSummaryHeader'
-import FixedBudgetCard from '@/components/ui/FixedBudgetCard'
-import BudgetCard from '@/components/ui/BudgetCard'
-import AnnualBudgetCard from '@/components/ui/AnnualBudgetCard'
+import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
+import FixedBudgetSection from '@/components/budgets/FixedBudgetSection'
+import FlexibleBudgetSection from '@/components/budgets/FlexibleBudgetSection'
+import AnnualBudgetSection from '@/components/budgets/AnnualBudgetSection'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
@@ -15,30 +14,46 @@ export default async function BudgetsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const budgets = await db.budget.findMany({
-    where: { userId: session.userId },
-    include: { category: true, annualExpense: true },
-    orderBy: { startDate: 'desc' },
-  })
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+  const [budgets, transactions, incomeAgg] = await Promise.all([
+    db.budget.findMany({
+      where: { userId: session.userId },
+      include: { category: true, annualExpense: true },
+      orderBy: [{ tier: 'asc' }, { amount: 'desc' }],
+    }),
+    // Current month's expense transactions for fixed status detection
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: startOfMonth, lte: endOfMonth },
+        amount: { lt: 0 },
+      },
+    }),
+    // Current month's income for True Remaining
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: startOfMonth, lte: endOfMonth },
+        amount: { gt: 0 },
+      },
+      _sum: { amount: true },
+    }),
+  ])
+
+  const income = incomeAgg._sum.amount ?? 0
 
   const fixed = budgets.filter((b) => b.tier === 'FIXED')
   const flexible = budgets.filter((b) => b.tier === 'FLEXIBLE')
   const annual = budgets.filter((b) => b.tier === 'ANNUAL')
 
-  const summary = calculateTierSummary(
-    budgets.map((b) => ({
-      tier: b.tier as 'FIXED' | 'FLEXIBLE' | 'ANNUAL',
-      amount: b.amount,
-      spent: b.spent,
-      annualExpense: b.annualExpense
-        ? {
-            monthlySetAside: b.annualExpense.monthlySetAside,
-            annualAmount: b.annualExpense.annualAmount,
-            funded: b.annualExpense.funded,
-          }
-        : null,
-    }))
-  )
+  const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
+  const flexibleSpent = flexible.reduce((sum, b) => sum + b.spent, 0)
+  const annualSetAside = annual.reduce((sum, b) => {
+    return sum + (b.annualExpense?.monthlySetAside ?? 0)
+  }, 0)
 
   return (
     <div>
@@ -61,51 +76,25 @@ export default async function BudgetsPage() {
         </div>
       ) : (
         <>
-          <TierSummaryHeader summary={summary} />
+          <TrueRemainingBanner
+            income={income}
+            fixedTotal={fixedTotal}
+            flexibleSpent={flexibleSpent}
+            annualSetAside={annualSetAside}
+          />
 
-          {/* Fixed tier */}
-          {fixed.length > 0 && (
-            <section className="mb-8">
-              <div className="mb-3">
-                <h2 className="text-lg font-semibold text-gray-900">{tierLabel('FIXED')}</h2>
-                <p className="text-sm text-gray-500">{tierDescription('FIXED')}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {fixed.map((budget) => (
-                  <FixedBudgetCard key={budget.id} budget={budget} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Flexible tier */}
-          {flexible.length > 0 && (
-            <section className="mb-8">
-              <div className="mb-3">
-                <h2 className="text-lg font-semibold text-gray-900">{tierLabel('FLEXIBLE')}</h2>
-                <p className="text-sm text-gray-500">{tierDescription('FLEXIBLE')}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {flexible.map((budget) => (
-                  <BudgetCard key={budget.id} budget={budget} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Annual tier */}
+          <FixedBudgetSection budgets={fixed} transactions={transactions} />
+          <FlexibleBudgetSection budgets={flexible} />
+          <AnnualBudgetSection budgets={annual} />
           {annual.length > 0 && (
-            <section className="mb-8">
-              <div className="mb-3">
-                <h2 className="text-lg font-semibold text-gray-900">{tierLabel('ANNUAL')}</h2>
-                <p className="text-sm text-gray-500">{tierDescription('ANNUAL')}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {annual.map((budget) => (
-                  <AnnualBudgetCard key={budget.id} budget={budget} />
-                ))}
-              </div>
-            </section>
+            <div className="-mt-5 mb-8 text-right">
+              <Link
+                href="/budgets/annual"
+                className="text-xs font-medium text-sky-600 hover:text-sky-700"
+              >
+                View full plan &rarr;
+              </Link>
+            </div>
           )}
         </>
       )}

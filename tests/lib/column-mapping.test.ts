@@ -9,7 +9,7 @@ describe('autoDetectColumns', () => {
 
     expect(mappings[0].appField).toBe('date')
     expect(mappings[0].confidence).toBe(1.0)
-    expect(mappings[1].appField).toBe('description')
+    expect(mappings[1].appField).toBe('merchant')
     expect(mappings[1].confidence).toBe(1.0)
     expect(mappings[2].appField).toBe('amount')
     expect(mappings[2].confidence).toBe(1.0)
@@ -24,7 +24,7 @@ describe('autoDetectColumns', () => {
     const mappings = autoDetectColumns(headers, sampleRows)
 
     expect(mappings[0].appField).toBe('date')
-    expect(mappings[1].appField).toBe('description')
+    expect(mappings[1].appField).toBe('merchant')
     expect(mappings[2].appField).toBe('amount')
   })
 
@@ -80,7 +80,7 @@ describe('autoDetectColumns', () => {
     const mappings = autoDetectColumns(headers, sampleRows)
 
     expect(mappings[0].appField).toBe('date')
-    expect(mappings[1].appField).toBe('description')
+    expect(mappings[1].appField).toBe('merchant')
     expect(mappings[2].appField).toBe('amount')
   })
 
@@ -92,5 +92,24 @@ describe('autoDetectColumns', () => {
 
     expect(mappings[2].appField).toBe('amount')
     expect(mappings[3].appField).toBe('amount')
+  })
+
+  it('detects "Account" column as account field', () => {
+    const headers = ['Date', 'Description', 'Amount', 'Account']
+    const sampleRows = [['01/15/2026', 'Coffee Shop', '-5.50', 'Checking']]
+
+    const mappings = autoDetectColumns(headers, sampleRows)
+
+    expect(mappings[3].appField).toBe('account')
+    expect(mappings[3].confidence).toBe(1.0)
+  })
+
+  it('detects "Account Name" as account field', () => {
+    const headers = ['Date', 'Account Name', 'Amount']
+    const sampleRows = [['01/15/2026', 'Savings', '100.00']]
+
+    const mappings = autoDetectColumns(headers, sampleRows)
+
+    expect(mappings[1].appField).toBe('account')
   })
 })

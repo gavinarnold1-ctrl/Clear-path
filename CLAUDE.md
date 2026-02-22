@@ -10,7 +10,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 
 - Track income and expenses across multiple accounts
 - Import bank CSV exports with smart column detection
-- Set spending budgets by category and period
+- Set spending budgets by category with tiered budgeting (fixed, flexible, annual)
 - View summary stats and recent transactions on an overview dashboard
 - Manage account balances (checking, savings, credit, investment, cash)
 - Get AI-powered financial insights with actionable savings recommendations
@@ -38,8 +38,8 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 ```
 Clear-path/
 ├── prisma/
-│   ├── schema.prisma        # Database schema (User, Account, Transaction, Budget, Category, Insight, EfficiencyScore)
-│   └── seed.ts              # Demo seed data
+│   ├── schema.prisma        # Database schema (User, Account, Transaction, Budget, Category, AnnualExpense, Insight, EfficiencyScore)
+│   └── seed.ts              # Monarch default categories + demo data
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/          # Route group: login, register pages
@@ -128,19 +128,22 @@ Clear-path/
 ```
 User
  ├── Account[]          (checking, savings, credit, …)
- ├── Category[]         (Groceries, Salary, Rent, …)
- ├── Transaction[]      (INCOME | EXPENSE | TRANSFER)
- ├── Budget[]           (amount limit per category / period)
+ ├── Category[]         (Groceries, Salary, Rent, … — system defaults + user-created)
+ ├── Transaction[]      (positive amount = income, negative = expense)
+ ├── Budget[]           (amount limit per category, period + tier via BudgetPeriod / BudgetTier enums)
+ ├── AnnualExpense[]    (linked to Budget; yearly irregular expenses with funding tracking)
  ├── Insight[]          (AI-generated financial recommendations)
  └── EfficiencyScore[]  (monthly financial efficiency scores)
 ```
 
 Key relationships:
-- A `Transaction` belongs to one `Account` and optionally one `Category`.
-- A `Budget` optionally targets one `Category` and has a `BudgetPeriod` (weekly / monthly / quarterly / yearly / custom).
+- A `Transaction` optionally belongs to an `Account` and optionally one `Category`. Income vs expense is determined by amount sign (positive = income, negative = expense). An optional `transactionType` field stores "debit"/"credit" from Monarch CSV imports. Indexed on `[userId, date]`, `[userId, categoryId]`, and `[accountId]`.
+- A `Category` has a `group` (e.g. "Food & Dining", "Housing"), a string `type` ("income" / "expense" / "transfer"), and an optional `budgetTier` (`BudgetTier` enum: FIXED / FLEXIBLE / ANNUAL). System default categories have `userId: null` and `isDefault: true`; user-created categories have `isDefault: false`. Unique on `[userId, type, group, name]`.
+- A `Budget` targets one `Category`, has a `period` (`BudgetPeriod` enum), `tier` (`BudgetTier` enum, default FLEXIBLE), and a stored `spent` field. FIXED tier budgets have extra fields: `isAutoPay`, `dueDay`, `varianceLimit`. Has an optional one-to-one `annualExpense` relation.
+- An `AnnualExpense` is linked to a `Budget` via `budgetId` (one-to-one). Tracks annual costs with `annualAmount`, `dueMonth`/`dueYear`, `monthlySetAside`, `funded`, and `status` ("planned" / "funded" / "spent" / "overspent").
 - An `Insight` stores AI-generated recommendations with priority, savings estimates, and action items (JSON).
 - An `EfficiencyScore` tracks monthly financial efficiency (0-100) with spending/savings/debt sub-scores; unique per user+period.
-- All resources are scoped to a `User` via `userId`; cascade-delete on user removal.
+- All resources are scoped to a `User` via `userId`; cascade-delete on user removal. Exception: system default categories have `userId: null`.
 
 ---
 

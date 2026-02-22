@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
+import { recalculateBudgetSpent } from '@/lib/budget-utils'
 
 export async function POST(request: Request) {
   const session = await getSession()
@@ -202,6 +203,9 @@ export async function POST(request: Request) {
       const created = await db.transaction.createMany({ data: chunk })
       importedCount += created.count
     }
+
+    // Recalculate budget spent values after import
+    await recalculateBudgetSpent(session.userId)
 
     return NextResponse.json({
       imported: importedCount,

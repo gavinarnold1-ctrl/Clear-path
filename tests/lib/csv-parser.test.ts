@@ -101,7 +101,7 @@ describe('parseAmount', () => {
     expect(parseAmount('(123.45)')).toBe(-123.45)
   })
 
-  it('strips currency symbols (€, £, ¥)', () => {
+  it('strips currency symbols', () => {
     expect(parseAmount('€100.00')).toBe(100)
     expect(parseAmount('£50.00')).toBe(50)
   })
@@ -116,10 +116,10 @@ describe('parseAmount', () => {
 })
 
 describe('transformRows', () => {
-  const headers = ['Date', 'Description', 'Amount', 'Category']
+  const headers = ['Date', 'Merchant', 'Amount', 'Category']
   const mapping: Record<string, string> = {
     Date: 'date',
-    Description: 'description',
+    Merchant: 'merchant',
     Amount: 'amount',
     Category: 'category',
   }
@@ -142,7 +142,7 @@ describe('transformRows', () => {
   })
 
   it('reports error when date column is not mapped', () => {
-    const result = transformRows([['val']], ['Col'], { Col: 'description' })
+    const result = transformRows([['val']], ['Col'], { Col: 'merchant' })
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0].message).toContain('No date column')
   })
@@ -187,17 +187,45 @@ describe('transformRows', () => {
 
     expect(result.transactions[0].raw).toEqual({
       Date: '01/15/2026',
-      Description: 'Test',
+      Merchant: 'Test',
       Amount: '10.00',
       Category: 'Food',
     })
   })
 
+  it('extracts account field when mapped', () => {
+    const acctHeaders = ['Date', 'Merchant', 'Amount', 'Account']
+    const acctMapping: Record<string, string> = {
+      Date: 'date',
+      Merchant: 'merchant',
+      Amount: 'amount',
+      Account: 'account',
+    }
+
+    const rows = [
+      ['01/15/2026', 'Coffee Shop', '-5.50', 'Checking'],
+      ['01/16/2026', 'Salary', '3000.00', 'Savings'],
+    ]
+
+    const result = transformRows(rows, acctHeaders, acctMapping)
+
+    expect(result.transactions).toHaveLength(2)
+    expect(result.transactions[0].account).toBe('Checking')
+    expect(result.transactions[1].account).toBe('Savings')
+  })
+
+  it('sets account to undefined when not mapped', () => {
+    const rows = [['01/15/2026', 'Coffee Shop', '-5.50', 'Dining']]
+    const result = transformRows(rows, headers, mapping)
+
+    expect(result.transactions[0].account).toBeUndefined()
+  })
+
   it('handles debit/credit split columns', () => {
-    const splitHeaders = ['Date', 'Description', 'Debit', 'Credit']
+    const splitHeaders = ['Date', 'Merchant', 'Debit', 'Credit']
     const splitMapping: Record<string, string> = {
       Date: 'date',
-      Description: 'description',
+      Merchant: 'merchant',
       Debit: 'amount',
       Credit: 'amount',
     }

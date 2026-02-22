@@ -115,7 +115,7 @@ model Transaction {
 }
 
 model Budget {
-  id        String       @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   amount    Float // target spend / save limit
   spent     Float        @default(0)

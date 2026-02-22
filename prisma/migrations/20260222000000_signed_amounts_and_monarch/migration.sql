@@ -25,10 +25,26 @@ ALTER TABLE "Category" ALTER COLUMN "userId" DROP NOT NULL;
 -- 4. Drop the color column (replaced by emoji icons)
 ALTER TABLE "Category" DROP COLUMN IF EXISTS "color";
 
--- 5. Add unique constraint and indexes
+-- 5. Deduplicate categories before adding unique constraint.
+--    All existing rows now share group='Other', so any categories with the same
+--    (userId, type, name) would collide. Append " (N)" to the duplicates.
+WITH numbered AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY "userId", "type", "group", "name"
+           ORDER BY "createdAt"
+         ) AS rn
+  FROM "Category"
+)
+UPDATE "Category"
+SET "name" = "Category"."name" || ' (' || numbered.rn || ')'
+FROM numbered
+WHERE "Category".id = numbered.id AND numbered.rn > 1;
+
+-- 6. Add unique constraint and indexes
 CREATE UNIQUE INDEX "Category_userId_type_group_name_key" ON "Category"("userId", "type", "group", "name");
-CREATE INDEX "Category_type_idx" ON "Category"("type");
-CREATE INDEX "Category_userId_idx" ON "Category"("userId");
+CREATE INDEX IF NOT EXISTS "Category_type_idx" ON "Category"("type");
+CREATE INDEX IF NOT EXISTS "Category_userId_idx" ON "Category"("userId");
 
 -- ─── Transaction table changes ──────────────────────────────────────────────
 
@@ -51,9 +67,9 @@ ALTER TABLE "Transaction" DROP COLUMN "type";
 ALTER TABLE "Transaction" ALTER COLUMN "accountId" DROP NOT NULL;
 
 -- 6. Add indexes
-CREATE INDEX "Transaction_userId_date_idx" ON "Transaction"("userId", "date");
-CREATE INDEX "Transaction_userId_categoryId_idx" ON "Transaction"("userId", "categoryId");
-CREATE INDEX "Transaction_accountId_idx" ON "Transaction"("accountId");
+CREATE INDEX IF NOT EXISTS "Transaction_userId_date_idx" ON "Transaction"("userId", "date");
+CREATE INDEX IF NOT EXISTS "Transaction_userId_categoryId_idx" ON "Transaction"("userId", "categoryId");
+CREATE INDEX IF NOT EXISTS "Transaction_accountId_idx" ON "Transaction"("accountId");
 
 -- ─── Clean up enum ──────────────────────────────────────────────────────────
 DROP TYPE IF EXISTS "TransactionType";
