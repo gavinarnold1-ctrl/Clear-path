@@ -1,9 +1,10 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 export default function MonthPicker({ currentMonth }: { currentMonth: string }) {
   const router = useRouter()
+  const pathname = usePathname()
 
   return (
     <input
@@ -12,9 +13,9 @@ export default function MonthPicker({ currentMonth }: { currentMonth: string }) 
       onChange={(e) => {
         const value = e.target.value
         if (value) {
-          router.push(`/dashboard?month=${value}`)
+          router.push(`${pathname}?month=${value}`)
         } else {
-          router.push('/dashboard')
+          router.push(pathname)
         }
       }}
       className="input text-sm"

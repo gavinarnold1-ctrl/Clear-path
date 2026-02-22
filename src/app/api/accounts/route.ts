@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
-const VALID_TYPES = new Set(['CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH'])
+const VALID_TYPES = new Set([
+  'CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH',
+  'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN',
+])
 
 export async function GET(_req: NextRequest) {
   const session = await getSession()

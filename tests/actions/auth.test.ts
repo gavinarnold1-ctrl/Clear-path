@@ -120,7 +120,7 @@ describe('register', () => {
 
     await expect(
       register({ error: null }, fd({ email: 'new@b.com', name: 'Bob', password: 'password123' }))
-    ).rejects.toThrow('NEXT_REDIRECT:/dashboard')
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding')
     expect(mockUser.create).toHaveBeenCalled()
     expect(mockSetSession).toHaveBeenCalledWith({ userId: 'new-id', email: 'new@b.com', name: 'Bob' })
   })
@@ -132,7 +132,7 @@ describe('register', () => {
 
     await expect(
       register({ error: null }, fd({ email: 'x@b.com', name: '', password: 'password123' }))
-    ).rejects.toThrow('NEXT_REDIRECT:/dashboard')
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding')
 
     const createCall = mockUser.create.mock.calls[0][0]
     expect(createCall.data.name).toBeNull()

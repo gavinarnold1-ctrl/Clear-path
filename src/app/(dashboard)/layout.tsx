@@ -10,6 +10,7 @@ const navItems = [
   { href: '/dashboard', label: 'Overview' },
   { href: '/insights', label: 'Insights' },
   { href: '/transactions', label: 'Transactions' },
+  { href: '/spending', label: 'Spending' },
   { href: '/budgets', label: 'Budgets' },
   { href: '/budgets/annual', label: 'Annual Plan' },
   { href: '/accounts', label: 'Accounts' },
