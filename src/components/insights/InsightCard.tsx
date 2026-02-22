@@ -24,11 +24,11 @@ const PRIORITY_STYLES: Record<string, { badge: string; border: string }> = {
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  spending: '💳',
-  debt: '📉',
-  savings: '🏦',
-  tax: '📋',
-  subscription: '🔄',
+  spending: '\uD83D\uDCB3',
+  debt: '\uD83D\uDCC9',
+  savings: '\uD83C\uDFE6',
+  tax: '\uD83D\uDCCB',
+  subscription: '\uD83D\uDD04',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,6 +37,14 @@ const TYPE_LABELS: Record<string, string> = {
   alert: 'Alert',
   opportunity: 'Opportunity',
 }
+
+const DISMISS_REASONS = [
+  { value: 'not_relevant', label: 'Not relevant to me' },
+  { value: 'already_doing', label: 'Already doing this' },
+  { value: 'too_hard', label: 'Too difficult to implement' },
+  { value: 'disagree', label: 'I disagree with this' },
+  { value: 'other', label: 'Other reason' },
+]
 
 export default function InsightCard({
   id,
@@ -53,9 +61,12 @@ export default function InsightCard({
 }: InsightCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [showDismissOptions, setShowDismissOptions] = useState(false)
+  const [showCompleteForm, setShowCompleteForm] = useState(false)
+  const [completionNotes, setCompletionNotes] = useState('')
 
   const styles = PRIORITY_STYLES[priority] ?? PRIORITY_STYLES.low
-  const icon = CATEGORY_ICONS[category] ?? '💡'
+  const icon = CATEGORY_ICONS[category] ?? '\uD83D\uDCA1'
   const parsedActions: string[] = (() => {
     try {
       return JSON.parse(actionItems)
@@ -72,20 +83,37 @@ export default function InsightCard({
     }
   })()
 
-  async function handleStatusChange(status: 'dismissed' | 'completed') {
+  async function handleDismiss(reason: string) {
     setUpdating(true)
     try {
       const res = await fetch(`/api/insights/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: 'dismissed', dismissReason: reason }),
       })
-      if (res.ok) {
-        if (status === 'dismissed') onDismiss(id)
-        else onComplete(id)
-      }
+      if (res.ok) onDismiss(id)
     } finally {
       setUpdating(false)
+      setShowDismissOptions(false)
+    }
+  }
+
+  async function handleComplete() {
+    setUpdating(true)
+    try {
+      const res = await fetch(`/api/insights/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'completed',
+          completionNotes: completionNotes.trim() || undefined,
+        }),
+      })
+      if (res.ok) onComplete(id)
+    } finally {
+      setUpdating(false)
+      setShowCompleteForm(false)
+      setCompletionNotes('')
     }
   }
 
@@ -141,24 +169,90 @@ export default function InsightCard({
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
-        <button
-          type="button"
-          onClick={() => handleStatusChange('completed')}
-          disabled={updating}
-          className="text-xs font-medium text-income hover:text-green-700 disabled:opacity-50"
-        >
-          Mark complete
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusChange('dismissed')}
-          disabled={updating}
-          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
-        >
-          Dismiss
-        </button>
-      </div>
+      {/* Dismiss reason picker */}
+      {showDismissOptions && (
+        <div className="mt-3 rounded-lg bg-gray-50 p-3">
+          <p className="mb-2 text-xs font-medium text-gray-600">Why are you dismissing this?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {DISMISS_REASONS.map((reason) => (
+              <button
+                key={reason.value}
+                type="button"
+                onClick={() => handleDismiss(reason.value)}
+                disabled={updating}
+                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {reason.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowDismissOptions(false)}
+            className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Completion notes form */}
+      {showCompleteForm && (
+        <div className="mt-3 rounded-lg bg-green-50 p-3">
+          <p className="mb-2 text-xs font-medium text-green-700">
+            What did you do? (optional)
+          </p>
+          <textarea
+            className="input w-full text-sm"
+            rows={2}
+            placeholder="e.g. Cancelled Netflix, switched to annual plan..."
+            value={completionNotes}
+            onChange={(e) => setCompletionNotes(e.target.value)}
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={handleComplete}
+              disabled={updating}
+              className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              {updating ? 'Saving...' : 'Complete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCompleteForm(false)
+                setCompletionNotes('')
+              }}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {!showDismissOptions && !showCompleteForm && (
+        <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowCompleteForm(true)}
+            disabled={updating}
+            className="text-xs font-medium text-income hover:text-green-700 disabled:opacity-50"
+          >
+            Mark complete
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDismissOptions(true)}
+            disabled={updating}
+            className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
     </div>
   )
 }

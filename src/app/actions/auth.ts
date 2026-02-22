@@ -21,11 +21,16 @@ export async function register(prevState: AuthState, formData: FormData): Promis
   if (existing) return { error: 'An account with this email already exists.' }
 
   const user = await db.user.create({
-    data: { email, name, password: await hashPassword(password) },
+    data: {
+      email,
+      name,
+      password: await hashPassword(password),
+      profile: { create: {} }, // creates UserProfile with onboardingCompleted=false
+    },
   })
 
   await setSession({ userId: user.id, email: user.email, name: user.name })
-  redirect('/dashboard')
+  redirect('/onboarding')
 }
 
 export async function login(prevState: AuthState, formData: FormData): Promise<AuthState> {

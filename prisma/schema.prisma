@@ -19,6 +19,9 @@ enum AccountType {
   CREDIT_CARD
   INVESTMENT
   CASH
+  MORTGAGE
+  AUTO_LOAN
+  STUDENT_LOAN
 }
 
 enum BudgetPeriod {
@@ -45,23 +48,29 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  profile          UserProfile?
   accounts         Account[]
   transactions     Transaction[]
   budgets          Budget[]
   categories       Category[]
   insights         Insight[]
+  insightFeedback  InsightFeedback[]
   efficiencyScores EfficiencyScore[]
   annualExpenses   AnnualExpense[]
+  householdMembers HouseholdMember[]
+  properties       Property[]
 }
 
 model Account {
-  id        String      @id @default(cuid())
-  name      String
-  type      AccountType
-  balance   Float       @default(0)
-  currency  String      @default("USD")
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String      @id @default(cuid())
+  name        String
+  type        AccountType
+  balance     Float       @default(0)
+  currency    String      @default("USD")
+  institution String?     // Bank/provider name (e.g., "Chase", "Fidelity")
+  isManual    Boolean     @default(true) // true = user-created, false = future Plaid-connected
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -69,16 +78,18 @@ model Account {
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  type      String   // "income" | "expense" | "transfer"
-  group     String   // Parent group name (e.g., "Food & Dining", "Housing")
-  name      String   // Specific category (e.g., "Groceries", "Mortgage")
-  icon      String?  // Emoji icon
-  budgetTier BudgetTier? // Default budget tier for this expense category
-  isDefault  Boolean     @default(true)
-  isActive   Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  type           String      // "income" | "expense" | "transfer"
+  group          String      // Parent group name (e.g., "Food & Dining", "Housing")
+  name           String      // Specific category (e.g., "Groceries", "Mortgage")
+  icon           String?     // Emoji icon
+  budgetTier     BudgetTier? // Default budget tier for this expense category
+  isDefault      Boolean     @default(true)
+  isActive       Boolean     @default(true)
+  isTaxRelevant  Boolean     @default(false) // Flag for tax-related categories
+  scheduleECategory String?  // Schedule E line item (for rental property)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   userId       String?       // null = system default, set = user custom
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -97,8 +108,10 @@ model Transaction {
   amount            Float    // ALWAYS: negative = money out, positive = money in
   transactionType   String?  // "debit" or "credit" (from Monarch CSV, optional)
   originalStatement String?  // Raw bank description before cleanup
+  originalCategory  String?  // Raw category name from CSV import (preserved for reference)
   notes             String?  // User-added notes
   tags              String?  // Comma-separated tags (e.g., "tax,business")
+  importSource      String?  // "csv" | "manual" | "plaid"
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -184,8 +197,30 @@ model Insight {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Feedback fields
+  dismissReason   String? // "not_relevant", "already_doing", "too_hard", "disagree", "other"
+  completionNotes String? // User notes when marking as completed
+  contextSnapshot String? // JSON snapshot of budget/temporal context at generation time
+
+  feedback InsightFeedback[]
+
   @@index([userId, status])
   @@index([userId, category])
+}
+
+model InsightFeedback {
+  id        String   @id @default(cuid())
+  insightId String
+  insight   Insight  @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int? // 1-5 star rating
+  helpful   Boolean? // Quick thumbs up/down
+  comment   String? // Free-form text
+  createdAt DateTime @default(now())
+
+  @@unique([insightId, userId])
+  @@index([userId])
 }
 
 model EfficiencyScore {
@@ -201,5 +236,61 @@ model EfficiencyScore {
   createdAt     DateTime @default(now())
 
   @@unique([userId, period])
+  @@index([userId])
+}
+
+// ─── Onboarding & Profile ─────────────────────────────────────────────────────
+
+model UserProfile {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Onboarding state
+  onboardingCompleted   Boolean   @default(false)
+  onboardingCompletedAt DateTime?
+  onboardingStep        Int       @default(0) // 0-6: tracks how far the user got
+
+  // Q1: Financial Goal
+  primaryGoal           String?   // "debt_payoff" | "emergency_savings" | "major_purchase" | "invest" | "organize"
+
+  // Q2: Household Structure
+  householdType         String?   // "single" | "shared_partner" | "separate_partner" | "family"
+
+  // Q4: Rental Property
+  hasRentalProperty     Boolean   @default(false)
+
+  // Q5: Debt Snapshot
+  debtLevel             String?   // "minimal" | "credit_cards" | "student_loans" | "multiple"
+
+  // Q6: Category Setup
+  categoryMode          String?   // "recommended" | "custom" | "import_match"
+
+  // In-progress answers not yet materialized into records (JSON)
+  pendingSetup          String?   // JSON: { partnerName?, accounts[], properties[] }
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model HouseholdMember {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  role      String   // "partner" | "dependent"
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Property {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String   // Nickname (e.g., "Nicoll St Duplex")
+  propertyType String   // "rental" | "primary" | "investment"
+  createdAt    DateTime @default(now())
+
   @@index([userId])
 }

@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
+import { db } from '@/lib/db'
+import OnboardingBanner from '@/components/onboarding/OnboardingBanner'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
@@ -15,6 +18,23 @@ const navItems = [
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
+
+  // Redirect to onboarding if profile doesn't exist (new user, never seen quiz)
+  let showOnboardingBanner = false
+  let onboardingStep = 0
+  if (session) {
+    const profile = await db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { onboardingCompleted: true, onboardingStep: true },
+    })
+    if (!profile) {
+      redirect('/onboarding')
+    }
+    if (!profile.onboardingCompleted) {
+      showOnboardingBanner = true
+      onboardingStep = profile.onboardingStep
+    }
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -51,7 +71,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto bg-gray-50 p-8">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-gray-50 p-8">
+        {showOnboardingBanner && <OnboardingBanner step={onboardingStep} />}
+        {children}
+      </main>
     </div>
   )
 }
