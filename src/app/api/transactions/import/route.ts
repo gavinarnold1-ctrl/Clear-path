@@ -31,11 +31,14 @@ export async function POST(request: Request) {
 
     const { headers, rows } = parseCSV(csvText)
 
-    // Load user's categories for matching
-    const userCategories = await db.category.findMany({
-      where: { userId: session.userId },
+    // Load user + system default categories for matching (user overrides defaults)
+    const allCategories = await db.category.findMany({
+      where: {
+        OR: [{ userId: session.userId }, { userId: null, isDefault: true }],
+      },
+      orderBy: { userId: 'asc' }, // nulls (defaults) first, so user categories overwrite in Map
     })
-    const categoryMap = new Map(userCategories.map((c) => [c.name.toLowerCase(), c]))
+    const categoryMap = new Map(allCategories.map((c) => [c.name.toLowerCase(), c]))
 
     // Load user's accounts for matching (Monarch has Account column)
     const userAccounts = await db.account.findMany({
