@@ -8,6 +8,7 @@ const navItems = [
   { href: '/insights', label: 'Insights' },
   { href: '/transactions', label: 'Transactions' },
   { href: '/budgets', label: 'Budgets' },
+  { href: '/budgets/annual', label: 'Annual Plan' },
   { href: '/accounts', label: 'Accounts' },
   { href: '/categories', label: 'Categories' },
 ]

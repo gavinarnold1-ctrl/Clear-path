@@ -86,6 +86,16 @@ export default async function BudgetsPage() {
           <FixedBudgetSection budgets={fixed} transactions={transactions} />
           <FlexibleBudgetSection budgets={flexible} />
           <AnnualBudgetSection budgets={annual} />
+          {annual.length > 0 && (
+            <div className="-mt-5 mb-8 text-right">
+              <Link
+                href="/budgets/annual"
+                className="text-xs font-medium text-sky-600 hover:text-sky-700"
+              >
+                View full plan &rarr;
+              </Link>
+            </div>
+          )}
         </>
       )}
     </div>
