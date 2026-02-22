@@ -81,21 +81,26 @@ model Category {
 
 model Transaction {
   id                String   @id @default(cuid())
-  amount            Float
-  merchant          String
-  originalStatement String?
-  tags              String?
   date              DateTime
-  notes             String?
+  merchant          String   // Cleaned merchant name (Monarch "Merchant" column)
+  amount            Float    // ALWAYS: negative = money out, positive = money in
+  transactionType   String?  // "debit" or "credit" (from Monarch CSV, optional)
+  originalStatement String?  // Raw bank description before cleanup
+  notes             String?  // User-added notes
+  tags              String?  // Comma-separated tags (e.g., "tax,business")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId  String?
-  account    Account?  @relation(fields: [accountId], references: [id])
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
+  accountId  String?
+  account    Account?  @relation(fields: [accountId], references: [id])
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@index([accountId])
 }
 
 model Budget {

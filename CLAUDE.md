@@ -137,7 +137,7 @@ User
 ```
 
 Key relationships:
-- A `Transaction` optionally belongs to an `Account` and optionally one `Category`. Income vs expense is determined by amount sign (positive = income, negative = expense) — there is no `type` field on Transaction.
+- A `Transaction` optionally belongs to an `Account` and optionally one `Category`. Income vs expense is determined by amount sign (positive = income, negative = expense). An optional `transactionType` field stores "debit"/"credit" from Monarch CSV imports. Indexed on `[userId, date]`, `[userId, categoryId]`, and `[accountId]`.
 - A `Category` has a `group` (e.g. "Food & Dining", "Housing"), a `type` (INCOME / EXPENSE / TRANSFER via `TransactionType` enum), and an optional `budgetTier` ("fixed" / "flexible" / "annual"). System default categories have `userId: null` and `isDefault: true`; user-created categories have `isDefault: false`.
 - A `Budget` optionally targets one `Category` and has a `tier` field ("fixed" / "flexible" / "annual"). Budget `spent` is **not stored** — it is computed at query time by aggregating transactions.
 - An `AnnualExpense` tracks yearly irregular costs (e.g. insurance premiums, property tax) with amount, due date, and optional category link.
