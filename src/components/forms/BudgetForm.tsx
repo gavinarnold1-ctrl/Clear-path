@@ -30,7 +30,7 @@ const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(),
 
 export default function BudgetForm({ categories }: Props) {
   const [state, formAction, isPending] = useActionState(createBudget, initialState)
-  const expenseCategories = categories.filter((c) => c.type === 'EXPENSE')
+  const expenseCategories = categories.filter((c) => c.type === 'expense')
 
   return (
     <form action={formAction} className="space-y-5">

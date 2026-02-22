@@ -28,22 +28,25 @@ export async function createBudget(
   if (!period) return { error: 'Period is required.' }
   if (!startDate) return { error: 'Start date is required.' }
 
-  // Pre-calculate spent from existing transactions in this period/category
+  // Pre-calculate spent from existing expense transactions in this period/category
+  // Expenses are negative amounts, so we sum and negate
   const spent = categoryId
-    ? (
-        await db.transaction.aggregate({
-          where: {
-            userId: session.userId,
-            categoryId,
-            type: 'EXPENSE',
-            date: {
-              gte: new Date(startDate),
-              ...(endDate ? { lte: new Date(endDate) } : {}),
+    ? Math.abs(
+        (
+          await db.transaction.aggregate({
+            where: {
+              userId: session.userId,
+              categoryId,
+              amount: { lt: 0 },
+              date: {
+                gte: new Date(startDate),
+                ...(endDate ? { lte: new Date(endDate) } : {}),
+              },
             },
-          },
-          _sum: { amount: true },
-        })
-      )._sum.amount ?? 0
+            _sum: { amount: true },
+          })
+        )._sum.amount ?? 0
+      )
     : 0
 
   await db.budget.create({

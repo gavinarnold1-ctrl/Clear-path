@@ -86,11 +86,15 @@ ${summary.monthOverMonthChange
 Generate 5-8 specific, actionable insights prioritized by dollar impact.`
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250514',
-    max_tokens: 2000,
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8000,
     messages: [{ role: 'user', content: userPrompt }],
     system: systemPrompt,
   })
+
+  if (response.stop_reason !== 'end_turn') {
+    throw new Error(`AI response was truncated (stop_reason: ${response.stop_reason})`)
+  }
 
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')

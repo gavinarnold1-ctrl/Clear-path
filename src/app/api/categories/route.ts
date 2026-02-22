@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
-const VALID_TYPES = new Set(['INCOME', 'EXPENSE', 'TRANSFER'])
+const VALID_TYPES = new Set(['income', 'expense', 'transfer'])
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
@@ -18,9 +18,10 @@ export async function GET(req: NextRequest) {
   const categories = await db.category.findMany({
     where: {
       userId: session.userId,
-      ...(type && { type: type as 'INCOME' | 'EXPENSE' | 'TRANSFER' }),
+      isActive: true,
+      ...(type && { type }),
     },
-    orderBy: { name: 'asc' },
+    orderBy: [{ type: 'asc' }, { group: 'asc' }, { name: 'asc' }],
   })
 
   return NextResponse.json(categories)
@@ -31,21 +32,19 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, color, icon, type } = body
+  const { name, type, group, icon } = body
 
   if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid category type' }, { status: 400 })
-  if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-    return NextResponse.json({ error: 'Invalid color — use a 6-digit hex code like #6366f1' }, { status: 400 })
-  }
 
   const category = await db.category.create({
     data: {
       userId: session.userId,
       name,
-      color: color ?? '#6366f1',
-      icon: icon ?? null,
       type,
+      group: group || 'Other',
+      icon: icon ?? null,
+      isDefault: false,
     },
   })
 

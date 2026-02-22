@@ -1,5 +1,23 @@
 export type AppField = 'date' | 'description' | 'amount' | 'category' | 'type' | 'ignore'
 
+// Monarch Money CSV headers (case-insensitive match)
+const MONARCH_HEADERS = [
+  'date',
+  'merchant',
+  'category',
+  'account',
+  'original statement',
+  'notes',
+  'amount',
+  'transaction type',
+  'tags',
+]
+
+export function isMonarchFormat(headers: string[]): boolean {
+  const normalized = headers.map((h) => h.toLowerCase().trim())
+  return MONARCH_HEADERS.every((mh) => normalized.includes(mh))
+}
+
 // Common column name patterns from major banks
 const COLUMN_PATTERNS: Record<Exclude<AppField, 'ignore'>, string[]> = {
   date: [

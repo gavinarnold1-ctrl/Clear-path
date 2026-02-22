@@ -25,8 +25,8 @@ const today = new Date().toISOString().split('T')[0]
 export default function TransactionForm({ accounts, categories }: Props) {
   const [state, formAction, isPending] = useActionState(createTransaction, initialState)
 
-  const incomeCategories = categories.filter((c) => c.type === 'INCOME')
-  const expenseCategories = categories.filter((c) => c.type === 'EXPENSE')
+  const incomeCategories = categories.filter((c) => c.type === 'income')
+  const expenseCategories = categories.filter((c) => c.type === 'expense')
 
   return (
     <form action={formAction} className="space-y-5">
@@ -35,18 +35,6 @@ export default function TransactionForm({ accounts, categories }: Props) {
           {state.error}
         </p>
       )}
-
-      {/* Type */}
-      <div>
-        <label htmlFor="type" className="mb-1 block text-sm font-medium text-gray-700">
-          Type
-        </label>
-        <select id="type" name="type" className="input" required>
-          <option value="EXPENSE">Expense</option>
-          <option value="INCOME">Income</option>
-          <option value="TRANSFER">Transfer</option>
-        </select>
-      </div>
 
       {/* Amount */}
       <div>
@@ -70,17 +58,17 @@ export default function TransactionForm({ accounts, categories }: Props) {
         </div>
       </div>
 
-      {/* Description */}
+      {/* Merchant */}
       <div>
-        <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-700">
-          Description
+        <label htmlFor="merchant" className="mb-1 block text-sm font-medium text-gray-700">
+          Merchant
         </label>
         <input
-          id="description"
-          name="description"
+          id="merchant"
+          name="merchant"
           type="text"
           className="input"
-          placeholder="e.g. Grocery run, Monthly salary"
+          placeholder="e.g. Whole Foods, Employer Inc."
           required
         />
       </div>
@@ -96,9 +84,10 @@ export default function TransactionForm({ accounts, categories }: Props) {
       {/* Account */}
       <div>
         <label htmlFor="accountId" className="mb-1 block text-sm font-medium text-gray-700">
-          Account
+          Account <span className="font-normal text-gray-400">(optional)</span>
         </label>
-        <select id="accountId" name="accountId" className="input" required>
+        <select id="accountId" name="accountId" className="input">
+          <option value="">No account</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}

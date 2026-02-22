@@ -1,9 +1,8 @@
 export interface ParsedTransaction {
   date: string
-  description: string
-  amount: number
+  merchant: string
+  amount: number // negative = expense, positive = income (kept as-is from CSV)
   category?: string
-  type: 'INCOME' | 'EXPENSE'
   raw: Record<string, string>
 }
 
@@ -93,7 +92,7 @@ export function transformRows(
         return
       }
 
-      const description = descCol >= 0 ? row[descCol]?.trim() || 'Unknown' : 'Unknown'
+      const merchant = descCol >= 0 ? row[descCol]?.trim() || 'Unknown' : 'Unknown'
 
       let amount = 0
       if (amountCols.length === 1) {
@@ -121,21 +120,17 @@ export function transformRows(
 
       const category = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
 
-      // Negative amount = expense, positive = income
-      // Store as positive value with type (matching Clear-path convention)
-      const type: 'INCOME' | 'EXPENSE' = amount >= 0 ? 'INCOME' : 'EXPENSE'
-
       const raw: Record<string, string> = {}
       headers.forEach((h, i) => {
         raw[h] = row[i] || ''
       })
 
+      // Keep amount sign as-is: negative = expense, positive = income
       transactions.push({
         date: date.toISOString().split('T')[0],
-        description,
-        amount: Math.abs(amount),
+        merchant,
+        amount,
         category,
-        type,
         raw,
       })
     } catch (err) {

@@ -17,40 +17,46 @@ export async function createTransaction(
   if (!session) redirect('/login')
 
   const amount = parseFloat(formData.get('amount') as string)
-  const description = (formData.get('description') as string)?.trim()
+  const merchant = (formData.get('merchant') as string)?.trim()
   const date = formData.get('date') as string
-  const type = formData.get('type') as string
-  const accountId = formData.get('accountId') as string
+  const accountId = (formData.get('accountId') as string) || null
   const categoryId = (formData.get('categoryId') as string) || null
   const notes = (formData.get('notes') as string)?.trim() || null
+  const tags = (formData.get('tags') as string)?.trim() || null
 
-  const VALID_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER'] as const
-  type TxType = (typeof VALID_TYPES)[number]
-
-  if (!amount || amount <= 0) return { error: 'Amount must be a positive number.' }
-  if (!description) return { error: 'Description is required.' }
+  if (isNaN(amount) || amount === 0) return { error: 'Amount must be a non-zero number.' }
+  if (!merchant) return { error: 'Merchant is required.' }
   if (!date) return { error: 'Date is required.' }
-  if (!accountId) return { error: 'Please select an account.' }
-  if (!(VALID_TYPES as readonly string[]).includes(type)) return { error: 'Invalid transaction type.' }
 
-  const validType = type as TxType
+  // Determine sign based on category type
+  let finalAmount = amount
+  if (categoryId) {
+    const category = await db.category.findUnique({ where: { id: categoryId } })
+    if (category) {
+      if (category.type === 'expense') {
+        finalAmount = -Math.abs(amount)
+      } else if (category.type === 'income') {
+        finalAmount = Math.abs(amount)
+      }
+      // transfer: keep user-provided sign
+    }
+  }
+
   const txDate = new Date(date)
 
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record
     await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, amount, description, date: txDate, type: validType, notes },
+      data: { userId: session.userId, accountId, categoryId, amount: finalAmount, merchant, date: txDate, notes, tags },
     })
 
-    // 2. Adjust account balance
-    if (validType === 'INCOME') {
-      await tx.account.update({ where: { id: accountId }, data: { balance: { increment: amount } } })
-    } else if (validType === 'EXPENSE') {
-      await tx.account.update({ where: { id: accountId }, data: { balance: { decrement: amount } } })
+    // 2. Adjust account balance (amount sign already correct)
+    if (accountId) {
+      await tx.account.update({ where: { id: accountId }, data: { balance: { increment: finalAmount } } })
     }
 
-    // 3. Update matching active budget's spent counter
-    if (categoryId && validType === 'EXPENSE') {
+    // 3. Update matching active budget's spent counter (expenses only)
+    if (categoryId && finalAmount < 0) {
       const budget = await tx.budget.findFirst({
         where: {
           userId: session.userId,
@@ -60,7 +66,7 @@ export async function createTransaction(
         },
       })
       if (budget) {
-        await tx.budget.update({ where: { id: budget.id }, data: { spent: { increment: amount } } })
+        await tx.budget.update({ where: { id: budget.id }, data: { spent: { increment: Math.abs(finalAmount) } } })
       }
     }
   })
@@ -83,14 +89,12 @@ export async function deleteTransaction(id: string): Promise<void> {
     await tx.transaction.delete({ where: { id } })
 
     // Reverse account balance
-    if (existing.type === 'INCOME') {
-      await tx.account.update({ where: { id: existing.accountId }, data: { balance: { decrement: existing.amount } } })
-    } else if (existing.type === 'EXPENSE') {
-      await tx.account.update({ where: { id: existing.accountId }, data: { balance: { increment: existing.amount } } })
+    if (existing.accountId) {
+      await tx.account.update({ where: { id: existing.accountId }, data: { balance: { increment: -existing.amount } } })
     }
 
-    // Reverse budget spent
-    if (existing.categoryId && existing.type === 'EXPENSE') {
+    // Reverse budget spent (for expenses, amount is negative)
+    if (existing.categoryId && existing.amount < 0) {
       const budget = await tx.budget.findFirst({
         where: {
           userId: session.userId,
@@ -102,7 +106,7 @@ export async function deleteTransaction(id: string): Promise<void> {
       if (budget) {
         await tx.budget.update({
           where: { id: budget.id },
-          data: { spent: { decrement: existing.amount } },
+          data: { spent: { decrement: Math.abs(existing.amount) } },
         })
       }
     }

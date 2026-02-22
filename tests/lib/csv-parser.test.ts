@@ -133,14 +133,12 @@ describe('transformRows', () => {
     const result = transformRows(rows, headers, mapping)
 
     expect(result.transactions).toHaveLength(2)
-    expect(result.transactions[0].description).toBe('Coffee Shop')
-    expect(result.transactions[0].amount).toBe(5.5)
-    expect(result.transactions[0].type).toBe('EXPENSE')
+    expect(result.transactions[0].merchant).toBe('Coffee Shop')
+    expect(result.transactions[0].amount).toBe(-5.5)
     expect(result.transactions[0].category).toBe('Dining')
 
-    expect(result.transactions[1].description).toBe('Salary')
+    expect(result.transactions[1].merchant).toBe('Salary')
     expect(result.transactions[1].amount).toBe(3000)
-    expect(result.transactions[1].type).toBe('INCOME')
   })
 
   it('reports error when date column is not mapped', () => {
@@ -176,11 +174,11 @@ describe('transformRows', () => {
     expect(result.errors).toHaveLength(0)
   })
 
-  it('uses "Unknown" for missing description', () => {
+  it('uses "Unknown" for missing merchant', () => {
     const rows = [['01/15/2026', '', '-5.50', '']]
     const result = transformRows(rows, headers, mapping)
 
-    expect(result.transactions[0].description).toBe('Unknown')
+    expect(result.transactions[0].merchant).toBe('Unknown')
   })
 
   it('preserves raw CSV data on each transaction', () => {
@@ -212,11 +210,9 @@ describe('transformRows', () => {
     const result = transformRows(rows, splitHeaders, splitMapping)
 
     expect(result.transactions).toHaveLength(2)
-    // Debit column → negative → EXPENSE
-    expect(result.transactions[0].type).toBe('EXPENSE')
-    expect(result.transactions[0].amount).toBe(5.5)
-    // Credit column → positive → INCOME
-    expect(result.transactions[1].type).toBe('INCOME')
+    // Debit column → negative amount
+    expect(result.transactions[0].amount).toBe(-5.5)
+    // Credit column → positive amount
     expect(result.transactions[1].amount).toBe(20)
   })
 })
