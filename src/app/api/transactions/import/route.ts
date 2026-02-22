@@ -168,12 +168,17 @@ export async function POST(request: Request) {
         if (matched) {
           categoryId = matched.id
         } else {
+          // Infer category type from transaction amount and transactionType
+          const isTransfer = tx.transactionType === 'transfer' ||
+            catKey.includes('transfer') || catKey.includes('credit card payment')
+          const catType = isTransfer ? 'transfer' : tx.amount > 0 ? 'income' : 'expense'
+
           // Auto-create category from CSV data
           const newCat = await db.category.create({
             data: {
               userId: session.userId,
               name: tx.category.trim(),
-              type: 'expense',
+              type: catType,
               group: 'Imported',
               isDefault: false,
             },
@@ -185,10 +190,24 @@ export async function POST(request: Request) {
       }
 
       // Match account by name (Monarch) or use provided accountId
+      // Try exact match first, then partial match (CSV name contains user account or vice versa)
       let resolvedAccountId: string | null = accountId ?? null
       if (tx.account) {
-        const matchedAccount = accountMap.get(tx.account.toLowerCase())
-        if (matchedAccount) resolvedAccountId = matchedAccount.id
+        const csvAccountKey = tx.account.toLowerCase().trim()
+        const exactMatch = accountMap.get(csvAccountKey)
+        if (exactMatch) {
+          resolvedAccountId = exactMatch.id
+        } else {
+          // Partial match: "Webster Bank Checking" matches user account "Webster bank"
+          for (const [userKey, userAccount] of accountMap) {
+            if (csvAccountKey.includes(userKey) || userKey.includes(csvAccountKey)) {
+              resolvedAccountId = userAccount.id
+              // Cache this CSV name for subsequent rows from the same account
+              accountMap.set(csvAccountKey, userAccount)
+              break
+            }
+          }
+        }
       }
 
       toImport.push({
