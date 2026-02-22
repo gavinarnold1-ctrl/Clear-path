@@ -1,0 +1,112 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import type { BudgetProposal as BudgetProposalType } from '@/lib/budget-builder'
+import type { ProfileSummary } from './BudgetBuilderCTA'
+import ProposalFixedSection from './ProposalFixedSection'
+import ProposalFlexibleSection from './ProposalFlexibleSection'
+import ProposalAnnualSection from './ProposalAnnualSection'
+import ProposalSummary from './ProposalSummary'
+
+interface Props {
+  initialProposal: BudgetProposalType
+  profileSummary: ProfileSummary
+  onCancel: () => void
+}
+
+export default function BudgetProposal({ initialProposal, profileSummary, onCancel }: Props) {
+  const router = useRouter()
+  const [proposal, setProposal] = useState<BudgetProposalType>(initialProposal)
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleApply() {
+    setApplying(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/budgets/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to apply budget')
+      }
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setApplying(false)
+    }
+  }
+
+  const totalItems = proposal.fixed.length + proposal.flexible.length + proposal.annual.length
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Review Budget Proposal</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Edit amounts, remove items you don&apos;t want, then apply.
+          </p>
+        </div>
+        <button type="button" onClick={onCancel} className="btn-secondary">
+          Cancel
+        </button>
+      </div>
+
+      <div className="mb-6">
+        <ProposalSummary proposal={proposal} profileSummary={profileSummary} />
+      </div>
+
+      <ProposalFixedSection
+        items={proposal.fixed}
+        onChange={(fixed) => setProposal((p) => ({ ...p, fixed }))}
+      />
+
+      <ProposalFlexibleSection
+        items={proposal.flexible}
+        onChange={(flexible) => setProposal((p) => ({ ...p, flexible }))}
+      />
+
+      <ProposalAnnualSection
+        items={proposal.annual}
+        onChange={(annual) => setProposal((p) => ({ ...p, annual }))}
+      />
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+        <p className="text-sm text-gray-500">
+          {totalItems} budget item{totalItems !== 1 ? 's' : ''} will be created
+        </p>
+        <div className="flex gap-3">
+          <button type="button" onClick={onCancel} className="btn-secondary">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={applying || totalItems === 0}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50"
+          >
+            {applying ? (
+              <>
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Applying...
+              </>
+            ) : (
+              'Apply budget'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

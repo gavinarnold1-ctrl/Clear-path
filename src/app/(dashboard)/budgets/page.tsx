@@ -7,6 +7,7 @@ import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import FixedBudgetSection from '@/components/budgets/FixedBudgetSection'
 import FlexibleBudgetSection from '@/components/budgets/FlexibleBudgetSection'
 import AnnualBudgetSection from '@/components/budgets/AnnualBudgetSection'
+import BudgetBuilderFlow from '@/components/budget-builder/BudgetBuilderFlow'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
@@ -59,21 +60,16 @@ export default async function BudgetsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
-        <Link href="/budgets/new" className="btn-primary">
-          + New budget
-        </Link>
-      </div>
-
-      {budgets.length === 0 ? (
-        <div className="card flex flex-col items-center justify-center py-16 text-center">
-          <p className="mb-2 text-sm font-medium text-gray-500">No budgets yet</p>
-          <p className="mb-4 text-xs text-gray-400">
-            Create a budget to start tracking how much you spend in each category.
-          </p>
-          <Link href="/budgets/new" className="btn-primary inline-block">
+        <div className="flex items-center gap-2">
+          {budgets.length > 0 && <BudgetBuilderFlow hasBudgets />}
+          <Link href="/budgets/new" className="btn-primary">
             + New budget
           </Link>
         </div>
+      </div>
+
+      {budgets.length === 0 ? (
+        <BudgetBuilderFlow hasBudgets={false} />
       ) : (
         <>
           <TrueRemainingBanner
