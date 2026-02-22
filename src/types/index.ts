@@ -2,7 +2,15 @@
 
 export type CategoryType = 'income' | 'expense' | 'transfer'
 
-export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH'
+export type AccountType =
+  | 'CHECKING'
+  | 'SAVINGS'
+  | 'CREDIT_CARD'
+  | 'INVESTMENT'
+  | 'CASH'
+  | 'MORTGAGE'
+  | 'AUTO_LOAN'
+  | 'STUDENT_LOAN'
 
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM'
 
@@ -23,6 +31,8 @@ export interface Account {
   type: AccountType
   balance: number
   currency: string
+  institution: string | null
+  isManual: boolean
   userId: string
 }
 
@@ -35,6 +45,8 @@ export interface Category {
   budgetTier: BudgetTier | null
   isDefault: boolean
   isActive: boolean
+  isTaxRelevant: boolean
+  scheduleECategory: string | null
   userId: string | null
 }
 
@@ -45,8 +57,10 @@ export interface Transaction {
   amount: number
   transactionType: string | null
   originalStatement: string | null
+  originalCategory: string | null
   notes: string | null
   tags: string | null
+  importSource: string | null
   userId: string
   accountId: string | null
   account?: Account | null
@@ -91,6 +105,43 @@ export interface AnnualExpense {
   actualDate: Date | null
   notes: string | null
   userId: string
+}
+
+// ─── Onboarding types ────────────────────────────────────────────────────────
+
+export type PrimaryGoal = 'debt_payoff' | 'emergency_savings' | 'major_purchase' | 'invest' | 'organize'
+
+export type HouseholdType = 'single' | 'shared_partner' | 'separate_partner' | 'family'
+
+export type DebtLevel = 'minimal' | 'credit_cards' | 'student_loans' | 'multiple'
+
+export type CategoryMode = 'recommended' | 'custom' | 'import_match'
+
+export interface OnboardingAccountEntry {
+  name: string
+  type: AccountType
+}
+
+export interface OnboardingPropertyEntry {
+  name: string
+}
+
+export interface OnboardingPendingSetup {
+  partnerName?: string
+  accounts: OnboardingAccountEntry[]
+  properties: OnboardingPropertyEntry[]
+}
+
+export interface OnboardingAnswers {
+  primaryGoal: PrimaryGoal | null
+  householdType: HouseholdType | null
+  partnerName: string | null
+  accounts: OnboardingAccountEntry[]
+  hasRentalProperty: boolean
+  rentalCount: number
+  properties: OnboardingPropertyEntry[]
+  debtLevel: DebtLevel | null
+  categoryMode: CategoryMode | null
 }
 
 // ─── API response shapes ──────────────────────────────────────────────────────

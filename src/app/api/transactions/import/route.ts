@@ -130,10 +130,12 @@ export async function POST(request: Request) {
       merchant: string
       amount: number
       categoryId: string | null
+      originalCategory: string | null
       originalStatement: string | null
       notes: string | null
       tags: string | null
       transactionType: string | null
+      importSource: string
     }[] = []
 
     for (const tx of transactionsToProcess) {
@@ -158,11 +160,28 @@ export async function POST(request: Request) {
         }
       }
 
-      // Match category by name
+      // Match category by name — auto-create if not found
       let categoryId: string | null = null
-      if (tx.category) {
-        const matched = categoryMap.get(tx.category.toLowerCase())
-        if (matched) categoryId = matched.id
+      if (tx.category && tx.category.trim() !== '') {
+        const catKey = tx.category.toLowerCase()
+        const matched = categoryMap.get(catKey)
+        if (matched) {
+          categoryId = matched.id
+        } else {
+          // Auto-create category from CSV data
+          const newCat = await db.category.create({
+            data: {
+              userId: session.userId,
+              name: tx.category.trim(),
+              type: 'expense',
+              group: 'Imported',
+              isDefault: false,
+            },
+          })
+          categoryId = newCat.id
+          // Cache so subsequent rows with the same category reuse this record
+          categoryMap.set(catKey, newCat)
+        }
       }
 
       // Match account by name (Monarch) or use provided accountId
@@ -179,10 +198,12 @@ export async function POST(request: Request) {
         merchant: tx.merchant,
         amount: tx.amount,
         categoryId,
+        originalCategory: tx.category?.trim() || null,
         originalStatement: tx.originalStatement ?? null,
         notes: tx.notes ?? null,
         tags: tx.tags ?? null,
         transactionType: tx.transactionType ?? null,
+        importSource: 'csv',
       })
     }
 
