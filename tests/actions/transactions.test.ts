@@ -8,6 +8,7 @@ const mockBudgetFindFirst = vi.fn()
 const mockBudgetUpdate = vi.fn()
 const mockTxFindUnique = vi.fn()
 const mockTxDelete = vi.fn()
+const mockCategoryFindUnique = vi.fn()
 
 const mockPrismaTx = {
   transaction: { create: mockTxCreate, findUnique: mockTxFindUnique, delete: mockTxDelete },
@@ -18,6 +19,7 @@ const mockPrismaTx = {
 vi.mock('@/lib/db', () => ({
   db: {
     $transaction: vi.fn((fn: (tx: typeof mockPrismaTx) => Promise<unknown>) => fn(mockPrismaTx)),
+    category: { findUnique: (...args: unknown[]) => mockCategoryFindUnique(...args) },
   },
 }))
 
@@ -48,9 +50,8 @@ function fd(data: Record<string, string>): FormData {
 
 const validData = {
   amount: '100',
-  description: 'Test expense',
+  merchant: 'Test merchant',
   date: '2026-02-01',
-  type: 'EXPENSE',
   accountId: 'acc-1',
   categoryId: '',
   notes: '',
@@ -63,6 +64,7 @@ describe('createTransaction', () => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
     mockBudgetFindFirst.mockResolvedValue(null)
+    mockCategoryFindUnique.mockResolvedValue(null)
   })
 
   it('redirects to /login when no session', async () => {
@@ -70,19 +72,14 @@ describe('createTransaction', () => {
     await expect(createTransaction({ error: null }, fd(validData))).rejects.toThrow('NEXT_REDIRECT:/login')
   })
 
-  it('returns error for amount <= 0', async () => {
+  it('returns error for amount = 0', async () => {
     const result = await createTransaction({ error: null }, fd({ ...validData, amount: '0' }))
-    expect(result.error).toContain('positive')
+    expect(result.error).toContain('non-zero')
   })
 
-  it('returns error for negative amount', async () => {
-    const result = await createTransaction({ error: null }, fd({ ...validData, amount: '-50' }))
-    expect(result.error).toContain('positive')
-  })
-
-  it('returns error when description is empty', async () => {
-    const result = await createTransaction({ error: null }, fd({ ...validData, description: '' }))
-    expect(result.error).toContain('Description')
+  it('returns error when merchant is empty', async () => {
+    const result = await createTransaction({ error: null }, fd({ ...validData, merchant: '' }))
+    expect(result.error).toContain('Merchant')
   })
 
   it('returns error when date is missing', async () => {
@@ -90,39 +87,57 @@ describe('createTransaction', () => {
     expect(result.error).toContain('Date')
   })
 
-  it('returns error when accountId is missing', async () => {
-    const result = await createTransaction({ error: null }, fd({ ...validData, accountId: '' }))
-    expect(result.error).toContain('account')
-  })
-
-  it('decrements account balance for EXPENSE', async () => {
+  it('adjusts account balance with increment for positive amount', async () => {
     await expect(createTransaction({ error: null }, fd(validData))).rejects.toThrow('NEXT_REDIRECT:/transactions')
-    expect(mockAccountUpdate).toHaveBeenCalledWith({
-      where: { id: 'acc-1' },
-      data: { balance: { decrement: 100 } },
-    })
-  })
-
-  it('increments account balance for INCOME', async () => {
-    await expect(
-      createTransaction({ error: null }, fd({ ...validData, type: 'INCOME' }))
-    ).rejects.toThrow('NEXT_REDIRECT:/transactions')
     expect(mockAccountUpdate).toHaveBeenCalledWith({
       where: { id: 'acc-1' },
       data: { balance: { increment: 100 } },
     })
   })
 
-  it('does not touch account balance for TRANSFER', async () => {
+  it('makes amount negative for expense category', async () => {
+    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'expense' })
+
     await expect(
-      createTransaction({ error: null }, fd({ ...validData, type: 'TRANSFER' }))
+      createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/transactions')
+
+    expect(mockTxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ amount: -100 }),
+      })
+    )
+    expect(mockAccountUpdate).toHaveBeenCalledWith({
+      where: { id: 'acc-1' },
+      data: { balance: { increment: -100 } },
+    })
+  })
+
+  it('keeps amount positive for income category', async () => {
+    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'income' })
+
+    await expect(
+      createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/transactions')
+
+    expect(mockTxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ amount: 100 }),
+      })
+    )
+  })
+
+  it('does not adjust account balance when no accountId', async () => {
+    await expect(
+      createTransaction({ error: null }, fd({ ...validData, accountId: '' }))
     ).rejects.toThrow('NEXT_REDIRECT:/transactions')
     expect(mockAccountUpdate).not.toHaveBeenCalled()
   })
 
-  it('updates matching budget spent when category matches', async () => {
+  it('updates matching budget spent when expense category matches', async () => {
     const budget = { id: 'b1', spent: 0 }
     mockBudgetFindFirst.mockResolvedValue(budget)
+    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'expense' })
 
     await expect(
       createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
@@ -136,6 +151,19 @@ describe('createTransaction', () => {
 
   it('does not update budget when no matching budget exists', async () => {
     mockBudgetFindFirst.mockResolvedValue(null)
+    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'expense' })
+
+    await expect(
+      createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/transactions')
+    expect(mockBudgetUpdate).not.toHaveBeenCalled()
+  })
+
+  it('does not update budget for income transactions', async () => {
+    const budget = { id: 'b1', spent: 0 }
+    mockBudgetFindFirst.mockResolvedValue(budget)
+    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'income' })
+
     await expect(
       createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
     ).rejects.toThrow('NEXT_REDIRECT:/transactions')
@@ -169,37 +197,50 @@ describe('deleteTransaction', () => {
     expect(mockTxDelete).not.toHaveBeenCalled()
   })
 
-  it('reverses account balance for a deleted EXPENSE', async () => {
+  it('reverses account balance for a deleted expense (negative amount)', async () => {
     mockTxFindUnique.mockResolvedValue({
-      id: 'tx-1', userId: 'u1', type: 'EXPENSE', amount: 75, accountId: 'acc-1',
+      id: 'tx-1', userId: 'u1', amount: -75, accountId: 'acc-1',
       categoryId: null, date: new Date('2026-02-01'),
     })
 
     await deleteTransaction('tx-1')
 
+    // Reverse: increment by -(-75) = +75
     expect(mockAccountUpdate).toHaveBeenCalledWith({
       where: { id: 'acc-1' },
       data: { balance: { increment: 75 } },
     })
   })
 
-  it('reverses account balance for a deleted INCOME', async () => {
+  it('reverses account balance for a deleted income (positive amount)', async () => {
     mockTxFindUnique.mockResolvedValue({
-      id: 'tx-2', userId: 'u1', type: 'INCOME', amount: 500, accountId: 'acc-1',
+      id: 'tx-2', userId: 'u1', amount: 500, accountId: 'acc-1',
       categoryId: null, date: new Date('2026-02-01'),
     })
 
     await deleteTransaction('tx-2')
 
+    // Reverse: increment by -(500) = -500
     expect(mockAccountUpdate).toHaveBeenCalledWith({
       where: { id: 'acc-1' },
-      data: { balance: { decrement: 500 } },
+      data: { balance: { increment: -500 } },
     })
   })
 
-  it('decrements budget.spent when deleting a categorised EXPENSE', async () => {
+  it('does not adjust balance when no accountId', async () => {
     mockTxFindUnique.mockResolvedValue({
-      id: 'tx-3', userId: 'u1', type: 'EXPENSE', amount: 50, accountId: 'acc-1',
+      id: 'tx-4', userId: 'u1', amount: -50, accountId: null,
+      categoryId: null, date: new Date('2026-02-01'),
+    })
+
+    await deleteTransaction('tx-4')
+
+    expect(mockAccountUpdate).not.toHaveBeenCalled()
+  })
+
+  it('decrements budget.spent when deleting a categorised expense', async () => {
+    mockTxFindUnique.mockResolvedValue({
+      id: 'tx-3', userId: 'u1', amount: -50, accountId: 'acc-1',
       categoryId: 'cat-1', date: new Date('2026-02-01'),
     })
     mockBudgetFindFirst.mockResolvedValue({ id: 'b1' })

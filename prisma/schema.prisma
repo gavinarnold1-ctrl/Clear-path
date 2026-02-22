@@ -13,12 +13,6 @@ datasource db {
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
-enum TransactionType {
-  INCOME
-  EXPENSE
-  TRANSFER
-}
-
 enum AccountType {
   CHECKING
   SAVINGS
@@ -68,35 +62,48 @@ model Account {
 }
 
 model Category {
-  id        String          @id @default(cuid())
-  name      String
-  color     String          @default("#6366f1")
-  icon      String?
-  type      TransactionType
-  createdAt DateTime        @default(now())
+  id        String   @id @default(cuid())
+  type      String   // "income" | "expense" | "transfer"
+  group     String   // Parent group name (e.g., "Food & Dining", "Housing")
+  name      String   // Specific category (e.g., "Groceries", "Mortgage")
+  icon      String?  // Emoji icon
+  isDefault Boolean  @default(true)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String?       // null = system default, set = user custom
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets      Budget[]
+
+  @@unique([userId, type, group, name])
+  @@index([type])
+  @@index([userId])
 }
 
 model Transaction {
-  id          String          @id @default(cuid())
-  amount      Float
-  description String
-  date        DateTime
-  type        TransactionType
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                String   @id @default(cuid())
+  date              DateTime
+  merchant          String   // Cleaned merchant name (Monarch "Merchant" column)
+  amount            Float    // ALWAYS: negative = money out, positive = money in
+  transactionType   String?  // "debit" or "credit" (from Monarch CSV, optional)
+  originalStatement String?  // Raw bank description before cleanup
+  notes             String?  // User-added notes
+  tags              String?  // Comma-separated tags (e.g., "tax,business")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId  String
-  account    Account   @relation(fields: [accountId], references: [id])
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
+  accountId  String?
+  account    Account?  @relation(fields: [accountId], references: [id])
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@index([accountId])
 }
 
 model Budget {

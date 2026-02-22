@@ -1,6 +1,6 @@
 // ─── Enum aliases (mirror the Prisma schema) ─────────────────────────────────
 
-export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER'
+export type CategoryType = 'income' | 'expense' | 'transfer'
 
 export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH'
 
@@ -26,23 +26,27 @@ export interface Account {
 
 export interface Category {
   id: string
+  type: CategoryType
+  group: string
   name: string
-  color: string
   icon: string | null
-  type: TransactionType
-  userId: string
+  isDefault: boolean
+  isActive: boolean
+  userId: string | null
 }
 
 export interface Transaction {
   id: string
-  amount: number
-  description: string
   date: Date
-  type: TransactionType
+  merchant: string
+  amount: number
+  transactionType: string | null
+  originalStatement: string | null
   notes: string | null
+  tags: string | null
   userId: string
-  accountId: string
-  account?: Account
+  accountId: string | null
+  account?: Account | null
   categoryId: string | null
   category?: Category | null
   createdAt: Date

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { parseCSV } from '@/lib/csv-parser'
-import { autoDetectColumns } from '@/lib/column-mapping'
+import { autoDetectColumns, isMonarchFormat } from '@/lib/column-mapping'
 
 export async function POST(request: Request) {
   const session = await getSession()
@@ -27,6 +27,20 @@ export async function POST(request: Request) {
     const text = await file.text()
     const { headers, rows } = parseCSV(text)
 
+    const monarch = isMonarchFormat(headers)
+
+    if (monarch) {
+      // Monarch format detected — skip column mapping, go straight to preview
+      return NextResponse.json({
+        headers,
+        mappings: null,
+        sampleRows: rows.slice(0, 10),
+        totalRows: rows.length,
+        csvText: text,
+        isMonarch: true,
+      })
+    }
+
     const mappings = autoDetectColumns(headers, rows.slice(0, 10))
 
     return NextResponse.json({
@@ -35,6 +49,7 @@ export async function POST(request: Request) {
       sampleRows: rows.slice(0, 10),
       totalRows: rows.length,
       csvText: text,
+      isMonarch: false,
     })
   } catch (error) {
     console.error('CSV preview failed:', error)
