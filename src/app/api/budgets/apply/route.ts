@@ -78,8 +78,14 @@ export async function POST(req: NextRequest) {
       for (const item of proposal.annual) {
         const categoryId = await findCategoryId(item.category, 'expense')
 
-        const dueYear = now.getMonth() + 1 >= item.dueMonth ? now.getFullYear() + 1 : now.getFullYear()
-        const targetDate = new Date(dueYear, item.dueMonth - 1, 1)
+        // AI may return null/undefined for dueMonth on suggested items — default to 6 months out
+        const dueMonth =
+          typeof item.dueMonth === 'number' && item.dueMonth >= 1 && item.dueMonth <= 12
+            ? item.dueMonth
+            : ((now.getMonth() + 6) % 12) + 1
+
+        const dueYear = now.getMonth() + 1 >= dueMonth ? now.getFullYear() + 1 : now.getFullYear()
+        const targetDate = new Date(dueYear, dueMonth - 1, 1)
         const monthsLeft = Math.max(
           1,
           (targetDate.getFullYear() - now.getFullYear()) * 12 +
@@ -106,9 +112,9 @@ export async function POST(req: NextRequest) {
             userId: session!.userId,
             name: item.name,
             annualAmount: item.annualAmount,
-            dueMonth: item.dueMonth,
+            dueMonth,
             dueYear,
-            isRecurring: item.isRecurring,
+            isRecurring: item.isRecurring ?? false,
             monthlySetAside,
             funded: 0,
             status: 'planned',
