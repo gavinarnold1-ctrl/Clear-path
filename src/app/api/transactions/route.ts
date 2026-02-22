@@ -41,18 +41,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
   }
 
-  const transaction = await db.transaction.create({
-    data: {
-      userId: session.userId,
-      accountId: accountId ?? null,
-      categoryId: categoryId ?? null,
-      amount,
-      merchant,
-      date: new Date(date),
-      notes: notes ?? null,
-      tags: tags ?? null,
-    },
-    include: { account: true, category: true },
+  const transaction = await db.$transaction(async (tx) => {
+    const created = await tx.transaction.create({
+      data: {
+        userId: session.userId,
+        accountId: accountId ?? null,
+        categoryId: categoryId ?? null,
+        amount,
+        merchant,
+        date: new Date(date),
+        notes: notes ?? null,
+        tags: tags ?? null,
+      },
+      include: { account: true, category: true },
+    })
+
+    // Update account balance
+    if (created.accountId) {
+      await tx.account.update({
+        where: { id: created.accountId },
+        data: { balance: { increment: created.amount } },
+      })
+    }
+
+    return created
   })
 
   if (transaction.categoryId) {

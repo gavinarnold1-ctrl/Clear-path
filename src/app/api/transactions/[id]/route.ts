@@ -28,21 +28,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const oldCategoryId = existing.categoryId
+  const oldAccountId = existing.accountId
+  const oldAmount = existing.amount
 
-  const transaction = await db.transaction.update({
-    where: { id },
-    data: {
-      ...(body.amount !== undefined && { amount: body.amount }),
-      ...(body.merchant && { merchant: body.merchant }),
-      ...(body.date && { date: new Date(body.date) }),
-      ...(body.notes !== undefined && { notes: body.notes }),
-      ...(body.tags !== undefined && { tags: body.tags }),
-      ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
-      ...(body.accountId !== undefined && { accountId: body.accountId }),
-      ...(body.originalStatement !== undefined && { originalStatement: body.originalStatement }),
-      ...(body.transactionType !== undefined && { transactionType: body.transactionType }),
-    },
-    include: { account: true, category: true },
+  const transaction = await db.$transaction(async (tx) => {
+    const updated = await tx.transaction.update({
+      where: { id },
+      data: {
+        ...(body.amount !== undefined && { amount: body.amount }),
+        ...(body.merchant && { merchant: body.merchant }),
+        ...(body.date && { date: new Date(body.date) }),
+        ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.tags !== undefined && { tags: body.tags }),
+        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+        ...(body.accountId !== undefined && { accountId: body.accountId }),
+        ...(body.originalStatement !== undefined && { originalStatement: body.originalStatement }),
+        ...(body.transactionType !== undefined && { transactionType: body.transactionType }),
+      },
+      include: { account: true, category: true },
+    })
+
+    // Reverse old account balance, apply new
+    if (oldAccountId) {
+      await tx.account.update({
+        where: { id: oldAccountId },
+        data: { balance: { decrement: oldAmount } },
+      })
+    }
+    if (updated.accountId) {
+      await tx.account.update({
+        where: { id: updated.accountId },
+        data: { balance: { increment: updated.amount } },
+      })
+    }
+
+    return updated
   })
 
   // Recalculate budgets for affected categories
@@ -65,7 +85,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const existing = await db.transaction.findUnique({ where: { id, userId: session.userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await db.transaction.delete({ where: { id } })
+  await db.$transaction(async (tx) => {
+    await tx.transaction.delete({ where: { id } })
+
+    // Reverse account balance
+    if (existing.accountId) {
+      await tx.account.update({
+        where: { id: existing.accountId },
+        data: { balance: { decrement: existing.amount } },
+      })
+    }
+  })
 
   if (existing.categoryId) {
     await recalculateBudgetSpentForCategory(session.userId, existing.categoryId)

@@ -75,6 +75,29 @@ export async function recalculateBudgetSpentForCategory(
 }
 
 /**
+ * Recomputes every account balance for a user from the sum of its transactions.
+ * Use after bulk operations (e.g. CSV import) that bypass incremental updates.
+ */
+export async function recalculateAccountBalances(userId: string): Promise<void> {
+  const accounts = await db.account.findMany({ where: { userId } })
+
+  for (const account of accounts) {
+    const result = await db.transaction.aggregate({
+      where: { accountId: account.id, userId },
+      _sum: { amount: true },
+    })
+
+    const computed = result._sum.amount ?? 0
+    if (Math.abs(computed - account.balance) > 0.001) {
+      await db.account.update({
+        where: { id: account.id },
+        data: { balance: computed },
+      })
+    }
+  }
+}
+
+/**
  * Determine the active date range for a budget based on its tier and period.
  */
 function getBudgetDateRange(budget: {

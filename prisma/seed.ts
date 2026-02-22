@@ -144,25 +144,33 @@ async function main() {
   })
 
   // Transactions (signed amounts: positive = income, negative = expense)
-  await db.transaction.createMany({
-    data: [
-      {
-        userId: user.id,
-        accountId: checking.id,
-        categoryId: paychecks?.id ?? null,
-        amount: 5000,
-        merchant: 'Employer Inc.',
-        date: new Date('2026-02-01'),
-      },
-      {
-        userId: user.id,
-        accountId: checking.id,
-        categoryId: groceries?.id ?? null,
-        amount: -120.5,
-        merchant: 'Whole Foods',
-        date: new Date('2026-02-10'),
-      },
-    ],
+  const seedTransactions = [
+    {
+      userId: user.id,
+      accountId: checking.id,
+      categoryId: paychecks?.id ?? null,
+      amount: 5000,
+      merchant: 'Employer Inc.',
+      date: new Date('2026-02-01'),
+    },
+    {
+      userId: user.id,
+      accountId: checking.id,
+      categoryId: groceries?.id ?? null,
+      amount: -120.5,
+      merchant: 'Whole Foods',
+      date: new Date('2026-02-10'),
+    },
+  ]
+  await db.transaction.createMany({ data: seedTransactions })
+
+  // Roll transaction amounts into the checking account balance
+  const txTotal = seedTransactions
+    .filter((t) => t.accountId === checking.id)
+    .reduce((sum, t) => sum + t.amount, 0)
+  await db.account.update({
+    where: { id: checking.id },
+    data: { balance: { increment: txTotal } },
   })
 
   // Lookup more categories for budgets
