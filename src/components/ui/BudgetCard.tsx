@@ -4,7 +4,7 @@ import { deleteBudget } from '@/app/actions/budgets'
 
 interface Category {
   name: string
-  color: string
+  icon: string | null
 }
 
 interface Budget {
@@ -12,14 +12,17 @@ interface Budget {
   name: string
   amount: number
   spent: number
+  period: string
   tier: string
   category: Category | null
 }
 
-const TIER_LABELS: Record<string, string> = {
-  fixed: 'Fixed',
-  flexible: 'Flexible',
-  annual: 'Annual',
+const PERIOD_LABELS: Record<string, string> = {
+  WEEKLY: 'Weekly',
+  MONTHLY: 'Monthly',
+  QUARTERLY: 'Quarterly',
+  YEARLY: 'Yearly',
+  CUSTOM: 'Custom',
 }
 
 export default function BudgetCard({ budget }: { budget: Budget }) {
@@ -35,16 +38,15 @@ export default function BudgetCard({ budget }: { budget: Budget }) {
           <p className="truncate font-semibold text-gray-900">{budget.name}</p>
           {budget.category && (
             <p className="flex items-center gap-1.5 text-xs text-gray-500">
-              <span
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: budget.category.color }}
-              />
+              {budget.category.icon && (
+                <span className="inline-block text-sm">{budget.category.icon}</span>
+              )}
               {budget.category.name}
             </p>
           )}
         </div>
         <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-          {TIER_LABELS[budget.tier] ?? budget.tier}
+          {PERIOD_LABELS[budget.period] ?? budget.period}
         </span>
       </div>
 

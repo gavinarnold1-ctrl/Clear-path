@@ -1,9 +1,8 @@
 export interface ParsedTransaction {
   date: string
   merchant: string
-  amount: number
+  amount: number // negative = expense, positive = income (kept as-is from CSV)
   category?: string
-  account?: string
   raw: Record<string, string>
 }
 
@@ -55,12 +54,11 @@ export function transformRows(
   const errors: { row: number; message: string }[] = []
 
   const dateCol = headers.findIndex((h) => mapping[h] === 'date')
-  const merchantCol = headers.findIndex((h) => mapping[h] === 'merchant')
+  const descCol = headers.findIndex((h) => mapping[h] === 'description')
   const amountCols = headers
     .map((h, i) => ({ header: h, index: i }))
     .filter(({ header }) => mapping[header] === 'amount')
   const categoryCol = headers.findIndex((h) => mapping[h] === 'category')
-  const accountCol = headers.findIndex((h) => mapping[h] === 'account')
 
   if (dateCol === -1) {
     return {
@@ -94,7 +92,7 @@ export function transformRows(
         return
       }
 
-      const merchant = merchantCol >= 0 ? row[merchantCol]?.trim() || 'Unknown' : 'Unknown'
+      const merchant = descCol >= 0 ? row[descCol]?.trim() || 'Unknown' : 'Unknown'
 
       let amount = 0
       if (amountCols.length === 1) {
@@ -121,20 +119,18 @@ export function transformRows(
       }
 
       const category = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
-      const account = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
 
       const raw: Record<string, string> = {}
       headers.forEach((h, i) => {
         raw[h] = row[i] || ''
       })
 
-      // Amount sign is preserved: negative = expense, positive = income
+      // Keep amount sign as-is: negative = expense, positive = income
       transactions.push({
         date: date.toISOString().split('T')[0],
         merchant,
         amount,
         category,
-        account,
         raw,
       })
     } catch (err) {

@@ -8,9 +8,9 @@ import { deleteCategory } from '@/app/actions/categories'
 export const metadata: Metadata = { title: 'Categories' }
 
 const TYPE_BADGE: Record<string, string> = {
-  INCOME: 'bg-green-100 text-green-700',
-  EXPENSE: 'bg-red-100 text-red-700',
-  TRANSFER: 'bg-amber-100 text-amber-700',
+  income: 'bg-green-100 text-green-700',
+  expense: 'bg-red-100 text-red-700',
+  transfer: 'bg-amber-100 text-amber-700',
 }
 
 export default async function CategoriesPage() {
@@ -49,7 +49,6 @@ export default async function CategoriesPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Group</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Type</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Color</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -67,13 +66,6 @@ export default async function CategoriesPage() {
                     >
                       {cat.type}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className="inline-block h-4 w-4 rounded-full"
-                      style={{ backgroundColor: cat.color }}
-                      aria-label={cat.color}
-                    />
                   </td>
                   <td className="px-4 py-3 text-right">
                     {cat.userId && (

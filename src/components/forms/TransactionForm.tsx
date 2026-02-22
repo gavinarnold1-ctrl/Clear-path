@@ -12,7 +12,6 @@ interface CategoryOption {
   id: string
   name: string
   type: string
-  group: string
 }
 
 interface Props {
@@ -26,8 +25,8 @@ const today = new Date().toISOString().split('T')[0]
 export default function TransactionForm({ accounts, categories }: Props) {
   const [state, formAction, isPending] = useActionState(createTransaction, initialState)
 
-  const incomeCategories = categories.filter((c) => c.type === 'INCOME')
-  const expenseCategories = categories.filter((c) => c.type === 'EXPENSE')
+  const incomeCategories = categories.filter((c) => c.type === 'income')
+  const expenseCategories = categories.filter((c) => c.type === 'expense')
 
   return (
     <form action={formAction} className="space-y-5">
@@ -37,10 +36,10 @@ export default function TransactionForm({ accounts, categories }: Props) {
         </p>
       )}
 
-      {/* Amount (negative = expense, positive = income) */}
+      {/* Amount */}
       <div>
         <label htmlFor="amount" className="mb-1 block text-sm font-medium text-gray-700">
-          Amount <span className="font-normal text-gray-400">(negative for expenses)</span>
+          Amount
         </label>
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
@@ -51,8 +50,9 @@ export default function TransactionForm({ accounts, categories }: Props) {
             name="amount"
             type="number"
             step="0.01"
+            min="0.01"
             className="input pl-7"
-            placeholder="-50.00"
+            placeholder="0.00"
             required
           />
         </div>
@@ -68,7 +68,7 @@ export default function TransactionForm({ accounts, categories }: Props) {
           name="merchant"
           type="text"
           className="input"
-          placeholder="e.g. Whole Foods, Acme Corp"
+          placeholder="e.g. Whole Foods, Employer Inc."
           required
         />
       </div>

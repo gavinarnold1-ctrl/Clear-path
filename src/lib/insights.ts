@@ -22,12 +22,12 @@ export async function buildTransactionSummary(
     orderBy: { date: 'desc' },
   })
 
-  // Positive amounts = income, negative amounts = expense
+  // Signed amounts: positive = income, negative = expense
   const income = transactions.filter((t) => t.amount > 0)
   const expenses = transactions.filter((t) => t.amount < 0)
 
   const totalIncome = income.reduce((sum, t) => sum + t.amount, 0)
-  const totalExpenses = Math.abs(expenses.reduce((sum, t) => sum + t.amount, 0))
+  const totalExpenses = expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
   // Category breakdown with benchmarks
   const categoryMap = new Map<string, typeof expenses>()
@@ -38,7 +38,7 @@ export async function buildTransactionSummary(
   })
 
   const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, txns]) => {
-    const total = Math.abs(txns.reduce((sum, t) => sum + t.amount, 0))
+    const total = txns.reduce((sum, t) => sum + Math.abs(t.amount), 0)
     const monthlyAvg = total / months
     const benchmark = getBenchmark(category)
 
@@ -113,7 +113,7 @@ function detectRecurring(expenses: TransactionWithCategory[]): RecurringCharge[]
 
   const recurring: RecurringCharge[] = []
 
-  groups.forEach((amounts, merchant) => {
+  groups.forEach((amounts, description) => {
     if (amounts.length < 2) return
 
     // Check if amounts are similar (within 10% of each other)
@@ -122,7 +122,7 @@ function detectRecurring(expenses: TransactionWithCategory[]): RecurringCharge[]
 
     if (allSimilar) {
       recurring.push({
-        description: merchant,
+        description,
         amount: avg,
         frequency: amounts.length >= 3 ? 'monthly' : 'recurring',
       })

@@ -60,11 +60,7 @@ export default async function TransactionsPage() {
                   <td className="px-4 py-3 font-medium text-gray-900">{tx.merchant}</td>
                   <td className="px-4 py-3 text-gray-500">{tx.category?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-500">{tx.account?.name ?? '—'}</td>
-                  <td
-                    className={`px-4 py-3 text-right font-semibold ${
-                      tx.amount < 0 ? 'text-expense' : 'text-income'
-                    }`}
-                  >
+                  <td className={`px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {tx.amount < 0 ? '−' : '+'}
                     {formatCurrency(Math.abs(tx.amount))}
                   </td>

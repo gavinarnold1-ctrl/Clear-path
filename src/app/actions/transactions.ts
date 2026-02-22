@@ -22,25 +22,52 @@ export async function createTransaction(
   const accountId = (formData.get('accountId') as string) || null
   const categoryId = (formData.get('categoryId') as string) || null
   const notes = (formData.get('notes') as string)?.trim() || null
+  const tags = (formData.get('tags') as string)?.trim() || null
 
-  if (!amount) return { error: 'Amount is required.' }
+  if (isNaN(amount) || amount === 0) return { error: 'Amount must be a non-zero number.' }
   if (!merchant) return { error: 'Merchant is required.' }
   if (!date) return { error: 'Date is required.' }
+
+  // Determine sign based on category type
+  let finalAmount = amount
+  if (categoryId) {
+    const category = await db.category.findUnique({ where: { id: categoryId } })
+    if (category) {
+      if (category.type === 'expense') {
+        finalAmount = -Math.abs(amount)
+      } else if (category.type === 'income') {
+        finalAmount = Math.abs(amount)
+      }
+      // transfer: keep user-provided sign
+    }
+  }
 
   const txDate = new Date(date)
 
   await db.$transaction(async (tx) => {
-    // 1. Create the transaction record (amount sign determines income vs expense)
+    // 1. Create the transaction record
     await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, amount, merchant, date: txDate, notes },
+      data: { userId: session.userId, accountId, categoryId, amount: finalAmount, merchant, date: txDate, notes, tags },
     })
 
-    // 2. Adjust account balance if an account is linked
+    // 2. Adjust account balance (amount sign already correct)
     if (accountId) {
-      await tx.account.update({
-        where: { id: accountId },
-        data: { balance: { increment: amount } },
+      await tx.account.update({ where: { id: accountId }, data: { balance: { increment: finalAmount } } })
+    }
+
+    // 3. Update matching active budget's spent counter (expenses only)
+    if (categoryId && finalAmount < 0) {
+      const budget = await tx.budget.findFirst({
+        where: {
+          userId: session.userId,
+          categoryId,
+          startDate: { lte: txDate },
+          OR: [{ endDate: null }, { endDate: { gte: txDate } }],
+        },
       })
+      if (budget) {
+        await tx.budget.update({ where: { id: budget.id }, data: { spent: { increment: Math.abs(finalAmount) } } })
+      }
     }
   })
 
@@ -63,10 +90,25 @@ export async function deleteTransaction(id: string): Promise<void> {
 
     // Reverse account balance
     if (existing.accountId) {
-      await tx.account.update({
-        where: { id: existing.accountId },
-        data: { balance: { decrement: existing.amount } },
+      await tx.account.update({ where: { id: existing.accountId }, data: { balance: { increment: -existing.amount } } })
+    }
+
+    // Reverse budget spent (for expenses, amount is negative)
+    if (existing.categoryId && existing.amount < 0) {
+      const budget = await tx.budget.findFirst({
+        where: {
+          userId: session.userId,
+          categoryId: existing.categoryId,
+          startDate: { lte: existing.date },
+          OR: [{ endDate: null }, { endDate: { gte: existing.date } }],
+        },
       })
+      if (budget) {
+        await tx.budget.update({
+          where: { id: budget.id },
+          data: { spent: { decrement: Math.abs(existing.amount) } },
+        })
+      }
     }
   })
 

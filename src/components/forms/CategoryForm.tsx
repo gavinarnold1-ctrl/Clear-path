@@ -6,42 +6,6 @@ import { createCategory } from '@/app/actions/categories'
 
 const initialState = { error: null }
 
-const PRESET_COLORS = [
-  '#6366f1', // indigo
-  '#22c55e', // green
-  '#ef4444', // red
-  '#f59e0b', // amber
-  '#3b82f6', // blue
-  '#ec4899', // pink
-  '#8b5cf6', // violet
-  '#14b8a6', // teal
-  '#f97316', // orange
-  '#64748b', // slate
-]
-
-const GROUPS = [
-  'Income',
-  'Housing',
-  'Utilities',
-  'Food & Dining',
-  'Transportation',
-  'Insurance',
-  'Healthcare',
-  'Subscriptions',
-  'Shopping',
-  'Personal Care',
-  'Entertainment',
-  'Education',
-  'Children & Family',
-  'Pets',
-  'Travel',
-  'Debt Payments',
-  'Savings & Investments',
-  'Taxes',
-  'Charitable Giving',
-  'Miscellaneous',
-]
-
 export default function CategoryForm() {
   const [state, formAction, isPending] = useActionState(createCategory, initialState)
 
@@ -74,46 +38,23 @@ export default function CategoryForm() {
           Type
         </label>
         <select id="type" name="type" className="input" required>
-          <option value="EXPENSE">Expense</option>
-          <option value="INCOME">Income</option>
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
         </select>
       </div>
 
       {/* Group */}
       <div>
         <label htmlFor="group" className="mb-1 block text-sm font-medium text-gray-700">
-          Group
+          Group <span className="font-normal text-gray-400">(optional)</span>
         </label>
-        <select id="group" name="group" className="input" required>
-          {GROUPS.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Color */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">Color</label>
-        <div className="flex flex-wrap gap-2">
-          {PRESET_COLORS.map((color, i) => (
-            <label key={color} className="cursor-pointer">
-              <input
-                type="radio"
-                name="color"
-                value={color}
-                defaultChecked={i === 0}
-                className="sr-only"
-              />
-              <span
-                className="block h-8 w-8 rounded-full ring-2 ring-offset-2 ring-transparent has-[:checked]:ring-gray-800"
-                style={{ backgroundColor: color }}
-                aria-label={color}
-              />
-            </label>
-          ))}
-        </div>
+        <input
+          id="group"
+          name="group"
+          type="text"
+          className="input"
+          placeholder="e.g. Food & Dining, Housing"
+        />
       </div>
 
       {/* Icon (emoji shorthand) */}
@@ -129,6 +70,19 @@ export default function CategoryForm() {
           placeholder="🛒"
           maxLength={4}
         />
+      </div>
+
+      {/* Budget tier */}
+      <div>
+        <label htmlFor="budgetTier" className="mb-1 block text-sm font-medium text-gray-700">
+          Default budget tier <span className="font-normal text-gray-400">(optional)</span>
+        </label>
+        <select id="budgetTier" name="budgetTier" className="input">
+          <option value="">None</option>
+          <option value="FIXED">Fixed</option>
+          <option value="FLEXIBLE">Flexible</option>
+          <option value="ANNUAL">Annual</option>
+        </select>
       </div>
 
       <div className="flex gap-3 pt-1">

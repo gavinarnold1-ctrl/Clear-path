@@ -41,10 +41,14 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
   const [headers, setHeaders] = useState<string[]>([])
   const [mappings, setMappings] = useState<ColumnMappingData[]>([])
   const [totalRows, setTotalRows] = useState(0)
+  const [isMonarch, setIsMonarch] = useState(false)
 
   // State from transform
   const [previewTransactions, setPreviewTransactions] = useState<ParsedTransaction[]>([])
   const [previewErrors, setPreviewErrors] = useState<{ row: number; message: string }[]>([])
+
+  // Monarch preview data (raw rows for direct display)
+  const [monarchPreviewRows, setMonarchPreviewRows] = useState<string[][]>([])
 
   // Import config
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
@@ -52,8 +56,6 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
 
   // Result
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
-
-  const hasAccountColumn = mappings.some((m) => m.appField === 'account')
 
   async function handleUpload(file: File) {
     setLoading(true)
@@ -76,10 +78,18 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
 
       const data = await res.json()
       setHeaders(data.headers)
-      setMappings(data.mappings)
       setTotalRows(data.totalRows)
       setCsvText(data.csvText)
-      setStep('map')
+
+      if (data.isMonarch) {
+        setIsMonarch(true)
+        setMonarchPreviewRows(data.sampleRows)
+        setStep('preview') // Skip column mapping for Monarch
+      } else {
+        setIsMonarch(false)
+        setMappings(data.mappings)
+        setStep('map')
+      }
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -118,15 +128,25 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
     setError(null)
 
     try {
-      const mapping: Record<string, string> = {}
-      mappings.forEach((m) => {
-        mapping[m.csvColumn] = m.appField
-      })
+      const body: Record<string, unknown> = {
+        csvText,
+        accountId: accountId || undefined,
+        skipDuplicates,
+        isMonarch,
+      }
+
+      if (!isMonarch) {
+        const mapping: Record<string, string> = {}
+        mappings.forEach((m) => {
+          mapping[m.csvColumn] = m.appField
+        })
+        body.mapping = mapping
+      }
 
       const res = await fetch('/api/transactions/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csvText, mapping, accountId: accountId || undefined, skipDuplicates }),
+        body: JSON.stringify(body),
       })
 
       if (!res.ok) {
@@ -145,13 +165,18 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
     }
   }
 
+  const previewCount = isMonarch ? totalRows : previewTransactions.length
+  const activeSteps = isMonarch
+    ? (['upload', 'preview', 'done'] as const)
+    : (['upload', 'map', 'preview', 'done'] as const)
+
   return (
     <div className="space-y-6">
       {/* Step indicator */}
       <div className="flex items-center gap-2 text-sm">
-        {(['upload', 'map', 'preview', 'done'] as const).map((s, i) => (
+        {activeSteps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
-            {i > 0 && <span className="text-gray-300">→</span>}
+            {i > 0 && <span className="text-gray-300">&rarr;</span>}
             <span
               className={`rounded-full px-3 py-1 font-medium ${
                 step === s
@@ -163,6 +188,11 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
             </span>
           </div>
         ))}
+        {isMonarch && step !== 'upload' && (
+          <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+            Monarch Money format detected
+          </span>
+        )}
       </div>
 
       {error && (
@@ -174,17 +204,15 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
       {/* Step 1: Upload */}
       {step === 'upload' && <CsvUploader onUpload={handleUpload} loading={loading} />}
 
-      {/* Step 2: Map columns */}
-      {step === 'map' && (
+      {/* Step 2: Map columns (non-Monarch only) */}
+      {step === 'map' && !isMonarch && (
         <>
           <ColumnMapper mappings={mappings} onMappingsChange={setMappings} />
 
           <div className="flex items-end gap-4">
             <div className="flex-1">
               <label htmlFor="account" className="mb-1 block text-sm font-medium text-gray-700">
-                {hasAccountColumn
-                  ? 'Fallback account (for rows that don\u2019t match an existing account)'
-                  : 'Import into account (optional)'}
+                Import into account
               </label>
               <select
                 id="account"
@@ -199,11 +227,6 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
                   </option>
                 ))}
               </select>
-              {hasAccountColumn && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Account column detected — rows will be matched to your accounts by name.
-                </p>
-              )}
             </div>
             <div className="flex gap-3">
               <button
@@ -216,7 +239,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
               <button
                 type="button"
                 onClick={handlePreview}
-                className="btn-primary"
+                className="btn-primary disabled:cursor-not-allowed"
               >
                 Preview import
               </button>
@@ -228,11 +251,61 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
       {/* Step 3: Preview */}
       {step === 'preview' && (
         <>
-          <ImportPreview
-            transactions={previewTransactions}
-            errors={previewErrors}
-            totalRows={totalRows}
-          />
+          {isMonarch ? (
+            // Monarch preview: show raw sample rows
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-4 rounded-lg bg-gray-50 p-4 text-sm">
+                <span className="text-gray-600">
+                  <span className="font-semibold text-gray-900">{totalRows}</span> transactions
+                  to import
+                </span>
+              </div>
+              {monarchPreviewRows.length > 0 && (
+                <div className="card overflow-hidden p-0">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-gray-100 bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-500">Merchant</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-500">Category</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-500">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {monarchPreviewRows.slice(0, 10).map((row, i) => {
+                        const dateIdx = headers.findIndex((h) => h.toLowerCase() === 'date')
+                        const merchantIdx = headers.findIndex((h) => h.toLowerCase() === 'merchant')
+                        const categoryIdx = headers.findIndex((h) => h.toLowerCase() === 'category')
+                        const amountIdx = headers.findIndex((h) => h.toLowerCase() === 'amount')
+                        const amt = parseFloat(row[amountIdx]?.replace(/[$,]/g, '') || '0')
+                        return (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-500">{row[dateIdx]}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{row[merchantIdx]}</td>
+                            <td className="px-4 py-3 text-gray-500">{row[categoryIdx] || '—'}</td>
+                            <td className={`px-4 py-3 text-right font-semibold ${amt < 0 ? 'text-expense' : 'text-income'}`}>
+                              {amt < 0 ? '−' : '+'}${Math.abs(amt).toFixed(2)}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  {totalRows > 10 && (
+                    <p className="border-t border-gray-100 px-4 py-2 text-center text-xs text-gray-400">
+                      Showing 10 of {totalRows} transactions
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <ImportPreview
+              transactions={previewTransactions}
+              errors={previewErrors}
+              totalRows={totalRows}
+            />
+          )}
 
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -248,7 +321,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep('map')}
+                onClick={() => setStep(isMonarch ? 'upload' : 'map')}
                 className="btn-secondary"
               >
                 Back
@@ -256,12 +329,12 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={loading || previewTransactions.length === 0}
+                disabled={loading || previewCount === 0}
                 className="btn-primary disabled:cursor-not-allowed"
               >
                 {loading
                   ? 'Importing...'
-                  : `Import ${previewTransactions.length} transaction${previewTransactions.length !== 1 ? 's' : ''}`}
+                  : `Import ${previewCount} transaction${previewCount !== 1 ? 's' : ''}`}
               </button>
             </div>
           </div>

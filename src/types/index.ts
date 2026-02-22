@@ -1,8 +1,12 @@
 // ─── Enum aliases (mirror the Prisma schema) ─────────────────────────────────
 
-export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER'
+export type CategoryType = 'income' | 'expense' | 'transfer'
 
 export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH'
+
+export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM'
+
+export type BudgetTier = 'FIXED' | 'FLEXIBLE' | 'ANNUAL'
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -24,12 +28,11 @@ export interface Account {
 
 export interface Category {
   id: string
-  name: string
-  color: string
-  icon: string | null
-  type: TransactionType
+  type: CategoryType
   group: string
-  budgetTier: string | null
+  name: string
+  icon: string | null
+  budgetTier: BudgetTier | null
   isDefault: boolean
   isActive: boolean
   userId: string | null
@@ -37,12 +40,13 @@ export interface Category {
 
 export interface Transaction {
   id: string
-  amount: number
-  merchant: string
-  originalStatement: string | null
-  tags: string | null
   date: Date
+  merchant: string
+  amount: number
+  transactionType: string | null
+  originalStatement: string | null
   notes: string | null
+  tags: string | null
   userId: string
   accountId: string | null
   account?: Account | null
@@ -56,27 +60,37 @@ export interface Budget {
   id: string
   name: string
   amount: number
-  tier: string
+  spent: number
+  period: BudgetPeriod
+  tier: BudgetTier
   startDate: Date
   endDate: Date | null
+  isAutoPay: boolean | null
+  dueDay: number | null
+  varianceLimit: number | null
   userId: string
   categoryId: string | null
   category?: Category | null
+  annualExpense?: AnnualExpense | null
   createdAt: Date
   updatedAt: Date
 }
 
 export interface AnnualExpense {
   id: string
+  budgetId: string
   name: string
-  amount: number
-  dueDate: Date
+  annualAmount: number
+  dueMonth: number
+  dueYear: number
+  isRecurring: boolean
+  monthlySetAside: number
+  funded: number
+  status: string
+  actualCost: number | null
+  actualDate: Date | null
   notes: string | null
   userId: string
-  categoryId: string | null
-  category?: Category | null
-  createdAt: Date
-  updatedAt: Date
 }
 
 // ─── API response shapes ──────────────────────────────────────────────────────

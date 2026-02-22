@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { formatCurrency, formatDate, budgetProgress } from '@/lib/utils'
 import ProgressBar from '@/components/ui/ProgressBar'
+import MonthPicker from './MonthPicker'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -28,16 +29,52 @@ function StatCard({
   )
 }
 
-export default async function DashboardPage() {
+interface Props {
+  searchParams: Promise<{ month?: string }>
+}
+
+export default async function DashboardPage({ searchParams }: Props) {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const params = await searchParams
 
-  // Income = positive amounts, Expenses = negative amounts (determined by amount sign)
-  const [accounts, recent, activeBudgets, categorySpending, monthlyTxns] = await Promise.all([
+  // Parse month from search params or default to current month
+  const now = new Date()
+  let year = now.getFullYear()
+  let month = now.getMonth() // 0-indexed
+  if (params.month) {
+    const [y, m] = params.month.split('-').map(Number)
+    if (y && m && m >= 1 && m <= 12) {
+      year = y
+      month = m - 1
+    }
+  }
+
+  const startDate = new Date(year, month, 1)
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999)
+  const monthLabel = startDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+
+  const [accounts, incomeAgg, expenseAgg, recent, activeBudgets, categorySpending] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
+    // Income: category.type = "income" within selected date range
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+        category: { type: 'income' },
+      },
+      _sum: { amount: true },
+    }),
+    // Expenses: category.type = "expense" within selected date range
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+        category: { type: 'expense' },
+      },
+      _sum: { amount: true },
+    }),
     db.transaction.findMany({
       where: { userId: session.userId },
       include: { account: true, category: true },
@@ -51,55 +88,53 @@ export default async function DashboardPage() {
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
       include: { category: true },
+      orderBy: { spent: 'desc' },
       take: 4,
     }),
+    // Spending by category (expense transactions are negative)
     db.transaction.groupBy({
       by: ['categoryId'],
-      where: { userId: session.userId, amount: { lt: 0 }, date: { gte: startOfMonth }, categoryId: { not: null } },
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+        category: { type: 'expense' },
+        categoryId: { not: null },
+      },
       _sum: { amount: true },
-      orderBy: { _sum: { amount: 'asc' } },
+      orderBy: { _sum: { amount: 'asc' } }, // most negative first
       take: 6,
-    }),
-    db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: startOfMonth } },
-      select: { amount: true, categoryId: true },
     }),
   ])
 
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0)
-  const monthlyIncome = monthlyTxns.filter((t) => t.amount > 0).reduce((sum, t) => sum + t.amount, 0)
-  const monthlyExpense = Math.abs(monthlyTxns.filter((t) => t.amount < 0).reduce((sum, t) => sum + t.amount, 0))
-
-  // Calculate spent for each active budget from this month's transactions
-  const budgetSpentMap = new Map<string | null, number>()
-  for (const t of monthlyTxns) {
-    if (t.amount < 0 && t.categoryId) {
-      budgetSpentMap.set(t.categoryId, (budgetSpentMap.get(t.categoryId) ?? 0) + Math.abs(t.amount))
-    }
-  }
-
-  const activeBudgetsWithSpent = activeBudgets.map((b) => ({
-    ...b,
-    spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : monthlyExpense,
-  }))
+  // Income amounts are positive
+  const monthlyIncome = incomeAgg._sum.amount ?? 0
+  // Expense amounts are negative, show as positive
+  const monthlyExpense = Math.abs(expenseAgg._sum.amount ?? 0)
 
   // Resolve category names for spending breakdown
   const catIds = categorySpending.map((g) => g.categoryId).filter((id): id is string => id !== null)
   const categories = catIds.length > 0
-    ? await db.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true, color: true } })
+    ? await db.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true, icon: true } })
     : []
   const catMap = new Map(categories.map((c) => [c.id, c]))
   const spendingByCategory = categorySpending.map((g) => {
     const cat = catMap.get(g.categoryId!)
-    return { name: cat?.name ?? 'Unknown', color: cat?.color ?? '#6366f1', amount: Math.abs(g._sum.amount ?? 0) }
+    return { name: cat?.name ?? 'Unknown', icon: cat?.icon ?? null, amount: Math.abs(g._sum.amount ?? 0) }
   })
   const maxCategoryAmount = Math.max(...spendingByCategory.map((s) => s.amount), 1)
 
+  // Format current month for the picker
+  const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`
+
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">
-        {session.name ? `Welcome back, ${session.name.split(' ')[0]}` : 'Overview'}
-      </h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">
+          {session.name ? `Welcome back, ${session.name.split(' ')[0]}` : 'Overview'}
+        </h1>
+        <MonthPicker currentMonth={currentMonth} />
+      </div>
 
       {/* Summary stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -109,12 +144,12 @@ export default async function DashboardPage() {
           sub={`across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
         />
         <StatCard
-          label="Income this month"
+          label={`Income — ${monthLabel}`}
           value={formatCurrency(monthlyIncome)}
           valueClass="text-income"
         />
         <StatCard
-          label="Expenses this month"
+          label={`Expenses — ${monthLabel}`}
           value={formatCurrency(monthlyExpense)}
           valueClass="text-expense"
         />
@@ -127,11 +162,11 @@ export default async function DashboardPage() {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-gray-900">Active budgets</h2>
             <Link href="/budgets" className="text-sm text-brand-600 hover:text-brand-700">
-              View all →
+              View all &rarr;
             </Link>
           </div>
 
-          {activeBudgetsWithSpent.length === 0 ? (
+          {activeBudgets.length === 0 ? (
             <p className="text-sm text-gray-400">
               No active budgets.{' '}
               <Link href="/budgets/new" className="text-brand-600 hover:underline">
@@ -141,7 +176,7 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <ul className="space-y-4">
-              {activeBudgetsWithSpent.map((b) => {
+              {activeBudgets.map((b) => {
                 const pct = budgetProgress(b.spent, b.amount)
                 return (
                   <li key={b.id}>
@@ -171,10 +206,9 @@ export default async function DashboardPage() {
             <ul className="space-y-3">
               {spendingByCategory.map((s) => (
                 <li key={s.name} className="flex items-center gap-3">
-                  <span
-                    className="inline-block h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: s.color }}
-                  />
+                  <span className="inline-block h-5 w-5 shrink-0 text-center text-sm">
+                    {s.icon ?? ''}
+                  </span>
                   <div className="flex-1">
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="font-medium text-gray-700">{s.name}</span>
@@ -182,10 +216,9 @@ export default async function DashboardPage() {
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
                       <div
-                        className="h-full rounded-full"
+                        className="h-full rounded-full bg-brand-500"
                         style={{
                           width: `${Math.round((s.amount / maxCategoryAmount) * 100)}%`,
-                          backgroundColor: s.color,
                         }}
                       />
                     </div>
@@ -202,7 +235,7 @@ export default async function DashboardPage() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">Recent transactions</h2>
           <Link href="/transactions" className="text-sm text-brand-600 hover:text-brand-700">
-            View all →
+            View all &rarr;
           </Link>
         </div>
 
@@ -225,11 +258,7 @@ export default async function DashboardPage() {
                     {tx.category ? ` · ${tx.category.name}` : ''}
                   </p>
                 </div>
-                <span
-                  className={`ml-4 shrink-0 text-sm font-semibold ${
-                    tx.amount < 0 ? 'text-expense' : 'text-income'
-                  }`}
-                >
+                <span className={`ml-4 shrink-0 text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                   {tx.amount < 0 ? '−' : '+'}
                   {formatCurrency(Math.abs(tx.amount))}
                 </span>
