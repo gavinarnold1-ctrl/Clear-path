@@ -35,7 +35,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  password  String   // hashed — never store plaintext
+  password  String // hashed — never store plaintext
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -109,11 +109,11 @@ model Transaction {
 model Budget {
   id        String       @id @default(cuid())
   name      String
-  amount    Float        // target spend / save limit
+  amount    Float // target spend / save limit
   spent     Float        @default(0)
   period    BudgetPeriod
   startDate DateTime
-  endDate   DateTime?    // null = rolling / no end
+  endDate   DateTime? // null = rolling / no end
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -127,15 +127,15 @@ model Insight {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category      String    // "spending", "debt", "savings", "tax", "subscription"
-  type          String    // "waste", "optimization", "alert", "opportunity"
-  priority      String    // "high", "medium", "low"
+  category      String // "spending", "debt", "savings", "tax", "subscription"
+  type          String // "waste", "optimization", "alert", "opportunity"
+  priority      String // "high", "medium", "low"
   title         String
   description   String
-  savingsAmount Float?    // Estimated dollar savings (monthly)
-  actionItems   String    // JSON array of action steps
+  savingsAmount Float? // Estimated dollar savings (monthly)
+  actionItems   String // JSON array of action steps
   status        String    @default("active") // "active", "dismissed", "completed"
-  metadata      String?   // JSON blob for additional context
+  metadata      String? // JSON blob for additional context
   generatedAt   DateTime  @default(now())
   expiresAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -149,12 +149,12 @@ model EfficiencyScore {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  overallScore  Float    // 0-100
-  spendingScore Float    // 0-100
-  savingsScore  Float    // 0-100
-  debtScore     Float    // 0-100
-  period        String   // "2026-02" (year-month)
-  breakdown     String   // JSON with detailed scoring
+  overallScore  Float // 0-100
+  spendingScore Float // 0-100
+  savingsScore  Float // 0-100
+  debtScore     Float // 0-100
+  period        String // "2026-02" (year-month)
+  breakdown     String // JSON with detailed scoring
   createdAt     DateTime @default(now())
 
   @@unique([userId, period])
