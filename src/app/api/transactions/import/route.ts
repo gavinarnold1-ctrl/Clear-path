@@ -11,16 +11,18 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { csvText, mapping, accountId, skipDuplicates = true } = body
 
-    if (!csvText || !mapping || !accountId) {
+    if (!csvText || !mapping) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Verify fallback account ownership
-    const fallbackAccount = await db.account.findUnique({
-      where: { id: accountId, userId: session.userId },
-    })
-    if (!fallbackAccount) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    // Verify fallback account ownership (if provided)
+    if (accountId) {
+      const fallbackAccount = await db.account.findUnique({
+        where: { id: accountId, userId: session.userId },
+      })
+      if (!fallbackAccount) {
+        return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      }
     }
 
     // Build account lookup map for CSV account column matching
@@ -43,9 +45,9 @@ export async function POST(request: Request) {
       })
     }
 
-    // Load user's categories for fuzzy matching
+    // Load user's categories for fuzzy matching (include system defaults)
     const userCategories = await db.category.findMany({
-      where: { userId: session.userId },
+      where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
     })
     const categoryMap = new Map(userCategories.map((c) => [c.name.toLowerCase(), c]))
 
@@ -53,11 +55,10 @@ export async function POST(request: Request) {
     let duplicateCount = 0
     const toImport: {
       userId: string
-      accountId: string
+      accountId: string | null
       date: Date
-      description: string
+      merchant: string
       amount: number
-      type: 'INCOME' | 'EXPENSE'
       categoryId: string | null
     }[] = []
 
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
             userId: session.userId,
             date: new Date(tx.date),
             amount: tx.amount,
-            description: tx.description,
+            merchant: tx.merchant,
           },
         })
         if (existing) {
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       }
 
       // Match CSV account name to user account, fall back to selected account
-      let resolvedAccountId = accountId
+      let resolvedAccountId: string | null = accountId ?? null
       if (tx.account) {
         const matched = accountNameMap.get(tx.account.toLowerCase())
         if (matched) resolvedAccountId = matched
@@ -95,9 +96,8 @@ export async function POST(request: Request) {
         userId: session.userId,
         accountId: resolvedAccountId,
         date: new Date(tx.date),
-        description: tx.description,
+        merchant: tx.merchant,
         amount: tx.amount,
-        type: tx.type,
         categoryId,
       })
     }

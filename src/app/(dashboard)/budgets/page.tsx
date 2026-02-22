@@ -17,6 +17,28 @@ export default async function BudgetsPage() {
     orderBy: { startDate: 'desc' },
   })
 
+  // Calculate spent from actual transactions for each budget
+  const budgetsWithSpent = await Promise.all(
+    budgets.map(async (budget) => {
+      const dateFilter = {
+        gte: budget.startDate,
+        ...(budget.endDate ? { lte: budget.endDate } : {}),
+      }
+
+      const agg = await db.transaction.aggregate({
+        where: {
+          userId: session.userId,
+          amount: { lt: 0 },
+          date: dateFilter,
+          ...(budget.categoryId ? { categoryId: budget.categoryId } : {}),
+        },
+        _sum: { amount: true },
+      })
+
+      return { ...budget, spent: Math.abs(agg._sum.amount ?? 0) }
+    })
+  )
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -26,7 +48,7 @@ export default async function BudgetsPage() {
         </Link>
       </div>
 
-      {budgets.length === 0 ? (
+      {budgetsWithSpent.length === 0 ? (
         <div className="card flex flex-col items-center justify-center py-16 text-center">
           <p className="mb-2 text-sm font-medium text-gray-500">No budgets yet</p>
           <p className="mb-4 text-xs text-gray-400">
@@ -38,7 +60,7 @@ export default async function BudgetsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {budgets.map((budget) => (
+          {budgetsWithSpent.map((budget) => (
             <BudgetCard key={budget.id} budget={budget} />
           ))}
         </div>

@@ -20,6 +20,7 @@ export async function createCategory(
   const type = formData.get('type') as string
   const color = (formData.get('color') as string) || '#6366f1'
   const icon = (formData.get('icon') as string)?.trim() || null
+  const group = (formData.get('group') as string)?.trim() || 'Miscellaneous'
 
   const VALID_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER'] as const
   type CatType = (typeof VALID_TYPES)[number]
@@ -42,6 +43,8 @@ export async function createCategory(
       type: validType,
       color,
       icon,
+      group,
+      isDefault: false,
     },
   })
 

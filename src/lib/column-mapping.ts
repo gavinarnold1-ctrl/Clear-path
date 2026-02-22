@@ -1,4 +1,4 @@
-export type AppField = 'date' | 'description' | 'amount' | 'category' | 'type' | 'account' | 'ignore'
+export type AppField = 'date' | 'merchant' | 'amount' | 'category' | 'account' | 'ignore'
 
 // Common column name patterns from major banks
 const COLUMN_PATTERNS: Record<Exclude<AppField, 'ignore'>, string[]> = {
@@ -14,7 +14,7 @@ const COLUMN_PATTERNS: Record<Exclude<AppField, 'ignore'>, string[]> = {
     'settlement date',
     'value date',
   ],
-  description: [
+  merchant: [
     'description',
     'merchant',
     'name',
@@ -39,7 +39,6 @@ const COLUMN_PATTERNS: Record<Exclude<AppField, 'ignore'>, string[]> = {
     'trans amount',
   ],
   category: ['category', 'classification', 'group', 'tag', 'label'],
-  type: ['credit/debit', 'cr/dr', 'transaction type', 'type', 'debit or credit', 'flow'],
   account: [
     'account',
     'account name',

@@ -27,14 +27,6 @@ enum AccountType {
   CASH
 }
 
-enum BudgetPeriod {
-  WEEKLY
-  MONTHLY
-  QUARTERLY
-  YEARLY
-  CUSTOM
-}
-
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -51,6 +43,7 @@ model User {
   categories       Category[]
   insights         Insight[]
   efficiencyScores EfficiencyScore[]
+  annualExpenses   AnnualExpense[]
 }
 
 model Account {
@@ -68,47 +61,66 @@ model Account {
 }
 
 model Category {
-  id        String          @id @default(cuid())
-  name      String
-  color     String          @default("#6366f1")
-  icon      String?
-  type      TransactionType
-  createdAt DateTime        @default(now())
+  id         String          @id @default(cuid())
+  name       String
+  color      String          @default("#6366f1")
+  icon       String?
+  type       TransactionType
+  group      String // e.g. "Food & Dining", "Housing", "Income"
+  budgetTier String? // "fixed", "flexible", or "annual"
+  isDefault  Boolean         @default(true)
+  isActive   Boolean         @default(true)
+  createdAt  DateTime        @default(now())
 
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets      Budget[]
 }
 
 model Transaction {
-  id          String          @id @default(cuid())
-  amount      Float
-  description String
-  date        DateTime
-  type        TransactionType
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                String   @id @default(cuid())
+  amount            Float
+  merchant          String
+  originalStatement String?
+  tags              String?
+  date              DateTime
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId  String
-  account    Account   @relation(fields: [accountId], references: [id])
+  accountId  String?
+  account    Account?  @relation(fields: [accountId], references: [id])
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
 }
 
 model Budget {
-  id        String       @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   amount    Float // target spend / save limit
-  spent     Float        @default(0)
-  period    BudgetPeriod
+  tier      String // "fixed", "flexible", or "annual"
   startDate DateTime
   endDate   DateTime? // null = rolling / no end
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+}
+
+model AnnualExpense {
+  id        String   @id @default(cuid())
+  name      String
+  amount    Float // total annual cost
+  dueDate   DateTime // next due date
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -41,7 +41,7 @@ export default function ImportPreview({ transactions, errors, totalRows }: Impor
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Description</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Merchant</th>
                 {hasAccount && (
                   <th className="px-4 py-3 text-left font-medium text-gray-500">Account</th>
                 )}
@@ -53,18 +53,18 @@ export default function ImportPreview({ transactions, errors, totalRows }: Impor
               {preview.map((tx, i) => (
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500">{tx.date}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{tx.description}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{tx.merchant}</td>
                   {hasAccount && (
                     <td className="px-4 py-3 text-gray-500">{tx.account ?? '—'}</td>
                   )}
                   <td className="px-4 py-3 text-gray-500">{tx.category ?? '—'}</td>
                   <td
                     className={`px-4 py-3 text-right font-semibold ${
-                      tx.type === 'EXPENSE' ? 'text-expense' : 'text-income'
+                      tx.amount < 0 ? 'text-expense' : 'text-income'
                     }`}
                   >
-                    {tx.type === 'EXPENSE' ? '−' : '+'}
-                    {formatCurrency(tx.amount)}
+                    {tx.amount < 0 ? '−' : '+'}
+                    {formatCurrency(Math.abs(tx.amount))}
                   </td>
                 </tr>
               ))}

@@ -27,15 +27,16 @@ import { buildTransactionSummary } from '@/lib/insights'
 function makeTransaction(overrides: Record<string, unknown> = {}) {
   return {
     id: 'tx-1',
-    amount: 100,
-    description: 'Test Transaction',
+    amount: -100,
+    merchant: 'Test Store',
+    originalStatement: null,
+    tags: null,
     date: new Date('2026-01-15'),
-    type: 'EXPENSE' as const,
     notes: null,
     userId: 'user-1',
     accountId: 'acc-1',
     categoryId: 'cat-1',
-    category: { id: 'cat-1', name: 'Groceries', color: '#22c55e', icon: null, type: 'EXPENSE', userId: 'user-1' },
+    category: { id: 'cat-1', name: 'Groceries', color: '#22c55e', icon: null, type: 'EXPENSE', group: 'Food & Dining', budgetTier: 'flexible', isDefault: true, isActive: true, userId: null },
     account: { id: 'acc-1', name: 'Checking', type: 'CHECKING', balance: 1000, currency: 'USD', userId: 'user-1' },
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -46,9 +47,9 @@ function makeTransaction(overrides: Record<string, unknown> = {}) {
 describe('buildTransactionSummary', () => {
   it('correctly splits income and expenses', async () => {
     const mockTransactions = [
-      makeTransaction({ type: 'INCOME', amount: 5000, description: 'Salary', category: { id: 'cat-2', name: 'Salary', color: '#6366f1', icon: null, type: 'INCOME', userId: 'user-1' } }),
-      makeTransaction({ type: 'EXPENSE', amount: 200, description: 'Grocery Store' }),
-      makeTransaction({ type: 'EXPENSE', amount: 50, description: 'Coffee Shop', category: { id: 'cat-3', name: 'Dining', color: '#ef4444', icon: null, type: 'EXPENSE', userId: 'user-1' } }),
+      makeTransaction({ amount: 5000, merchant: 'Acme Corp', category: { id: 'cat-2', name: 'Salary', color: '#6366f1', icon: null, type: 'INCOME', group: 'Income', budgetTier: null, isDefault: true, isActive: true, userId: null } }),
+      makeTransaction({ amount: -200, merchant: 'Grocery Store' }),
+      makeTransaction({ amount: -50, merchant: 'Coffee Shop', category: { id: 'cat-3', name: 'Dining', color: '#ef4444', icon: null, type: 'EXPENSE', group: 'Food & Dining', budgetTier: 'flexible', isDefault: true, isActive: true, userId: null } }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -62,9 +63,9 @@ describe('buildTransactionSummary', () => {
 
   it('computes category breakdown correctly', async () => {
     const mockTransactions = [
-      makeTransaction({ description: 'Store A', amount: 100 }),
-      makeTransaction({ description: 'Store B', amount: 150 }),
-      makeTransaction({ description: 'Coffee', amount: 30, category: { id: 'cat-3', name: 'Dining', color: '#ef4444', icon: null, type: 'EXPENSE', userId: 'user-1' } }),
+      makeTransaction({ merchant: 'Store A', amount: -100 }),
+      makeTransaction({ merchant: 'Store B', amount: -150 }),
+      makeTransaction({ merchant: 'Coffee', amount: -30, category: { id: 'cat-3', name: 'Dining', color: '#ef4444', icon: null, type: 'EXPENSE', group: 'Food & Dining', budgetTier: 'flexible', isDefault: true, isActive: true, userId: null } }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -80,9 +81,9 @@ describe('buildTransactionSummary', () => {
 
   it('identifies top merchants sorted by total spend', async () => {
     const mockTransactions = [
-      makeTransaction({ description: 'Store A', amount: 300 }),
-      makeTransaction({ description: 'Store B', amount: 100 }),
-      makeTransaction({ description: 'Store A', amount: 200 }),
+      makeTransaction({ merchant: 'Store A', amount: -300 }),
+      makeTransaction({ merchant: 'Store B', amount: -100 }),
+      makeTransaction({ merchant: 'Store A', amount: -200 }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -97,9 +98,9 @@ describe('buildTransactionSummary', () => {
 
   it('detects recurring charges with similar amounts', async () => {
     const mockTransactions = [
-      makeTransaction({ description: 'Netflix', amount: 15.99 }),
-      makeTransaction({ description: 'Netflix', amount: 15.99 }),
-      makeTransaction({ description: 'Netflix', amount: 15.99 }),
+      makeTransaction({ merchant: 'Netflix', amount: -15.99 }),
+      makeTransaction({ merchant: 'Netflix', amount: -15.99 }),
+      makeTransaction({ merchant: 'Netflix', amount: -15.99 }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -113,7 +114,7 @@ describe('buildTransactionSummary', () => {
 
   it('does not flag single transactions as recurring', async () => {
     const mockTransactions = [
-      makeTransaction({ description: 'One-time purchase', amount: 500 }),
+      makeTransaction({ merchant: 'One-time purchase', amount: -500 }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -124,9 +125,9 @@ describe('buildTransactionSummary', () => {
 
   it('does not flag varying amounts as recurring', async () => {
     const mockTransactions = [
-      makeTransaction({ description: 'Grocery Store', amount: 50 }),
-      makeTransaction({ description: 'Grocery Store', amount: 120 }),
-      makeTransaction({ description: 'Grocery Store', amount: 200 }),
+      makeTransaction({ merchant: 'Grocery Store', amount: -50 }),
+      makeTransaction({ merchant: 'Grocery Store', amount: -120 }),
+      makeTransaction({ merchant: 'Grocery Store', amount: -200 }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -147,7 +148,7 @@ describe('buildTransactionSummary', () => {
 
   it('handles zero income gracefully (savingsRate = 0)', async () => {
     const mockTransactions = [
-      makeTransaction({ type: 'EXPENSE', amount: 100 }),
+      makeTransaction({ amount: -100 }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 
@@ -159,7 +160,7 @@ describe('buildTransactionSummary', () => {
 
   it('attaches benchmark data to known categories', async () => {
     const mockTransactions = [
-      makeTransaction({ description: 'Store', amount: 500 }),
+      makeTransaction({ merchant: 'Store', amount: -500 }),
     ]
     vi.mocked(db.transaction.findMany).mockResolvedValue(mockTransactions)
 

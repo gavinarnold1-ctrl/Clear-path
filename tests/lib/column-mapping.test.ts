@@ -9,7 +9,7 @@ describe('autoDetectColumns', () => {
 
     expect(mappings[0].appField).toBe('date')
     expect(mappings[0].confidence).toBe(1.0)
-    expect(mappings[1].appField).toBe('description')
+    expect(mappings[1].appField).toBe('merchant')
     expect(mappings[1].confidence).toBe(1.0)
     expect(mappings[2].appField).toBe('amount')
     expect(mappings[2].confidence).toBe(1.0)
@@ -24,7 +24,7 @@ describe('autoDetectColumns', () => {
     const mappings = autoDetectColumns(headers, sampleRows)
 
     expect(mappings[0].appField).toBe('date')
-    expect(mappings[1].appField).toBe('description')
+    expect(mappings[1].appField).toBe('merchant')
     expect(mappings[2].appField).toBe('amount')
   })
 
@@ -80,7 +80,7 @@ describe('autoDetectColumns', () => {
     const mappings = autoDetectColumns(headers, sampleRows)
 
     expect(mappings[0].appField).toBe('date')
-    expect(mappings[1].appField).toBe('description')
+    expect(mappings[1].appField).toBe('merchant')
     expect(mappings[2].appField).toBe('amount')
   })
 

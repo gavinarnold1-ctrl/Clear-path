@@ -8,14 +8,6 @@ import { deleteTransaction } from '@/app/actions/transactions'
 
 export const metadata: Metadata = { title: 'Transactions' }
 
-const TYPE_COLORS = {
-  INCOME: 'text-income',
-  EXPENSE: 'text-expense',
-  TRANSFER: 'text-transfer',
-}
-
-const TYPE_LABELS = { INCOME: 'Income', EXPENSE: 'Expense', TRANSFER: 'Transfer' }
-
 export default async function TransactionsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -54,7 +46,7 @@ export default async function TransactionsPage() {
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Description</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Merchant</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Category</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Account</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Amount</th>
@@ -65,12 +57,16 @@ export default async function TransactionsPage() {
               {transactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500">{formatDate(tx.date)}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{tx.description}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{tx.merchant}</td>
                   <td className="px-4 py-3 text-gray-500">{tx.category?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-500">{tx.account.name}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${TYPE_COLORS[tx.type]}`}>
-                    {tx.type === 'EXPENSE' ? '−' : '+'}
-                    {formatCurrency(tx.amount)}
+                  <td className="px-4 py-3 text-gray-500">{tx.account?.name ?? '—'}</td>
+                  <td
+                    className={`px-4 py-3 text-right font-semibold ${
+                      tx.amount < 0 ? 'text-expense' : 'text-income'
+                    }`}
+                  >
+                    {tx.amount < 0 ? '−' : '+'}
+                    {formatCurrency(Math.abs(tx.amount))}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <form
@@ -82,7 +78,7 @@ export default async function TransactionsPage() {
                       <button
                         type="submit"
                         className="text-xs text-gray-400 hover:text-red-500"
-                        aria-label={`Delete ${tx.description}`}
+                        aria-label={`Delete ${tx.merchant}`}
                       >
                         Delete
                       </button>

@@ -30,11 +30,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     where: { id },
     data: {
       ...(body.amount !== undefined && { amount: body.amount }),
-      ...(body.description && { description: body.description }),
+      ...(body.merchant && { merchant: body.merchant }),
       ...(body.date && { date: new Date(body.date) }),
-      ...(body.type && { type: body.type }),
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+      ...(body.accountId !== undefined && { accountId: body.accountId }),
+      ...(body.tags !== undefined && { tags: body.tags }),
+      ...(body.originalStatement !== undefined && { originalStatement: body.originalStatement }),
     },
     include: { account: true, category: true },
   })

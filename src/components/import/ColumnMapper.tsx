@@ -16,10 +16,9 @@ interface ColumnMapperProps {
 
 const FIELD_OPTIONS: { value: AppField; label: string }[] = [
   { value: 'date', label: 'Date' },
-  { value: 'description', label: 'Description' },
+  { value: 'merchant', label: 'Merchant' },
   { value: 'amount', label: 'Amount' },
   { value: 'category', label: 'Category' },
-  { value: 'type', label: 'Type' },
   { value: 'account', label: 'Account' },
   { value: 'ignore', label: 'Ignore' },
 ]

@@ -12,6 +12,7 @@ interface CategoryOption {
   id: string
   name: string
   type: string
+  group: string
 }
 
 interface Props {
@@ -36,22 +37,10 @@ export default function TransactionForm({ accounts, categories }: Props) {
         </p>
       )}
 
-      {/* Type */}
-      <div>
-        <label htmlFor="type" className="mb-1 block text-sm font-medium text-gray-700">
-          Type
-        </label>
-        <select id="type" name="type" className="input" required>
-          <option value="EXPENSE">Expense</option>
-          <option value="INCOME">Income</option>
-          <option value="TRANSFER">Transfer</option>
-        </select>
-      </div>
-
-      {/* Amount */}
+      {/* Amount (negative = expense, positive = income) */}
       <div>
         <label htmlFor="amount" className="mb-1 block text-sm font-medium text-gray-700">
-          Amount
+          Amount <span className="font-normal text-gray-400">(negative for expenses)</span>
         </label>
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
@@ -62,25 +51,24 @@ export default function TransactionForm({ accounts, categories }: Props) {
             name="amount"
             type="number"
             step="0.01"
-            min="0.01"
             className="input pl-7"
-            placeholder="0.00"
+            placeholder="-50.00"
             required
           />
         </div>
       </div>
 
-      {/* Description */}
+      {/* Merchant */}
       <div>
-        <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-700">
-          Description
+        <label htmlFor="merchant" className="mb-1 block text-sm font-medium text-gray-700">
+          Merchant
         </label>
         <input
-          id="description"
-          name="description"
+          id="merchant"
+          name="merchant"
           type="text"
           className="input"
-          placeholder="e.g. Grocery run, Monthly salary"
+          placeholder="e.g. Whole Foods, Acme Corp"
           required
         />
       </div>
@@ -96,9 +84,10 @@ export default function TransactionForm({ accounts, categories }: Props) {
       {/* Account */}
       <div>
         <label htmlFor="accountId" className="mb-1 block text-sm font-medium text-gray-700">
-          Account
+          Account <span className="font-normal text-gray-400">(optional)</span>
         </label>
-        <select id="accountId" name="accountId" className="input" required>
+        <select id="accountId" name="accountId" className="input">
+          <option value="">No account</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}

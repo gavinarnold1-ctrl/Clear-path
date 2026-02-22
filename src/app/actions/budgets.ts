@@ -9,6 +9,8 @@ interface BudgetState {
   error: string | null
 }
 
+const VALID_TIERS = ['fixed', 'flexible', 'annual'] as const
+
 export async function createBudget(
   prevState: BudgetState,
   formData: FormData
@@ -18,41 +20,22 @@ export async function createBudget(
 
   const name = (formData.get('name') as string)?.trim()
   const amount = parseFloat(formData.get('amount') as string)
-  const period = formData.get('period') as string
+  const tier = formData.get('tier') as string
   const categoryId = (formData.get('categoryId') as string) || null
   const startDate = formData.get('startDate') as string
   const endDate = (formData.get('endDate') as string) || null
 
   if (!name) return { error: 'Budget name is required.' }
   if (!amount || amount <= 0) return { error: 'Amount must be a positive number.' }
-  if (!period) return { error: 'Period is required.' }
+  if (!(VALID_TIERS as readonly string[]).includes(tier)) return { error: 'Tier is required (fixed, flexible, or annual).' }
   if (!startDate) return { error: 'Start date is required.' }
-
-  // Pre-calculate spent from existing transactions in this period/category
-  const spent = categoryId
-    ? (
-        await db.transaction.aggregate({
-          where: {
-            userId: session.userId,
-            categoryId,
-            type: 'EXPENSE',
-            date: {
-              gte: new Date(startDate),
-              ...(endDate ? { lte: new Date(endDate) } : {}),
-            },
-          },
-          _sum: { amount: true },
-        })
-      )._sum.amount ?? 0
-    : 0
 
   await db.budget.create({
     data: {
       userId: session.userId,
       name,
       amount,
-      spent,
-      period: period as 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM',
+      tier,
       categoryId,
       startDate: new Date(startDate),
       endDate: endDate ? new Date(endDate) : null,

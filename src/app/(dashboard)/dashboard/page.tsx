@@ -28,9 +28,6 @@ function StatCard({
   )
 }
 
-const TYPE_SIGN = { INCOME: '+', EXPENSE: '−', TRANSFER: '⇄' }
-const TYPE_COLOR = { INCOME: 'text-income', EXPENSE: 'text-expense', TRANSFER: 'text-transfer' }
-
 export default async function DashboardPage() {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -38,16 +35,9 @@ export default async function DashboardPage() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [accounts, incomeAgg, expenseAgg, recent, activeBudgets, categorySpending] = await Promise.all([
+  // Income = positive amounts, Expenses = negative amounts (determined by amount sign)
+  const [accounts, recent, activeBudgets, categorySpending, monthlyTxns] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
-    db.transaction.aggregate({
-      where: { userId: session.userId, type: 'INCOME', date: { gte: startOfMonth } },
-      _sum: { amount: true },
-    }),
-    db.transaction.aggregate({
-      where: { userId: session.userId, type: 'EXPENSE', date: { gte: startOfMonth } },
-      _sum: { amount: true },
-    }),
     db.transaction.findMany({
       where: { userId: session.userId },
       include: { account: true, category: true },
@@ -61,21 +51,37 @@ export default async function DashboardPage() {
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
       include: { category: true },
-      orderBy: { spent: 'desc' },
       take: 4,
     }),
     db.transaction.groupBy({
       by: ['categoryId'],
-      where: { userId: session.userId, type: 'EXPENSE', date: { gte: startOfMonth }, categoryId: { not: null } },
+      where: { userId: session.userId, amount: { lt: 0 }, date: { gte: startOfMonth }, categoryId: { not: null } },
       _sum: { amount: true },
-      orderBy: { _sum: { amount: 'desc' } },
+      orderBy: { _sum: { amount: 'asc' } },
       take: 6,
+    }),
+    db.transaction.findMany({
+      where: { userId: session.userId, date: { gte: startOfMonth } },
+      select: { amount: true, categoryId: true },
     }),
   ])
 
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0)
-  const monthlyIncome = incomeAgg._sum.amount ?? 0
-  const monthlyExpense = expenseAgg._sum.amount ?? 0
+  const monthlyIncome = monthlyTxns.filter((t) => t.amount > 0).reduce((sum, t) => sum + t.amount, 0)
+  const monthlyExpense = Math.abs(monthlyTxns.filter((t) => t.amount < 0).reduce((sum, t) => sum + t.amount, 0))
+
+  // Calculate spent for each active budget from this month's transactions
+  const budgetSpentMap = new Map<string | null, number>()
+  for (const t of monthlyTxns) {
+    if (t.amount < 0 && t.categoryId) {
+      budgetSpentMap.set(t.categoryId, (budgetSpentMap.get(t.categoryId) ?? 0) + Math.abs(t.amount))
+    }
+  }
+
+  const activeBudgetsWithSpent = activeBudgets.map((b) => ({
+    ...b,
+    spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : monthlyExpense,
+  }))
 
   // Resolve category names for spending breakdown
   const catIds = categorySpending.map((g) => g.categoryId).filter((id): id is string => id !== null)
@@ -85,7 +91,7 @@ export default async function DashboardPage() {
   const catMap = new Map(categories.map((c) => [c.id, c]))
   const spendingByCategory = categorySpending.map((g) => {
     const cat = catMap.get(g.categoryId!)
-    return { name: cat?.name ?? 'Unknown', color: cat?.color ?? '#6366f1', amount: g._sum.amount ?? 0 }
+    return { name: cat?.name ?? 'Unknown', color: cat?.color ?? '#6366f1', amount: Math.abs(g._sum.amount ?? 0) }
   })
   const maxCategoryAmount = Math.max(...spendingByCategory.map((s) => s.amount), 1)
 
@@ -125,7 +131,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          {activeBudgets.length === 0 ? (
+          {activeBudgetsWithSpent.length === 0 ? (
             <p className="text-sm text-gray-400">
               No active budgets.{' '}
               <Link href="/budgets/new" className="text-brand-600 hover:underline">
@@ -135,7 +141,7 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <ul className="space-y-4">
-              {activeBudgets.map((b) => {
+              {activeBudgetsWithSpent.map((b) => {
                 const pct = budgetProgress(b.spent, b.amount)
                 return (
                   <li key={b.id}>
@@ -213,15 +219,19 @@ export default async function DashboardPage() {
             {recent.map((tx) => (
               <li key={tx.id} className="flex items-center justify-between py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">{tx.description}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{tx.merchant}</p>
                   <p className="text-xs text-gray-400">
-                    {formatDate(tx.date)} · {tx.account?.name ?? 'Unknown account'}
+                    {formatDate(tx.date)} · {tx.account?.name ?? 'No account'}
                     {tx.category ? ` · ${tx.category.name}` : ''}
                   </p>
                 </div>
-                <span className={`ml-4 shrink-0 text-sm font-semibold ${TYPE_COLOR[tx.type]}`}>
-                  {TYPE_SIGN[tx.type]}
-                  {formatCurrency(tx.amount)}
+                <span
+                  className={`ml-4 shrink-0 text-sm font-semibold ${
+                    tx.amount < 0 ? 'text-expense' : 'text-income'
+                  }`}
+                >
+                  {tx.amount < 0 ? '−' : '+'}
+                  {formatCurrency(Math.abs(tx.amount))}
                 </span>
               </li>
             ))}

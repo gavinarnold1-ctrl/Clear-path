@@ -18,8 +18,8 @@ export default async function CategoriesPage() {
   if (!session) redirect('/login')
 
   const categories = await db.category.findMany({
-    where: { userId: session.userId },
-    orderBy: [{ type: 'asc' }, { name: 'asc' }],
+    where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }], isActive: true },
+    orderBy: [{ group: 'asc' }, { type: 'asc' }, { name: 'asc' }],
   })
 
   return (
@@ -47,6 +47,7 @@ export default async function CategoriesPage() {
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Group</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Type</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Color</th>
                 <th className="px-4 py-3" />
@@ -59,6 +60,7 @@ export default async function CategoriesPage() {
                     {cat.icon && <span className="mr-2">{cat.icon}</span>}
                     {cat.name}
                   </td>
+                  <td className="px-4 py-3 text-gray-500">{cat.group}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[cat.type] ?? ''}`}
@@ -74,20 +76,22 @@ export default async function CategoriesPage() {
                     />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <form
-                      action={async () => {
-                        'use server'
-                        await deleteCategory(cat.id)
-                      }}
-                    >
-                      <button
-                        type="submit"
-                        className="text-xs text-gray-400 hover:text-red-500"
-                        aria-label={`Delete ${cat.name}`}
+                    {cat.userId && (
+                      <form
+                        action={async () => {
+                          'use server'
+                          await deleteCategory(cat.id)
+                        }}
                       >
-                        Delete
-                      </button>
-                    </form>
+                        <button
+                          type="submit"
+                          className="text-xs text-gray-400 hover:text-red-500"
+                          aria-label={`Delete ${cat.name}`}
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    )}
                   </td>
                 </tr>
               ))}

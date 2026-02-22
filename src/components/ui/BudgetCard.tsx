@@ -12,16 +12,14 @@ interface Budget {
   name: string
   amount: number
   spent: number
-  period: string
+  tier: string
   category: Category | null
 }
 
-const PERIOD_LABELS: Record<string, string> = {
-  WEEKLY: 'Weekly',
-  MONTHLY: 'Monthly',
-  QUARTERLY: 'Quarterly',
-  YEARLY: 'Yearly',
-  CUSTOM: 'Custom',
+const TIER_LABELS: Record<string, string> = {
+  fixed: 'Fixed',
+  flexible: 'Flexible',
+  annual: 'Annual',
 }
 
 export default function BudgetCard({ budget }: { budget: Budget }) {
@@ -46,7 +44,7 @@ export default function BudgetCard({ budget }: { budget: Budget }) {
           )}
         </div>
         <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-          {PERIOD_LABELS[budget.period] ?? budget.period}
+          {TIER_LABELS[budget.tier] ?? budget.tier}
         </span>
       </div>
 

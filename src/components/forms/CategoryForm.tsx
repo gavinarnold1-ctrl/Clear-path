@@ -19,6 +19,29 @@ const PRESET_COLORS = [
   '#64748b', // slate
 ]
 
+const GROUPS = [
+  'Income',
+  'Housing',
+  'Utilities',
+  'Food & Dining',
+  'Transportation',
+  'Insurance',
+  'Healthcare',
+  'Subscriptions',
+  'Shopping',
+  'Personal Care',
+  'Entertainment',
+  'Education',
+  'Children & Family',
+  'Pets',
+  'Travel',
+  'Debt Payments',
+  'Savings & Investments',
+  'Taxes',
+  'Charitable Giving',
+  'Miscellaneous',
+]
+
 export default function CategoryForm() {
   const [state, formAction, isPending] = useActionState(createCategory, initialState)
 
@@ -53,6 +76,20 @@ export default function CategoryForm() {
         <select id="type" name="type" className="input" required>
           <option value="EXPENSE">Expense</option>
           <option value="INCOME">Income</option>
+        </select>
+      </div>
+
+      {/* Group */}
+      <div>
+        <label htmlFor="group" className="mb-1 block text-sm font-medium text-gray-700">
+          Group
+        </label>
+        <select id="group" name="group" className="input" required>
+          {GROUPS.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
         </select>
       </div>
 

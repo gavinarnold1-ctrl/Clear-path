@@ -15,12 +15,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid type filter' }, { status: 400 })
   }
 
+  // Return both user-specific and system default categories
   const categories = await db.category.findMany({
     where: {
-      userId: session.userId,
+      OR: [{ userId: session.userId }, { userId: null, isDefault: true }],
+      isActive: true,
       ...(type && { type: type as 'INCOME' | 'EXPENSE' | 'TRANSFER' }),
     },
-    orderBy: { name: 'asc' },
+    orderBy: [{ group: 'asc' }, { name: 'asc' }],
   })
 
   return NextResponse.json(categories)
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, color, icon, type } = body
+  const { name, color, icon, type, group } = body
 
   if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid category type' }, { status: 400 })
@@ -46,6 +48,8 @@ export async function POST(req: NextRequest) {
       color: color ?? '#6366f1',
       icon: icon ?? null,
       type,
+      group: group ?? 'Miscellaneous',
+      isDefault: false,
     },
   })
 

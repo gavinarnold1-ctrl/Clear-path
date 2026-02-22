@@ -16,12 +16,10 @@ interface Props {
 
 const initialState = { error: null }
 
-const PERIODS = [
-  { value: 'WEEKLY', label: 'Weekly' },
-  { value: 'MONTHLY', label: 'Monthly' },
-  { value: 'QUARTERLY', label: 'Quarterly' },
-  { value: 'YEARLY', label: 'Yearly' },
-  { value: 'CUSTOM', label: 'Custom range' },
+const TIERS = [
+  { value: 'fixed', label: 'Fixed' },
+  { value: 'flexible', label: 'Flexible' },
+  { value: 'annual', label: 'Annual' },
 ]
 
 const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -77,13 +75,13 @@ export default function BudgetForm({ categories }: Props) {
         </div>
       </div>
 
-      {/* Period */}
+      {/* Tier */}
       <div>
-        <label htmlFor="period" className="mb-1 block text-sm font-medium text-gray-700">
-          Period
+        <label htmlFor="tier" className="mb-1 block text-sm font-medium text-gray-700">
+          Tier
         </label>
-        <select id="period" name="period" className="input" required>
-          {PERIODS.map(({ value, label }) => (
+        <select id="tier" name="tier" className="input" required>
+          {TIERS.map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>

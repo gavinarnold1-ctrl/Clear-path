@@ -4,8 +4,6 @@ export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER'
 
 export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH'
 
-export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM'
-
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
 export interface User {
@@ -30,19 +28,24 @@ export interface Category {
   color: string
   icon: string | null
   type: TransactionType
-  userId: string
+  group: string
+  budgetTier: string | null
+  isDefault: boolean
+  isActive: boolean
+  userId: string | null
 }
 
 export interface Transaction {
   id: string
   amount: number
-  description: string
+  merchant: string
+  originalStatement: string | null
+  tags: string | null
   date: Date
-  type: TransactionType
   notes: string | null
   userId: string
-  accountId: string
-  account?: Account
+  accountId: string | null
+  account?: Account | null
   categoryId: string | null
   category?: Category | null
   createdAt: Date
@@ -53,10 +56,22 @@ export interface Budget {
   id: string
   name: string
   amount: number
-  spent: number
-  period: BudgetPeriod
+  tier: string
   startDate: Date
   endDate: Date | null
+  userId: string
+  categoryId: string | null
+  category?: Category | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface AnnualExpense {
+  id: string
+  name: string
+  amount: number
+  dueDate: Date
+  notes: string | null
   userId: string
   categoryId: string | null
   category?: Category | null

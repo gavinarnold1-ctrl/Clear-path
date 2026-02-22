@@ -1,10 +1,9 @@
 export interface ParsedTransaction {
   date: string
-  description: string
+  merchant: string
   amount: number
   category?: string
   account?: string
-  type: 'INCOME' | 'EXPENSE'
   raw: Record<string, string>
 }
 
@@ -56,7 +55,7 @@ export function transformRows(
   const errors: { row: number; message: string }[] = []
 
   const dateCol = headers.findIndex((h) => mapping[h] === 'date')
-  const descCol = headers.findIndex((h) => mapping[h] === 'description')
+  const merchantCol = headers.findIndex((h) => mapping[h] === 'merchant')
   const amountCols = headers
     .map((h, i) => ({ header: h, index: i }))
     .filter(({ header }) => mapping[header] === 'amount')
@@ -95,7 +94,7 @@ export function transformRows(
         return
       }
 
-      const description = descCol >= 0 ? row[descCol]?.trim() || 'Unknown' : 'Unknown'
+      const merchant = merchantCol >= 0 ? row[merchantCol]?.trim() || 'Unknown' : 'Unknown'
 
       let amount = 0
       if (amountCols.length === 1) {
@@ -124,22 +123,18 @@ export function transformRows(
       const category = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
       const account = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
 
-      // Negative amount = expense, positive = income
-      // Store as positive value with type (matching Clear-path convention)
-      const type: 'INCOME' | 'EXPENSE' = amount >= 0 ? 'INCOME' : 'EXPENSE'
-
       const raw: Record<string, string> = {}
       headers.forEach((h, i) => {
         raw[h] = row[i] || ''
       })
 
+      // Amount sign is preserved: negative = expense, positive = income
       transactions.push({
         date: date.toISOString().split('T')[0],
-        description,
-        amount: Math.abs(amount),
+        merchant,
+        amount,
         category,
         account,
-        type,
         raw,
       })
     } catch (err) {

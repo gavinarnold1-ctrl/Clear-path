@@ -126,7 +126,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
       const res = await fetch('/api/transactions/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csvText, mapping, accountId, skipDuplicates }),
+        body: JSON.stringify({ csvText, mapping, accountId: accountId || undefined, skipDuplicates }),
       })
 
       if (!res.ok) {
@@ -184,7 +184,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
               <label htmlFor="account" className="mb-1 block text-sm font-medium text-gray-700">
                 {hasAccountColumn
                   ? 'Fallback account (for rows that don\u2019t match an existing account)'
-                  : 'Import into account'}
+                  : 'Import into account (optional)'}
               </label>
               <select
                 id="account"
@@ -192,6 +192,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
                 onChange={(e) => setAccountId(e.target.value)}
                 className="input"
               >
+                <option value="">No account</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -215,8 +216,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
               <button
                 type="button"
                 onClick={handlePreview}
-                disabled={!accountId}
-                className="btn-primary disabled:cursor-not-allowed"
+                className="btn-primary"
               >
                 Preview import
               </button>

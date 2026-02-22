@@ -7,7 +7,7 @@ const baseBudget = {
   name: 'Grocery Budget',
   amount: 500,
   spent: 250,
-  period: 'MONTHLY',
+  tier: 'flexible',
   category: { name: 'Food', color: '#22c55e' },
 }
 
@@ -22,9 +22,9 @@ describe('BudgetCard', () => {
     expect(screen.getByText('Food')).toBeInTheDocument()
   })
 
-  it('renders the period badge', () => {
+  it('renders the tier badge', () => {
     render(<BudgetCard budget={baseBudget} />)
-    expect(screen.getByText('Monthly')).toBeInTheDocument()
+    expect(screen.getByText('Flexible')).toBeInTheDocument()
   })
 
   it('renders spent amount', () => {
@@ -68,11 +68,11 @@ describe('BudgetCard', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
-  it('renders all period labels correctly', () => {
-    const periods = ['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM']
-    const labels = ['Weekly', 'Monthly', 'Quarterly', 'Yearly', 'Custom']
-    periods.forEach((period, i) => {
-      const { unmount } = render(<BudgetCard budget={{ ...baseBudget, period }} />)
+  it('renders all tier labels correctly', () => {
+    const tiers = ['fixed', 'flexible', 'annual']
+    const labels = ['Fixed', 'Flexible', 'Annual']
+    tiers.forEach((tier, i) => {
+      const { unmount } = render(<BudgetCard budget={{ ...baseBudget, tier }} />)
       expect(screen.getByText(labels[i])).toBeInTheDocument()
       unmount()
     })
