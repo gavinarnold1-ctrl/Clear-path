@@ -1,6 +1,9 @@
 import { db } from './db'
 import { getBenchmark, getEfficiencyRating } from './benchmarks'
 import { generateInsights } from './ai'
+import { buildTemporalContext, getSpendingVelocity } from './temporal-context'
+import { buildBudgetContext } from './budget-context'
+import { buildInsightHistory } from './insight-history'
 import type { TransactionSummary, RecurringCharge, MonthOverMonthItem } from '@/types/insights'
 
 export async function buildTransactionSummary(
@@ -168,13 +171,35 @@ function calculateMoMChange(expenses: TransactionWithCategory[]): MonthOverMonth
 }
 
 export async function generateAndStoreInsights(userId: string) {
-  const summary = await buildTransactionSummary(userId, 3)
-  const aiResponse = await generateInsights(summary)
+  const [summary, temporal, velocity, budget, history] = await Promise.all([
+    buildTransactionSummary(userId, 3),
+    Promise.resolve(buildTemporalContext()),
+    getSpendingVelocity(userId),
+    buildBudgetContext(userId),
+    buildInsightHistory(userId),
+  ])
+
+  const aiResponse = await generateInsights({
+    summary,
+    temporal,
+    velocity,
+    budget,
+    history,
+  })
+
+  // Build context snapshot for storage
+  const contextSnapshot = JSON.stringify({
+    temporal,
+    velocity,
+    budgetUtilization: budget.utilizationPercent,
+    overBudgetCount: budget.overBudgetCategories.length,
+    historyCompletionRate: history.completionRate,
+  })
 
   // Dismiss old active insights
   await db.insight.updateMany({
     where: { userId, status: 'active' },
-    data: { status: 'dismissed' },
+    data: { status: 'dismissed', dismissReason: 'auto_replaced' },
   })
 
   // Store new insights
@@ -194,6 +219,7 @@ export async function generateAndStoreInsights(userId: string) {
             difficulty: insight.difficulty,
             savingsFrequency: insight.savingsFrequency,
           }),
+          contextSnapshot,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         },
       })

@@ -1,11 +1,24 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { TransactionSummary, AIInsightResponse } from '@/types/insights'
+import type { TemporalContext, SpendingVelocity } from './temporal-context'
+import type { BudgetContext } from './budget-context'
+import type { InsightHistory } from './insight-history'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-export async function generateInsights(summary: TransactionSummary): Promise<AIInsightResponse> {
+export interface InsightGenerationContext {
+  summary: TransactionSummary
+  temporal?: TemporalContext
+  velocity?: SpendingVelocity
+  budget?: BudgetContext
+  history?: InsightHistory
+}
+
+export async function generateInsights(ctx: InsightGenerationContext): Promise<AIInsightResponse> {
+  const { summary, temporal, velocity, budget, history } = ctx
+
   const systemPrompt = `You are a personal finance analyst inside a budgeting app called Clear-path. Your job is to analyze a user's spending data and generate specific, actionable recommendations that save them money.
 
 RULES:
@@ -17,6 +30,26 @@ RULES:
 - Never be judgmental about spending choices — frame as optimization opportunities
 - Include at least one "quick win" that takes less than 10 minutes to implement
 - Flag any potential tax-relevant spending you notice
+
+TEMPORAL AWARENESS:
+- Factor in the current time of month (start vs end), season, and upcoming holidays
+- If it's end of month, focus on "stretch the remaining budget" advice
+- If it's start of month, focus on planning and setting up for the month
+- Reference seasonal patterns (heating bills in winter, travel in summer, holiday spending)
+- If upcoming holidays are near, proactively advise on budget allocation
+
+BUDGET AWARENESS:
+- Reference specific budget categories that are over or under budget
+- Call out unbudgeted spending as a concrete opportunity
+- For fixed bills, note which are paid vs pending this month
+- For annual expenses with low funding, flag as a priority
+
+LEARNING FROM HISTORY:
+- Do NOT repeat insight titles the user has already seen
+- If the user frequently dismisses a category of advice, deprioritize it
+- If "not_relevant" is a common dismiss reason, focus on more personalized advice
+- If "already_doing" is common, look for more advanced/nuanced suggestions
+- Weight toward categories/types the user has completed in the past
 
 OUTPUT FORMAT:
 Return valid JSON with this exact structure:
@@ -48,7 +81,7 @@ Return valid JSON with this exact structure:
   }
 }`
 
-  const userPrompt = `Analyze this spending data and generate financial insights:
+  let userPrompt = `Analyze this spending data and generate financial insights:
 
 PERIOD: ${summary.period.start} to ${summary.period.end} (${summary.period.months} months)
 
@@ -81,9 +114,70 @@ ${summary.monthOverMonthChange
     (m) =>
       `- ${m.category}: $${m.previousMonth.toFixed(2)} → $${m.currentMonth.toFixed(2)} (${m.changePercent > 0 ? '+' : ''}${m.changePercent.toFixed(1)}%)`
   )
-  .join('\n')}
+  .join('\n')}`
 
-Generate 5-8 specific, actionable insights prioritized by dollar impact.`
+  if (temporal) {
+    userPrompt += `
+
+TEMPORAL CONTEXT:
+- Current date: ${temporal.currentMonth} ${temporal.dayOfMonth}, ${temporal.currentYear}
+- Days left in month: ${temporal.daysLeftInMonth}
+- Position: ${temporal.isStartOfMonth ? 'Start of month' : temporal.isEndOfMonth ? 'End of month' : `Week ${temporal.weekOfMonth}`}
+- Payday proximity: ${temporal.isPaydayWeek ? 'Near a typical payday' : 'Mid-pay period'}
+- Season: ${temporal.season}${temporal.upcomingHolidays.length > 0 ? `\n- Upcoming holidays: ${temporal.upcomingHolidays.join(', ')}` : ''}`
+  }
+
+  if (velocity) {
+    userPrompt += `
+
+SPENDING VELOCITY:
+- Daily average this month: $${velocity.dailyAverage.toFixed(2)}/day
+- Projected month total: $${velocity.projectedMonthTotal.toFixed(2)}
+- Compared to last month: ${velocity.comparedToLastMonth > 0 ? '+' : ''}${velocity.comparedToLastMonth.toFixed(1)}%`
+  }
+
+  if (budget) {
+    userPrompt += `
+
+BUDGET STATUS:
+- Total budgeted: $${budget.totalBudgeted.toFixed(2)} | Spent: $${budget.totalSpent.toFixed(2)} (${budget.utilizationPercent}%)
+- Unbudgeted spending this month: $${budget.unbudgetedSpending.toFixed(2)}`
+
+    if (budget.overBudgetCategories.length > 0) {
+      userPrompt += `\n- Over budget: ${budget.overBudgetCategories.map((c) => `${c.name} ($${c.overBy.toFixed(2)} over)`).join(', ')}`
+    }
+    if (budget.underUtilizedCategories.length > 0) {
+      userPrompt += `\n- Under-utilized: ${budget.underUtilizedCategories.map((c) => `${c.name} (${c.pctUsed}% used)`).join(', ')}`
+    }
+    if (budget.fixedBills.length > 0) {
+      const unpaid = budget.fixedBills.filter((b) => !b.isPaid)
+      if (unpaid.length > 0) {
+        userPrompt += `\n- Pending fixed bills: ${unpaid.map((b) => `${b.name} ($${b.amount.toFixed(2)})`).join(', ')}`
+      }
+    }
+    if (budget.annualExpenses.length > 0) {
+      const underfunded = budget.annualExpenses.filter((a) => a.funded < a.annualAmount * 0.5 && a.monthsLeft <= 3)
+      if (underfunded.length > 0) {
+        userPrompt += `\n- Underfunded annual expenses: ${underfunded.map((a) => `${a.name} (${Math.round((a.funded / a.annualAmount) * 100)}% funded, ${a.monthsLeft}mo left)`).join(', ')}`
+      }
+    }
+  }
+
+  if (history) {
+    userPrompt += `
+
+USER HISTORY:
+- Insights generated: ${history.totalGenerated} | Completed: ${history.completed} (${history.completionRate}%) | Dismissed: ${history.dismissed}`
+
+    if (history.topDismissReasons.length > 0) {
+      userPrompt += `\n- Top dismiss reasons: ${history.topDismissReasons.map((r) => `"${r.reason}" (${r.count}x)`).join(', ')}`
+    }
+    if (history.previousInsightTitles.length > 0) {
+      userPrompt += `\n- DO NOT repeat these titles: ${history.previousInsightTitles.slice(0, 15).join(' | ')}`
+    }
+  }
+
+  userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',

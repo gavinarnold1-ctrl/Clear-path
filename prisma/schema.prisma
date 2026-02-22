@@ -50,6 +50,7 @@ model User {
   budgets          Budget[]
   categories       Category[]
   insights         Insight[]
+  insightFeedback  InsightFeedback[]
   efficiencyScores EfficiencyScore[]
   annualExpenses   AnnualExpense[]
 }
@@ -184,8 +185,30 @@ model Insight {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Feedback fields
+  dismissReason   String? // "not_relevant", "already_doing", "too_hard", "disagree", "other"
+  completionNotes String? // User notes when marking as completed
+  contextSnapshot String? // JSON snapshot of budget/temporal context at generation time
+
+  feedback InsightFeedback[]
+
   @@index([userId, status])
   @@index([userId, category])
+}
+
+model InsightFeedback {
+  id        String   @id @default(cuid())
+  insightId String
+  insight   Insight  @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int? // 1-5 star rating
+  helpful   Boolean? // Quick thumbs up/down
+  comment   String? // Free-form text
+  createdAt DateTime @default(now())
+
+  @@unique([insightId, userId])
+  @@index([userId])
 }
 
 model EfficiencyScore {
