@@ -22,11 +22,11 @@ export default function ProposalItemRow({
   onRemove,
 }: ProposalItemRowProps) {
   return (
-    <div className="group flex items-start gap-3 rounded-lg border border-gray-100 bg-white p-3 transition hover:border-gray-200">
+    <div className="group flex items-start gap-3 rounded-lg border border-mist bg-frost p-3 transition hover:border-mist">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-900">{name}</span>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+          <span className="text-sm font-medium text-fjord">{name}</span>
+          <span className="rounded-full bg-mist px-2 py-0.5 text-xs text-stone">
             {category}
           </span>
           {extraLabel && (
@@ -35,12 +35,12 @@ export default function ProposalItemRow({
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-gray-400">{reasoning}</p>
+        <p className="mt-0.5 text-xs text-stone">{reasoning}</p>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
         <div className="relative">
-          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-stone">
             $
           </span>
           <input
@@ -55,7 +55,7 @@ export default function ProposalItemRow({
         <button
           type="button"
           onClick={onRemove}
-          className="text-gray-300 hover:text-red-500"
+          className="text-stone hover:text-ember"
           title="Remove"
         >
           &#x2715;

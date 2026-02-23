@@ -29,7 +29,7 @@ export default function InsightsList({ initialInsights }: InsightsListProps) {
   if (insights.length === 0) {
     return (
       <div className="card text-center">
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-stone">
           All insights have been addressed. Generate new insights to get fresh recommendations.
         </p>
       </div>

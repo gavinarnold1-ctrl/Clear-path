@@ -11,7 +11,7 @@ export default async function NewAccountPage() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Add an account</h1>
+      <h1 className="mb-6 text-2xl font-bold text-fjord">Add an account</h1>
       <div className="card">
         <AccountForm />
       </div>

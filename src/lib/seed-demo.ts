@@ -1,0 +1,381 @@
+/**
+ * Demo data seed logic — importable by both the standalone seed script
+ * and the cron reset API route.
+ */
+import type { PrismaClient } from '@prisma/client'
+import { AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
+import { hashPassword } from '@/lib/password'
+import { DEMO_USER_ID, DEMO_USER_EMAIL } from '@/lib/demo'
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function monthsAgo(months: number, day: number): Date {
+  const d = new Date()
+  d.setMonth(d.getMonth() - months)
+  d.setDate(Math.min(day, 28))
+  d.setHours(12, 0, 0, 0)
+  return d
+}
+
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function randAmount(min: number, max: number): number {
+  return Math.round((Math.random() * (max - min) + min) * 100) / 100
+}
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+// ─── Main seed function ────────────────────────────────────────────────────
+
+export async function seedDemoData(db: PrismaClient): Promise<void> {
+  // Clean up existing demo data
+  const existing = await db.user.findUnique({ where: { id: DEMO_USER_ID } })
+  if (existing) {
+    await db.transaction.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.annualExpense.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.budget.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.insightFeedback.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.insight.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.efficiencyScore.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.account.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.category.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.householdMember.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.property.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.userProfile.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.user.delete({ where: { id: DEMO_USER_ID } })
+  }
+
+  // Create demo user (password: "demo1234")
+  const passwordHash = await hashPassword('demo1234')
+  await db.user.create({
+    data: {
+      id: DEMO_USER_ID,
+      email: DEMO_USER_EMAIL,
+      name: 'Alex Demo',
+      password: passwordHash,
+      profile: {
+        create: {
+          onboardingCompleted: true,
+          onboardingCompletedAt: new Date(),
+          onboardingStep: 6,
+          primaryGoal: 'organize',
+          householdType: 'single',
+          categoryMode: 'recommended',
+        },
+      },
+    },
+  })
+
+  // ─── Categories ──────────────────────────────────────────────────────
+  const categoryDefs = [
+    { type: 'income', group: 'Income', name: 'Paychecks', icon: '💵' },
+    { type: 'income', group: 'Income', name: 'Side Gig', icon: '💰' },
+    { type: 'expense', group: 'Housing', name: 'Rent', icon: '🏠', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Auto & Transport', name: 'Auto Payment', icon: '🚗', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Financial', name: 'Insurance', icon: '☂️', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Bills & Utilities', name: 'Gas & Electric', icon: '⚡️', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Bills & Utilities', name: 'Internet & Cable', icon: '🌐', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Travel & Lifestyle', name: 'Subscriptions', icon: '📺', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Health & Wellness', name: 'Fitness', icon: '💪', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Food & Dining', name: 'Groceries', icon: '🍏', budgetTier: 'FLEXIBLE' as const },
+    { type: 'expense', group: 'Food & Dining', name: 'Restaurants & Bars', icon: '🍽️', budgetTier: 'FLEXIBLE' as const },
+    { type: 'expense', group: 'Auto & Transport', name: 'Gas', icon: '⛽️', budgetTier: 'FLEXIBLE' as const },
+    { type: 'expense', group: 'Travel & Lifestyle', name: 'Entertainment & Recreation', icon: '🎥', budgetTier: 'FLEXIBLE' as const },
+    { type: 'expense', group: 'Shopping', name: 'Clothing', icon: '👕', budgetTier: 'FLEXIBLE' as const },
+    { type: 'expense', group: 'Health & Wellness', name: 'Personal Care', icon: '💇', budgetTier: 'FLEXIBLE' as const },
+    { type: 'expense', group: 'Auto & Transport', name: 'Auto Maintenance', icon: '🔧', budgetTier: 'ANNUAL' as const },
+    { type: 'expense', group: 'Gifts & Donations', name: 'Gifts', icon: '🎁', budgetTier: 'ANNUAL' as const },
+    { type: 'expense', group: 'Travel & Lifestyle', name: 'Travel & Vacation', icon: '🏝️', budgetTier: 'ANNUAL' as const },
+    { type: 'transfer', group: 'Transfers', name: 'Transfer', icon: '🔄' },
+    { type: 'transfer', group: 'Transfers', name: 'Credit Card Payment', icon: '💳' },
+  ]
+
+  const categoryMap = new Map<string, string>()
+  for (const cat of categoryDefs) {
+    const created = await db.category.create({
+      data: {
+        userId: DEMO_USER_ID,
+        type: cat.type,
+        group: cat.group,
+        name: cat.name,
+        icon: cat.icon,
+        budgetTier: cat.budgetTier ?? null,
+        isDefault: false,
+      },
+    })
+    categoryMap.set(cat.name, created.id)
+  }
+
+  // ─── Accounts ────────────────────────────────────────────────────────
+  const checking = await db.account.create({
+    data: { userId: DEMO_USER_ID, name: 'Checking', type: AccountType.CHECKING, balance: 0 },
+  })
+  const savings = await db.account.create({
+    data: { userId: DEMO_USER_ID, name: 'Savings', type: AccountType.SAVINGS, balance: 8500 },
+  })
+  const creditCard = await db.account.create({
+    data: { userId: DEMO_USER_ID, name: 'Credit Card', type: AccountType.CREDIT_CARD, balance: 0 },
+  })
+
+  // ─── Transactions ────────────────────────────────────────────────────
+  const allTransactions: {
+    userId: string
+    accountId: string
+    categoryId: string | null
+    amount: number
+    merchant: string
+    date: Date
+    importSource: string
+  }[] = []
+
+  function addTx(
+    accountId: string,
+    categoryName: string | null,
+    amount: number,
+    merchant: string,
+    date: Date
+  ) {
+    allTransactions.push({
+      userId: DEMO_USER_ID,
+      accountId,
+      categoryId: categoryName ? categoryMap.get(categoryName) ?? null : null,
+      amount,
+      merchant,
+      date,
+      importSource: 'manual',
+    })
+  }
+
+  // 4 months of data (current + 3 prior)
+  for (let m = 3; m >= 0; m--) {
+    // Income
+    addTx(checking.id, 'Paychecks', 5200, 'Acme Corp — Payroll', monthsAgo(m, 1))
+    if (randInt(0, 1)) {
+      addTx(checking.id, 'Side Gig', randAmount(400, 600), 'Freelance Design', monthsAgo(m, randInt(15, 20)))
+    }
+
+    // Fixed expenses
+    addTx(checking.id, 'Rent', -1450, 'Lakewood Apartments', monthsAgo(m, 1))
+    addTx(checking.id, 'Auto Payment', -387, 'Honda Financial Services', monthsAgo(m, 5))
+    addTx(checking.id, 'Insurance', -142, 'Progressive Insurance', monthsAgo(m, 12))
+    addTx(checking.id, 'Gas & Electric', -randAmount(85, 130), 'National Grid', monthsAgo(m, randInt(18, 22)))
+    addTx(checking.id, 'Internet & Cable', -65, 'Comcast Xfinity', monthsAgo(m, 8))
+    addTx(checking.id, 'Subscriptions', -10.99, 'Spotify', monthsAgo(m, 3))
+    addTx(checking.id, 'Subscriptions', -2.99, 'Apple iCloud', monthsAgo(m, 3))
+    addTx(checking.id, 'Fitness', -49.99, 'Planet Fitness', monthsAgo(m, 1))
+
+    // Groceries (8-12 per month)
+    const groceryMerchants = ["Trader Joe's", 'Stop & Shop', 'Whole Foods', 'Aldi']
+    const groceryCount = randInt(8, 12)
+    for (let i = 0; i < groceryCount; i++) {
+      addTx(
+        pick([checking.id, creditCard.id]),
+        'Groceries',
+        -randAmount(25, 120),
+        pick(groceryMerchants),
+        monthsAgo(m, randInt(1, 28))
+      )
+    }
+
+    // Dining (6-10 per month)
+    const diningMerchants = ['Chipotle', 'Local Pub & Grill', "Domino's", 'Starbucks', 'Thai Basil', 'Panera Bread']
+    const diningCount = randInt(6, 10)
+    for (let i = 0; i < diningCount; i++) {
+      addTx(
+        pick([checking.id, creditCard.id]),
+        'Restaurants & Bars',
+        -randAmount(12, 65),
+        pick(diningMerchants),
+        monthsAgo(m, randInt(1, 28))
+      )
+    }
+
+    // Gas (3-4 per month)
+    const gasCount = randInt(3, 4)
+    for (let i = 0; i < gasCount; i++) {
+      addTx(creditCard.id, 'Gas', -randAmount(35, 55), pick(['Shell', 'Sunoco']), monthsAgo(m, randInt(1, 28)))
+    }
+
+    // Entertainment (2-4 per month)
+    const entertainmentMerchants = ['AMC Theatres', 'Steam', 'Barnes & Noble', 'Spotify Premium']
+    const entertainCount = randInt(2, 4)
+    for (let i = 0; i < entertainCount; i++) {
+      addTx(
+        creditCard.id,
+        'Entertainment & Recreation',
+        -randAmount(10, 50),
+        pick(entertainmentMerchants),
+        monthsAgo(m, randInt(1, 28))
+      )
+    }
+
+    // Clothing (1-2 some months)
+    if (randInt(0, 1)) {
+      const clothingCount = randInt(1, 2)
+      for (let i = 0; i < clothingCount; i++) {
+        addTx(creditCard.id, 'Clothing', -randAmount(30, 80), pick(['Target', 'Uniqlo', 'H&M']), monthsAgo(m, randInt(5, 25)))
+      }
+    }
+
+    // Personal Care (1-2 per month)
+    const pcCount = randInt(1, 2)
+    for (let i = 0; i < pcCount; i++) {
+      addTx(creditCard.id, 'Personal Care', -randAmount(15, 45), pick(['CVS', 'Great Clips', 'Walgreens']), monthsAgo(m, randInt(3, 27)))
+    }
+  }
+
+  // Annual one-time hits
+  addTx(checking.id, 'Auto Maintenance', -245, 'DMV — Vehicle Registration', monthsAgo(2, 15))
+
+  // Vacation spending 1 month ago
+  addTx(creditCard.id, 'Travel & Vacation', -340, 'Airbnb', monthsAgo(1, 8))
+  addTx(creditCard.id, 'Travel & Vacation', -260, 'Southwest Airlines', monthsAgo(1, 5))
+  addTx(creditCard.id, 'Travel & Vacation', -200, 'Restaurant — Vacation', monthsAgo(1, 10))
+
+  // Recent transactions (last few days)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  const twoDaysAgo = new Date(today)
+  twoDaysAgo.setDate(today.getDate() - 2)
+
+  addTx(creditCard.id, 'Groceries', -67.42, "Trader Joe's", twoDaysAgo)
+  addTx(creditCard.id, 'Restaurants & Bars', -28.5, 'Starbucks', yesterday)
+  addTx(checking.id, 'Gas', -42.18, 'Shell', yesterday)
+
+  // Write all transactions
+  await db.transaction.createMany({ data: allTransactions })
+
+  // Update account balances
+  const accountBalances = new Map<string, number>()
+  for (const tx of allTransactions) {
+    accountBalances.set(tx.accountId, (accountBalances.get(tx.accountId) ?? 0) + tx.amount)
+  }
+  for (const [accountId, delta] of accountBalances) {
+    await db.account.update({
+      where: { id: accountId },
+      data: { balance: { increment: delta } },
+    })
+  }
+
+  // ─── Budgets ─────────────────────────────────────────────────────────
+  const now = new Date()
+  const budgetStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const yearStart = new Date(now.getFullYear(), 0, 1)
+
+  const fixedBudgets = [
+    { name: 'Rent', category: 'Rent', amount: 1450, dueDay: 1, isAutoPay: true, varianceLimit: 0 },
+    { name: 'Car Payment', category: 'Auto Payment', amount: 387, dueDay: 5, isAutoPay: true, varianceLimit: 0 },
+    { name: 'Insurance', category: 'Insurance', amount: 142, dueDay: 12, isAutoPay: true, varianceLimit: 5 },
+    { name: 'Electric', category: 'Gas & Electric', amount: 130, dueDay: 20, isAutoPay: false, varianceLimit: 30 },
+    { name: 'Internet', category: 'Internet & Cable', amount: 65, dueDay: 8, isAutoPay: true, varianceLimit: 0 },
+    { name: 'Subscriptions', category: 'Subscriptions', amount: 15, dueDay: 3, isAutoPay: true, varianceLimit: 2 },
+    { name: 'Gym', category: 'Fitness', amount: 49.99, dueDay: 1, isAutoPay: true, varianceLimit: 0 },
+  ]
+
+  for (const fb of fixedBudgets) {
+    await db.budget.create({
+      data: {
+        userId: DEMO_USER_ID,
+        categoryId: categoryMap.get(fb.category) ?? null,
+        name: fb.name,
+        amount: fb.amount,
+        spent: 0,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FIXED,
+        startDate: budgetStart,
+        isAutoPay: fb.isAutoPay,
+        dueDay: fb.dueDay,
+        varianceLimit: fb.varianceLimit,
+      },
+    })
+  }
+
+  const flexibleBudgets = [
+    { name: 'Groceries', category: 'Groceries', amount: 500 },
+    { name: 'Dining Out', category: 'Restaurants & Bars', amount: 200 },
+    { name: 'Gas', category: 'Gas', amount: 180 },
+    { name: 'Entertainment', category: 'Entertainment & Recreation', amount: 100 },
+    { name: 'Clothing', category: 'Clothing', amount: 100 },
+  ]
+
+  for (const fb of flexibleBudgets) {
+    await db.budget.create({
+      data: {
+        userId: DEMO_USER_ID,
+        categoryId: categoryMap.get(fb.category) ?? null,
+        name: fb.name,
+        amount: fb.amount,
+        spent: 0,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.FLEXIBLE,
+        startDate: budgetStart,
+      },
+    })
+  }
+
+  // Annual budget + expense
+  const vacationCatId = categoryMap.get('Travel & Vacation')
+  if (vacationCatId) {
+    const vacBudget = await db.budget.create({
+      data: {
+        userId: DEMO_USER_ID,
+        categoryId: vacationCatId,
+        name: 'Vacation Fund',
+        amount: 250,
+        spent: 0,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.ANNUAL,
+        startDate: yearStart,
+      },
+    })
+
+    await db.annualExpense.create({
+      data: {
+        userId: DEMO_USER_ID,
+        budgetId: vacBudget.id,
+        name: 'Summer Vacation',
+        annualAmount: 3000,
+        dueMonth: 7,
+        dueYear: now.getFullYear(),
+        monthlySetAside: 250,
+        funded: 500,
+        isRecurring: false,
+        status: 'planned',
+      },
+    })
+  }
+
+  // Compute budget spent from transactions
+  const allBudgets = await db.budget.findMany({ where: { userId: DEMO_USER_ID } })
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+  for (const budget of allBudgets) {
+    if (!budget.categoryId) continue
+
+    const start = budget.tier === 'ANNUAL' ? budget.startDate : monthStart
+    const end = budget.tier === 'ANNUAL'
+      ? (budget.endDate ?? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
+      : monthEnd
+
+    const result = await db.transaction.aggregate({
+      where: {
+        userId: DEMO_USER_ID,
+        categoryId: budget.categoryId,
+        date: { gte: start, lte: end },
+        amount: { lt: 0 },
+      },
+      _sum: { amount: true },
+    })
+
+    const spent = Math.abs(result._sum.amount ?? 0)
+    if (spent > 0) {
+      await db.budget.update({ where: { id: budget.id }, data: { spent } })
+    }
+  }
+}

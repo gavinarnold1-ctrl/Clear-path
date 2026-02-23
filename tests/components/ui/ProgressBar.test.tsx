@@ -36,28 +36,28 @@ describe('ProgressBar', () => {
     expect(fill.style.width).toBe('60%')
   })
 
-  it('applies brand-500 fill color below 80%', () => {
+  it('applies pine fill color below 80%', () => {
     const { container } = render(<ProgressBar value={50} />)
     const fill = container.querySelector('[style]') as HTMLElement
-    expect(fill.className).toContain('bg-brand-500')
+    expect(fill.className).toContain('bg-pine')
   })
 
-  it('applies amber-400 fill color between 80% and 99%', () => {
+  it('applies birch fill color between 80% and 99%', () => {
     const { container } = render(<ProgressBar value={85} />)
     const fill = container.querySelector('[style]') as HTMLElement
-    expect(fill.className).toContain('bg-amber-400')
+    expect(fill.className).toContain('bg-birch')
   })
 
-  it('applies red-500 fill color at 100%', () => {
+  it('applies ember fill color at 100%', () => {
     const { container } = render(<ProgressBar value={100} />)
     const fill = container.querySelector('[style]') as HTMLElement
-    expect(fill.className).toContain('bg-red-500')
+    expect(fill.className).toContain('bg-ember')
   })
 
-  it('applies red-500 fill color when over 100%', () => {
+  it('applies ember fill color when over 100%', () => {
     const { container } = render(<ProgressBar value={120} />)
     const fill = container.querySelector('[style]') as HTMLElement
-    expect(fill.className).toContain('bg-red-500')
+    expect(fill.className).toContain('bg-ember')
   })
 
   it('accepts an optional className on the track', () => {

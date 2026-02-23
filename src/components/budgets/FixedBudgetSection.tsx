@@ -49,14 +49,14 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-fjord">
           Fixed{' '}
-          <span className="text-sm font-normal text-gray-500">
+          <span className="text-sm font-normal text-stone">
             ({formatCurrency(total)}/mo)
           </span>
         </h2>
       </div>
-      <div className="card divide-y divide-gray-100">
+      <div className="card divide-y divide-mist">
         {budgets.map((budget) => {
           const status = getFixedStatus(budget, transactions)
           return (

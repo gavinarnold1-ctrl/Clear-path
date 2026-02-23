@@ -12,13 +12,13 @@ export default function RegisterForm() {
   return (
     <form action={formAction} className="space-y-4">
       {state?.error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
           {state.error}
         </p>
       )}
 
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-fjord">
           Name
         </label>
         <input
@@ -32,7 +32,7 @@ export default function RegisterForm() {
       </div>
 
       <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="email" className="mb-1 block text-sm font-medium text-fjord">
           Email
         </label>
         <input
@@ -47,7 +47,7 @@ export default function RegisterForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="password" className="mb-1 block text-sm font-medium text-fjord">
           Password
         </label>
         <input
@@ -65,9 +65,9 @@ export default function RegisterForm() {
         {isPending ? 'Creating account…' : 'Create account'}
       </button>
 
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-stone">
         Already have an account?{' '}
-        <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
+        <Link href="/login" className="font-medium text-fjord hover:text-midnight">
           Sign in
         </Link>
       </p>

@@ -210,6 +210,116 @@ export async function PATCH(
       return NextResponse.json(updated)
     }
 
+    case 'linkTransaction': {
+      const { transactionId } = body
+      if (!transactionId) {
+        return NextResponse.json({ error: 'Transaction ID required' }, { status: 400 })
+      }
+
+      const transaction = await db.transaction.findFirst({
+        where: { id: transactionId, userId: session.userId },
+      })
+      if (!transaction) {
+        return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
+      }
+
+      const txAmount = Math.abs(transaction.amount)
+
+      const updated = await db.$transaction(async (tx) => {
+        // Link transaction to annual expense
+        await tx.transaction.update({
+          where: { id: transactionId },
+          data: { annualExpenseId: id },
+        })
+
+        // Increase funded amount by the transaction amount
+        const newFunded = expense.funded + txAmount
+        const remaining = Math.max(0, expense.annualAmount - newFunded)
+
+        const now = new Date()
+        const targetDate = new Date(expense.dueYear, expense.dueMonth - 1, 1)
+        const monthsRemaining = Math.max(
+          1,
+          (targetDate.getFullYear() - now.getFullYear()) * 12 +
+            (targetDate.getMonth() - now.getMonth())
+        )
+        const newSetAside = remaining > 0 ? Math.ceil((remaining / monthsRemaining) * 100) / 100 : 0
+
+        const ae = await tx.annualExpense.update({
+          where: { id },
+          data: {
+            funded: newFunded,
+            monthlySetAside: newSetAside,
+            status: newFunded >= expense.annualAmount ? 'funded' : expense.status,
+          },
+          include: { budget: { include: { category: true } } },
+        })
+
+        await tx.budget.update({
+          where: { id: expense.budgetId },
+          data: { amount: newSetAside },
+        })
+
+        return ae
+      })
+
+      return NextResponse.json(updated)
+    }
+
+    case 'unlinkTransaction': {
+      const { transactionId: unlinkTxId } = body
+      if (!unlinkTxId) {
+        return NextResponse.json({ error: 'Transaction ID required' }, { status: 400 })
+      }
+
+      const unlinkTx = await db.transaction.findFirst({
+        where: { id: unlinkTxId, userId: session.userId, annualExpenseId: id },
+      })
+      if (!unlinkTx) {
+        return NextResponse.json({ error: 'Transaction not found or not linked' }, { status: 404 })
+      }
+
+      const txAmt = Math.abs(unlinkTx.amount)
+
+      const updated = await db.$transaction(async (tx) => {
+        await tx.transaction.update({
+          where: { id: unlinkTxId },
+          data: { annualExpenseId: null },
+        })
+
+        const newFunded = Math.max(0, expense.funded - txAmt)
+        const remaining = Math.max(0, expense.annualAmount - newFunded)
+
+        const now = new Date()
+        const targetDate = new Date(expense.dueYear, expense.dueMonth - 1, 1)
+        const monthsRemaining = Math.max(
+          1,
+          (targetDate.getFullYear() - now.getFullYear()) * 12 +
+            (targetDate.getMonth() - now.getMonth())
+        )
+        const newSetAside = remaining > 0 ? Math.ceil((remaining / monthsRemaining) * 100) / 100 : 0
+
+        const ae = await tx.annualExpense.update({
+          where: { id },
+          data: {
+            funded: newFunded,
+            monthlySetAside: newSetAside,
+            status: newFunded >= expense.annualAmount ? 'funded' : 'planned',
+          },
+          include: { budget: { include: { category: true } } },
+        })
+
+        await tx.budget.update({
+          where: { id: expense.budgetId },
+          data: { amount: newSetAside },
+        })
+
+        return ae
+      })
+
+      return NextResponse.json(updated)
+    }
+
     default:
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }

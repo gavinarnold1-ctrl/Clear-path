@@ -15,35 +15,35 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<FixedStatus, { icon: string; color: string }> = {
-  paid: { icon: '\u2713', color: 'text-green-600' },
-  variance: { icon: '\u26A0', color: 'text-amber-600' },
-  missed: { icon: '\u2717', color: 'text-red-600' },
-  pending: { icon: '\u25CB', color: 'text-gray-400' },
+  paid: { icon: '\u2713', color: 'text-pine' },
+  variance: { icon: '\u26A0', color: 'text-birch' },
+  missed: { icon: '\u2717', color: 'text-ember' },
+  pending: { icon: '\u25CB', color: 'text-stone' },
 }
 
 export default function FixedBudgetRow({ name, amount, spent, dueDay, isAutoPay, status }: Props) {
   const cfg = STATUS_CONFIG[status]
 
   return (
-    <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50">
+    <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-snow">
       <span className={`text-lg font-bold ${cfg.color}`}>{cfg.icon}</span>
       <div className="min-w-0 flex-1">
-        <span className="font-medium text-gray-900">{name}</span>
+        <span className="font-medium text-fjord">{name}</span>
         {dueDay && (
-          <span className="ml-2 text-xs text-gray-400">due {formatOrdinalDay(dueDay)}</span>
+          <span className="ml-2 text-xs text-stone">due {formatOrdinalDay(dueDay)}</span>
         )}
-        {isAutoPay && <span className="ml-2 text-xs text-gray-400">auto-pay</span>}
+        {isAutoPay && <span className="ml-2 text-xs text-stone">auto-pay</span>}
       </div>
       <div className="text-right">
         {status === 'variance' && spent > 0 ? (
-          <span className="text-sm font-semibold text-amber-600">
+          <span className="text-sm font-semibold text-birch">
             {formatCurrency(spent)}{' '}
-            <span className="text-xs text-gray-400">(was {formatCurrency(amount)})</span>
+            <span className="text-xs text-stone">(was {formatCurrency(amount)})</span>
           </span>
         ) : status === 'missed' ? (
-          <span className="text-sm font-semibold text-red-600">MISSED</span>
+          <span className="text-sm font-semibold text-ember">MISSED</span>
         ) : (
-          <span className="text-sm font-semibold text-gray-900">{formatCurrency(amount)}</span>
+          <span className="text-sm font-semibold text-fjord">{formatCurrency(amount)}</span>
         )}
       </div>
     </div>

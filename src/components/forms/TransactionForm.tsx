@@ -31,18 +31,18 @@ export default function TransactionForm({ accounts, categories }: Props) {
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
           {state.error}
         </p>
       )}
 
       {/* Amount */}
       <div>
-        <label htmlFor="amount" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="amount" className="mb-1 block text-sm font-medium text-fjord">
           Amount
         </label>
         <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
             $
           </span>
           <input
@@ -60,7 +60,7 @@ export default function TransactionForm({ accounts, categories }: Props) {
 
       {/* Merchant */}
       <div>
-        <label htmlFor="merchant" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="merchant" className="mb-1 block text-sm font-medium text-fjord">
           Merchant
         </label>
         <input
@@ -75,7 +75,7 @@ export default function TransactionForm({ accounts, categories }: Props) {
 
       {/* Date */}
       <div>
-        <label htmlFor="date" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="date" className="mb-1 block text-sm font-medium text-fjord">
           Date
         </label>
         <input id="date" name="date" type="date" className="input" defaultValue={today} required />
@@ -83,8 +83,8 @@ export default function TransactionForm({ accounts, categories }: Props) {
 
       {/* Account */}
       <div>
-        <label htmlFor="accountId" className="mb-1 block text-sm font-medium text-gray-700">
-          Account <span className="font-normal text-gray-400">(optional)</span>
+        <label htmlFor="accountId" className="mb-1 block text-sm font-medium text-fjord">
+          Account <span className="font-normal text-stone">(optional)</span>
         </label>
         <select id="accountId" name="accountId" className="input">
           <option value="">No account</option>
@@ -98,8 +98,8 @@ export default function TransactionForm({ accounts, categories }: Props) {
 
       {/* Category */}
       <div>
-        <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-gray-700">
-          Category <span className="font-normal text-gray-400">(optional)</span>
+        <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-fjord">
+          Category <span className="font-normal text-stone">(optional)</span>
         </label>
         <select id="categoryId" name="categoryId" className="input">
           <option value="">No category</option>
@@ -126,8 +126,8 @@ export default function TransactionForm({ accounts, categories }: Props) {
 
       {/* Notes */}
       <div>
-        <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-700">
-          Notes <span className="font-normal text-gray-400">(optional)</span>
+        <label htmlFor="notes" className="mb-1 block text-sm font-medium text-fjord">
+          Notes <span className="font-normal text-stone">(optional)</span>
         </label>
         <textarea id="notes" name="notes" className="input" rows={2} placeholder="Any extra details…" />
       </div>

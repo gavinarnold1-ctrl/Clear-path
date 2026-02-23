@@ -95,14 +95,14 @@ export default async function SpendingPage({ searchParams }: Props) {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Spending Breakdown</h1>
+        <h1 className="text-2xl font-bold text-fjord">Spending Breakdown</h1>
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="card">
-          <p className="text-sm font-medium text-gray-500">Total Spent — {monthLabel}</p>
+          <p className="text-sm font-medium text-stone">Total Spent — {monthLabel}</p>
           <p className="mt-1 text-3xl font-bold text-expense">{formatCurrency(totalSpent)}</p>
           {pctChange !== 0 && (
             <p className={`mt-1 text-xs font-medium ${pctChange > 0 ? 'text-expense' : 'text-income'}`}>
@@ -111,16 +111,16 @@ export default async function SpendingPage({ searchParams }: Props) {
           )}
         </div>
         <div className="card">
-          <p className="text-sm font-medium text-gray-500">Categories</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">
+          <p className="text-sm font-medium text-stone">Categories</p>
+          <p className="mt-1 text-3xl font-bold text-fjord">
             {spendingGroups.reduce((s, g) => s + g.categories.length, 0)}
           </p>
-          <p className="mt-1 text-xs text-gray-400">across {spendingGroups.length} groups</p>
+          <p className="mt-1 text-xs text-stone">across {spendingGroups.length} groups</p>
         </div>
         <div className="card">
-          <p className="text-sm font-medium text-gray-500">Transactions</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{expenseTransactions.length}</p>
-          <p className="mt-1 text-xs text-gray-400">expense transactions</p>
+          <p className="text-sm font-medium text-stone">Transactions</p>
+          <p className="mt-1 text-3xl font-bold text-fjord">{expenseTransactions.length}</p>
+          <p className="mt-1 text-xs text-stone">expense transactions</p>
         </div>
       </div>
 

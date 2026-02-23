@@ -9,21 +9,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          900: '#312e81',
-        },
-        income: '#22c55e',
-        expense: '#ef4444',
-        transfer: '#f59e0b',
+        // Oversikt brand palette
+        fjord: '#1B3A4B',
+        pine: '#2D5F3E',
+        midnight: '#0F1F28',
+        snow: '#F7F9F8',
+        frost: '#E8F0ED',
+        mist: '#C8D5CE',
+        stone: '#8B9A8E',
+        lichen: '#A3B8A0',
+        birch: '#D4C5A9',
+        ember: '#C4704B',
+        // Semantic aliases
+        income: '#2D5F3E',
+        expense: '#C4704B',
+        transfer: '#D4C5A9',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'sans-serif'],
+        display: ['var(--font-fraunces)', 'serif'],
+        body: ['var(--font-dm-sans)', 'sans-serif'],
+        mono: ['var(--font-jetbrains)', 'monospace'],
+        sans: ['var(--font-dm-sans)', 'sans-serif'],
+      },
+      borderRadius: {
+        card: '12px',
+        button: '8px',
+        badge: '5px',
+        bar: '3px',
       },
     },
   },

@@ -2,7 +2,59 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
-import { recalculateBudgetSpent } from '@/lib/budget-utils'
+import { recalculateBudgetSpent, reconcileBudgetCategories } from '@/lib/budget-utils'
+
+/**
+ * Fuzzy-match a CSV category name to an existing category when exact match fails.
+ * Tries contains matching and word overlap, prioritizing budget-linked categories.
+ */
+function findPartialCategoryMatch<T extends { id: string; name: string }>(
+  csvKey: string,
+  categoryMap: Map<string, T>,
+  budgetCategoryIds: Set<string>
+): T | null {
+  const csvWords = new Set(csvKey.split(/[\s&,]+/).filter((w) => w.length > 2))
+
+  let bestMatch: T | null = null
+  let bestScore = 0
+
+  for (const [existingKey, existingCat] of categoryMap) {
+    if (existingKey === csvKey) continue
+
+    let score = 0
+
+    // Contains match: "mortgage payment" contains "mortgage", etc.
+    if (csvKey.includes(existingKey) || existingKey.includes(csvKey)) {
+      const shorter = Math.min(existingKey.length, csvKey.length)
+      const longer = Math.max(existingKey.length, csvKey.length)
+      score = shorter / longer
+    }
+
+    // Word overlap: "internet service" vs "internet & cable" share "internet"
+    if (score === 0 && csvWords.size > 0) {
+      const existingWords = new Set(existingKey.split(/[\s&,]+/).filter((w) => w.length > 2))
+      let overlap = 0
+      for (const w of csvWords) {
+        if (existingWords.has(w)) overlap++
+      }
+      if (overlap > 0) {
+        score = overlap / Math.max(csvWords.size, existingWords.size)
+      }
+    }
+
+    // Budget-linked categories get a priority bonus
+    if (score > 0 && budgetCategoryIds.has(existingCat.id)) {
+      score += 0.3
+    }
+
+    if (score > bestScore) {
+      bestScore = score
+      bestMatch = existingCat
+    }
+  }
+
+  return bestScore >= 0.4 ? bestMatch : null
+}
 
 export async function POST(request: Request) {
   const session = await getSession()
@@ -39,6 +91,13 @@ export async function POST(request: Request) {
       orderBy: { userId: 'asc' }, // nulls (defaults) first, so user categories overwrite in Map
     })
     const categoryMap = new Map(allCategories.map((c) => [c.name.toLowerCase(), c]))
+
+    // Load budget-linked categories so partial matching can prioritize them
+    const userBudgets = await db.budget.findMany({
+      where: { userId: session.userId, categoryId: { not: null } },
+      select: { categoryId: true },
+    })
+    const budgetCategoryIds = new Set(userBudgets.map((b) => b.categoryId!))
 
     // Load user's accounts for matching (Monarch has Account column)
     const userAccounts = await db.account.findMany({
@@ -160,11 +219,20 @@ export async function POST(request: Request) {
         }
       }
 
-      // Match category by name — auto-create if not found
+      // Match category by name — exact first, then partial, then auto-create
       let categoryId: string | null = null
       if (tx.category && tx.category.trim() !== '') {
         const catKey = tx.category.toLowerCase()
-        const matched = categoryMap.get(catKey)
+        let matched = categoryMap.get(catKey) ?? null
+
+        // Fallback: partial/fuzzy match, prioritizing budget-linked categories
+        if (!matched) {
+          matched = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds)
+          if (matched) {
+            categoryMap.set(catKey, matched)
+          }
+        }
+
         if (matched) {
           categoryId = matched.id
         } else {
@@ -184,7 +252,6 @@ export async function POST(request: Request) {
             },
           })
           categoryId = newCat.id
-          // Cache so subsequent rows with the same category reuse this record
           categoryMap.set(catKey, newCat)
         }
       }
@@ -270,6 +337,9 @@ export async function POST(request: Request) {
     for (const [accId, delta] of balanceDeltas) {
       await db.account.update({ where: { id: accId }, data: { balance: { increment: delta } } })
     }
+
+    // Reconcile any previously-imported transactions whose category didn't match budgets
+    await reconcileBudgetCategories(session.userId)
 
     // Recalculate budget spent values after import
     await recalculateBudgetSpent(session.userId)

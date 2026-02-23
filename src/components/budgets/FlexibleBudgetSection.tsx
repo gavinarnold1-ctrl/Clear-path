@@ -19,10 +19,10 @@ export default function FlexibleBudgetSection({ budgets }: Props) {
   return (
     <section className="mb-8">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold text-gray-900">Flexible</h2>
-        <p className="text-sm text-gray-500">Variable spending you control — track against a monthly limit</p>
+        <h2 className="text-lg font-semibold text-fjord">Flexible</h2>
+        <p className="text-sm text-stone">Variable spending you control — track against a monthly limit</p>
       </div>
-      <div className="card divide-y divide-gray-100">
+      <div className="card divide-y divide-mist">
         {budgets.map((budget) => (
           <FlexibleBudgetRow
             key={budget.id}

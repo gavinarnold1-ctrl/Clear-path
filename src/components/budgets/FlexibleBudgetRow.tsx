@@ -27,16 +27,16 @@ export default function FlexibleBudgetRow({ name, amount, spent, category }: Pro
   const { daily, daysLeft } = getDailyAllowance(amount, spent)
 
   const pctColor =
-    pct >= 100 ? 'text-red-600' : pct >= 90 ? 'text-red-500' : pct >= 75 ? 'text-amber-600' : 'text-brand-600'
+    pct >= 100 ? 'text-ember' : pct >= 90 ? 'text-ember' : pct >= 75 ? 'text-birch' : 'text-fjord'
 
   return (
-    <div className="rounded-lg px-3 py-3 hover:bg-gray-50">
+    <div className="rounded-lg px-3 py-3 hover:bg-snow">
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {category?.icon && <span className="text-sm">{category.icon}</span>}
-          <span className="font-medium text-gray-900">{name}</span>
+          <span className="font-medium text-fjord">{name}</span>
         </div>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-stone">
           <span className={pctColor}>{formatCurrency(spent)}</span>
           {' / '}
           {formatCurrency(amount)}
@@ -47,11 +47,11 @@ export default function FlexibleBudgetRow({ name, amount, spent, category }: Pro
 
       <div className="mt-1 flex items-center justify-between text-xs">
         {isOver ? (
-          <span className="font-semibold text-red-600">
+          <span className="font-semibold text-ember">
             {formatCurrency(Math.abs(remaining))} over budget
           </span>
         ) : (
-          <span className="text-gray-500">
+          <span className="text-stone">
             {formatCurrency(daily)}/day remaining ({daysLeft} day{daysLeft !== 1 ? 's' : ''} left)
           </span>
         )}

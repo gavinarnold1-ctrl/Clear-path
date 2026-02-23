@@ -22,10 +22,10 @@ export default function ProposalSummary({ proposal, profileSummary }: Props) {
 
   const remainingColor =
     savingsRate > 20
-      ? 'text-green-600'
+      ? 'text-pine'
       : savingsRate > 5
-        ? 'text-amber-600'
-        : 'text-red-600'
+        ? 'text-birch'
+        : 'text-ember'
 
   const barSegments = [
     { label: 'Fixed', amount: totalFixed, color: 'bg-blue-500' },
@@ -36,11 +36,11 @@ export default function ProposalSummary({ proposal, profileSummary }: Props) {
   const total = profileSummary.totalMonthlyIncome || 1
 
   return (
-    <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-5">
-      <h3 className="mb-4 text-sm font-semibold text-gray-900">Budget Summary</h3>
+    <div className="rounded-xl border-2 border-mist bg-snow p-5">
+      <h3 className="mb-4 text-sm font-semibold text-fjord">Budget Summary</h3>
 
       {/* Stacked bar */}
-      <div className="mb-4 flex h-4 overflow-hidden rounded-full bg-gray-200">
+      <div className="mb-4 flex h-4 overflow-hidden rounded-full bg-mist">
         {barSegments.map((seg) => (
           <div
             key={seg.label}
@@ -56,43 +56,43 @@ export default function ProposalSummary({ proposal, profileSummary }: Props) {
         {barSegments.map((seg) => (
           <div key={seg.label} className="flex items-center gap-1.5">
             <span className={`inline-block h-2.5 w-2.5 rounded-full ${seg.color}`} />
-            <span className="text-gray-600">{seg.label}</span>
-            <span className="font-medium text-gray-900">{formatCurrency(seg.amount)}</span>
+            <span className="text-stone">{seg.label}</span>
+            <span className="font-medium text-fjord">{formatCurrency(seg.amount)}</span>
           </div>
         ))}
       </div>
 
       {/* Numbers grid */}
-      <div className="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 border-t border-mist pt-4 sm:grid-cols-4">
         <div>
-          <p className="text-xs font-medium text-gray-500">Income</p>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-xs font-medium text-stone">Income</p>
+          <p className="text-lg font-semibold text-fjord">
             {formatCurrency(profileSummary.totalMonthlyIncome)}
           </p>
         </div>
         <div>
-          <p className="text-xs font-medium text-gray-500">Total Budgeted</p>
-          <p className="text-lg font-semibold text-gray-900">{formatCurrency(totalCommitted)}</p>
+          <p className="text-xs font-medium text-stone">Total Budgeted</p>
+          <p className="text-lg font-semibold text-fjord">{formatCurrency(totalCommitted)}</p>
         </div>
         <div>
-          <p className="text-xs font-medium text-gray-500">True Remaining</p>
+          <p className="text-xs font-medium text-stone">True Remaining</p>
           <p className={`text-lg font-bold ${remainingColor}`}>{formatCurrency(trueRemaining)}</p>
         </div>
         <div>
-          <p className="text-xs font-medium text-gray-500">Savings Rate</p>
+          <p className="text-xs font-medium text-stone">Savings Rate</p>
           <p className={`text-lg font-bold ${remainingColor}`}>{savingsRate.toFixed(1)}%</p>
         </div>
       </div>
 
       {/* AI commentary */}
       {proposal.summary.commentary && (
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
-          <p className="text-xs text-gray-600">{proposal.summary.commentary}</p>
+        <div className="mt-4 rounded-lg border border-mist bg-frost p-3">
+          <p className="text-xs text-stone">{proposal.summary.commentary}</p>
         </div>
       )}
 
       {/* Data coverage note */}
-      <p className="mt-3 text-xs text-gray-400">
+      <p className="mt-3 text-xs text-stone">
         Based on {profileSummary.totalTransactions} transactions over {profileSummary.monthsOfData}{' '}
         month{profileSummary.monthsOfData !== 1 ? 's' : ''}
       </p>

@@ -1,8 +1,14 @@
 // @vitest-environment node
 // jose uses TextEncoder internally; jsdom's realm differs from Node's, causing
 // `instanceof Uint8Array` checks to fail. The Node environment avoids this.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { signToken, verifyToken, SESSION_COOKIE } from '@/lib/jwt'
+
+beforeAll(() => {
+  if (!process.env.SESSION_SECRET) {
+    process.env.SESSION_SECRET = 'test-secret-for-jwt-tests-at-least-32-chars'
+  }
+})
 
 describe('SESSION_COOKIE', () => {
   it('is a non-empty string', () => {

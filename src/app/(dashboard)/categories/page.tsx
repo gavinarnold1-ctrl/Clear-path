@@ -46,7 +46,7 @@ export default async function CategoriesPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
+        <h1 className="text-2xl font-bold text-fjord">Categories</h1>
         <Link href="/categories/new" className="btn-primary">
           + New category
         </Link>
@@ -54,8 +54,8 @@ export default async function CategoriesPage() {
 
       {categories.length === 0 ? (
         <div className="card py-16 text-center">
-          <p className="mb-2 text-sm font-medium text-gray-500">No categories yet</p>
-          <p className="mb-4 text-xs text-gray-400">
+          <p className="mb-2 text-sm font-medium text-stone">No categories yet</p>
+          <p className="mb-4 text-xs text-stone">
             Add categories to organise your transactions and budgets.
           </p>
           <Link href="/categories/new" className="btn-primary inline-block">

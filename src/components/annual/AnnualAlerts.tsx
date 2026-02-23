@@ -23,11 +23,11 @@ interface Alert {
 }
 
 const ALERT_STYLES = {
-  overdue: 'border-red-200 bg-red-50 text-red-800',
-  urgent: 'border-red-200 bg-red-50 text-red-800',
+  overdue: 'border-red-200 bg-ember/10 text-red-800',
+  urgent: 'border-red-200 bg-ember/10 text-red-800',
   behind: 'border-amber-200 bg-amber-50 text-amber-800',
   coming: 'border-blue-200 bg-blue-50 text-blue-800',
-  funded: 'border-green-200 bg-green-50 text-green-800',
+  funded: 'border-green-200 bg-pine/10 text-green-800',
 }
 
 const ALERT_ICONS = {
@@ -110,7 +110,7 @@ export default function AnnualAlerts({ expenses }: { expenses: AlertExpense[] })
       {hasMore && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-xs font-medium text-gray-500 hover:text-gray-700"
+          className="text-xs font-medium text-stone hover:text-fjord"
         >
           {expanded ? 'Show less' : `Show all ${alerts.length} alerts`}
         </button>

@@ -89,17 +89,17 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-lg rounded-xl bg-frost p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold text-gray-900">Add Annual Expense</h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <h3 className="text-lg font-semibold text-fjord">Add Annual Expense</h3>
+        <p className="mt-1 text-sm text-stone">
           Plan a large or irregular expense to save for over time.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label htmlFor="ae-name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="ae-name" className="block text-sm font-medium text-fjord">
               Name
             </label>
             <input
@@ -113,7 +113,7 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
           </div>
 
           <div>
-            <label htmlFor="ae-amount" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="ae-amount" className="block text-sm font-medium text-fjord">
               Estimated Cost
             </label>
             <input
@@ -130,7 +130,7 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="ae-month" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="ae-month" className="block text-sm font-medium text-fjord">
                 Target Month
               </label>
               <select
@@ -147,7 +147,7 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
               </select>
             </div>
             <div>
-              <label htmlFor="ae-year" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="ae-year" className="block text-sm font-medium text-fjord">
                 Target Year
               </label>
               <select
@@ -166,7 +166,7 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
           </div>
 
           <div>
-            <label htmlFor="ae-category" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="ae-category" className="block text-sm font-medium text-fjord">
               Category (optional)
             </label>
             <select
@@ -189,13 +189,13 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
               type="checkbox"
               checked={isRecurring}
               onChange={(e) => setIsRecurring(e.target.checked)}
-              className="rounded border-gray-300"
+              className="rounded border-mist"
             />
-            <span className="text-sm text-gray-700">Repeat every year</span>
+            <span className="text-sm text-fjord">Repeat every year</span>
           </label>
 
           <div>
-            <label htmlFor="ae-notes" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="ae-notes" className="block text-sm font-medium text-fjord">
               Notes (optional)
             </label>
             <textarea
@@ -208,7 +208,7 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
             />
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-ember">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button

@@ -34,9 +34,9 @@ export default function SpendingBreakdown({ data, totalSpent }: Props) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Pie chart */}
       <div className="card lg:col-span-1">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">By Group</h2>
+        <h2 className="mb-4 text-base font-semibold text-fjord">By Group</h2>
         {data.length === 0 ? (
-          <p className="text-sm text-gray-400">No expenses this month.</p>
+          <p className="text-sm text-stone">No expenses this month.</p>
         ) : (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -62,7 +62,7 @@ export default function SpendingBreakdown({ data, totalSpent }: Props) {
             </ResponsiveContainer>
           </div>
         )}
-        <p className="mt-2 text-center text-sm text-gray-500">
+        <p className="mt-2 text-center text-sm text-stone">
           Total: <span className="font-semibold text-expense">{formatCurrency(totalSpent)}</span>
         </p>
       </div>
@@ -71,7 +71,7 @@ export default function SpendingBreakdown({ data, totalSpent }: Props) {
       <div className="lg:col-span-2">
         {data.length === 0 ? (
           <div className="card py-12 text-center">
-            <p className="text-sm text-gray-400">No categorised expenses this month.</p>
+            <p className="text-sm text-stone">No categorised expenses this month.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -79,39 +79,39 @@ export default function SpendingBreakdown({ data, totalSpent }: Props) {
               <div key={group.group} className="card overflow-hidden p-0">
                 <button
                   onClick={() => setExpandedGroup(expandedGroup === group.group ? null : group.group)}
-                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-gray-50"
+                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-snow"
                 >
                   <div className="flex items-center gap-3">
                     <span
                       className="inline-block h-3 w-3 rounded-full"
                       style={{ backgroundColor: COLORS[gi % COLORS.length] }}
                     />
-                    <span className="font-semibold text-gray-900">{group.group}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="font-semibold text-fjord">{group.group}</span>
+                    <span className="text-xs text-stone">
                       {group.categories.length} categor{group.categories.length !== 1 ? 'ies' : 'y'}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-900">{formatCurrency(group.amount)}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="font-semibold text-fjord">{formatCurrency(group.amount)}</span>
+                    <span className="text-xs text-stone">
                       {totalSpent > 0 ? `${((group.amount / totalSpent) * 100).toFixed(1)}%` : '—'}
                     </span>
-                    <span className="text-gray-400">{expandedGroup === group.group ? '▲' : '▼'}</span>
+                    <span className="text-stone">{expandedGroup === group.group ? '▲' : '▼'}</span>
                   </div>
                 </button>
 
                 {expandedGroup === group.group && (
-                  <div className="border-t border-gray-100">
+                  <div className="border-t border-mist">
                     <table className="w-full text-sm">
                       <tbody className="divide-y divide-gray-50">
                         {group.categories.map(cat => (
-                          <tr key={cat.name} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 pl-10 text-gray-700">{cat.name}</td>
-                            <td className="px-4 py-2 text-right text-gray-500">
+                          <tr key={cat.name} className="hover:bg-snow">
+                            <td className="px-4 py-2 pl-10 text-fjord">{cat.name}</td>
+                            <td className="px-4 py-2 text-right text-stone">
                               {formatCurrency(cat.amount)}
                             </td>
                             <td className="w-24 px-4 py-2">
-                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
                                 <div
                                   className="h-full rounded-full"
                                   style={{

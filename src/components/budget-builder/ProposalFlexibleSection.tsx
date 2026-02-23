@@ -26,12 +26,12 @@ export default function ProposalFlexibleSection({ items, onChange }: Props) {
     <section className="mb-6">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">Flexible Spending</h3>
-          <p className="text-xs text-gray-400">Variable spending you control each month</p>
+          <h3 className="text-sm font-semibold text-fjord">Flexible Spending</h3>
+          <p className="text-xs text-stone">Variable spending you control each month</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold text-gray-900">{formatCurrency(total)}</p>
-          <p className="text-xs text-gray-400">/month</p>
+          <p className="text-sm font-semibold text-fjord">{formatCurrency(total)}</p>
+          <p className="text-xs text-stone">/month</p>
         </div>
       </div>
 
@@ -50,7 +50,7 @@ export default function ProposalFlexibleSection({ items, onChange }: Props) {
       </div>
 
       {items.length === 0 && (
-        <p className="py-4 text-center text-xs text-gray-400">No variable spending detected</p>
+        <p className="py-4 text-center text-xs text-stone">No variable spending detected</p>
       )}
     </section>
   )
