@@ -146,7 +146,7 @@ export default function AccountManager({ accounts: initial }: Props) {
   return (
     <div>
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
         </div>
@@ -156,16 +156,16 @@ export default function AccountManager({ accounts: initial }: Props) {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="card mx-4 w-full max-w-md p-6">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-fjord">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
             {deleteTarget.txCount > 0 && (
-              <p className="mb-3 text-sm text-gray-600">
+              <p className="mb-3 text-sm text-stone">
                 This account has <span className="font-medium">{deleteTarget.txCount}</span> transaction{deleteTarget.txCount !== 1 ? 's' : ''}.
                 They will be unlinked from this account (not deleted).
               </p>
             )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setDeleteTarget(null)} className="btn-secondary text-sm">Cancel</button>
-              <button onClick={confirmDelete} className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700">
+              <button onClick={confirmDelete} className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-snow hover:bg-red-700">
                 Delete
               </button>
             </div>
@@ -174,9 +174,9 @@ export default function AccountManager({ accounts: initial }: Props) {
       )}
 
       {/* Net worth banner */}
-      <div className="mb-6 rounded-xl border border-brand-200 bg-brand-50 px-6 py-4">
-        <p className="text-sm text-brand-700">Net worth</p>
-        <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-brand-700' : 'text-expense'}`}>
+      <div className="mb-6 rounded-xl border border-brand-200 bg-frost px-6 py-4">
+        <p className="text-sm text-midnight">Net worth</p>
+        <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-midnight' : 'text-expense'}`}>
           {formatCurrency(totalBalance)}
         </p>
       </div>
@@ -184,14 +184,14 @@ export default function AccountManager({ accounts: initial }: Props) {
       {/* Grouped accounts */}
       {activeGroups.map(group => (
         <div key={group} className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">{group}</h2>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone">{group}</h2>
           <div className="space-y-3">
             {grouped[group].map(acct =>
               editingId === acct.id ? (
-                <div key={acct.id} className="card border-2 border-brand-200 bg-brand-50">
+                <div key={acct.id} className="card border-2 border-brand-200 bg-frost">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Name</label>
+                      <label className="mb-1 block text-xs font-medium text-stone">Name</label>
                       <input
                         ref={nameRef}
                         type="text"
@@ -202,7 +202,7 @@ export default function AccountManager({ accounts: initial }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Type</label>
+                      <label className="mb-1 block text-xs font-medium text-stone">Type</label>
                       <select value={editType} onChange={e => setEditType(e.target.value)} className="input text-sm">
                         {ALL_TYPES.map(t => (
                           <option key={t} value={t}>{TYPE_LABELS[t]}</option>
@@ -210,7 +210,7 @@ export default function AccountManager({ accounts: initial }: Props) {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Balance</label>
+                      <label className="mb-1 block text-xs font-medium text-stone">Balance</label>
                       <input
                         type="number"
                         step="0.01"
@@ -221,7 +221,7 @@ export default function AccountManager({ accounts: initial }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Institution</label>
+                      <label className="mb-1 block text-xs font-medium text-stone">Institution</label>
                       <input
                         type="text"
                         value={editInstitution}
@@ -233,11 +233,11 @@ export default function AccountManager({ accounts: initial }: Props) {
                     </div>
                   </div>
                   <div className="mt-3 flex justify-end gap-2">
-                    <button onClick={() => { setEditingId(null); setError(null) }} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                    <button onClick={() => { setEditingId(null); setError(null) }} className="text-xs text-stone hover:text-fjord">Cancel</button>
                     <button
                       onClick={saveEdit}
                       disabled={saving}
-                      className="rounded bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                      className="rounded bg-fjord px-3 py-1.5 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
                     >
                       {saving ? 'Saving...' : 'Save'}
                     </button>
@@ -246,27 +246,27 @@ export default function AccountManager({ accounts: initial }: Props) {
               ) : (
                 <div key={acct.id} className="card flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900">{acct.name}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="font-semibold text-fjord">{acct.name}</p>
+                    <p className="text-xs text-stone">
                       {TYPE_LABELS[acct.type] ?? acct.type}
                       {acct.institution && <span> &middot; {acct.institution}</span>}
                       {' '}&middot; {acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <p className={`text-xl font-bold ${acct.balance >= 0 ? 'text-gray-900' : 'text-expense'}`}>
+                    <p className={`text-xl font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
                       {formatCurrency(acct.balance, acct.currency)}
                     </p>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => startEdit(acct)}
-                        className="text-xs text-gray-400 hover:text-brand-600"
+                        className="text-xs text-stone hover:text-fjord"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => setDeleteTarget(acct)}
-                        className="text-xs text-gray-400 hover:text-red-500"
+                        className="text-xs text-stone hover:text-ember"
                       >
                         Delete
                       </button>
@@ -279,7 +279,7 @@ export default function AccountManager({ accounts: initial }: Props) {
         </div>
       ))}
 
-      <p className="text-right text-xs text-gray-400">
+      <p className="text-right text-xs text-stone">
         {accounts.length} account{accounts.length !== 1 ? 's' : ''}
       </p>
     </div>

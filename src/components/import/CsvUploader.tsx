@@ -43,22 +43,22 @@ export default function CsvUploader({ onUpload, loading }: CsvUploaderProps) {
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
       className={`card flex flex-col items-center justify-center border-2 border-dashed py-12 transition-colors ${
-        dragOver ? 'border-brand-400 bg-brand-50' : 'border-gray-300'
+        dragOver ? 'border-brand-400 bg-frost' : 'border-mist'
       }`}
     >
       {loading ? (
-        <p className="text-sm text-gray-500">Parsing file...</p>
+        <p className="text-sm text-stone">Parsing file...</p>
       ) : fileName ? (
         <div className="text-center">
-          <p className="text-sm font-medium text-gray-700">{fileName}</p>
-          <p className="mt-1 text-xs text-gray-400">File selected</p>
+          <p className="text-sm font-medium text-fjord">{fileName}</p>
+          <p className="mt-1 text-xs text-stone">File selected</p>
         </div>
       ) : (
         <>
-          <p className="mb-2 text-sm font-medium text-gray-700">
+          <p className="mb-2 text-sm font-medium text-fjord">
             Drag and drop a CSV file here
           </p>
-          <p className="mb-4 text-xs text-gray-400">or click to browse</p>
+          <p className="mb-4 text-xs text-stone">or click to browse</p>
           <label className="btn-secondary cursor-pointer text-sm">
             Choose file
             <input

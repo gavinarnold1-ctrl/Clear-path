@@ -20,9 +20,9 @@ export default function FixedBudgetCard({ budget }: { budget: FixedBudget }) {
     <div className="card flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-gray-900">{budget.name}</p>
+          <p className="truncate font-semibold text-fjord">{budget.name}</p>
           {budget.category && (
-            <p className="flex items-center gap-1.5 text-xs text-gray-500">
+            <p className="flex items-center gap-1.5 text-xs text-stone">
               {budget.category.icon && (
                 <span className="inline-block text-sm">{budget.category.icon}</span>
               )}
@@ -33,17 +33,17 @@ export default function FixedBudgetCard({ budget }: { budget: FixedBudget }) {
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
             isPaid
-              ? 'bg-green-100 text-green-700'
-              : 'bg-amber-100 text-amber-700'
+              ? 'bg-pine/10 text-green-700'
+              : 'bg-birch/20 text-amber-700'
           }`}
         >
           {isPaid ? 'Paid' : 'Due'}
         </span>
       </div>
 
-      <p className="text-2xl font-bold text-gray-900">{formatCurrency(budget.amount)}</p>
+      <p className="text-2xl font-bold text-fjord">{formatCurrency(budget.amount)}</p>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone">
         {budget.dueDay && <span>Due: {formatOrdinalDay(budget.dueDay)}</span>}
         {budget.isAutoPay && <span>Auto-pay</span>}
       </div>
@@ -51,17 +51,17 @@ export default function FixedBudgetCard({ budget }: { budget: FixedBudget }) {
       {isPaid && budget.varianceLimit !== null && (
         <div className="text-xs">
           {Math.abs(budget.spent - budget.amount) <= budget.varianceLimit ? (
-            <span className="text-green-600">Within variance</span>
+            <span className="text-pine">Within variance</span>
           ) : (
-            <span className="text-red-600">
+            <span className="text-ember">
               Variance: {formatCurrency(Math.abs(budget.spent - budget.amount))}
             </span>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-        <span className="text-xs text-gray-400">
+      <div className="flex items-center justify-between border-t border-mist pt-2">
+        <span className="text-xs text-stone">
           {isPaid ? `Paid: ${formatCurrency(budget.spent)}` : 'Pending'}
         </span>
         <form
@@ -72,7 +72,7 @@ export default function FixedBudgetCard({ budget }: { budget: FixedBudget }) {
         >
           <button
             type="submit"
-            className="text-xs text-gray-400 hover:text-red-500"
+            className="text-xs text-stone hover:text-ember"
             aria-label={`Delete ${budget.name}`}
           >
             Delete

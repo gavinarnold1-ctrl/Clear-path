@@ -29,14 +29,23 @@ export async function createBudget(
   if (!name) return { error: 'Budget name is required.' }
   if (!VALID_TIERS.includes(tier as BudgetTier)) return { error: 'Invalid budget tier.' }
   if (!startDate) return { error: 'Start date is required.' }
+  if (tier !== 'ANNUAL' && (!isFinite(amount) || amount <= 0)) {
+    return { error: 'Amount must be a positive number.' }
+  }
 
   // Tier-specific validation and field extraction
   if (tier === 'FIXED') {
     if (!amount || amount <= 0) return { error: 'Amount must be a positive number.' }
 
-    const dueDay = parseInt(formData.get('dueDay') as string) || null
+    const rawDueDay = formData.get('dueDay') as string
+    const dueDay = rawDueDay ? parseInt(rawDueDay, 10) : null
     const isAutoPay = formData.get('isAutoPay') === 'true'
-    const varianceLimit = parseFloat(formData.get('varianceLimit') as string) || null
+    const rawVariance = formData.get('varianceLimit') as string
+    const varianceLimit = rawVariance ? parseFloat(rawVariance) : null
+
+    if (varianceLimit !== null && (!isFinite(varianceLimit) || varianceLimit < 0)) {
+      return { error: 'Variance limit must be a non-negative number.' }
+    }
 
     if (dueDay !== null && (dueDay < 1 || dueDay > 31)) {
       return { error: 'Due day must be between 1 and 31.' }
@@ -113,8 +122,8 @@ export async function createBudget(
     })
   } else if (tier === 'ANNUAL') {
     const annualAmount = parseFloat(formData.get('annualAmount') as string)
-    const dueMonth = parseInt(formData.get('dueMonth') as string)
-    const dueYear = parseInt(formData.get('dueYear') as string)
+    const dueMonth = parseInt(formData.get('dueMonth') as string, 10)
+    const dueYear = parseInt(formData.get('dueYear') as string, 10)
     const isRecurring = formData.get('isRecurring') === 'true'
     const funded = parseFloat(formData.get('funded') as string) || 0
     const notes = (formData.get('notes') as string)?.trim() || null
@@ -167,7 +176,7 @@ export async function fundAnnualExpense(
   const session = await getSession()
   if (!session) redirect('/login')
 
-  if (!amount || amount <= 0) return { error: 'Fund amount must be positive.' }
+  if (!isFinite(amount) || amount <= 0) return { error: 'Fund amount must be a positive number.' }
 
   const budget = await db.budget.findFirst({
     where: { id: budgetId, userId: session.userId, tier: 'ANNUAL' },

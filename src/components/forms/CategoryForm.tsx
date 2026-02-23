@@ -12,14 +12,14 @@ export default function CategoryForm() {
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
           {state.error}
         </p>
       )}
 
       {/* Name */}
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-fjord">
           Category name
         </label>
         <input
@@ -34,7 +34,7 @@ export default function CategoryForm() {
 
       {/* Type */}
       <div>
-        <label htmlFor="type" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="type" className="mb-1 block text-sm font-medium text-fjord">
           Type
         </label>
         <select id="type" name="type" className="input" required>
@@ -45,8 +45,8 @@ export default function CategoryForm() {
 
       {/* Group */}
       <div>
-        <label htmlFor="group" className="mb-1 block text-sm font-medium text-gray-700">
-          Group <span className="font-normal text-gray-400">(optional)</span>
+        <label htmlFor="group" className="mb-1 block text-sm font-medium text-fjord">
+          Group <span className="font-normal text-stone">(optional)</span>
         </label>
         <input
           id="group"
@@ -59,8 +59,8 @@ export default function CategoryForm() {
 
       {/* Icon (emoji shorthand) */}
       <div>
-        <label htmlFor="icon" className="mb-1 block text-sm font-medium text-gray-700">
-          Icon <span className="font-normal text-gray-400">(optional — use an emoji)</span>
+        <label htmlFor="icon" className="mb-1 block text-sm font-medium text-fjord">
+          Icon <span className="font-normal text-stone">(optional — use an emoji)</span>
         </label>
         <input
           id="icon"
@@ -74,8 +74,8 @@ export default function CategoryForm() {
 
       {/* Budget tier */}
       <div>
-        <label htmlFor="budgetTier" className="mb-1 block text-sm font-medium text-gray-700">
-          Default budget tier <span className="font-normal text-gray-400">(optional)</span>
+        <label htmlFor="budgetTier" className="mb-1 block text-sm font-medium text-fjord">
+          Default budget tier <span className="font-normal text-stone">(optional)</span>
         </label>
         <select id="budgetTier" name="budgetTier" className="input">
           <option value="">None</option>

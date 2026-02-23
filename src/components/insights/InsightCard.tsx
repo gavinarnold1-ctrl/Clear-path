@@ -18,8 +18,8 @@ interface InsightCardProps {
 }
 
 const PRIORITY_STYLES: Record<string, { badge: string; border: string }> = {
-  high: { badge: 'bg-red-100 text-red-700', border: 'border-l-red-400' },
-  medium: { badge: 'bg-amber-100 text-amber-700', border: 'border-l-amber-400' },
+  high: { badge: 'bg-ember/10 text-red-700', border: 'border-l-red-400' },
+  medium: { badge: 'bg-birch/20 text-amber-700', border: 'border-l-amber-400' },
   low: { badge: 'bg-blue-100 text-blue-700', border: 'border-l-blue-400' },
 }
 
@@ -126,21 +126,21 @@ export default function InsightCard({
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles.badge}`}>
               {priority}
             </span>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+            <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-medium text-stone">
               {TYPE_LABELS[type] ?? type}
             </span>
             {parsedMeta?.difficulty && (
-              <span className="text-xs text-gray-400">{parsedMeta.difficulty}</span>
+              <span className="text-xs text-stone">{parsedMeta.difficulty}</span>
             )}
           </div>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-          <p className="mt-1 text-sm text-gray-600">{description}</p>
+          <h3 className="text-sm font-semibold text-fjord">{title}</h3>
+          <p className="mt-1 text-sm text-stone">{description}</p>
         </div>
 
         {savingsAmount != null && savingsAmount > 0 && (
           <div className="shrink-0 text-right">
             <p className="text-lg font-bold text-income">{formatCurrency(savingsAmount)}</p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-stone">
               /{parsedMeta?.savingsFrequency === 'annual' ? 'yr' : 'mo'}
             </p>
           </div>
@@ -152,13 +152,13 @@ export default function InsightCard({
           <button
             type="button"
             onClick={() => setExpanded(!expanded)}
-            className="text-xs font-medium text-brand-600 hover:text-brand-700"
+            className="text-xs font-medium text-fjord hover:text-midnight"
           >
             {expanded ? 'Hide steps' : `${parsedActions.length} action steps`}
           </button>
 
           {expanded && (
-            <ol className="mt-2 space-y-1 pl-5 text-sm text-gray-600">
+            <ol className="mt-2 space-y-1 pl-5 text-sm text-stone">
               {parsedActions.map((step, i) => (
                 <li key={i} className="list-decimal">
                   {step}
@@ -171,8 +171,8 @@ export default function InsightCard({
 
       {/* Dismiss reason picker */}
       {showDismissOptions && (
-        <div className="mt-3 rounded-lg bg-gray-50 p-3">
-          <p className="mb-2 text-xs font-medium text-gray-600">Why are you dismissing this?</p>
+        <div className="mt-3 rounded-lg bg-snow p-3">
+          <p className="mb-2 text-xs font-medium text-stone">Why are you dismissing this?</p>
           <div className="flex flex-wrap gap-1.5">
             {DISMISS_REASONS.map((reason) => (
               <button
@@ -180,7 +180,7 @@ export default function InsightCard({
                 type="button"
                 onClick={() => handleDismiss(reason.value)}
                 disabled={updating}
-                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                className="rounded-full border border-mist bg-frost px-2.5 py-1 text-xs text-stone hover:border-mist hover:bg-snow disabled:opacity-50"
               >
                 {reason.label}
               </button>
@@ -189,7 +189,7 @@ export default function InsightCard({
           <button
             type="button"
             onClick={() => setShowDismissOptions(false)}
-            className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+            className="mt-2 text-xs text-stone hover:text-stone"
           >
             Cancel
           </button>
@@ -198,7 +198,7 @@ export default function InsightCard({
 
       {/* Completion notes form */}
       {showCompleteForm && (
-        <div className="mt-3 rounded-lg bg-green-50 p-3">
+        <div className="mt-3 rounded-lg bg-pine/10 p-3">
           <p className="mb-2 text-xs font-medium text-green-700">
             What did you do? (optional)
           </p>
@@ -214,7 +214,7 @@ export default function InsightCard({
               type="button"
               onClick={handleComplete}
               disabled={updating}
-              className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-snow hover:bg-green-700 disabled:opacity-50"
             >
               {updating ? 'Saving...' : 'Complete'}
             </button>
@@ -224,7 +224,7 @@ export default function InsightCard({
                 setShowCompleteForm(false)
                 setCompletionNotes('')
               }}
-              className="text-xs text-gray-400 hover:text-gray-600"
+              className="text-xs text-stone hover:text-stone"
             >
               Cancel
             </button>
@@ -234,7 +234,7 @@ export default function InsightCard({
 
       {/* Action buttons */}
       {!showDismissOptions && !showCompleteForm && (
-        <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+        <div className="mt-3 flex items-center gap-2 border-t border-mist pt-3">
           <button
             type="button"
             onClick={() => setShowCompleteForm(true)}
@@ -247,7 +247,7 @@ export default function InsightCard({
             type="button"
             onClick={() => setShowDismissOptions(true)}
             disabled={updating}
-            className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            className="text-xs text-stone hover:text-stone disabled:opacity-50"
           >
             Dismiss
           </button>

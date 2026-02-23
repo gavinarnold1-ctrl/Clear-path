@@ -176,12 +176,12 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
       <div className="flex items-center gap-2 text-sm">
         {activeSteps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
-            {i > 0 && <span className="text-gray-300">&rarr;</span>}
+            {i > 0 && <span className="text-stone">&rarr;</span>}
             <span
               className={`rounded-full px-3 py-1 font-medium ${
                 step === s
-                  ? 'bg-brand-100 text-brand-700'
-                  : 'bg-gray-100 text-gray-400'
+                  ? 'bg-brand-100 text-midnight'
+                  : 'bg-mist text-stone'
               }`}
             >
               {i + 1}. {s === 'upload' ? 'Upload' : s === 'map' ? 'Map Columns' : s === 'preview' ? 'Preview' : 'Done'}
@@ -189,14 +189,14 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
           </div>
         ))}
         {isMonarch && step !== 'upload' && (
-          <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+          <span className="ml-2 rounded-full bg-pine/10 px-2 py-0.5 text-xs font-medium text-green-700">
             Monarch Money format detected
           </span>
         )}
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-ember/10 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -211,7 +211,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
 
           <div className="flex items-end gap-4">
             <div className="flex-1">
-              <label htmlFor="account" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="account" className="mb-1 block text-sm font-medium text-fjord">
                 Import into account
               </label>
               <select
@@ -254,24 +254,24 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
           {isMonarch ? (
             // Monarch preview: show raw sample rows
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-4 rounded-lg bg-gray-50 p-4 text-sm">
-                <span className="text-gray-600">
-                  <span className="font-semibold text-gray-900">{totalRows}</span> transactions
+              <div className="flex flex-wrap gap-4 rounded-lg bg-snow p-4 text-sm">
+                <span className="text-stone">
+                  <span className="font-semibold text-fjord">{totalRows}</span> transactions
                   to import
                 </span>
               </div>
               {monarchPreviewRows.length > 0 && (
                 <div className="card overflow-hidden p-0">
                   <table className="w-full text-sm">
-                    <thead className="border-b border-gray-100 bg-gray-50">
+                    <thead className="border-b border-mist bg-snow">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-500">Merchant</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-500">Category</th>
-                        <th className="px-4 py-3 text-right font-medium text-gray-500">Amount</th>
+                        <th className="px-4 py-3 text-left font-medium text-stone">Date</th>
+                        <th className="px-4 py-3 text-left font-medium text-stone">Merchant</th>
+                        <th className="px-4 py-3 text-left font-medium text-stone">Category</th>
+                        <th className="px-4 py-3 text-right font-medium text-stone">Amount</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-mist">
                       {monarchPreviewRows.slice(0, 10).map((row, i) => {
                         const dateIdx = headers.findIndex((h) => h.toLowerCase() === 'date')
                         const merchantIdx = headers.findIndex((h) => h.toLowerCase() === 'merchant')
@@ -279,10 +279,10 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
                         const amountIdx = headers.findIndex((h) => h.toLowerCase() === 'amount')
                         const amt = parseFloat(row[amountIdx]?.replace(/[$,]/g, '') || '0')
                         return (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-gray-500">{row[dateIdx]}</td>
-                            <td className="px-4 py-3 font-medium text-gray-900">{row[merchantIdx]}</td>
-                            <td className="px-4 py-3 text-gray-500">{row[categoryIdx] || '—'}</td>
+                          <tr key={i} className="hover:bg-snow">
+                            <td className="px-4 py-3 text-stone">{row[dateIdx]}</td>
+                            <td className="px-4 py-3 font-medium text-fjord">{row[merchantIdx]}</td>
+                            <td className="px-4 py-3 text-stone">{row[categoryIdx] || '—'}</td>
                             <td className={`px-4 py-3 text-right font-semibold ${amt < 0 ? 'text-expense' : 'text-income'}`}>
                               {amt < 0 ? '−' : '+'}${Math.abs(amt).toFixed(2)}
                             </td>
@@ -292,7 +292,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
                     </tbody>
                   </table>
                   {totalRows > 10 && (
-                    <p className="border-t border-gray-100 px-4 py-2 text-center text-xs text-gray-400">
+                    <p className="border-t border-mist px-4 py-2 text-center text-xs text-stone">
                       Showing 10 of {totalRows} transactions
                     </p>
                   )}
@@ -308,12 +308,12 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
           )}
 
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-gray-600">
+            <label className="flex items-center gap-2 text-sm text-stone">
               <input
                 type="checkbox"
                 checked={skipDuplicates}
                 onChange={(e) => setSkipDuplicates(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-mist"
               />
               Skip duplicate transactions
             </label>

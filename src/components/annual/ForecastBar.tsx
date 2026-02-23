@@ -20,7 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
   overdue: 'bg-red-400',
   urgent: 'bg-red-300',
   planned: 'bg-purple-400',
-  behind: 'bg-amber-400',
+  behind: 'bg-birch',
 }
 
 export default function ForecastBar({
@@ -35,7 +35,7 @@ export default function ForecastBar({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-1 text-[10px] font-medium text-gray-400">{monthLabel}</div>
+      <div className="mb-1 text-[10px] font-medium text-stone">{monthLabel}</div>
 
       {/* Bar container — bottom-aligned */}
       <div
@@ -59,7 +59,7 @@ export default function ForecastBar({
           </div>
         ) : (
           <div
-            className={`w-full rounded ${isCurrent ? 'bg-gray-200' : 'bg-gray-100'}`}
+            className={`w-full rounded ${isCurrent ? 'bg-mist' : 'bg-mist'}`}
             style={{ height: '4px' }}
           />
         )}
@@ -68,11 +68,11 @@ export default function ForecastBar({
       {/* Labels below */}
       {expenses.length > 0 && (
         <div className="mt-1 w-full text-center">
-          <div className="text-[10px] font-semibold text-gray-600">
+          <div className="text-[10px] font-semibold text-stone">
             {formatCurrency(total)}
           </div>
           {expenses.map((exp) => (
-            <div key={exp.id} className="truncate text-[9px] text-gray-400">
+            <div key={exp.id} className="truncate text-[9px] text-stone">
               {exp.name.split(' ')[0]}
             </div>
           ))}

@@ -30,7 +30,8 @@ describe('BudgetCard', () => {
 
   it('renders spent amount', () => {
     render(<BudgetCard budget={baseBudget} />)
-    expect(screen.getByText(/\$250\.00 spent/)).toBeInTheDocument()
+    expect(screen.getByText('$250.00')).toBeInTheDocument()
+    expect(screen.getByText(/spent/)).toBeInTheDocument()
   })
 
   it('renders remaining amount when under budget', () => {

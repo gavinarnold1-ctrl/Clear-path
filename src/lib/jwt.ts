@@ -13,7 +13,10 @@ export interface SessionPayload {
 }
 
 function secret() {
-  const raw = process.env.SESSION_SECRET ?? 'dev-secret-change-in-prod-must-be-32-chars!!'
+  const raw = process.env.SESSION_SECRET
+  if (!raw) {
+    throw new Error('SESSION_SECRET environment variable is required')
+  }
   return new TextEncoder().encode(raw)
 }
 

@@ -67,17 +67,17 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
   return (
     <div className="card flex flex-col items-center justify-center py-16 text-center">
       <div className="mb-4 text-5xl">&#x1F4CA;</div>
-      <h2 className="mb-2 text-lg font-semibold text-gray-900">Build your budget with AI</h2>
-      <p className="mb-1 max-w-md text-sm text-gray-500">
+      <h2 className="mb-2 text-lg font-semibold text-fjord">Build your budget with AI</h2>
+      <p className="mb-1 max-w-md text-sm text-stone">
         We&apos;ll analyze your transaction history to detect recurring bills, categorize your
         spending, and propose a complete three-tier budget (Fixed, Flexible, Annual).
       </p>
-      <p className="mb-6 max-w-md text-xs text-gray-400">
+      <p className="mb-6 max-w-md text-xs text-stone">
         You&apos;ll review and edit everything before it&apos;s applied.
       </p>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -102,7 +102,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
       </button>
 
       {generating && (
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-stone">
           This may take 15-30 seconds while we analyze your transactions...
         </p>
       )}

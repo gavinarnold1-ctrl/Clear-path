@@ -48,7 +48,7 @@ export default async function TransactionsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
+        <h1 className="text-2xl font-bold text-fjord">Transactions</h1>
         <div className="flex gap-3">
           <Link href="/transactions/import" className="btn-secondary">
             Import CSV
@@ -61,8 +61,8 @@ export default async function TransactionsPage() {
 
       {transactions.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="mb-1 text-sm font-medium text-gray-500">No transactions yet</p>
-          <p className="mb-4 text-xs text-gray-400">Add your first income or expense to get started.</p>
+          <p className="mb-1 text-sm font-medium text-stone">No transactions yet</p>
+          <p className="mb-4 text-xs text-stone">Add your first income or expense to get started.</p>
           <Link href="/transactions/new" className="btn-primary inline-block">
             + Add transaction
           </Link>

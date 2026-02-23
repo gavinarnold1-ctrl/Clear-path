@@ -31,9 +31,14 @@ export async function saveOnboardingStep(step: number, data: Partial<OnboardingA
   if (data.categoryMode !== undefined) update.categoryMode = data.categoryMode
 
   // Complex data (accounts, properties, partner name) goes into pendingSetup JSON
-  const existing: OnboardingPendingSetup = profile.pendingSetup
-    ? JSON.parse(profile.pendingSetup)
-    : { accounts: [], properties: [] }
+  let existing: OnboardingPendingSetup = { accounts: [], properties: [] }
+  if (profile.pendingSetup) {
+    try {
+      existing = JSON.parse(profile.pendingSetup)
+    } catch {
+      // Reset to defaults if stored JSON is corrupted
+    }
+  }
 
   if (data.partnerName !== undefined) existing.partnerName = data.partnerName || undefined
   if (data.accounts !== undefined) existing.accounts = data.accounts
@@ -113,8 +118,13 @@ export async function completeOnboarding(answers: OnboardingAnswers) {
       }
 
       // 3. Create accounts (Q3)
+      const validAccountTypes: AccountType[] = [
+        'CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH',
+        'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN',
+      ]
       for (const account of answers.accounts) {
         if (!account.name.trim()) continue
+        if (!validAccountTypes.includes(account.type as AccountType)) continue
         await tx.account.create({
           data: {
             userId: session.userId,

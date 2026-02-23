@@ -43,16 +43,16 @@ export default function MarkSpentModal({ expense, isOpen, onClose, onSubmit }: P
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-frost p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-fjord">
           Record Expense: {expense.name}
         </h3>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label htmlFor="actual-cost" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="actual-cost" className="block text-sm font-medium text-fjord">
               Actual Cost
             </label>
             <input
@@ -70,7 +70,7 @@ export default function MarkSpentModal({ expense, isOpen, onClose, onSubmit }: P
           </div>
 
           <div>
-            <label htmlFor="spent-date" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="spent-date" className="block text-sm font-medium text-fjord">
               Date
             </label>
             <input
@@ -83,7 +83,7 @@ export default function MarkSpentModal({ expense, isOpen, onClose, onSubmit }: P
           </div>
 
           <div>
-            <label htmlFor="spent-notes" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="spent-notes" className="block text-sm font-medium text-fjord">
               Notes (optional)
             </label>
             <textarea
@@ -96,24 +96,24 @@ export default function MarkSpentModal({ expense, isOpen, onClose, onSubmit }: P
           </div>
 
           {/* Comparison */}
-          <div className="rounded-lg bg-gray-50 p-3 text-sm">
+          <div className="rounded-lg bg-snow p-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Planned:</span>
+              <span className="text-stone">Planned:</span>
               <span>{formatCurrency(expense.annualAmount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Actual:</span>
+              <span className="text-stone">Actual:</span>
               <span>{formatCurrency(costVal)}</span>
             </div>
-            <div className="mt-1 flex justify-between border-t border-gray-200 pt-1">
-              <span className="text-gray-500">Difference:</span>
+            <div className="mt-1 flex justify-between border-t border-mist pt-1">
+              <span className="text-stone">Difference:</span>
               <span
                 className={
                   diff > 0
-                    ? 'font-medium text-red-600'
+                    ? 'font-medium text-ember'
                     : diff < 0
-                      ? 'font-medium text-green-600'
-                      : 'text-gray-600'
+                      ? 'font-medium text-pine'
+                      : 'text-stone'
                 }
               >
                 {diff > 0 ? '+' : ''}
@@ -122,7 +122,7 @@ export default function MarkSpentModal({ expense, isOpen, onClose, onSubmit }: P
             </div>
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-ember">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className="btn-secondary px-4 py-2 text-sm">

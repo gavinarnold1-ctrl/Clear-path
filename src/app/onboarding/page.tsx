@@ -29,7 +29,7 @@ export default async function OnboardingPage() {
   if (state?.completed) redirect('/dashboard')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-snow">
       <OnboardingWizard
         initialStep={state?.step ?? 0}
         initialAnswers={state?.answers ?? EMPTY_ANSWERS}

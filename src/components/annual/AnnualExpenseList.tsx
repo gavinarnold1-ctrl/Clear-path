@@ -28,35 +28,48 @@ interface AnnualExpenseData {
 interface Props {
   active: AnnualExpenseData[]
   completed: AnnualExpenseData[]
+  trueRemaining?: number
+  monthlyBurden?: number
 }
 
-export default function AnnualExpenseList({ active, completed }: Props) {
+export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden }: Props) {
   const [showCompleted, setShowCompleted] = useState(false)
 
   return (
     <div className="mb-8">
-      <h2 className="mb-3 text-lg font-semibold text-gray-900">Expenses</h2>
+      <h2 className="mb-3 text-lg font-semibold text-fjord">Expenses</h2>
 
       {active.length === 0 && completed.length === 0 ? (
         <div className="card py-10 text-center">
-          <p className="text-sm text-gray-500">No annual expenses yet.</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="text-sm text-stone">No annual expenses yet.</p>
+          <p className="mt-1 text-xs text-stone">
             Add your first sinking fund to start planning.
           </p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {active.map((exp) => (
-              <AnnualExpenseCard key={exp.id} expense={exp} />
-            ))}
+            {active.map((exp) => {
+              // Compute per-expense affordable amount when there's a shortfall
+              const affordable =
+                trueRemaining !== undefined && monthlyBurden !== undefined && monthlyBurden > 0
+                  ? (exp.currentSetAside / monthlyBurden) * Math.max(0, trueRemaining)
+                  : undefined
+              return (
+                <AnnualExpenseCard
+                  key={exp.id}
+                  expense={exp}
+                  affordableMonthly={affordable}
+                />
+              )
+            })}
           </div>
 
           {completed.length > 0 && (
             <div className="mt-6">
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-700"
+                className="text-sm font-medium text-stone hover:text-fjord"
               >
                 {showCompleted ? 'Hide' : 'Show'} completed ({completed.length})
               </button>

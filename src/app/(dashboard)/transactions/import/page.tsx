@@ -18,7 +18,7 @@ export default async function ImportPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Import Transactions</h1>
+      <h1 className="mb-6 text-2xl font-bold text-fjord">Import Transactions</h1>
       <ImportWizard accounts={accounts} />
     </div>
   )

@@ -22,7 +22,7 @@ function SubScore({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center">
       <p className={`text-xl font-bold ${scoreColor(value)}`}>{Math.round(value)}</p>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-xs text-stone">{label}</p>
     </div>
   )
 }
@@ -41,7 +41,7 @@ export default function EfficiencyScoreGauge({
 
   return (
     <div className="card flex flex-col items-center gap-4">
-      <h2 className="text-base font-semibold text-gray-900">Financial Efficiency</h2>
+      <h2 className="text-base font-semibold text-fjord">Financial Efficiency</h2>
 
       {/* Circular gauge */}
       <div className="relative h-36 w-36">
@@ -69,18 +69,18 @@ export default function EfficiencyScoreGauge({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={`text-3xl font-bold ${scoreColor(overall)}`}>{Math.round(overall)}</span>
-          <span className="text-xs text-gray-400">/ 100</span>
+          <span className="text-xs text-stone">/ 100</span>
         </div>
       </div>
 
       {/* Sub-scores */}
-      <div className="flex w-full justify-around border-t border-gray-100 pt-4">
+      <div className="flex w-full justify-around border-t border-mist pt-4">
         <SubScore label="Spending" value={spending} />
         <SubScore label="Savings" value={savings} />
         <SubScore label="Debt" value={debt} />
       </div>
 
-      {summary && <p className="text-center text-sm text-gray-500">{summary}</p>}
+      {summary && <p className="text-center text-sm text-stone">{summary}</p>}
     </div>
   )
 }

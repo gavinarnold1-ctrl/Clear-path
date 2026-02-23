@@ -41,11 +41,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
   }
 
+  // Verify ownership of referenced accountId and categoryId
+  if (accountId) {
+    const account = await db.account.findFirst({
+      where: { id: accountId, userId: session.userId },
+    })
+    if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
+  if (categoryId) {
+    const category = await db.category.findFirst({
+      where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+    })
+    if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+  }
+
   // Correct amount sign based on category type — must match server action behavior.
   // Income = positive, expense = negative, transfer = keep user sign.
   let finalAmount = amount
   if (categoryId) {
-    const category = await db.category.findUnique({ where: { id: categoryId } })
+    const category = await db.category.findFirst({
+      where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+    })
     if (category) {
       if (category.type === 'expense') finalAmount = -Math.abs(amount)
       else if (category.type === 'income') finalAmount = Math.abs(amount)

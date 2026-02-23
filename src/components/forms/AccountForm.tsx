@@ -20,14 +20,14 @@ export default function AccountForm() {
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
           {state.error}
         </p>
       )}
 
       {/* Name */}
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-fjord">
           Account name
         </label>
         <input
@@ -42,7 +42,7 @@ export default function AccountForm() {
 
       {/* Type */}
       <div>
-        <label htmlFor="type" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="type" className="mb-1 block text-sm font-medium text-fjord">
           Type
         </label>
         <select id="type" name="type" className="input" required>
@@ -56,11 +56,11 @@ export default function AccountForm() {
 
       {/* Starting balance */}
       <div>
-        <label htmlFor="balance" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="balance" className="mb-1 block text-sm font-medium text-fjord">
           Starting balance
         </label>
         <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
             $
           </span>
           <input
@@ -72,14 +72,14 @@ export default function AccountForm() {
             className="input pl-7"
           />
         </div>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-stone">
           Use a negative value for credit cards with an existing balance.
         </p>
       </div>
 
       {/* Currency */}
       <div>
-        <label htmlFor="currency" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="currency" className="mb-1 block text-sm font-medium text-fjord">
           Currency
         </label>
         <input

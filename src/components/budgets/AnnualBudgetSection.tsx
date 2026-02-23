@@ -29,10 +29,10 @@ export default function AnnualBudgetSection({ budgets }: Props) {
   return (
     <section className="mb-8">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold text-gray-900">Annual</h2>
-        <p className="text-sm text-gray-500">Irregular expenses you plan and save for over time</p>
+        <h2 className="text-lg font-semibold text-fjord">Annual</h2>
+        <p className="text-sm text-stone">Irregular expenses you plan and save for over time</p>
       </div>
-      <div className="card divide-y divide-gray-100">
+      <div className="card divide-y divide-mist">
         {withExpense.map((budget) => (
           <AnnualBudgetRow
             key={budget.id}

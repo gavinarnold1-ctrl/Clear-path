@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface CategoryRow {
   id: string
@@ -19,9 +20,9 @@ interface Props {
 }
 
 const TYPE_BADGE: Record<string, string> = {
-  income: 'bg-green-100 text-green-700',
-  expense: 'bg-red-100 text-red-700',
-  transfer: 'bg-amber-100 text-amber-700',
+  income: 'bg-pine/10 text-green-700',
+  expense: 'bg-ember/10 text-red-700',
+  transfer: 'bg-birch/20 text-amber-700',
 }
 
 export default function CategoryManager({ categories: initial }: Props) {
@@ -155,7 +156,7 @@ export default function CategoryManager({ categories: initial }: Props) {
   return (
     <div>
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
         </div>
@@ -165,9 +166,9 @@ export default function CategoryManager({ categories: initial }: Props) {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="card mx-4 w-full max-w-md p-6">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-fjord">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
             {deleteTarget.txCount > 0 && (
-              <p className="mb-3 text-sm text-gray-600">
+              <p className="mb-3 text-sm text-stone">
                 This category has <span className="font-medium">{deleteTarget.txCount}</span> transaction{deleteTarget.txCount !== 1 ? 's' : ''}.
                 Choose what to do with them:
               </p>
@@ -209,7 +210,7 @@ export default function CategoryManager({ categories: initial }: Props) {
               <button onClick={() => { setDeleteTarget(null); setReassignTo('') }} className="btn-secondary text-sm">
                 Cancel
               </button>
-              <button onClick={confirmDelete} className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700">
+              <button onClick={confirmDelete} className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-snow hover:bg-red-700">
                 Delete
               </button>
             </div>
@@ -221,12 +222,12 @@ export default function CategoryManager({ categories: initial }: Props) {
       {mergeSource && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="card mx-4 w-full max-w-md p-6">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Merge &ldquo;{mergeSource.name}&rdquo;</h3>
-            <p className="mb-3 text-sm text-gray-600">
+            <h3 className="mb-2 text-lg font-semibold text-fjord">Merge &ldquo;{mergeSource.name}&rdquo;</h3>
+            <p className="mb-3 text-sm text-stone">
               All transactions ({mergeSource.txCount}) and budgets will be moved to the target category.
               &ldquo;{mergeSource.name}&rdquo; will be deleted.
             </p>
-            <label className="mb-4 block text-sm font-medium text-gray-700">
+            <label className="mb-4 block text-sm font-medium text-fjord">
               Merge into:
               <select
                 value={mergeTarget}
@@ -246,7 +247,7 @@ export default function CategoryManager({ categories: initial }: Props) {
               <button
                 onClick={confirmMerge}
                 disabled={!mergeTarget}
-                className="rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                className="rounded bg-fjord px-3 py-1.5 text-sm font-medium text-snow hover:bg-midnight disabled:opacity-50"
               >
                 Merge
               </button>
@@ -258,21 +259,21 @@ export default function CategoryManager({ categories: initial }: Props) {
       {/* Grouped category tables */}
       {groupNames.map(group => (
         <div key={group} className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">{group}</h2>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone">{group}</h2>
           <div className="card overflow-hidden p-0">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50">
+              <thead className="border-b border-mist bg-snow">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Name</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-500">Type</th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-500">Transactions</th>
+                  <th className="px-4 py-2 text-left font-medium text-stone">Name</th>
+                  <th className="px-4 py-2 text-left font-medium text-stone">Type</th>
+                  <th className="px-4 py-2 text-right font-medium text-stone">Transactions</th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-mist">
                 {grouped[group].map(cat =>
                   editingId === cat.id ? (
-                    <tr key={cat.id} className="bg-brand-50">
+                    <tr key={cat.id} className="bg-frost">
                       <td className="px-4 py-2" colSpan={2}>
                         <div className="flex gap-2">
                           <input
@@ -295,14 +296,14 @@ export default function CategoryManager({ categories: initial }: Props) {
                           </select>
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-right text-xs text-gray-400">{cat.txCount}</td>
+                      <td className="px-4 py-2 text-right text-xs text-stone">{cat.txCount}</td>
                       <td className="px-4 py-2 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                          <button onClick={cancelEdit} className="text-xs text-stone hover:text-fjord">Cancel</button>
                           <button
                             onClick={saveEdit}
                             disabled={saving}
-                            className="rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                            className="rounded bg-fjord px-2 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </button>
@@ -310,12 +311,14 @@ export default function CategoryManager({ categories: initial }: Props) {
                       </td>
                     </tr>
                   ) : (
-                    <tr key={cat.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">
+                    <tr key={cat.id} className="hover:bg-snow">
+                      <td className="px-4 py-3 font-medium text-fjord">
                         {cat.icon && <span className="mr-1.5">{cat.icon}</span>}
-                        {cat.name}
+                        <Link href={`/transactions?category=${cat.id}`} className="hover:underline hover:text-fjord">
+                          {cat.name}
+                        </Link>
                         {!cat.userId && (
-                          <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+                          <span className="ml-2 rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
                             default
                           </span>
                         )}
@@ -325,25 +328,25 @@ export default function CategoryManager({ categories: initial }: Props) {
                           {cat.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-500">{cat.txCount}</td>
+                      <td className="px-4 py-3 text-right text-stone">{cat.txCount}</td>
                       <td className="px-4 py-3 text-right">
                         {cat.userId && (
                           <div className="flex items-center justify-end gap-3">
                             <button
                               onClick={() => startEdit(cat)}
-                              className="text-xs text-gray-400 hover:text-brand-600"
+                              className="text-xs text-stone hover:text-fjord"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => setMergeSource(cat)}
-                              className="text-xs text-gray-400 hover:text-brand-600"
+                              className="text-xs text-stone hover:text-fjord"
                             >
                               Merge
                             </button>
                             <button
                               onClick={e => { e.stopPropagation(); setDeleteTarget(cat) }}
-                              className="text-xs text-gray-400 hover:text-red-500"
+                              className="text-xs text-stone hover:text-ember"
                             >
                               Delete
                             </button>
@@ -359,7 +362,7 @@ export default function CategoryManager({ categories: initial }: Props) {
         </div>
       ))}
 
-      <p className="text-right text-xs text-gray-400">
+      <p className="text-right text-xs text-stone">
         {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'} across {groupNames.length} group{groupNames.length !== 1 ? 's' : ''}
       </p>
     </div>

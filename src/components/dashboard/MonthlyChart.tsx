@@ -1,12 +1,13 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
 
 interface MonthData {
   label: string
   income: number
   expenses: number
+  isCurrent?: boolean
 }
 
 interface Props {
@@ -18,7 +19,7 @@ export default function MonthlyChart({ data }: Props) {
 
   return (
     <div className="card">
-      <h2 className="mb-4 text-base font-semibold text-gray-900">Income vs Expenses</h2>
+      <h2 className="mb-4 text-base font-semibold text-fjord">Income vs Expenses</h2>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
@@ -37,8 +38,26 @@ export default function MonthlyChart({ data }: Props) {
               ]}
             />
             <Legend />
-            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`income-${index}`}
+                  fillOpacity={entry.isCurrent ? 1 : 0.6}
+                  stroke={entry.isCurrent ? '#16a34a' : 'none'}
+                  strokeWidth={entry.isCurrent ? 2 : 0}
+                />
+              ))}
+            </Bar>
+            <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`expenses-${index}`}
+                  fillOpacity={entry.isCurrent ? 1 : 0.6}
+                  stroke={entry.isCurrent ? '#dc2626' : 'none'}
+                  strokeWidth={entry.isCurrent ? 2 : 0}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

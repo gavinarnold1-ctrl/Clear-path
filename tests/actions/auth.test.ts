@@ -110,7 +110,7 @@ describe('register', () => {
   it('returns error when email already exists', async () => {
     mockUser.findUnique.mockResolvedValue({ id: '1' })
     const result = await register({ error: null }, fd({ email: 'a@b.com', name: 'Alice', password: 'password123' }))
-    expect(result.error).toContain('already exists')
+    expect(result.error).toContain('Unable to create account')
   })
 
   it('creates user and redirects to /dashboard on success', async () => {

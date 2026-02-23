@@ -25,10 +25,10 @@ const FIELD_OPTIONS: { value: AppField; label: string }[] = [
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
   if (confidence >= 0.9) {
-    return <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs text-green-700">Auto</span>
+    return <span className="rounded-full bg-pine/10 px-1.5 py-0.5 text-xs text-green-700">Auto</span>
   }
   if (confidence >= 0.7) {
-    return <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Maybe</span>
+    return <span className="rounded-full bg-birch/20 px-1.5 py-0.5 text-xs text-amber-700">Maybe</span>
   }
   return null
 }
@@ -43,23 +43,23 @@ export default function ColumnMapper({ mappings, onMappingsChange }: ColumnMappe
   return (
     <div className="card overflow-hidden p-0">
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-100 bg-gray-50">
+        <thead className="border-b border-mist bg-snow">
           <tr>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">CSV Column</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">Sample Values</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">Maps To</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">CSV Column</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">Sample Values</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">Maps To</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-mist">
           {mappings.map((mapping, i) => (
-            <tr key={mapping.csvColumn} className="hover:bg-gray-50">
+            <tr key={mapping.csvColumn} className="hover:bg-snow">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">{mapping.csvColumn}</span>
+                  <span className="font-medium text-fjord">{mapping.csvColumn}</span>
                   <ConfidenceBadge confidence={mapping.confidence} />
                 </div>
               </td>
-              <td className="px-4 py-3 text-gray-500">
+              <td className="px-4 py-3 text-stone">
                 <div className="max-w-xs truncate text-xs">
                   {mapping.sampleValues.filter(Boolean).slice(0, 3).join(', ')}
                 </div>

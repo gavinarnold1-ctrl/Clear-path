@@ -14,6 +14,14 @@ export interface ParseResult {
   totalRows: number
 }
 
+function sanitizeCell(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.length > 0 && /^[=+\-@\t\r]/.test(trimmed)) {
+    return "'" + trimmed
+  }
+  return trimmed
+}
+
 export function parseCSV(text: string): { headers: string[]; rows: string[][] } {
   const lines = text.split(/\r?\n/).filter((line) => line.trim())
   if (lines.length === 0) throw new Error('Empty CSV file')
@@ -94,7 +102,8 @@ export function transformRows(
         return
       }
 
-      const merchant = descCol >= 0 ? row[descCol]?.trim() || 'Unknown' : 'Unknown'
+      const rawMerchant = descCol >= 0 ? row[descCol]?.trim() || 'Unknown' : 'Unknown'
+      const merchant = sanitizeCell(rawMerchant)
 
       let amount = 0
       if (amountCols.length === 1) {
@@ -120,8 +129,10 @@ export function transformRows(
         return
       }
 
-      const category = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
-      const account = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
+      const rawCategory = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
+      const category = rawCategory ? sanitizeCell(rawCategory) : undefined
+      const rawAccount = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
+      const account = rawAccount ? sanitizeCell(rawAccount) : undefined
 
       const raw: Record<string, string> = {}
       headers.forEach((h, i) => {
