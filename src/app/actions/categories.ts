@@ -29,10 +29,16 @@ export async function createCategory(
   if (!(VALID_TYPES as readonly string[]).includes(type)) return { error: 'Invalid category type.' }
   if (budgetTier && !validTiers.includes(budgetTier)) return { error: 'Invalid budget tier.' }
 
+  // Case-insensitive duplicate check: Prisma 'insensitive' mode on PostgreSQL
   const existing = await db.category.findFirst({
-    where: { userId: session.userId, name, type, group },
+    where: {
+      userId: session.userId,
+      name: { equals: name, mode: 'insensitive' },
+      type,
+      group: { equals: group, mode: 'insensitive' },
+    },
   })
-  if (existing) return { error: `A ${type} category named "${name}" in group "${group}" already exists.` }
+  if (existing) return { error: `A ${type} category named "${existing.name}" in group "${existing.group}" already exists.` }
 
   await db.category.create({
     data: {

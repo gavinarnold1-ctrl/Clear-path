@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { formatCurrency, formatDate, budgetProgress } from '@/lib/utils'
 import ProgressBar from '@/components/ui/ProgressBar'
 import MonthPicker from './MonthPicker'
+import MonthlyChart from '@/components/dashboard/MonthlyChart'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -14,19 +15,31 @@ function StatCard({
   value,
   sub,
   valueClass,
+  change,
 }: {
   label: string
   value: string
   sub?: string
   valueClass?: string
+  change?: { pct: number; label: string } | null
 }) {
   return (
     <div className="card">
       <p className="text-sm font-medium text-gray-500">{label}</p>
       <p className={`mt-1 text-3xl font-bold ${valueClass ?? 'text-gray-900'}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
+      {change != null && (
+        <p className={`mt-1 text-xs font-medium ${change.pct > 0 ? 'text-income' : change.pct < 0 ? 'text-expense' : 'text-gray-400'}`}>
+          {change.pct > 0 ? '+' : ''}{change.pct.toFixed(1)}% {change.label}
+        </p>
+      )}
+      {sub && !change && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
     </div>
   )
+}
+
+function pctChange(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? null : 100
+  return ((current - previous) / Math.abs(previous)) * 100
 }
 
 interface Props {
@@ -55,23 +68,61 @@ export default async function DashboardPage({ searchParams }: Props) {
   const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999)
   const monthLabel = startDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
 
-  const [accounts, incomeAgg, expenseAgg, recent, activeBudgets, categorySpending] = await Promise.all([
+  // Previous month for comparison
+  const prevStart = new Date(year, month - 1, 1)
+  const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
+
+  // Compute 6-month range for chart (ending at selected month)
+  const chartStart = new Date(year, month - 5, 1)
+
+  // Use amount sign as the source of truth for income vs expense.
+  // The server action guarantees: income = positive, expense = negative.
+  // This is more reliable than relational category-type filters, which
+  // break if a category's type is wrong or missing.
+  const [
+    accounts,
+    incomeAgg,
+    expenseAgg,
+    prevIncomeAgg,
+    prevExpenseAgg,
+    recent,
+    rawBudgets,
+    budgetExpenses,
+    categorySpending,
+    chartData,
+  ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
-    // Income: category.type = "income" within selected date range
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'income' },
+        amount: { gt: 0 },
       },
       _sum: { amount: true },
     }),
-    // Expenses: category.type = "expense" within selected date range
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
+      },
+      _sum: { amount: true },
+    }),
+    // Previous month income
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: prevStart, lte: prevEnd },
+        amount: { gt: 0 },
+      },
+      _sum: { amount: true },
+    }),
+    // Previous month expenses
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: prevStart, lte: prevEnd },
+        amount: { lt: 0 },
       },
       _sum: { amount: true },
     }),
@@ -88,29 +139,92 @@ export default async function DashboardPage({ searchParams }: Props) {
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
       include: { category: true },
-      orderBy: { spent: 'desc' },
-      take: 4,
     }),
-    // Spending by category (expense transactions are negative)
+    // Current month expense transactions for live budget spent computation
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+        amount: { lt: 0 },
+      },
+      select: { categoryId: true, amount: true },
+    }),
     db.transaction.groupBy({
       by: ['categoryId'],
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
         categoryId: { not: null },
       },
       _sum: { amount: true },
-      orderBy: { _sum: { amount: 'asc' } }, // most negative first
+      orderBy: { _sum: { amount: 'asc' } },
       take: 6,
+    }),
+    // Monthly aggregates for chart (last 6 months)
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: chartStart, lte: endDate },
+      },
+      select: { date: true, amount: true },
     }),
   ])
 
-  const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0)
-  // Income amounts are positive
+  // Compute live budget spent from current-month expense transactions
+  const budgetSpentMap = new Map<string, number>()
+  for (const tx of budgetExpenses) {
+    if (tx.categoryId) {
+      budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
+    }
+  }
+  const activeBudgets = rawBudgets
+    .map((b) => ({ ...b, spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : b.spent }))
+    .sort((a, b) => b.spent - a.spent)
+    .slice(0, 4)
+
+  const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
+  const totalBalance = accounts.reduce((sum, a) => {
+    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
+    return sum + a.balance
+  }, 0)
   const monthlyIncome = incomeAgg._sum.amount ?? 0
-  // Expense amounts are negative, show as positive
   const monthlyExpense = Math.abs(expenseAgg._sum.amount ?? 0)
+  const monthlyNet = monthlyIncome - monthlyExpense
+
+  const prevIncome = prevIncomeAgg._sum.amount ?? 0
+  const prevExpense = Math.abs(prevExpenseAgg._sum.amount ?? 0)
+
+  const incomeChange = pctChange(monthlyIncome, prevIncome)
+  const expenseChange = pctChange(monthlyExpense, prevExpense)
+
+  // Build chart data - group transactions by month
+  const chartMonths: Record<string, { income: number; expenses: number }> = {}
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(year, month - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    chartMonths[key] = { income: 0, expenses: 0 }
+  }
+  for (const tx of chartData) {
+    const d = new Date(tx.date)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    if (chartMonths[key]) {
+      if (tx.amount > 0) {
+        chartMonths[key].income += tx.amount
+      } else if (tx.amount < 0) {
+        chartMonths[key].expenses += Math.abs(tx.amount)
+      }
+    }
+  }
+  const chartSeries = Object.entries(chartMonths).map(([key, vals]) => {
+    const [, m] = key.split('-')
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return {
+      label: monthNames[parseInt(m, 10) - 1],
+      income: Math.round(vals.income * 100) / 100,
+      expenses: Math.round(vals.expenses * 100) / 100,
+    }
+  })
 
   // Resolve category names for spending breakdown
   const catIds = categorySpending.map((g) => g.categoryId).filter((id): id is string => id !== null)
@@ -124,7 +238,6 @@ export default async function DashboardPage({ searchParams }: Props) {
   })
   const maxCategoryAmount = Math.max(...spendingByCategory.map((s) => s.amount), 1)
 
-  // Format current month for the picker
   const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`
 
   return (
@@ -136,8 +249,8 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
-      {/* Summary stats */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Summary stats — 4 cards */}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total balance"
           value={formatCurrency(totalBalance)}
@@ -147,12 +260,25 @@ export default async function DashboardPage({ searchParams }: Props) {
           label={`Income — ${monthLabel}`}
           value={formatCurrency(monthlyIncome)}
           valueClass="text-income"
+          change={incomeChange != null ? { pct: incomeChange, label: 'vs prev month' } : null}
         />
         <StatCard
           label={`Expenses — ${monthLabel}`}
           value={formatCurrency(monthlyExpense)}
           valueClass="text-expense"
+          change={expenseChange != null ? { pct: -expenseChange, label: 'vs prev month' } : null}
         />
+        <StatCard
+          label={`Net — ${monthLabel}`}
+          value={formatCurrency(monthlyNet)}
+          valueClass={monthlyNet >= 0 ? 'text-income' : 'text-expense'}
+          sub={monthlyNet >= 0 ? 'Surplus' : 'Deficit'}
+        />
+      </div>
+
+      {/* Chart */}
+      <div className="mb-8">
+        <MonthlyChart data={chartSeries} />
       </div>
 
       {/* Budget overview + Spending by category */}

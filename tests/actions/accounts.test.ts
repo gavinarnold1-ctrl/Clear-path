@@ -5,7 +5,12 @@ vi.mock('@/lib/db', () => ({
     account: {
       create: vi.fn(),
       delete: vi.fn(),
+      findFirst: vi.fn(),
     },
+    transaction: {
+      updateMany: vi.fn(),
+    },
+    $transaction: vi.fn(),
   },
 }))
 
@@ -28,7 +33,8 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
 const mockGetSession = getSession as ReturnType<typeof vi.fn>
-const mockAccount = db.account as { create: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> }
+const mockAccount = db.account as { create: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn>; findFirst: ReturnType<typeof vi.fn> }
+const mockDb = db as unknown as { $transaction: ReturnType<typeof vi.fn> }
 
 function fd(data: Record<string, string>): FormData {
   const f = new FormData()
@@ -43,6 +49,7 @@ describe('createAccount', () => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
     mockAccount.create.mockResolvedValue({ id: 'acc-1' })
+    mockAccount.findFirst.mockResolvedValue(null) // no duplicate by default
   })
 
   it('redirects to /login when unauthenticated', async () => {
@@ -58,6 +65,12 @@ describe('createAccount', () => {
   it('returns error when balance is not a number', async () => {
     const result = await createAccount({ error: null }, fd({ ...validData, balance: 'abc' }))
     expect(result.error).toContain('valid number')
+  })
+
+  it('returns error when duplicate name exists', async () => {
+    mockAccount.findFirst.mockResolvedValue({ id: 'existing', name: 'Checking' })
+    const result = await createAccount({ error: null }, fd(validData))
+    expect(result.error).toContain('already exists')
   })
 
   it('creates account with correct data and redirects', async () => {
@@ -86,7 +99,7 @@ describe('deleteAccount', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
-    mockAccount.delete.mockResolvedValue({})
+    mockDb.$transaction.mockResolvedValue([{}, {}])
   })
 
   it('redirects to /login when unauthenticated', async () => {
@@ -94,8 +107,8 @@ describe('deleteAccount', () => {
     await expect(deleteAccount('acc-1')).rejects.toThrow('NEXT_REDIRECT:/login')
   })
 
-  it('deletes with userId ownership guard', async () => {
+  it('unlinks transactions and deletes with userId ownership guard', async () => {
     await deleteAccount('acc-1')
-    expect(mockAccount.delete).toHaveBeenCalledWith({ where: { id: 'acc-1', userId: 'u1' } })
+    expect(mockDb.$transaction).toHaveBeenCalledTimes(1)
   })
 })

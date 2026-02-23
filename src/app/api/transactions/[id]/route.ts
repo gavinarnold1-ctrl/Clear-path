@@ -28,28 +28,60 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const oldCategoryId = existing.categoryId
+  const oldAccountId = existing.accountId
+  const oldAmount = existing.amount
 
-  const transaction = await db.transaction.update({
-    where: { id },
-    data: {
-      ...(body.amount !== undefined && { amount: body.amount }),
-      ...(body.merchant && { merchant: body.merchant }),
-      ...(body.date && { date: new Date(body.date) }),
-      ...(body.notes !== undefined && { notes: body.notes }),
-      ...(body.tags !== undefined && { tags: body.tags }),
-      ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
-      ...(body.originalStatement !== undefined && { originalStatement: body.originalStatement }),
-      ...(body.transactionType !== undefined && { transactionType: body.transactionType }),
-    },
-    include: { account: true, category: true },
+  // Correct amount sign based on category type — must match server action behavior.
+  let finalAmount = body.amount
+  const resolvedCategoryId = body.categoryId !== undefined ? body.categoryId : existing.categoryId
+  if (finalAmount !== undefined && resolvedCategoryId) {
+    const category = await db.category.findUnique({ where: { id: resolvedCategoryId } })
+    if (category) {
+      if (category.type === 'expense') finalAmount = -Math.abs(finalAmount)
+      else if (category.type === 'income') finalAmount = Math.abs(finalAmount)
+    }
+  }
+
+  const transaction = await db.$transaction(async (tx) => {
+    const updated = await tx.transaction.update({
+      where: { id },
+      data: {
+        ...(finalAmount !== undefined && { amount: finalAmount }),
+        ...(body.merchant && { merchant: body.merchant }),
+        ...(body.date && { date: new Date(body.date) }),
+        ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.tags !== undefined && { tags: body.tags }),
+        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+        ...(body.accountId !== undefined && { accountId: body.accountId }),
+        ...(body.originalStatement !== undefined && { originalStatement: body.originalStatement }),
+        ...(body.transactionType !== undefined && { transactionType: body.transactionType }),
+      },
+      include: { account: true, category: true },
+    })
+
+    // Reverse old account balance, apply new
+    if (oldAccountId) {
+      await tx.account.update({
+        where: { id: oldAccountId },
+        data: { balance: { decrement: oldAmount } },
+      })
+    }
+    if (updated.accountId) {
+      await tx.account.update({
+        where: { id: updated.accountId },
+        data: { balance: { increment: updated.amount } },
+      })
+    }
+
+    return updated
   })
 
-  // Recalculate budgets for affected categories
-  if (oldCategoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, oldCategoryId)
-  }
-  if (transaction.categoryId && transaction.categoryId !== oldCategoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, transaction.categoryId)
+  // Recalculate budgets for all affected categories
+  const categoriesToRecalc = new Set<string>()
+  if (oldCategoryId) categoriesToRecalc.add(oldCategoryId)
+  if (transaction.categoryId) categoriesToRecalc.add(transaction.categoryId)
+  for (const catId of categoriesToRecalc) {
+    await recalculateBudgetSpentForCategory(session.userId, catId)
   }
 
   return NextResponse.json(transaction)
@@ -64,7 +96,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const existing = await db.transaction.findUnique({ where: { id, userId: session.userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await db.transaction.delete({ where: { id } })
+  await db.$transaction(async (tx) => {
+    await tx.transaction.delete({ where: { id } })
+
+    // Reverse account balance
+    if (existing.accountId) {
+      await tx.account.update({
+        where: { id: existing.accountId },
+        data: { balance: { decrement: existing.amount } },
+      })
+    }
+  })
 
   if (existing.categoryId) {
     await recalculateBudgetSpentForCategory(session.userId, existing.categoryId)

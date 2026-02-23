@@ -3,6 +3,7 @@ export interface ParsedTransaction {
   merchant: string
   amount: number // negative = expense, positive = income (kept as-is from CSV)
   category?: string
+  account?: string
   raw: Record<string, string>
 }
 
@@ -54,11 +55,12 @@ export function transformRows(
   const errors: { row: number; message: string }[] = []
 
   const dateCol = headers.findIndex((h) => mapping[h] === 'date')
-  const descCol = headers.findIndex((h) => mapping[h] === 'description')
+  const descCol = headers.findIndex((h) => mapping[h] === 'merchant' || mapping[h] === 'description')
   const amountCols = headers
     .map((h, i) => ({ header: h, index: i }))
     .filter(({ header }) => mapping[header] === 'amount')
   const categoryCol = headers.findIndex((h) => mapping[h] === 'category')
+  const accountCol = headers.findIndex((h) => mapping[h] === 'account')
 
   if (dateCol === -1) {
     return {
@@ -119,6 +121,7 @@ export function transformRows(
       }
 
       const category = categoryCol >= 0 ? row[categoryCol]?.trim() || undefined : undefined
+      const account = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
 
       const raw: Record<string, string> = {}
       headers.forEach((h, i) => {
@@ -131,6 +134,7 @@ export function transformRows(
         merchant,
         amount,
         category,
+        ...(account && { account }),
         raw,
       })
     } catch (err) {

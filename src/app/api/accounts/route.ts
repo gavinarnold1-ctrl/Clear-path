@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
-const VALID_TYPES = new Set(['CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH'])
+const VALID_TYPES = new Set([
+  'CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH',
+  'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN',
+])
 
 export async function GET(_req: NextRequest) {
   const session = await getSession()
@@ -25,6 +28,11 @@ export async function POST(req: NextRequest) {
 
   if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
+
+  const duplicate = await db.account.findFirst({
+    where: { userId: session.userId, name: { equals: name, mode: 'insensitive' } },
+  })
+  if (duplicate) return NextResponse.json({ error: 'An account with this name already exists.' }, { status: 409 })
 
   const account = await db.account.create({
     data: {

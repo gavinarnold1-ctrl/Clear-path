@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   const categories = await db.category.findMany({
     where: {
-      userId: session.userId,
+      OR: [{ userId: session.userId }, { userId: null, isDefault: true }],
       isActive: true,
       ...(type && { type }),
     },

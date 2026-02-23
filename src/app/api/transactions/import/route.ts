@@ -168,12 +168,17 @@ export async function POST(request: Request) {
         if (matched) {
           categoryId = matched.id
         } else {
+          // Infer category type from transaction amount and transactionType
+          const isTransfer = tx.transactionType === 'transfer' ||
+            catKey.includes('transfer') || catKey.includes('credit card payment')
+          const catType = isTransfer ? 'transfer' : tx.amount > 0 ? 'income' : 'expense'
+
           // Auto-create category from CSV data
           const newCat = await db.category.create({
             data: {
               userId: session.userId,
               name: tx.category.trim(),
-              type: 'expense',
+              type: catType,
               group: 'Imported',
               isDefault: false,
             },
@@ -185,10 +190,35 @@ export async function POST(request: Request) {
       }
 
       // Match account by name (Monarch) or use provided accountId
+      // Try exact match first, then partial match (CSV name contains user account or vice versa)
       let resolvedAccountId: string | null = accountId ?? null
       if (tx.account) {
-        const matchedAccount = accountMap.get(tx.account.toLowerCase())
-        if (matchedAccount) resolvedAccountId = matchedAccount.id
+        const csvAccountKey = tx.account.toLowerCase().trim()
+        const exactMatch = accountMap.get(csvAccountKey)
+        if (exactMatch) {
+          resolvedAccountId = exactMatch.id
+        } else {
+          // Partial match: "Webster Bank Checking" matches user account "Webster bank"
+          for (const [userKey, userAccount] of accountMap) {
+            if (csvAccountKey.includes(userKey) || userKey.includes(csvAccountKey)) {
+              resolvedAccountId = userAccount.id
+              // Cache this CSV name for subsequent rows from the same account
+              accountMap.set(csvAccountKey, userAccount)
+              break
+            }
+          }
+        }
+      }
+
+      // Normalize amount sign based on resolved category type.
+      // Expense = negative, income = positive, transfer = keep CSV sign.
+      let finalAmount = tx.amount
+      if (categoryId) {
+        const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
+        if (resolvedCat) {
+          if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
+          else if (resolvedCat.type === 'income') finalAmount = Math.abs(tx.amount)
+        }
       }
 
       toImport.push({
@@ -196,7 +226,7 @@ export async function POST(request: Request) {
         accountId: resolvedAccountId,
         date: txDate,
         merchant: tx.merchant,
-        amount: tx.amount,
+        amount: finalAmount,
         categoryId,
         originalCategory: tx.category?.trim() || null,
         originalStatement: tx.originalStatement ?? null,
@@ -226,6 +256,19 @@ export async function POST(request: Request) {
       const chunk = toImport.slice(i, i + 500)
       const created = await db.transaction.createMany({ data: chunk })
       importedCount += created.count
+    }
+
+    // Incrementally update account balances from imported transactions.
+    // Cannot reset balance = sum(transactions) because that would lose the
+    // account's initial balance — there is no separate initialBalance field.
+    const balanceDeltas = new Map<string, number>()
+    for (const tx of toImport) {
+      if (tx.accountId) {
+        balanceDeltas.set(tx.accountId, (balanceDeltas.get(tx.accountId) ?? 0) + tx.amount)
+      }
+    }
+    for (const [accId, delta] of balanceDeltas) {
+      await db.account.update({ where: { id: accId }, data: { balance: { increment: delta } } })
     }
 
     // Recalculate budget spent values after import
