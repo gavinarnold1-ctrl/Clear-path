@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
 import { db } from '@/lib/db'
+import { DEMO_USER_ID } from '@/lib/demo'
 import OnboardingBanner from '@/components/onboarding/OnboardingBanner'
 
 const navItems = [
@@ -23,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // Redirect to onboarding if profile doesn't exist (new user, never seen quiz)
   let showOnboardingBanner = false
   let onboardingStep = 0
+  const isDemo = session?.userId === DEMO_USER_ID
   if (session) {
     const profile = await db.userProfile.findUnique({
       where: { userId: session.userId },
@@ -79,6 +81,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
       {/* Main content — Snow background */}
       <main className="flex-1 overflow-y-auto bg-snow p-8">
+        {isDemo && (
+          <div className="mb-4 flex items-center justify-between rounded-card bg-birch/30 px-4 py-2.5 text-sm text-midnight">
+            <span>
+              <strong className="font-medium">Demo Mode</strong> — data resets periodically
+            </span>
+            <Link href="/register" className="font-medium text-fjord hover:text-midnight underline">
+              Sign up for free
+            </Link>
+          </div>
+        )}
         {showOnboardingBanner && <OnboardingBanner step={onboardingStep} />}
         {children}
       </main>
