@@ -1,16 +1,8 @@
 -- ============================================================================
 -- Migration: Reference databases (tax rules + spending benchmarks)
 -- Creates read-only reference tables that power AI recommendations.
--- Also drops stale Transaction.annualExpenseId column if it exists from
--- a previous db:push that is no longer in the Prisma schema.
 -- Fully idempotent — safe to run against a partially-initialized database.
 -- ============================================================================
-
--- ─── Cleanup: drop stale column from Transaction ──────────────────────────
--- A previous db:push may have added this column, but it was never part of
--- the intended schema. The Prisma schema does not define it.
-
-ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "annualExpenseId";
 
 -- ─── Tax Rules ────────────────────────────────────────────────────────────
 
