@@ -51,7 +51,7 @@ export default function ProposalAnnualSection({ items, onChange }: Props) {
                 <span className="rounded-full bg-mist px-2 py-0.5 text-xs text-stone">
                   {item.category}
                 </span>
-                <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-600">
+                <span className="rounded-full bg-lichen/20 px-2 py-0.5 text-xs text-lichen">
                   Due {MONTH_NAMES[item.dueMonth - 1]}
                 </span>
                 {item.isRecurring && (

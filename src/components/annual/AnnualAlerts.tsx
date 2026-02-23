@@ -23,11 +23,11 @@ interface Alert {
 }
 
 const ALERT_STYLES = {
-  overdue: 'border-red-200 bg-ember/10 text-red-800',
-  urgent: 'border-red-200 bg-ember/10 text-red-800',
-  behind: 'border-amber-200 bg-amber-50 text-amber-800',
-  coming: 'border-blue-200 bg-blue-50 text-blue-800',
-  funded: 'border-green-200 bg-pine/10 text-green-800',
+  overdue: 'border-ember/30 bg-ember/10 text-ember',
+  urgent: 'border-ember/30 bg-ember/10 text-ember',
+  behind: 'border-birch/30 bg-birch/10 text-birch',
+  coming: 'border-fjord/30 bg-frost text-fjord',
+  funded: 'border-pine/30 bg-pine/10 text-pine',
 }
 
 const ALERT_ICONS = {

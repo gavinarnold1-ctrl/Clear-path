@@ -83,7 +83,7 @@ export default function AutoFundBanner({ trueRemaining, monthlyBurden, expenses 
   }
 
   return (
-    <div className={`mb-6 rounded-xl border-2 p-5 ${canFullyFund ? 'border-green-200 bg-pine/10' : 'border-amber-200 bg-amber-50'}`}>
+    <div className={`mb-6 rounded-xl border-2 p-5 ${canFullyFund ? 'border-pine/30 bg-pine/10' : 'border-birch/30 bg-birch/10'}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-semibold text-fjord">
@@ -99,7 +99,7 @@ export default function AutoFundBanner({ trueRemaining, monthlyBurden, expenses 
               <>
                 You need {formatCurrency(monthlyBurden)}/mo but only have{' '}
                 {formatCurrency(Math.max(0, trueRemaining))} available.{' '}
-                <span className="font-medium text-amber-700">
+                <span className="font-medium text-birch">
                   {formatCurrency(shortfall)} short.
                 </span>
               </>
@@ -116,7 +116,7 @@ export default function AutoFundBanner({ trueRemaining, monthlyBurden, expenses 
       </div>
 
       {result && (
-        <p className="mt-2 text-sm font-medium text-green-700">{result}</p>
+        <p className="mt-2 text-sm font-medium text-pine">{result}</p>
       )}
 
       <button

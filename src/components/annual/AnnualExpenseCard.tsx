@@ -37,13 +37,13 @@ interface Props {
 }
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
-  overdue: { label: 'OVERDUE', className: 'border-red-200 bg-ember/10 text-red-700' },
-  urgent: { label: 'URGENT', className: 'border-red-200 bg-ember/10 text-red-700' },
-  behind: { label: 'BEHIND', className: 'border-amber-200 bg-amber-50 text-amber-700' },
-  planned: { label: 'ON TRACK', className: 'border-purple-200 bg-purple-50 text-purple-700' },
-  funded: { label: 'FUNDED', className: 'border-green-200 bg-pine/10 text-green-700' },
+  overdue: { label: 'OVERDUE', className: 'border-ember/30 bg-ember/10 text-ember' },
+  urgent: { label: 'URGENT', className: 'border-ember/30 bg-ember/10 text-ember' },
+  behind: { label: 'BEHIND', className: 'border-birch/30 bg-birch/10 text-birch' },
+  planned: { label: 'ON TRACK', className: 'border-lichen/30 bg-lichen/10 text-lichen' },
+  funded: { label: 'FUNDED', className: 'border-pine/30 bg-pine/10 text-pine' },
   spent: { label: 'SPENT', className: 'border-mist bg-snow text-stone' },
-  overspent: { label: 'OVERSPENT', className: 'border-red-200 bg-ember/10 text-red-700' },
+  overspent: { label: 'OVERSPENT', className: 'border-ember/30 bg-ember/10 text-ember' },
 }
 
 export default function AnnualExpenseCard({ expense, affordableMonthly }: Props) {

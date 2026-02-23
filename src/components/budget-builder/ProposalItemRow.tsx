@@ -30,7 +30,7 @@ export default function ProposalItemRow({
             {category}
           </span>
           {extraLabel && (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
+            <span className="rounded-full bg-frost px-2 py-0.5 text-xs text-fjord">
               {extraLabel}
             </span>
           )}
