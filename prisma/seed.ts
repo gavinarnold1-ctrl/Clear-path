@@ -136,31 +136,33 @@ async function main() {
   })
 
   // Lookup categories for demo transactions
-  const paychecks = await db.category.findFirst({
-    where: { userId: user.id, name: 'Paychecks' },
-  })
-  const groceries = await db.category.findFirst({
-    where: { userId: user.id, name: 'Groceries' },
-  })
+  const paychecks = await db.category.findFirst({ where: { userId: user.id, name: 'Paychecks' } })
+  const groceries = await db.category.findFirst({ where: { userId: user.id, name: 'Groceries' } })
+  const mortgage = await db.category.findFirst({ where: { userId: user.id, name: 'Mortgage' } })
+  const internet = await db.category.findFirst({ where: { userId: user.id, name: 'Internet & Cable' } })
+  const phone = await db.category.findFirst({ where: { userId: user.id, name: 'Phone' } })
+  const dining = await db.category.findFirst({ where: { userId: user.id, name: 'Restaurants & Bars' } })
+  const travel = await db.category.findFirst({ where: { userId: user.id, name: 'Travel & Vacation' } })
+
+  // Use local-time dates so queries like new Date(year, month, 1) match correctly.
+  // new Date('YYYY-MM-DD') parses as UTC midnight, which falls outside the local
+  // month range in any timezone west of UTC — causing transactions to disappear.
+  const feb1 = new Date(2026, 1, 1)
+  const feb3 = new Date(2026, 1, 3)
+  const feb5 = new Date(2026, 1, 5)
+  const feb10 = new Date(2026, 1, 10)
+  const feb12 = new Date(2026, 1, 12)
+  const jan1 = new Date(2026, 0, 1)
 
   // Transactions (signed amounts: positive = income, negative = expense)
+  // Every budget with a non-zero spent must have matching transactions.
   const seedTransactions = [
-    {
-      userId: user.id,
-      accountId: checking.id,
-      categoryId: paychecks?.id ?? null,
-      amount: 5000,
-      merchant: 'Employer Inc.',
-      date: new Date('2026-02-01'),
-    },
-    {
-      userId: user.id,
-      accountId: checking.id,
-      categoryId: groceries?.id ?? null,
-      amount: -120.5,
-      merchant: 'Whole Foods',
-      date: new Date('2026-02-10'),
-    },
+    { userId: user.id, accountId: checking.id, categoryId: paychecks?.id ?? null, amount: 5000, merchant: 'Employer Inc.', date: feb1 },
+    { userId: user.id, accountId: checking.id, categoryId: groceries?.id ?? null, amount: -120.5, merchant: 'Whole Foods', date: feb10 },
+    { userId: user.id, accountId: checking.id, categoryId: mortgage?.id ?? null, amount: -1850, merchant: 'First National Bank', date: feb1 },
+    { userId: user.id, accountId: checking.id, categoryId: phone?.id ?? null, amount: -55, merchant: 'Verizon Wireless', date: feb3 },
+    { userId: user.id, accountId: checking.id, categoryId: dining?.id ?? null, amount: -85, merchant: 'Olive Garden', date: feb5 },
+    { userId: user.id, accountId: checking.id, categoryId: dining?.id ?? null, amount: -42, merchant: 'Chipotle', date: feb12 },
   ]
   await db.transaction.createMany({ data: seedTransactions })
 
@@ -173,13 +175,6 @@ async function main() {
     data: { balance: { increment: txTotal } },
   })
 
-  // Lookup more categories for budgets
-  const mortgage = await db.category.findFirst({ where: { userId: user.id, name: 'Mortgage' } })
-  const internet = await db.category.findFirst({ where: { userId: user.id, name: 'Internet & Cable' } })
-  const phone = await db.category.findFirst({ where: { userId: user.id, name: 'Phone' } })
-  const dining = await db.category.findFirst({ where: { userId: user.id, name: 'Restaurants & Bars' } })
-  const travel = await db.category.findFirst({ where: { userId: user.id, name: 'Travel & Vacation' } })
-
   // ─── FIXED budgets ─────────────────────────────────────────────────
   if (mortgage) {
     await db.budget.create({
@@ -188,10 +183,10 @@ async function main() {
         categoryId: mortgage.id,
         name: 'Mortgage',
         amount: 1850,
-        spent: 1850,
+        spent: 0,
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
-        startDate: new Date('2026-02-01'),
+        startDate: feb1,
         isAutoPay: true,
         dueDay: 1,
         varianceLimit: 0,
@@ -209,7 +204,7 @@ async function main() {
         spent: 0,
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
-        startDate: new Date('2026-02-01'),
+        startDate: feb1,
         isAutoPay: true,
         dueDay: 15,
         varianceLimit: 5,
@@ -224,10 +219,10 @@ async function main() {
         categoryId: phone.id,
         name: 'Phone plan',
         amount: 55,
-        spent: 55,
+        spent: 0,
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
-        startDate: new Date('2026-02-01'),
+        startDate: feb1,
         isAutoPay: true,
         dueDay: 20,
       },
@@ -242,10 +237,10 @@ async function main() {
         categoryId: groceries.id,
         name: 'Groceries',
         amount: 500,
-        spent: 120.5,
+        spent: 0,
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
-        startDate: new Date('2026-02-01'),
+        startDate: feb1,
       },
     })
   }
@@ -257,10 +252,10 @@ async function main() {
         categoryId: dining.id,
         name: 'Dining out',
         amount: 200,
-        spent: 85,
+        spent: 0,
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
-        startDate: new Date('2026-02-01'),
+        startDate: feb1,
       },
     })
   }
@@ -276,7 +271,7 @@ async function main() {
         spent: 0,
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.ANNUAL,
-        startDate: new Date('2026-01-01'),
+        startDate: jan1,
       },
     })
 
@@ -294,6 +289,40 @@ async function main() {
         status: 'planned',
       },
     })
+  }
+
+  // ─── Compute budget spent from actual transactions ─────────────────
+  // Never hardcode spent — always derive from transaction data so the
+  // seed stays consistent with what the dashboard and budget pages query.
+  const allBudgets = await db.budget.findMany({ where: { userId: user.id } })
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+  for (const budget of allBudgets) {
+    if (!budget.categoryId) continue
+
+    // MONTHLY FIXED/FLEXIBLE: scope to current calendar month
+    // ANNUAL: scope from budget start to end of year
+    const start = budget.tier === 'ANNUAL' ? budget.startDate : monthStart
+    const end = budget.tier === 'ANNUAL'
+      ? (budget.endDate ?? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
+      : monthEnd
+
+    const result = await db.transaction.aggregate({
+      where: {
+        userId: user.id,
+        categoryId: budget.categoryId,
+        date: { gte: start, lte: end },
+        amount: { lt: 0 },
+      },
+      _sum: { amount: true },
+    })
+
+    const spent = Math.abs(result._sum.amount ?? 0)
+    if (spent > 0) {
+      await db.budget.update({ where: { id: budget.id }, data: { spent } })
+    }
   }
 
   console.log('Seed complete. Demo user: demo@clear-path.app')

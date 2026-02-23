@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
-import { recalculateBudgetSpent, recalculateAccountBalances } from '@/lib/budget-utils'
+import { recalculateBudgetSpent } from '@/lib/budget-utils'
 
 export async function POST(request: Request) {
   const session = await getSession()
@@ -247,8 +247,20 @@ export async function POST(request: Request) {
       importedCount += created.count
     }
 
-    // Recalculate account balances and budget spent values after import
-    await recalculateAccountBalances(session.userId)
+    // Incrementally update account balances from imported transactions.
+    // Cannot reset balance = sum(transactions) because that would lose the
+    // account's initial balance — there is no separate initialBalance field.
+    const balanceDeltas = new Map<string, number>()
+    for (const tx of toImport) {
+      if (tx.accountId) {
+        balanceDeltas.set(tx.accountId, (balanceDeltas.get(tx.accountId) ?? 0) + tx.amount)
+      }
+    }
+    for (const [accId, delta] of balanceDeltas) {
+      await db.account.update({ where: { id: accId }, data: { balance: { increment: delta } } })
+    }
+
+    // Recalculate budget spent values after import
     await recalculateBudgetSpent(session.userId)
 
     return NextResponse.json({
