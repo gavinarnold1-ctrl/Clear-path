@@ -294,3 +294,199 @@ model Property {
 
   @@index([userId])
 }
+
+// ─── Reference Databases ────────────────────────────────────────────────────
+// Read-only datasets that power AI recommendations.
+// Not user-generated — shipped with the app and maintained annually.
+
+// ─── Tax Rules Database ─────────────────────────────────────────────────────
+
+model TaxRule {
+  id          String   @id @default(cuid())
+
+  // Identity
+  ruleCode    String   @unique @map("rule_code")  // e.g., 'SCHED_E_REPAIRS', 'SEC_199A'
+  title       String                               // human-readable name
+  description String                               // plain-English explanation
+
+  // Classification
+  taxYear      Int      @map("tax_year")            // 2025, 2026, etc.
+  jurisdiction String                               // 'federal', 'CT', 'NY', etc.
+  form         String?                              // 'Schedule E', 'Schedule A', '1040'
+  formLine     String?  @map("form_line")           // 'Line 14', 'Line 8a'
+  category     String                               // DEDUCTIONS_RENTAL, CREDITS, etc.
+  subcategory  String?
+
+  // Applicability (stored as JSON arrays)
+  appliesTo     Json    @default("[]") @map("applies_to")      // ["homeowner", "landlord", ...]
+  propertyTypes Json    @default("[]") @map("property_types")  // ["primary_residence", "rental"]
+  filingStatuses Json   @default("[]") @map("filing_statuses") // ["single", "mfj", ...]
+
+  // Limits & Thresholds
+  annualLimit         Float?  @map("annual_limit")
+  incomePhaseOutStart Float?  @map("income_phase_out_start")
+  incomePhaseOutEnd   Float?  @map("income_phase_out_end")
+  percentageLimit     Float?  @map("percentage_limit")       // e.g., 0.075 for 7.5% AGI floor
+
+  // Metadata
+  ircSection     String?   @map("irc_section")     // IRC Section: '163', '199A'
+  sourceUrl      String?   @map("source_url")
+  effectiveDate  DateTime? @map("effective_date")
+  expirationDate DateTime? @map("expiration_date")
+  lastVerified   DateTime  @map("last_verified")
+  notes          String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  thresholds              TaxRuleThreshold[]
+  deductionCategoryMappings DeductionCategoryMapping[]
+
+  @@index([taxYear])
+  @@index([category])
+  @@index([form])
+  @@map("tax_rules")
+}
+
+model TaxRuleThreshold {
+  id        String @id @default(cuid())
+  taxRuleId String @map("tax_rule_id")
+  taxRule   TaxRule @relation(fields: [taxRuleId], references: [id], onDelete: Cascade)
+
+  filingStatus   String  @map("filing_status")   // 'single', 'mfj', etc.
+  bracketFloor   Float   @map("bracket_floor")
+  bracketCeiling Float?  @map("bracket_ceiling") // NULL for top bracket
+  rate           Float?                           // tax rate or phase-out rate
+  flatAmount     Float?  @map("flat_amount")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([taxRuleId])
+  @@map("tax_rule_thresholds")
+}
+
+model DeductionCategoryMapping {
+  id String @id @default(cuid())
+
+  // App category (matches the categories table)
+  spendingCategory String  @map("spending_category")  // 'Rental Repairs', 'Mortgage'
+  propertyType     String? @map("property_type")       // 'personal', 'rental', NULL
+
+  // Tax destination
+  taxRuleId         String? @map("tax_rule_id")
+  taxRule           TaxRule? @relation(fields: [taxRuleId], references: [id])
+  form              String                              // 'Schedule E', 'Schedule A'
+  formLine          String? @map("form_line")
+  scheduleECategory String? @map("schedule_e_category") // 'Repairs', 'Insurance', etc.
+
+  // Allocation rules
+  allocationMethod    String? @map("allocation_method")      // 'full', 'sqft_split', 'usage_split'
+  defaultAllocationPct Float? @map("default_allocation_pct") // e.g., 0.50
+  allocationNotes     String? @map("allocation_notes")
+
+  // Conditions
+  requiresReceipt    Boolean @default(false) @map("requires_receipt")
+  minAmountThreshold Float?  @map("min_amount_threshold")
+  maxDeductible      Float?  @map("max_deductible")
+
+  taxYear   Int      @map("tax_year")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([spendingCategory])
+  @@index([taxYear])
+  @@map("deduction_category_mappings")
+}
+
+model TaxCalendar {
+  id String @id @default(cuid())
+
+  taxYear     Int      @map("tax_year")
+  eventName   String   @map("event_name")       // "Q4 Estimated Tax Payment Due"
+  eventDate   DateTime @map("event_date")
+  eventType   String   @map("event_type")        // 'deadline', 'opportunity', 'reminder'
+  description String?
+  appliesTo   Json     @default("[]") @map("applies_to") // ["landlord", "self_employed"]
+  actionRequired String? @map("action_required")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([taxYear])
+  @@index([eventDate])
+  @@map("tax_calendar")
+}
+
+// ─── Consumer Spending Benchmark Database ───────────────────────────────────
+
+model SpendingBenchmark {
+  id String @id @default(cuid())
+
+  // Time period
+  surveyYear Int @map("survey_year")
+
+  // Segment dimensions
+  incomeRangeLow  Float?  @map("income_range_low")
+  incomeRangeHigh Float?  @map("income_range_high")
+  incomeQuintile  Int?    @map("income_quintile")   // 1-5
+  householdSize   Int?    @map("household_size")
+  region          String?                            // 'northeast', 'midwest', 'south', 'west', 'all'
+  ageRangeLow     Int?    @map("age_range_low")
+  ageRangeHigh    Int?    @map("age_range_high")
+  housingTenure   String? @map("housing_tenure")     // 'owner', 'renter', 'all'
+
+  // Spending data
+  category    String                                 // BLS major category
+  subcategory String?                                // BLS subcategory
+  appCategory String? @map("app_category")           // mapped to app's category names
+
+  annualMean   Float  @map("annual_mean")
+  monthlyMean  Float  @map("monthly_mean")           // annual_mean / 12
+  annualMedian Float? @map("annual_median")
+  shareOfTotal Float? @map("share_of_total")         // e.g., 0.127 = 12.7%
+
+  // Sample info
+  sampleSize Int? @map("sample_size")
+
+  // Metadata
+  source      String  @default("BLS Consumer Expenditure Survey")
+  sourceTable String? @map("source_table")           // e.g., 'Table 1101'
+  notes       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([incomeRangeLow, incomeRangeHigh])
+  @@index([region])
+  @@index([category])
+  @@index([appCategory])
+  @@map("spending_benchmarks")
+}
+
+model SpendingCategoryCrosswalk {
+  id String @id @default(cuid())
+
+  blsCategory    String  @map("bls_category")     // "Food at home"
+  blsSubcategory String? @map("bls_subcategory")  // "Cereals and bakery products"
+  appCategory    String  @map("app_category")      // "Groceries"
+
+  mappingConfidence String? @map("mapping_confidence") // 'exact', 'approximate', 'partial'
+  notes             String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("spending_category_crosswalk")
+}
+
+model IncomeBenchmark {
+  id String @id @default(cuid())
+
+  surveyYear    Int    @map("survey_year")
+  metric        String                             // 'median_household_income', etc.
+  region        String?                            // 'northeast', 'CT', 'all'
+  householdType String? @map("household_type")     // 'all', 'married_couple', 'single'
+
+  value  Float
+  source String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("income_benchmarks")
+}
