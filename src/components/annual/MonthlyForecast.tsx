@@ -45,7 +45,7 @@ export default function MonthlyForecast({ expenses, monthlySetAside }: Props) {
 
   return (
     <div className="card mb-6">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">
+      <h2 className="mb-4 text-lg font-semibold text-fjord">
         {currentYear} Forecast
       </h2>
 
@@ -65,11 +65,11 @@ export default function MonthlyForecast({ expenses, monthlySetAside }: Props) {
       {/* Set-aside reference line */}
       {monthlySetAside > 0 && (
         <div className="mt-3 flex items-center gap-2">
-          <div className="h-px flex-1 border-t border-dashed border-gray-300" />
-          <span className="text-xs text-gray-400">
+          <div className="h-px flex-1 border-t border-dashed border-mist" />
+          <span className="text-xs text-stone">
             {formatCurrency(monthlySetAside)}/mo set-aside
           </span>
-          <div className="h-px flex-1 border-t border-dashed border-gray-300" />
+          <div className="h-px flex-1 border-t border-dashed border-mist" />
         </div>
       )}
     </div>

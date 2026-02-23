@@ -210,19 +210,19 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
     <div className="mx-auto max-w-xl px-4 py-12">
       {/* Progress indicator */}
       <div className="mb-8">
-        <div className="mb-2 flex items-center justify-between text-sm text-gray-500">
+        <div className="mb-2 flex items-center justify-between text-sm text-stone">
           <span>Step {step + 1} of {TOTAL_STEPS}</span>
           <button
             type="button"
             onClick={handleSkip}
-            className="text-gray-400 hover:text-gray-600 underline"
+            className="text-stone hover:text-stone underline"
           >
             Skip for now
           </button>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-mist">
           <div
-            className="h-full rounded-full bg-brand-500 transition-all duration-300"
+            className="h-full rounded-full bg-frost0 transition-all duration-300"
             style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
           />
         </div>
@@ -310,8 +310,8 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
 function StepGoal({ value, onChange }: { value: PrimaryGoal | null; onChange: (v: PrimaryGoal) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-gray-900">What&apos;s your #1 financial priority right now?</h2>
-      <p className="mb-6 text-sm text-gray-500">This helps us tailor your experience.</p>
+      <h2 className="mb-1 text-xl font-bold text-fjord">What&apos;s your #1 financial priority right now?</h2>
+      <p className="mb-6 text-sm text-stone">This helps us tailor your experience.</p>
       <div className="space-y-2">
         {GOAL_OPTIONS.map((opt) => (
           <button
@@ -320,8 +320,8 @@ function StepGoal({ value, onChange }: { value: PrimaryGoal | null; onChange: (v
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-brand-500 bg-brand-50 text-brand-700'
-                : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                ? 'border-brand-500 bg-frost text-midnight'
+                : 'border-mist text-fjord hover:border-mist hover:bg-snow'
             }`}
           >
             {opt.label}
@@ -347,8 +347,8 @@ function StepHousehold({
 }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-gray-900">Who&apos;s part of your financial household?</h2>
-      <p className="mb-6 text-sm text-gray-500">Helps us set up the right tracking features.</p>
+      <h2 className="mb-1 text-xl font-bold text-fjord">Who&apos;s part of your financial household?</h2>
+      <p className="mb-6 text-sm text-stone">Helps us set up the right tracking features.</p>
       <div className="space-y-2">
         {HOUSEHOLD_OPTIONS.map((opt) => (
           <button
@@ -357,8 +357,8 @@ function StepHousehold({
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-brand-500 bg-brand-50 text-brand-700'
-                : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                ? 'border-brand-500 bg-frost text-midnight'
+                : 'border-mist text-fjord hover:border-mist hover:bg-snow'
             }`}
           >
             {opt.label}
@@ -367,7 +367,7 @@ function StepHousehold({
       </div>
       {showPartnerInput && (
         <div className="mt-4">
-          <label htmlFor="partner-name" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="partner-name" className="mb-1 block text-sm font-medium text-fjord">
             What&apos;s their first name?
           </label>
           <input
@@ -398,8 +398,8 @@ function StepAccounts({
 }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-gray-900">What financial accounts do you use?</h2>
-      <p className="mb-6 text-sm text-gray-500">
+      <h2 className="mb-1 text-xl font-bold text-fjord">What financial accounts do you use?</h2>
+      <p className="mb-6 text-sm text-stone">
         We&apos;ll set these up so your imports match automatically.
       </p>
 
@@ -410,7 +410,7 @@ function StepAccounts({
             key={chip.key}
             type="button"
             onClick={() => onAdd(chip.key)}
-            className="rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 transition"
+            className="rounded-full border border-mist px-3 py-1.5 text-sm font-medium text-stone hover:border-brand-300 hover:bg-frost hover:text-midnight transition"
           >
             + {chip.label}
           </button>
@@ -424,7 +424,7 @@ function StepAccounts({
             const chip = ACCOUNT_TYPE_CHIPS.find((c) => c.key === acct.type)
             return (
               <div key={`${acct.type}-${i}`} className="flex items-center gap-2">
-                <span className="shrink-0 rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
+                <span className="shrink-0 rounded bg-mist px-2 py-1 text-xs font-medium text-stone">
                   {chip?.label ?? acct.type}
                 </span>
                 <input
@@ -438,7 +438,7 @@ function StepAccounts({
                 <button
                   type="button"
                   onClick={() => onRemove(i)}
-                  className="shrink-0 text-gray-400 hover:text-red-500"
+                  className="shrink-0 text-stone hover:text-ember"
                   aria-label="Remove account"
                 >
                   &times;
@@ -450,7 +450,7 @@ function StepAccounts({
       )}
 
       {accounts.length === 0 && (
-        <p className="text-sm text-gray-400">Tap a chip above to add an account. At least one is required.</p>
+        <p className="text-sm text-stone">Tap a chip above to add an account. At least one is required.</p>
       )}
     </div>
   )
@@ -473,8 +473,8 @@ function StepRental({
 }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-gray-900">Do you own rental or investment property?</h2>
-      <p className="mb-6 text-sm text-gray-500">
+      <h2 className="mb-1 text-xl font-bold text-fjord">Do you own rental or investment property?</h2>
+      <p className="mb-6 text-sm text-stone">
         We&apos;ll set up tax-relevant categories for property expenses.
       </p>
       <div className="space-y-2">
@@ -483,8 +483,8 @@ function StepRental({
           onClick={() => onHasRentalChange(false)}
           className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
             hasRental === false
-              ? 'border-brand-500 bg-brand-50 text-brand-700'
-              : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+              ? 'border-brand-500 bg-frost text-midnight'
+              : 'border-mist text-fjord hover:border-mist hover:bg-snow'
           }`}
         >
           No
@@ -494,8 +494,8 @@ function StepRental({
           onClick={() => onHasRentalChange(true)}
           className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
             hasRental === true
-              ? 'border-brand-500 bg-brand-50 text-brand-700'
-              : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+              ? 'border-brand-500 bg-frost text-midnight'
+              : 'border-mist text-fjord hover:border-mist hover:bg-snow'
           }`}
         >
           Yes
@@ -504,7 +504,7 @@ function StepRental({
 
       {hasRental && (
         <div className="mt-4 space-y-2">
-          <p className="mb-2 text-sm font-medium text-gray-700">Give each property a nickname:</p>
+          <p className="mb-2 text-sm font-medium text-fjord">Give each property a nickname:</p>
           {properties.map((prop, i) => (
             <div key={i} className="flex items-center gap-2">
               <input
@@ -519,7 +519,7 @@ function StepRental({
                 <button
                   type="button"
                   onClick={() => onRemoveProperty(i)}
-                  className="shrink-0 text-gray-400 hover:text-red-500"
+                  className="shrink-0 text-stone hover:text-ember"
                   aria-label="Remove property"
                 >
                   &times;
@@ -530,7 +530,7 @@ function StepRental({
           <button
             type="button"
             onClick={onAddProperty}
-            className="text-sm text-brand-600 hover:text-brand-700"
+            className="text-sm text-fjord hover:text-midnight"
           >
             + Add another property
           </button>
@@ -543,8 +543,8 @@ function StepRental({
 function StepDebt({ value, onChange }: { value: DebtLevel | null; onChange: (v: DebtLevel) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-gray-900">What&apos;s your current debt situation?</h2>
-      <p className="mb-6 text-sm text-gray-500">
+      <h2 className="mb-1 text-xl font-bold text-fjord">What&apos;s your current debt situation?</h2>
+      <p className="mb-6 text-sm text-stone">
         No need for details now — you can enter specifics later in the Debt module.
       </p>
       <div className="space-y-2">
@@ -555,8 +555,8 @@ function StepDebt({ value, onChange }: { value: DebtLevel | null; onChange: (v: 
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-brand-500 bg-brand-50 text-brand-700'
-                : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                ? 'border-brand-500 bg-frost text-midnight'
+                : 'border-mist text-fjord hover:border-mist hover:bg-snow'
             }`}
           >
             {opt.label}
@@ -570,8 +570,8 @@ function StepDebt({ value, onChange }: { value: DebtLevel | null; onChange: (v: 
 function StepCategories({ value, onChange }: { value: CategoryMode | null; onChange: (v: CategoryMode) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-gray-900">How would you like to organize your spending categories?</h2>
-      <p className="mb-6 text-sm text-gray-500">You can always add or change categories later.</p>
+      <h2 className="mb-1 text-xl font-bold text-fjord">How would you like to organize your spending categories?</h2>
+      <p className="mb-6 text-sm text-stone">You can always add or change categories later.</p>
       <div className="space-y-2">
         {CATEGORY_OPTIONS.map((opt) => (
           <button
@@ -580,14 +580,14 @@ function StepCategories({ value, onChange }: { value: CategoryMode | null; onCha
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left transition ${
               value === opt.key
-                ? 'border-brand-500 bg-brand-50'
-                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                ? 'border-brand-500 bg-frost'
+                : 'border-mist hover:border-mist hover:bg-snow'
             }`}
           >
-            <span className={`block text-sm font-medium ${value === opt.key ? 'text-brand-700' : 'text-gray-700'}`}>
+            <span className={`block text-sm font-medium ${value === opt.key ? 'text-midnight' : 'text-fjord'}`}>
               {opt.label}
             </span>
-            <span className="block text-xs text-gray-500">{opt.desc}</span>
+            <span className="block text-xs text-stone">{opt.desc}</span>
           </button>
         ))}
       </div>

@@ -37,12 +37,12 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
 
   return (
     <div className="mb-8">
-      <h2 className="mb-3 text-lg font-semibold text-gray-900">Expenses</h2>
+      <h2 className="mb-3 text-lg font-semibold text-fjord">Expenses</h2>
 
       {active.length === 0 && completed.length === 0 ? (
         <div className="card py-10 text-center">
-          <p className="text-sm text-gray-500">No annual expenses yet.</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="text-sm text-stone">No annual expenses yet.</p>
+          <p className="mt-1 text-xs text-stone">
             Add your first sinking fund to start planning.
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
             <div className="mt-6">
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-700"
+                className="text-sm font-medium text-stone hover:text-fjord"
               >
                 {showCompleted ? 'Hide' : 'Show'} completed ({completed.length})
               </button>

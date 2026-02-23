@@ -4,32 +4,69 @@
 
 @layer base {
   :root {
-    --font-inter: 'Inter', sans-serif;
+    /* Primary */
+    --color-fjord: #1B3A4B;
+    --color-pine: #2D5F3E;
+    --color-midnight: #0F1F28;
+
+    /* Neutrals */
+    --color-snow: #F7F9F8;
+    --color-frost: #E8F0ED;
+    --color-mist: #C8D5CE;
+    --color-stone: #8B9A8E;
+
+    /* Accents */
+    --color-lichen: #A3B8A0;
+    --color-birch: #D4C5A9;
+    --color-ember: #C4704B;
+
+    /* Radii */
+    --radius-card: 12px;
+    --radius-button: 8px;
+    --radius-badge: 5px;
+    --radius-bar: 3px;
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 48px;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-snow text-midnight antialiased;
   }
 }
 
 @layer components {
-  /* Reusable card shell */
+  /* Reusable card shell — Frost bg, Mist border */
   .card {
-    @apply rounded-xl border border-gray-200 bg-white p-6 shadow-sm;
+    @apply rounded-card border border-mist bg-frost p-6;
   }
 
-  /* Primary action button */
+  /* Primary action button — Fjord bg */
   .btn-primary {
-    @apply rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50;
+    @apply rounded-button bg-fjord px-5 py-2.5 text-sm font-medium text-snow hover:bg-midnight focus:outline-none focus:ring-2 focus:ring-fjord/40 focus:ring-offset-2 disabled:opacity-50;
   }
 
-  /* Neutral / secondary button */
+  /* Neutral / secondary button — Mist border */
   .btn-secondary {
-    @apply rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+    @apply rounded-button border border-mist bg-transparent px-5 py-2.5 text-sm font-medium text-fjord hover:bg-frost focus:outline-none focus:ring-2 focus:ring-fjord/40 focus:ring-offset-2;
   }
 
-  /* Form input */
+  /* Success button — Pine bg */
+  .btn-success {
+    @apply rounded-button bg-pine px-5 py-2.5 text-sm font-medium text-snow hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pine/40 focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  /* Danger button — Ember bg */
+  .btn-danger {
+    @apply rounded-button bg-ember px-5 py-2.5 text-sm font-medium text-snow hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ember/40 focus:ring-offset-2 disabled:opacity-50;
+  }
+
+  /* Form input — Mist border, Fjord focus ring */
   .input {
-    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+    @apply block w-full rounded-button border border-mist bg-snow px-3 py-2 text-sm shadow-sm placeholder:text-stone focus:border-fjord focus:outline-none focus:ring-1 focus:ring-fjord;
   }
 }

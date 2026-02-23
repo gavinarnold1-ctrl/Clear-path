@@ -74,14 +74,14 @@ export default function LinkTransactionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-xl"
+        className="max-h-[80vh] w-full max-w-lg overflow-hidden rounded-xl bg-frost shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-gray-100 p-4">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="border-b border-mist p-4">
+          <h3 className="text-lg font-semibold text-fjord">
             Link Transaction to {expenseName}
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-stone">
             Select a transaction to apply toward this annual expense&apos;s funded amount.
           </p>
           <input
@@ -95,16 +95,16 @@ export default function LinkTransactionModal({
 
         <div className="max-h-96 overflow-y-auto p-2">
           {loading ? (
-            <p className="py-6 text-center text-sm text-gray-400">Loading transactions...</p>
+            <p className="py-6 text-center text-sm text-stone">Loading transactions...</p>
           ) : filtered.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">No transactions found.</p>
+            <p className="py-6 text-center text-sm text-stone">No transactions found.</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-mist">
               {filtered.map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
+                <li key={tx.id} className="flex items-center justify-between px-3 py-2 hover:bg-snow">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-gray-900">{tx.merchant}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="truncate text-sm font-medium text-fjord">{tx.merchant}</p>
+                    <p className="text-xs text-stone">
                       {new Date(tx.date).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -120,7 +120,7 @@ export default function LinkTransactionModal({
                     <button
                       onClick={() => handleLink(tx.id)}
                       disabled={linking === tx.id}
-                      className="rounded bg-brand-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                      className="rounded bg-fjord px-2.5 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
                     >
                       {linking === tx.id ? '...' : 'Link'}
                     </button>
@@ -131,7 +131,7 @@ export default function LinkTransactionModal({
           )}
         </div>
 
-        <div className="border-t border-gray-100 p-3 text-right">
+        <div className="border-t border-mist p-3 text-right">
           <button onClick={onClose} className="btn-secondary px-4 py-2 text-sm">
             Cancel
           </button>

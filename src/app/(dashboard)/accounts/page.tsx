@@ -42,7 +42,7 @@ export default async function AccountsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
+        <h1 className="text-2xl font-bold text-fjord">Accounts</h1>
         <Link href="/accounts/new" className="btn-primary">
           + Add account
         </Link>
@@ -50,8 +50,8 @@ export default async function AccountsPage() {
 
       {accounts.length === 0 ? (
         <div className="card py-16 text-center">
-          <p className="mb-2 text-sm font-medium text-gray-500">No accounts yet</p>
-          <p className="mb-4 text-xs text-gray-400">
+          <p className="mb-2 text-sm font-medium text-stone">No accounts yet</p>
+          <p className="mb-4 text-xs text-stone">
             Add a checking, savings, or credit account to start tracking.
           </p>
           <Link href="/accounts/new" className="btn-primary inline-block">

@@ -52,8 +52,8 @@ export default function YearEndProjection({
 
   return (
     <div className="card">
-      <h2 className="mb-3 text-lg font-semibold text-gray-900">Year-End Projection</h2>
-      <p className="mb-3 text-sm text-gray-500">
+      <h2 className="mb-3 text-lg font-semibold text-fjord">Year-End Projection</h2>
+      <p className="mb-3 text-sm text-stone">
         If you maintain {formatCurrency(monthlyBurden)}/mo set-aside:
       </p>
       <ul className="space-y-2">
@@ -61,14 +61,14 @@ export default function YearEndProjection({
           const proj = calculateProjection(exp)
           return (
             <li key={exp.id} className="flex items-center gap-2 text-sm">
-              <span className={proj.onTrack ? 'text-green-600' : 'text-red-500'}>
+              <span className={proj.onTrack ? 'text-pine' : 'text-ember'}>
                 {proj.onTrack ? '\u2713' : '\u2717'}
               </span>
-              <span className="text-gray-700">
+              <span className="text-fjord">
                 {exp.name} &mdash; funded by {formatMonthName(proj.month + 1)} {proj.year}
               </span>
               {!proj.onTrack && (
-                <span className="text-xs text-red-500">
+                <span className="text-xs text-ember">
                   (due {formatMonthName(exp.dueMonth)} {exp.dueYear})
                 </span>
               )}
@@ -76,7 +76,7 @@ export default function YearEndProjection({
           )
         })}
       </ul>
-      <div className="mt-3 border-t border-gray-100 pt-3 text-sm text-gray-500">
+      <div className="mt-3 border-t border-mist pt-3 text-sm text-stone">
         Total annual spend: {formatCurrency(totalAnnual)}
       </div>
     </div>

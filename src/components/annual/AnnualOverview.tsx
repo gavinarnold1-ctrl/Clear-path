@@ -21,36 +21,36 @@ export default function AnnualOverview({
   return (
     <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div className="card">
-        <p className="text-sm font-medium text-gray-500">Total Planned</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900">
+        <p className="text-sm font-medium text-stone">Total Planned</p>
+        <p className="mt-1 text-2xl font-bold text-fjord">
           {formatCurrency(totalPlanned)}
         </p>
-        <p className="mt-0.5 text-xs text-gray-400">
+        <p className="mt-0.5 text-xs text-stone">
           across {expenseCount} expense{expenseCount !== 1 ? 's' : ''}
         </p>
       </div>
 
       <div className="card">
-        <p className="text-sm font-medium text-gray-500">Total Funded</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900">
+        <p className="text-sm font-medium text-stone">Total Funded</p>
+        <p className="mt-1 text-2xl font-bold text-fjord">
           {formatCurrency(totalFunded)}{' '}
-          <span className="text-sm font-normal text-gray-400">({fundedPct}%)</span>
+          <span className="text-sm font-normal text-stone">({fundedPct}%)</span>
         </p>
         <ProgressBar value={fundedPct} className="mt-2" />
       </div>
 
       <div className="card">
-        <p className="text-sm font-medium text-gray-500">Monthly Burden</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900">
+        <p className="text-sm font-medium text-stone">Monthly Burden</p>
+        <p className="mt-1 text-2xl font-bold text-fjord">
           {formatCurrency(monthlyBurden)}
-          <span className="text-sm font-normal text-gray-400">/mo</span>
+          <span className="text-sm font-normal text-stone">/mo</span>
         </p>
         {trueRemaining !== undefined && trueRemaining < monthlyBurden ? (
-          <p className="mt-0.5 text-xs font-medium text-red-600">
+          <p className="mt-0.5 text-xs font-medium text-ember">
             {formatCurrency(monthlyBurden - trueRemaining)} short of target
           </p>
         ) : (
-          <p className="mt-0.5 text-xs text-gray-400">total set-aside needed</p>
+          <p className="mt-0.5 text-xs text-stone">total set-aside needed</p>
         )}
       </div>
     </div>

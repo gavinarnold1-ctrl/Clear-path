@@ -47,8 +47,8 @@ export default function BudgetProposal({ initialProposal, profileSummary, onCanc
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Review Budget Proposal</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-xl font-bold text-fjord">Review Budget Proposal</h2>
+          <p className="mt-1 text-sm text-stone">
             Edit amounts, remove items you don&apos;t want, then apply.
           </p>
         </div>
@@ -77,13 +77,13 @@ export default function BudgetProposal({ initialProposal, profileSummary, onCanc
       />
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-        <p className="text-sm text-gray-500">
+      <div className="flex items-center justify-between border-t border-mist pt-4">
+        <p className="text-sm text-stone">
           {totalItems} budget item{totalItems !== 1 ? 's' : ''} will be created
         </p>
         <div className="flex gap-3">

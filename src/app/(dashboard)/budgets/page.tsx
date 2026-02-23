@@ -78,7 +78,7 @@ export default async function BudgetsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
+        <h1 className="text-2xl font-bold text-fjord">Budgets</h1>
         <div className="flex items-center gap-2">
           {budgets.length > 0 && <BudgetBuilderFlow hasBudgets />}
           <Link href="/budgets/new" className="btn-primary">
@@ -105,7 +105,7 @@ export default async function BudgetsPage() {
             <div className="-mt-5 mb-8 text-right">
               <Link
                 href="/budgets/annual"
-                className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                className="text-xs font-medium text-fjord hover:text-midnight"
               >
                 View full plan &rarr;
               </Link>

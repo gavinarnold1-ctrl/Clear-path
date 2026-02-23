@@ -171,26 +171,26 @@ export default function TransactionList({ transactions: initial, categories, acc
   return (
     <div className="card overflow-hidden p-0">
       {error && (
-        <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="border-b border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
           {error}
           <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
         </div>
       )}
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-100 bg-gray-50">
+        <thead className="border-b border-mist bg-snow">
           <tr>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">Date</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">Merchant</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">Category</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500">Account</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-500">Amount</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">Date</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">Merchant</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">Category</th>
+            <th className="px-4 py-3 text-left font-medium text-stone">Account</th>
+            <th className="px-4 py-3 text-right font-medium text-stone">Amount</th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-mist">
           {transactions.map((tx) =>
             editingId === tx.id ? (
-              <tr key={tx.id} className="bg-brand-50">
+              <tr key={tx.id} className="bg-frost">
                 <td className="px-4 py-2">
                   <input
                     type="date"
@@ -249,13 +249,13 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </td>
                 <td className="px-4 py-2 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-700">
+                    <button onClick={cancelEdit} className="text-xs text-stone hover:text-fjord">
                       Cancel
                     </button>
                     <button
                       onClick={saveEdit}
                       disabled={saving}
-                      className="rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                      className="rounded bg-fjord px-2 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
                     >
                       {saving ? 'Saving...' : 'Save'}
                     </button>
@@ -265,13 +265,13 @@ export default function TransactionList({ transactions: initial, categories, acc
             ) : (
               <tr
                 key={tx.id}
-                className="cursor-pointer hover:bg-gray-50"
+                className="cursor-pointer hover:bg-snow"
                 onClick={() => startEdit(tx)}
               >
-                <td className="px-4 py-3 text-gray-500">{formatDate(new Date(tx.date))}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{tx.merchant}</td>
-                <td className="px-4 py-3 text-gray-500">{tx.category?.name ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-500">{tx.account?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-stone">{formatDate(new Date(tx.date))}</td>
+                <td className="px-4 py-3 font-medium text-fjord">{tx.merchant}</td>
+                <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-stone">{tx.account?.name ?? '—'}</td>
                 <td className={`px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                   {tx.amount < 0 ? '−' : '+'}
                   {formatCurrency(Math.abs(tx.amount))}
@@ -279,7 +279,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(tx.id) }}
-                    className="text-xs text-gray-400 hover:text-red-500"
+                    className="text-xs text-stone hover:text-ember"
                     aria-label={`Delete ${tx.merchant}`}
                   >
                     Delete
@@ -290,7 +290,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           )}
         </tbody>
       </table>
-      <p className="border-t border-gray-100 px-4 py-2 text-right text-xs text-gray-400">
+      <p className="border-t border-mist px-4 py-2 text-right text-xs text-stone">
         {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
       </p>
     </div>

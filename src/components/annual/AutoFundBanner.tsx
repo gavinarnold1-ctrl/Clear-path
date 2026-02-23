@@ -83,13 +83,13 @@ export default function AutoFundBanner({ trueRemaining, monthlyBurden, expenses 
   }
 
   return (
-    <div className={`mb-6 rounded-xl border-2 p-5 ${canFullyFund ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+    <div className={`mb-6 rounded-xl border-2 p-5 ${canFullyFund ? 'border-green-200 bg-pine/10' : 'border-amber-200 bg-amber-50'}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-fjord">
             {canFullyFund ? 'Ready to fund this month' : 'Funding shortfall'}
           </h3>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-stone">
             {canFullyFund ? (
               <>
                 True Remaining ({formatCurrency(trueRemaining)}) covers your monthly set-aside
@@ -121,20 +121,20 @@ export default function AutoFundBanner({ trueRemaining, monthlyBurden, expenses 
 
       <button
         onClick={() => setExpanded(!expanded)}
-        className="mt-3 text-xs font-medium text-gray-500 hover:text-gray-700"
+        className="mt-3 text-xs font-medium text-stone hover:text-fjord"
       >
         {expanded ? 'Hide breakdown' : 'Show allocation breakdown'}
       </button>
 
       {expanded && (
-        <div className="mt-3 space-y-1 border-t border-gray-200 pt-3">
+        <div className="mt-3 space-y-1 border-t border-mist pt-3">
           {allocations.map((a) => (
             <div key={a.id} className="flex items-center justify-between text-sm">
-              <span className="text-gray-700">{a.name}</span>
-              <span className="text-gray-500">
+              <span className="text-fjord">{a.name}</span>
+              <span className="text-stone">
                 {formatCurrency(a.amount)}
                 {a.amount < a.needed && (
-                  <span className="ml-1 text-xs text-amber-600">
+                  <span className="ml-1 text-xs text-birch">
                     (of {formatCurrency(a.needed)} needed)
                   </span>
                 )}

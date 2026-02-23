@@ -25,14 +25,14 @@ function StatCard({
 }) {
   return (
     <div className="card">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className={`mt-1 text-3xl font-bold ${valueClass ?? 'text-gray-900'}`}>{value}</p>
+      <p className="text-xs font-medium text-stone">{label}</p>
+      <p className={`mt-1 font-mono text-2xl font-medium ${valueClass ?? 'text-fjord'}`}>{value}</p>
       {change != null && (
-        <p className={`mt-1 text-xs font-medium ${change.pct > 0 ? 'text-income' : change.pct < 0 ? 'text-expense' : 'text-gray-400'}`}>
+        <p className={`mt-1 text-xs font-medium ${change.pct > 0 ? 'text-income' : change.pct < 0 ? 'text-expense' : 'text-stone'}`}>
           {change.pct > 0 ? '+' : ''}{change.pct.toFixed(1)}% {change.label}
         </p>
       )}
-      {sub && !change && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
+      {sub && !change && <p className="mt-1 text-xs text-stone">{sub}</p>}
     </div>
   )
 }
@@ -253,7 +253,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="font-display text-2xl font-medium text-fjord">
           {session.name ? `Welcome back, ${session.name.split(' ')[0]}` : 'Overview'}
         </h1>
         <MonthPicker currentMonth={currentMonth} />
@@ -301,16 +301,16 @@ export default async function DashboardPage({ searchParams }: Props) {
         {/* Active budgets */}
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-gray-900">Active budgets</h2>
-            <Link href="/budgets" className="text-sm text-brand-600 hover:text-brand-700">
+            <h2 className="text-base font-semibold text-fjord">Active budgets</h2>
+            <Link href="/budgets" className="text-sm text-fjord hover:text-midnight">
               View all &rarr;
             </Link>
           </div>
 
           {activeBudgets.length === 0 ? (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-stone">
               No active budgets.{' '}
-              <Link href="/budgets/new" className="text-brand-600 hover:underline">
+              <Link href="/budgets/new" className="text-fjord hover:underline">
                 Create one
               </Link>{' '}
               to track spending.
@@ -322,8 +322,8 @@ export default async function DashboardPage({ searchParams }: Props) {
                 return (
                   <li key={b.id}>
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-gray-900">{b.name}</span>
-                      <span className="text-gray-500">
+                      <span className="font-medium text-fjord">{b.name}</span>
+                      <span className="text-stone">
                         {formatCurrency(b.spent)} / {formatCurrency(b.amount)}
                       </span>
                     </div>
@@ -338,14 +338,14 @@ export default async function DashboardPage({ searchParams }: Props) {
         {/* Spending by category */}
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-gray-900">Spending by category</h2>
-            <Link href="/spending" className="text-sm text-brand-600 hover:text-brand-700">
+            <h2 className="text-base font-semibold text-fjord">Spending by category</h2>
+            <Link href="/spending" className="text-sm text-fjord hover:text-midnight">
               View all &rarr;
             </Link>
           </div>
 
           {spendingByCategory.length === 0 ? (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-stone">
               No categorised expenses this month.
             </p>
           ) : (
@@ -357,12 +357,12 @@ export default async function DashboardPage({ searchParams }: Props) {
                   </span>
                   <div className="flex-1">
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-gray-700">{s.name}</span>
-                      <span className="text-gray-500">{formatCurrency(s.amount)}</span>
+                      <span className="font-medium text-fjord">{s.name}</span>
+                      <span className="text-stone">{formatCurrency(s.amount)}</span>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
                       <div
-                        className="h-full rounded-full bg-brand-500"
+                        className="h-full rounded-full bg-fjord"
                         style={{
                           width: `${Math.round((s.amount / maxCategoryAmount) * 100)}%`,
                         }}
@@ -379,27 +379,27 @@ export default async function DashboardPage({ searchParams }: Props) {
       {/* Recent transactions */}
       <div className="card">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Recent transactions</h2>
-          <Link href="/transactions" className="text-sm text-brand-600 hover:text-brand-700">
+          <h2 className="text-base font-semibold text-fjord">Recent transactions</h2>
+          <Link href="/transactions" className="text-sm text-fjord hover:text-midnight">
             View all &rarr;
           </Link>
         </div>
 
         {recent.length === 0 ? (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-stone">
             No transactions yet.{' '}
-            <Link href="/transactions/new" className="text-brand-600 hover:underline">
+            <Link href="/transactions/new" className="text-fjord hover:underline">
               Add one
             </Link>{' '}
             to get started.
           </p>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-mist">
             {recent.map((tx) => (
               <li key={tx.id} className="flex items-center justify-between py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">{tx.merchant}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="truncate text-sm font-medium text-fjord">{tx.merchant}</p>
+                  <p className="text-xs text-stone">
                     {formatDate(tx.date)} · {tx.account?.name ?? 'No account'}
                     {tx.category ? ` · ${tx.category.name}` : ''}
                   </p>

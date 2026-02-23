@@ -47,14 +47,14 @@ export default async function InsightsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Financial Insights</h1>
+        <h1 className="text-2xl font-bold text-fjord">Financial Insights</h1>
         <GenerateButton hasTransactions={transactionCount > 0} />
       </div>
 
       {transactionCount === 0 ? (
         <div className="card text-center">
-          <p className="text-lg font-medium text-gray-700">No transactions yet</p>
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="text-lg font-medium text-fjord">No transactions yet</p>
+          <p className="mt-2 text-sm text-stone">
             Add some transactions to get AI-powered financial insights and recommendations.
           </p>
         </div>
@@ -72,8 +72,8 @@ export default async function InsightsPage() {
               />
             ) : (
               <div className="card flex flex-col items-center justify-center gap-2 py-8">
-                <p className="text-sm text-gray-400">No efficiency score yet</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm text-stone">No efficiency score yet</p>
+                <p className="text-xs text-stone">
                   Generate insights to see your financial efficiency score
                 </p>
               </div>
@@ -82,19 +82,19 @@ export default async function InsightsPage() {
             {/* Highlight stat */}
             {insights.length > 0 && totalSavings > 0 ? (
               <div className="card flex flex-col justify-center">
-                <p className="text-sm font-medium text-gray-500">Potential Annual Savings</p>
+                <p className="text-sm font-medium text-stone">Potential Annual Savings</p>
                 <p className="mt-1 text-3xl font-bold text-income">
                   {formatCurrency(totalSavings * 12)}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-stone">
                   Based on {insights.length} optimization{insights.length !== 1 ? 's' : ''}{' '}
                   identified ({formatCurrency(totalSavings)}/mo)
                 </p>
               </div>
             ) : (
               <div className="card flex flex-col justify-center">
-                <p className="text-sm font-medium text-gray-500">Potential Savings</p>
-                <p className="mt-2 text-sm text-gray-400">
+                <p className="text-sm font-medium text-stone">Potential Savings</p>
+                <p className="mt-2 text-sm text-stone">
                   {insights.length === 0
                     ? 'Generate insights to discover savings opportunities'
                     : 'No estimated savings from current insights'}
@@ -106,7 +106,7 @@ export default async function InsightsPage() {
           {/* Insights list */}
           {insights.length > 0 && (
             <div>
-              <h2 className="mb-4 text-base font-semibold text-gray-900">Recommendations</h2>
+              <h2 className="mb-4 text-base font-semibold text-fjord">Recommendations</h2>
               <InsightsList initialInsights={insights} />
             </div>
           )}

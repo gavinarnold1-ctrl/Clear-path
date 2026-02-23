@@ -7,11 +7,11 @@ interface SpendingComparisonProps {
 }
 
 const RATING_COLORS: Record<string, string> = {
-  excellent: 'bg-green-500',
+  excellent: 'bg-pine',
   good: 'bg-green-400',
-  average: 'bg-amber-400',
+  average: 'bg-birch',
   high: 'bg-orange-400',
-  excessive: 'bg-red-500',
+  excessive: 'bg-ember',
 }
 
 const RATING_LABELS: Record<string, string> = {
@@ -28,8 +28,8 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
   if (withBenchmarks.length === 0) {
     return (
       <div className="card">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Spending vs Benchmark</h2>
-        <p className="text-sm text-gray-400">
+        <h2 className="mb-4 text-base font-semibold text-fjord">Spending vs Benchmark</h2>
+        <p className="text-sm text-stone">
           No benchmark data available for your current categories.
         </p>
       </div>
@@ -42,8 +42,8 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
 
   return (
     <div className="card">
-      <h2 className="mb-4 text-base font-semibold text-gray-900">Spending vs Benchmark</h2>
-      <p className="mb-4 text-xs text-gray-400">Monthly averages over {months} months</p>
+      <h2 className="mb-4 text-base font-semibold text-fjord">Spending vs Benchmark</h2>
+      <p className="mb-4 text-xs text-stone">Monthly averages over {months} months</p>
 
       <div className="space-y-4">
         {withBenchmarks.map((c) => {
@@ -56,10 +56,10 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
           return (
             <div key={c.category}>
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="font-medium text-gray-700">{c.category}</span>
+                <span className="font-medium text-fjord">{c.category}</span>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-xs font-medium text-white ${barColor}`}
+                    className={`rounded-full px-1.5 py-0.5 text-xs font-medium text-snow ${barColor}`}
                   >
                     {RATING_LABELS[benchmark.rating] ?? benchmark.rating}
                   </span>
@@ -68,28 +68,28 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
 
               {/* Your spending bar */}
               <div className="flex items-center gap-2">
-                <span className="w-12 text-right text-xs text-gray-400">You</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <span className="w-12 text-right text-xs text-stone">You</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
                   <div
                     className={`h-full rounded-full ${barColor}`}
                     style={{ width: `${userPct}%` }}
                   />
                 </div>
-                <span className="w-20 text-right text-xs text-gray-600">
+                <span className="w-20 text-right text-xs text-stone">
                   {formatCurrency(monthlyAvg)}
                 </span>
               </div>
 
               {/* Benchmark bar */}
               <div className="flex items-center gap-2">
-                <span className="w-12 text-right text-xs text-gray-400">Median</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <span className="w-12 text-right text-xs text-stone">Median</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
                   <div
                     className="h-full rounded-full bg-gray-300"
                     style={{ width: `${benchmarkPct}%` }}
                   />
                 </div>
-                <span className="w-20 text-right text-xs text-gray-400">
+                <span className="w-20 text-right text-xs text-stone">
                   {formatCurrency(benchmark.median)}
                 </span>
               </div>

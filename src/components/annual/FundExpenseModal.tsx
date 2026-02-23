@@ -45,19 +45,19 @@ export default function FundExpenseModal({ expense, isOpen, onClose, onSubmit }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-frost p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-fjord">
           Add Funds to {expense.name}
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-stone">
           {formatCurrency(expense.funded)} of {formatCurrency(expense.annualAmount)} funded
         </p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label htmlFor="fund-amount" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="fund-amount" className="block text-sm font-medium text-fjord">
               Amount
             </label>
             <input
@@ -72,7 +72,7 @@ export default function FundExpenseModal({ expense, isOpen, onClose, onSubmit }:
                 setError('')
               }}
             />
-            {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+            {error && <p className="mt-1 text-xs text-ember">{error}</p>}
           </div>
 
           <div className="flex flex-wrap gap-2">

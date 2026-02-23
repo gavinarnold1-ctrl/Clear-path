@@ -30,11 +30,11 @@ function getAlertLevel(dueMonth: number, dueYear: number, funded: number, annual
 }
 
 const ALERT_STYLES = {
-  funded: 'text-green-600',
-  overdue: 'text-red-600 font-semibold',
-  urgent: 'text-red-500',
-  warning: 'text-amber-600',
-  ok: 'text-gray-500',
+  funded: 'text-pine',
+  overdue: 'text-ember font-semibold',
+  urgent: 'text-ember',
+  warning: 'text-birch',
+  ok: 'text-stone',
 }
 
 export default function AnnualBudgetRow({ name, category, annualExpense: ae }: Props) {
@@ -43,27 +43,27 @@ export default function AnnualBudgetRow({ name, category, annualExpense: ae }: P
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
 
   return (
-    <div className="rounded-lg px-3 py-3 hover:bg-gray-50">
+    <div className="rounded-lg px-3 py-3 hover:bg-snow">
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {category?.icon && <span className="text-sm">{category.icon}</span>}
-          <span className="font-medium text-gray-900">{name}</span>
+          <span className="font-medium text-fjord">{name}</span>
           {ae.isRecurring && (
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+            <span className="rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
               recurring
             </span>
           )}
         </div>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-stone">
           {formatCurrency(ae.funded)} / {formatCurrency(ae.annualAmount)}
-          <span className="ml-2 text-xs text-gray-400">{pct}%</span>
+          <span className="ml-2 text-xs text-stone">{pct}%</span>
         </span>
       </div>
 
       <ProgressBar value={pct} />
 
       <div className="mt-1 flex items-center justify-between text-xs">
-        <span className="text-gray-500">
+        <span className="text-stone">
           {formatCurrency(monthlyNeeded)}/mo set-aside
         </span>
         <span className={ALERT_STYLES[alert.level]}>{alert.message}</span>

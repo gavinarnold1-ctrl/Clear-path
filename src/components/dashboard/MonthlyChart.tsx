@@ -19,7 +19,7 @@ export default function MonthlyChart({ data }: Props) {
 
   return (
     <div className="card">
-      <h2 className="mb-4 text-base font-semibold text-gray-900">Income vs Expenses</h2>
+      <h2 className="mb-4 text-base font-semibold text-fjord">Income vs Expenses</h2>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>

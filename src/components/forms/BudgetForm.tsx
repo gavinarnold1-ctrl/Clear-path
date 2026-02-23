@@ -50,14 +50,14 @@ export default function BudgetForm({ categories }: Props) {
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
           {state.error}
         </p>
       )}
 
       {/* Tier selector */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">Budget type</label>
+        <label className="mb-2 block text-sm font-medium text-fjord">Budget type</label>
         <div className="grid grid-cols-3 gap-2">
           {TIERS.map((t) => (
             <button
@@ -66,12 +66,12 @@ export default function BudgetForm({ categories }: Props) {
               onClick={() => setTier(t.value)}
               className={`rounded-lg border-2 p-3 text-left transition-colors ${
                 tier === t.value
-                  ? 'border-brand-500 bg-brand-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-brand-500 bg-frost'
+                  : 'border-mist hover:border-mist'
               }`}
             >
-              <p className="text-sm font-semibold text-gray-900">{t.label}</p>
-              <p className="mt-0.5 text-xs text-gray-500">{t.desc}</p>
+              <p className="text-sm font-semibold text-fjord">{t.label}</p>
+              <p className="mt-0.5 text-xs text-stone">{t.desc}</p>
             </button>
           ))}
         </div>
@@ -80,7 +80,7 @@ export default function BudgetForm({ categories }: Props) {
 
       {/* Name */}
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-fjord">
           Budget name
         </label>
         <input
@@ -100,11 +100,11 @@ export default function BudgetForm({ categories }: Props) {
       {/* Amount — FIXED and FLEXIBLE */}
       {(tier === 'FIXED' || tier === 'FLEXIBLE') && (
         <div>
-          <label htmlFor="amount" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="amount" className="mb-1 block text-sm font-medium text-fjord">
             {tier === 'FIXED' ? 'Monthly amount' : 'Spending limit'}
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
               $
             </span>
             <input
@@ -126,8 +126,8 @@ export default function BudgetForm({ categories }: Props) {
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="dueDay" className="mb-1 block text-sm font-medium text-gray-700">
-                Due day <span className="font-normal text-gray-400">(1-31)</span>
+              <label htmlFor="dueDay" className="mb-1 block text-sm font-medium text-fjord">
+                Due day <span className="font-normal text-stone">(1-31)</span>
               </label>
               <input
                 id="dueDay"
@@ -140,8 +140,8 @@ export default function BudgetForm({ categories }: Props) {
               />
             </div>
             <div>
-              <label htmlFor="varianceLimit" className="mb-1 block text-sm font-medium text-gray-700">
-                Variance limit <span className="font-normal text-gray-400">($)</span>
+              <label htmlFor="varianceLimit" className="mb-1 block text-sm font-medium text-fjord">
+                Variance limit <span className="font-normal text-stone">($)</span>
               </label>
               <input
                 id="varianceLimit"
@@ -160,9 +160,9 @@ export default function BudgetForm({ categories }: Props) {
               name="isAutoPay"
               type="checkbox"
               value="true"
-              className="h-4 w-4 rounded border-gray-300 text-brand-600"
+              className="h-4 w-4 rounded border-mist text-fjord"
             />
-            <label htmlFor="isAutoPay" className="text-sm text-gray-700">
+            <label htmlFor="isAutoPay" className="text-sm text-fjord">
               Auto-pay enabled
             </label>
           </div>
@@ -173,7 +173,7 @@ export default function BudgetForm({ categories }: Props) {
       {tier === 'FLEXIBLE' && (
         <>
           <div>
-            <label htmlFor="period" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="period" className="mb-1 block text-sm font-medium text-fjord">
               Period
             </label>
             <select id="period" name="period" className="input" required>
@@ -185,8 +185,8 @@ export default function BudgetForm({ categories }: Props) {
             </select>
           </div>
           <div>
-            <label htmlFor="endDate" className="mb-1 block text-sm font-medium text-gray-700">
-              End date <span className="font-normal text-gray-400">(optional — leave blank for rolling)</span>
+            <label htmlFor="endDate" className="mb-1 block text-sm font-medium text-fjord">
+              End date <span className="font-normal text-stone">(optional — leave blank for rolling)</span>
             </label>
             <input id="endDate" name="endDate" type="date" className="input" />
           </div>
@@ -197,11 +197,11 @@ export default function BudgetForm({ categories }: Props) {
       {tier === 'ANNUAL' && (
         <>
           <div>
-            <label htmlFor="annualAmount" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="annualAmount" className="mb-1 block text-sm font-medium text-fjord">
               Total cost
             </label>
             <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
                 $
               </span>
               <input
@@ -218,7 +218,7 @@ export default function BudgetForm({ categories }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="dueMonth" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="dueMonth" className="mb-1 block text-sm font-medium text-fjord">
                 Due month
               </label>
               <select id="dueMonth" name="dueMonth" className="input" required>
@@ -230,7 +230,7 @@ export default function BudgetForm({ categories }: Props) {
               </select>
             </div>
             <div>
-              <label htmlFor="dueYear" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="dueYear" className="mb-1 block text-sm font-medium text-fjord">
                 Due year
               </label>
               <select id="dueYear" name="dueYear" className="input" required>
@@ -243,11 +243,11 @@ export default function BudgetForm({ categories }: Props) {
             </div>
           </div>
           <div>
-            <label htmlFor="funded" className="mb-1 block text-sm font-medium text-gray-700">
-              Already saved <span className="font-normal text-gray-400">(optional)</span>
+            <label htmlFor="funded" className="mb-1 block text-sm font-medium text-fjord">
+              Already saved <span className="font-normal text-stone">(optional)</span>
             </label>
             <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
                 $
               </span>
               <input
@@ -268,9 +268,9 @@ export default function BudgetForm({ categories }: Props) {
               name="isRecurring"
               type="checkbox"
               value="true"
-              className="h-4 w-4 rounded border-gray-300 text-brand-600"
+              className="h-4 w-4 rounded border-mist text-fjord"
             />
-            <label htmlFor="isRecurring" className="text-sm text-gray-700">
+            <label htmlFor="isRecurring" className="text-sm text-fjord">
               Recurring annually
             </label>
           </div>
@@ -279,8 +279,8 @@ export default function BudgetForm({ categories }: Props) {
 
       {/* Category — shared */}
       <div>
-        <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-gray-700">
-          Category <span className="font-normal text-gray-400">(optional)</span>
+        <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-fjord">
+          Category <span className="font-normal text-stone">(optional)</span>
         </label>
         <select id="categoryId" name="categoryId" className="input">
           <option value="">No category</option>
@@ -294,7 +294,7 @@ export default function BudgetForm({ categories }: Props) {
 
       {/* Start date — shared */}
       <div>
-        <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-fjord">
           Start date
         </label>
         <input
