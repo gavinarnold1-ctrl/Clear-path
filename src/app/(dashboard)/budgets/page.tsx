@@ -46,9 +46,28 @@ export default async function BudgetsPage() {
 
   const income = incomeAgg._sum.amount ?? 0
 
-  const fixed = budgets.filter((b) => b.tier === 'FIXED')
-  const flexible = budgets.filter((b) => b.tier === 'FLEXIBLE')
-  const annual = budgets.filter((b) => b.tier === 'ANNUAL')
+  // Compute actual spent per category from this month's expense transactions.
+  // This is the source of truth — never trust the stored budget.spent alone,
+  // because it can drift if the seed or a bulk operation didn't update it.
+  const spentByCategory = new Map<string, number>()
+  for (const tx of transactions) {
+    if (tx.categoryId) {
+      spentByCategory.set(
+        tx.categoryId,
+        (spentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
+      )
+    }
+  }
+
+  // Override each budget's spent with the computed value
+  const budgetsWithSpent = budgets.map((b) => ({
+    ...b,
+    spent: b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : b.spent,
+  }))
+
+  const fixed = budgetsWithSpent.filter((b) => b.tier === 'FIXED')
+  const flexible = budgetsWithSpent.filter((b) => b.tier === 'FLEXIBLE')
+  const annual = budgetsWithSpent.filter((b) => b.tier === 'ANNUAL')
 
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = flexible.reduce((sum, b) => sum + b.spent, 0)

@@ -75,6 +75,10 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Compute 6-month range for chart (ending at selected month)
   const chartStart = new Date(year, month - 5, 1)
 
+  // Use amount sign as the source of truth for income vs expense.
+  // The server action guarantees: income = positive, expense = negative.
+  // This is more reliable than relational category-type filters, which
+  // break if a category's type is wrong or missing.
   const [
     accounts,
     incomeAgg,
@@ -82,7 +86,8 @@ export default async function DashboardPage({ searchParams }: Props) {
     prevIncomeAgg,
     prevExpenseAgg,
     recent,
-    activeBudgets,
+    rawBudgets,
+    budgetExpenses,
     categorySpending,
     chartData,
   ] = await Promise.all([
@@ -91,7 +96,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'income' },
+        amount: { gt: 0 },
       },
       _sum: { amount: true },
     }),
@@ -99,7 +104,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
       },
       _sum: { amount: true },
     }),
@@ -108,7 +113,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
-        category: { type: 'income' },
+        amount: { gt: 0 },
       },
       _sum: { amount: true },
     }),
@@ -117,7 +122,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
       },
       _sum: { amount: true },
     }),
@@ -134,15 +139,22 @@ export default async function DashboardPage({ searchParams }: Props) {
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
       include: { category: true },
-      orderBy: { spent: 'desc' },
-      take: 4,
+    }),
+    // Current month expense transactions for live budget spent computation
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+        amount: { lt: 0 },
+      },
+      select: { categoryId: true, amount: true },
     }),
     db.transaction.groupBy({
       by: ['categoryId'],
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
         categoryId: { not: null },
       },
       _sum: { amount: true },
@@ -155,9 +167,21 @@ export default async function DashboardPage({ searchParams }: Props) {
         userId: session.userId,
         date: { gte: chartStart, lte: endDate },
       },
-      select: { date: true, amount: true, category: { select: { type: true } } },
+      select: { date: true, amount: true },
     }),
   ])
+
+  // Compute live budget spent from current-month expense transactions
+  const budgetSpentMap = new Map<string, number>()
+  for (const tx of budgetExpenses) {
+    if (tx.categoryId) {
+      budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
+    }
+  }
+  const activeBudgets = rawBudgets
+    .map((b) => ({ ...b, spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : b.spent }))
+    .sort((a, b) => b.spent - a.spent)
+    .slice(0, 4)
 
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0)
   const monthlyIncome = incomeAgg._sum.amount ?? 0
@@ -181,9 +205,9 @@ export default async function DashboardPage({ searchParams }: Props) {
     const d = new Date(tx.date)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (chartMonths[key]) {
-      if (tx.category?.type === 'income') {
+      if (tx.amount > 0) {
         chartMonths[key].income += tx.amount
-      } else if (tx.category?.type === 'expense') {
+      } else if (tx.amount < 0) {
         chartMonths[key].expenses += Math.abs(tx.amount)
       }
     }
