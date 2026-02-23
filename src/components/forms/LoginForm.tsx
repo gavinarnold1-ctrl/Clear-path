@@ -34,7 +34,7 @@ export default function LoginForm() {
     <div className="space-y-4">
       <form action={formAction} className="space-y-4">
         {(state?.error || demoError) && (
-          <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
+          <p className="rounded-lg bg-ember/10 p-3 text-sm text-ember" role="alert">
             {state?.error || demoError}
           </p>
         )}

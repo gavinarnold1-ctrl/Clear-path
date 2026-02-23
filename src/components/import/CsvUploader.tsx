@@ -43,7 +43,7 @@ export default function CsvUploader({ onUpload, loading }: CsvUploaderProps) {
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
       className={`card flex flex-col items-center justify-center border-2 border-dashed py-12 transition-colors ${
-        dragOver ? 'border-brand-400 bg-frost' : 'border-mist'
+        dragOver ? 'border-fjord bg-frost' : 'border-mist'
       }`}
     >
       {loading ? (

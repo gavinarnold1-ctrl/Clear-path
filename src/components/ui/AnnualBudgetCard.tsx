@@ -27,10 +27,10 @@ export default function AnnualBudgetCard({ budget }: { budget: AnnualBudget }) {
   const pct = budgetProgress(ae.funded, ae.annualAmount)
 
   const STATUS_STYLES: Record<string, string> = {
-    planned: 'bg-blue-100 text-blue-700',
-    funded: 'bg-pine/10 text-green-700',
+    planned: 'bg-lichen/10 text-lichen',
+    funded: 'bg-pine/10 text-pine',
     spent: 'bg-mist text-fjord',
-    overspent: 'bg-ember/10 text-red-700',
+    overspent: 'bg-ember/10 text-ember',
   }
 
   return (

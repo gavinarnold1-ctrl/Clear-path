@@ -73,8 +73,8 @@ export default function ImportPreview({ transactions, errors, totalRows }: Impor
 
       {/* Errors */}
       {errors.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-ember/10 p-4">
-          <p className="mb-2 text-sm font-medium text-red-700">Parse errors</p>
+        <div className="rounded-lg border border-ember/30 bg-ember/10 p-4">
+          <p className="mb-2 text-sm font-medium text-ember">Parse errors</p>
           <ul className="space-y-1 text-xs text-ember">
             {errors.slice(0, 10).map((err, i) => (
               <li key={i}>
@@ -82,7 +82,7 @@ export default function ImportPreview({ transactions, errors, totalRows }: Impor
               </li>
             ))}
             {errors.length > 10 && (
-              <li className="text-red-400">...and {errors.length - 10} more errors</li>
+              <li className="text-ember/70">...and {errors.length - 10} more errors</li>
             )}
           </ul>
         </div>

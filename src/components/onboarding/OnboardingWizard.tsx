@@ -320,7 +320,7 @@ function StepGoal({ value, onChange }: { value: PrimaryGoal | null; onChange: (v
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-brand-500 bg-frost text-midnight'
+                ? 'border-fjord bg-frost text-midnight'
                 : 'border-mist text-fjord hover:border-mist hover:bg-snow'
             }`}
           >
@@ -357,7 +357,7 @@ function StepHousehold({
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-brand-500 bg-frost text-midnight'
+                ? 'border-fjord bg-frost text-midnight'
                 : 'border-mist text-fjord hover:border-mist hover:bg-snow'
             }`}
           >
@@ -410,7 +410,7 @@ function StepAccounts({
             key={chip.key}
             type="button"
             onClick={() => onAdd(chip.key)}
-            className="rounded-full border border-mist px-3 py-1.5 text-sm font-medium text-stone hover:border-brand-300 hover:bg-frost hover:text-midnight transition"
+            className="rounded-full border border-mist px-3 py-1.5 text-sm font-medium text-stone hover:border-fjord/30 hover:bg-frost hover:text-midnight transition"
           >
             + {chip.label}
           </button>
@@ -483,7 +483,7 @@ function StepRental({
           onClick={() => onHasRentalChange(false)}
           className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
             hasRental === false
-              ? 'border-brand-500 bg-frost text-midnight'
+              ? 'border-fjord bg-frost text-midnight'
               : 'border-mist text-fjord hover:border-mist hover:bg-snow'
           }`}
         >
@@ -494,7 +494,7 @@ function StepRental({
           onClick={() => onHasRentalChange(true)}
           className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
             hasRental === true
-              ? 'border-brand-500 bg-frost text-midnight'
+              ? 'border-fjord bg-frost text-midnight'
               : 'border-mist text-fjord hover:border-mist hover:bg-snow'
           }`}
         >
@@ -555,7 +555,7 @@ function StepDebt({ value, onChange }: { value: DebtLevel | null; onChange: (v: 
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-brand-500 bg-frost text-midnight'
+                ? 'border-fjord bg-frost text-midnight'
                 : 'border-mist text-fjord hover:border-mist hover:bg-snow'
             }`}
           >
@@ -580,7 +580,7 @@ function StepCategories({ value, onChange }: { value: CategoryMode | null; onCha
             onClick={() => onChange(opt.key)}
             className={`w-full rounded-lg border px-4 py-3 text-left transition ${
               value === opt.key
-                ? 'border-brand-500 bg-frost'
+                ? 'border-fjord bg-frost'
                 : 'border-mist hover:border-mist hover:bg-snow'
             }`}
           >

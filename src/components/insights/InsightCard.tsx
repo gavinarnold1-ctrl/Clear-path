@@ -18,9 +18,9 @@ interface InsightCardProps {
 }
 
 const PRIORITY_STYLES: Record<string, { badge: string; border: string }> = {
-  high: { badge: 'bg-ember/10 text-red-700', border: 'border-l-red-400' },
-  medium: { badge: 'bg-birch/20 text-amber-700', border: 'border-l-amber-400' },
-  low: { badge: 'bg-blue-100 text-blue-700', border: 'border-l-blue-400' },
+  high: { badge: 'bg-ember/10 text-ember', border: 'border-l-ember' },
+  medium: { badge: 'bg-birch/20 text-birch', border: 'border-l-birch' },
+  low: { badge: 'bg-frost text-fjord', border: 'border-l-fjord' },
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -199,7 +199,7 @@ export default function InsightCard({
       {/* Completion notes form */}
       {showCompleteForm && (
         <div className="mt-3 rounded-lg bg-pine/10 p-3">
-          <p className="mb-2 text-xs font-medium text-green-700">
+          <p className="mb-2 text-xs font-medium text-pine">
             What did you do? (optional)
           </p>
           <textarea
@@ -214,7 +214,7 @@ export default function InsightCard({
               type="button"
               onClick={handleComplete}
               disabled={updating}
-              className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-snow hover:bg-green-700 disabled:opacity-50"
+              className="rounded-md bg-pine px-3 py-1 text-xs font-medium text-snow hover:bg-pine/80 disabled:opacity-50"
             >
               {updating ? 'Saving...' : 'Complete'}
             </button>
@@ -239,7 +239,7 @@ export default function InsightCard({
             type="button"
             onClick={() => setShowCompleteForm(true)}
             disabled={updating}
-            className="text-xs font-medium text-income hover:text-green-700 disabled:opacity-50"
+            className="text-xs font-medium text-income hover:text-pine disabled:opacity-50"
           >
             Mark complete
           </button>

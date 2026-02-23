@@ -77,7 +77,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
       </p>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
           {error}
         </div>
       )}

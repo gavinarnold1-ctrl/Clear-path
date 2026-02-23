@@ -20,7 +20,7 @@ export default function AccountForm() {
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-ember" role="alert">
           {state.error}
         </p>
       )}

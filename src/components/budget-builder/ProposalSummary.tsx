@@ -28,10 +28,10 @@ export default function ProposalSummary({ proposal, profileSummary }: Props) {
         : 'text-ember'
 
   const barSegments = [
-    { label: 'Fixed', amount: totalFixed, color: 'bg-blue-500' },
-    { label: 'Flexible', amount: totalFlexible, color: 'bg-amber-500' },
-    { label: 'Annual', amount: totalAnnualMonthly, color: 'bg-purple-500' },
-    { label: 'Remaining', amount: Math.max(0, trueRemaining), color: 'bg-green-400' },
+    { label: 'Fixed', amount: totalFixed, color: 'bg-fjord' },
+    { label: 'Flexible', amount: totalFlexible, color: 'bg-birch' },
+    { label: 'Annual', amount: totalAnnualMonthly, color: 'bg-lichen' },
+    { label: 'Remaining', amount: Math.max(0, trueRemaining), color: 'bg-pine' },
   ]
   const total = profileSummary.totalMonthlyIncome || 1
 

@@ -19,17 +19,17 @@ export default function TrueRemainingBanner({
   // Color coding based on remaining percentage of income
   const colorClass =
     incomeRatio > 0.2
-      ? 'border-green-200 bg-pine/10'
+      ? 'border-pine/30 bg-pine/10'
       : incomeRatio > 0.05
-        ? 'border-amber-200 bg-amber-50'
-        : 'border-red-200 bg-ember/10'
+        ? 'border-birch/30 bg-birch/10'
+        : 'border-ember/30 bg-ember/10'
 
   const amountColorClass =
     incomeRatio > 0.2
-      ? 'text-green-700'
+      ? 'text-pine'
       : incomeRatio > 0.05
-        ? 'text-amber-700'
-        : 'text-red-700'
+        ? 'text-birch'
+        : 'text-ember'
 
   return (
     <div className={`mb-6 rounded-xl border-2 p-5 ${colorClass}`}>

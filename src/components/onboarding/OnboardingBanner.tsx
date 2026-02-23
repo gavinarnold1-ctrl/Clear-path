@@ -20,9 +20,9 @@ export default function OnboardingBanner({ step }: { step: number }) {
   const message = STEP_MESSAGES[step] ?? STEP_MESSAGES[0]
 
   return (
-    <div className="mb-6 flex items-center gap-3 rounded-lg border border-brand-200 bg-frost px-4 py-3">
+    <div className="mb-6 flex items-center gap-3 rounded-lg border border-mist bg-frost px-4 py-3">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-brand-800">Complete your setup</p>
+        <p className="text-sm font-medium text-fjord">Complete your setup</p>
         <p className="text-sm text-fjord">{message}</p>
       </div>
       <Link
@@ -34,7 +34,7 @@ export default function OnboardingBanner({ step }: { step: number }) {
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        className="shrink-0 text-brand-400 hover:text-fjord"
+        className="shrink-0 text-stone hover:text-fjord"
         aria-label="Dismiss banner"
       >
         &times;

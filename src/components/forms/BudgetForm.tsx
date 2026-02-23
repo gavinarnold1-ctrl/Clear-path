@@ -50,7 +50,7 @@ export default function BudgetForm({ categories }: Props) {
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <p className="rounded-lg bg-ember/10 p-3 text-sm text-red-700" role="alert">
+        <p className="rounded-lg bg-ember/10 p-3 text-sm text-ember" role="alert">
           {state.error}
         </p>
       )}
@@ -66,7 +66,7 @@ export default function BudgetForm({ categories }: Props) {
               onClick={() => setTier(t.value)}
               className={`rounded-lg border-2 p-3 text-left transition-colors ${
                 tier === t.value
-                  ? 'border-brand-500 bg-frost'
+                  ? 'border-fjord bg-frost'
                   : 'border-mist hover:border-mist'
               }`}
             >

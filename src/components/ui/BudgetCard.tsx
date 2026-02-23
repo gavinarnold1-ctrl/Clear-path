@@ -28,7 +28,7 @@ const PERIOD_LABELS: Record<string, string> = {
 const TIER_BADGE: Record<string, { bg: string; text: string }> = {
   FIXED: { bg: 'bg-fjord/[0.08]', text: 'text-fjord' },
   FLEXIBLE: { bg: 'bg-lichen/30', text: 'text-pine' },
-  ANNUAL: { bg: 'bg-birch/30', text: 'text-[#8B7B5E]' },
+  ANNUAL: { bg: 'bg-birch/30', text: 'text-stone' },
 }
 
 export default function BudgetCard({ budget }: { budget: Budget }) {

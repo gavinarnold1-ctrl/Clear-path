@@ -16,10 +16,10 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  funded: 'bg-green-400',
-  overdue: 'bg-red-400',
-  urgent: 'bg-red-300',
-  planned: 'bg-purple-400',
+  funded: 'bg-pine',
+  overdue: 'bg-ember',
+  urgent: 'bg-ember/70',
+  planned: 'bg-lichen',
   behind: 'bg-birch',
 }
 

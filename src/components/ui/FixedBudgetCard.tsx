@@ -33,8 +33,8 @@ export default function FixedBudgetCard({ budget }: { budget: FixedBudget }) {
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
             isPaid
-              ? 'bg-pine/10 text-green-700'
-              : 'bg-birch/20 text-amber-700'
+              ? 'bg-pine/10 text-pine'
+              : 'bg-birch/20 text-birch'
           }`}
         >
           {isPaid ? 'Paid' : 'Due'}

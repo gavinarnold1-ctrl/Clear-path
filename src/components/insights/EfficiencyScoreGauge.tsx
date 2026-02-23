@@ -53,7 +53,7 @@ export default function EfficiencyScoreGauge({
             fill="none"
             stroke="currentColor"
             strokeWidth="8"
-            className="text-gray-100"
+            className="text-frost"
           />
           <circle
             cx="60"

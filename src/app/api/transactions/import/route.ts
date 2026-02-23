@@ -236,10 +236,11 @@ export async function POST(request: Request) {
         if (matched) {
           categoryId = matched.id
         } else {
-          // Infer category type from transaction amount and transactionType
+          // Infer category type from transactionType (most reliable), then amount sign
           const isTransfer = tx.transactionType === 'transfer' ||
             catKey.includes('transfer') || catKey.includes('credit card payment')
-          const catType = isTransfer ? 'transfer' : tx.amount > 0 ? 'income' : 'expense'
+          const isCredit = tx.transactionType === 'credit'
+          const catType = isTransfer ? 'transfer' : (isCredit || tx.amount > 0) ? 'income' : 'expense'
 
           // Auto-create category from CSV data
           const newCat = await db.category.create({
@@ -277,10 +278,14 @@ export async function POST(request: Request) {
         }
       }
 
-      // Normalize amount sign based on resolved category type.
-      // Expense = negative, income = positive, transfer = keep CSV sign.
+      // Normalize amount sign. Priority: transactionType > category type > CSV sign.
+      // App convention: income = positive, expense = negative.
       let finalAmount = tx.amount
-      if (categoryId) {
+      if (tx.transactionType === 'credit') {
+        finalAmount = Math.abs(tx.amount)
+      } else if (tx.transactionType === 'debit') {
+        finalAmount = -Math.abs(tx.amount)
+      } else if (categoryId) {
         const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
         if (resolvedCat) {
           if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
