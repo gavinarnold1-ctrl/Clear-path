@@ -146,7 +146,7 @@ export default function AccountManager({ accounts: initial }: Props) {
   return (
     <div>
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
           {error}
           <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
         </div>
@@ -165,7 +165,7 @@ export default function AccountManager({ accounts: initial }: Props) {
             )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setDeleteTarget(null)} className="btn-secondary text-sm">Cancel</button>
-              <button onClick={confirmDelete} className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-snow hover:bg-red-700">
+              <button onClick={confirmDelete} className="rounded bg-ember px-3 py-1.5 text-sm font-medium text-snow hover:bg-ember/80">
                 Delete
               </button>
             </div>
@@ -174,7 +174,7 @@ export default function AccountManager({ accounts: initial }: Props) {
       )}
 
       {/* Net worth banner */}
-      <div className="mb-6 rounded-xl border border-brand-200 bg-frost px-6 py-4">
+      <div className="mb-6 rounded-xl border border-mist bg-frost px-6 py-4">
         <p className="text-sm text-midnight">Net worth</p>
         <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-midnight' : 'text-expense'}`}>
           {formatCurrency(totalBalance)}
@@ -188,7 +188,7 @@ export default function AccountManager({ accounts: initial }: Props) {
           <div className="space-y-3">
             {grouped[group].map(acct =>
               editingId === acct.id ? (
-                <div key={acct.id} className="card border-2 border-brand-200 bg-frost">
+                <div key={acct.id} className="card border-2 border-mist bg-frost">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-stone">Name</label>

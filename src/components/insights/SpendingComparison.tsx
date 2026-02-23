@@ -8,9 +8,9 @@ interface SpendingComparisonProps {
 
 const RATING_COLORS: Record<string, string> = {
   excellent: 'bg-pine',
-  good: 'bg-green-400',
+  good: 'bg-lichen',
   average: 'bg-birch',
-  high: 'bg-orange-400',
+  high: 'bg-ember/70',
   excessive: 'bg-ember',
 }
 
@@ -51,7 +51,7 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
           const benchmark = c.benchmark!
           const userPct = Math.round((monthlyAvg / maxAmount) * 100)
           const benchmarkPct = Math.round((benchmark.median / maxAmount) * 100)
-          const barColor = RATING_COLORS[benchmark.rating] ?? 'bg-gray-400'
+          const barColor = RATING_COLORS[benchmark.rating] ?? 'bg-stone'
 
           return (
             <div key={c.category}>
@@ -85,7 +85,7 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
                 <span className="w-12 text-right text-xs text-stone">Median</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
                   <div
-                    className="h-full rounded-full bg-gray-300"
+                    className="h-full rounded-full bg-mist"
                     style={{ width: `${benchmarkPct}%` }}
                   />
                 </div>

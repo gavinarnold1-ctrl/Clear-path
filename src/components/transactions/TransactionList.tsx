@@ -313,7 +313,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     <div className="relative pb-16">
       <div className="card overflow-hidden p-0">
         {error && (
-          <div className="border-b border-red-200 bg-ember/10 px-4 py-2 text-sm text-red-700">
+          <div className="border-b border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
             {error}
             <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
           </div>

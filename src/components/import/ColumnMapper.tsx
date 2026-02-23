@@ -25,10 +25,10 @@ const FIELD_OPTIONS: { value: AppField; label: string }[] = [
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
   if (confidence >= 0.9) {
-    return <span className="rounded-full bg-pine/10 px-1.5 py-0.5 text-xs text-green-700">Auto</span>
+    return <span className="rounded-full bg-pine/10 px-1.5 py-0.5 text-xs text-pine">Auto</span>
   }
   if (confidence >= 0.7) {
-    return <span className="rounded-full bg-birch/20 px-1.5 py-0.5 text-xs text-amber-700">Maybe</span>
+    return <span className="rounded-full bg-birch/20 px-1.5 py-0.5 text-xs text-birch">Maybe</span>
   }
   return null
 }
