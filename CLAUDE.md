@@ -208,6 +208,31 @@ npm run test:coverage  # Coverage report
 - Use `db.$transaction([…])` for multi-step writes.
 - After changing `schema.prisma`, run `npm run db:push` (dev) or a migration in production.
 
+### Amount Sign Convention (Critical)
+
+The **amount sign is the single source of truth** for income vs expense:
+- **Income**: `amount > 0` (positive)
+- **Expense**: `amount < 0` (negative)
+
+All server actions, API routes, and CSV import endpoints **enforce this convention** by looking up the category type and correcting the sign before writing to the database. Never rely on `category.type` relation filters (e.g. `category: { type: 'expense' }`) for income/expense queries — always use `amount: { gt: 0 }` or `amount: { lt: 0 }`.
+
+### Budget Spent Computation
+
+Budget `spent` values are **computed live** from current-month expense transactions grouped by `categoryId`, not read from the stored `budget.spent` field. This prevents drift between the stored value and actual transaction totals. Both the dashboard and budget pages follow this pattern.
+
+### Net Worth Calculation
+
+Net worth subtracts liability account balances. The following account types are treated as liabilities: `CREDIT_CARD`, `MORTGAGE`, `AUTO_LOAN`, `STUDENT_LOAN`. Their balances are subtracted using `Math.abs(balance)`. All other account types (CHECKING, SAVINGS, INVESTMENT, CASH) are summed normally.
+
+### Duplicate Name Validation
+
+- **Accounts**: Case-insensitive duplicate name check using Prisma `mode: 'insensitive'`, enforced in both the server action (`actions/accounts.ts`) and the API route (`api/accounts/route.ts`).
+- **Categories**: Case-insensitive duplicate check scoped to `[userId, type, group, name]` using Prisma `mode: 'insensitive'`.
+
+### Account Deletion
+
+When deleting an account, transactions linked to it are **unlinked** (set `accountId: null`) before the account is deleted, using `db.$transaction([…])` to ensure atomicity.
+
 ### Components
 
 - UI primitives go in `src/components/ui/` (BudgetCard, ProgressBar).
