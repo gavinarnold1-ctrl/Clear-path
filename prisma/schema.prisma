@@ -115,16 +115,19 @@ model Transaction {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id])
-  accountId  String?
-  account    Account?  @relation(fields: [accountId], references: [id])
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId       String?
+  category         Category?      @relation(fields: [categoryId], references: [id])
+  accountId        String?
+  account          Account?       @relation(fields: [accountId], references: [id])
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  annualExpenseId  String?
+  annualExpense    AnnualExpense? @relation(fields: [annualExpenseId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([userId, categoryId])
   @@index([accountId])
+  @@index([annualExpenseId])
 }
 
 model Budget {
@@ -172,8 +175,9 @@ model AnnualExpense {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([userId, dueYear, dueMonth])
   @@index([budgetId])

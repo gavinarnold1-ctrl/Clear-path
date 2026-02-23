@@ -6,6 +6,7 @@ interface AnnualOverviewProps {
   totalFunded: number
   monthlyBurden: number
   expenseCount: number
+  trueRemaining?: number
 }
 
 export default function AnnualOverview({
@@ -13,6 +14,7 @@ export default function AnnualOverview({
   totalFunded,
   monthlyBurden,
   expenseCount,
+  trueRemaining,
 }: AnnualOverviewProps) {
   const fundedPct = budgetProgress(totalFunded, totalPlanned)
 
@@ -43,7 +45,13 @@ export default function AnnualOverview({
           {formatCurrency(monthlyBurden)}
           <span className="text-sm font-normal text-gray-400">/mo</span>
         </p>
-        <p className="mt-0.5 text-xs text-gray-400">total set-aside needed</p>
+        {trueRemaining !== undefined && trueRemaining < monthlyBurden ? (
+          <p className="mt-0.5 text-xs font-medium text-red-600">
+            {formatCurrency(monthlyBurden - trueRemaining)} short of target
+          </p>
+        ) : (
+          <p className="mt-0.5 text-xs text-gray-400">total set-aside needed</p>
+        )}
       </div>
     </div>
   )

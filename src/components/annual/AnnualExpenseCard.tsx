@@ -7,6 +7,7 @@ import { formatCurrency, budgetProgress } from '@/lib/utils'
 import { formatMonthName } from '@/lib/budget-engine'
 import FundExpenseModal from './FundExpenseModal'
 import MarkSpentModal from './MarkSpentModal'
+import LinkTransactionModal from './LinkTransactionModal'
 
 interface AnnualExpenseData {
   id: string
@@ -30,6 +31,11 @@ interface AnnualExpenseData {
   }
 }
 
+interface Props {
+  expense: AnnualExpenseData
+  affordableMonthly?: number
+}
+
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   overdue: { label: 'OVERDUE', className: 'border-red-200 bg-red-50 text-red-700' },
   urgent: { label: 'URGENT', className: 'border-red-200 bg-red-50 text-red-700' },
@@ -40,10 +46,11 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   overspent: { label: 'OVERSPENT', className: 'border-red-200 bg-red-50 text-red-700' },
 }
 
-export default function AnnualExpenseCard({ expense }: { expense: AnnualExpenseData }) {
+export default function AnnualExpenseCard({ expense, affordableMonthly }: Props) {
   const router = useRouter()
   const [fundOpen, setFundOpen] = useState(false)
   const [spentOpen, setSpentOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const pct = budgetProgress(expense.funded, expense.annualAmount)
@@ -175,10 +182,24 @@ export default function AnnualExpenseCard({ expense }: { expense: AnnualExpenseD
             )}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-gray-500">
-            {formatCurrency(expense.currentSetAside)}/mo needed &middot;{' '}
-            {expense.monthsRemaining} month{expense.monthsRemaining !== 1 ? 's' : ''} remaining
-          </p>
+          <>
+            <p className="mt-2 text-sm text-gray-500">
+              {formatCurrency(expense.currentSetAside)}/mo needed &middot;{' '}
+              {expense.monthsRemaining} month{expense.monthsRemaining !== 1 ? 's' : ''} remaining
+            </p>
+            {affordableMonthly !== undefined &&
+              affordableMonthly < expense.currentSetAside &&
+              expense.monthsRemaining > 0 && (() => {
+                const remaining = expense.annualAmount - expense.funded
+                const projectedFunding = affordableMonthly * expense.monthsRemaining
+                const shortfall = remaining - projectedFunding
+                return shortfall > 0 ? (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    At current pace, you&apos;ll be {formatCurrency(shortfall)} short by the due date
+                  </p>
+                ) : null
+              })()}
+          </>
         )}
 
         {/* Notes */}
@@ -198,6 +219,13 @@ export default function AnnualExpenseCard({ expense }: { expense: AnnualExpenseD
                 className="btn-primary px-3 py-1 text-xs"
               >
                 Add Funds
+              </button>
+              <button
+                onClick={() => setLinkOpen(true)}
+                disabled={loading}
+                className="btn-secondary px-3 py-1 text-xs"
+              >
+                Link Transaction
               </button>
               <button
                 onClick={() => setSpentOpen(true)}
@@ -229,6 +257,13 @@ export default function AnnualExpenseCard({ expense }: { expense: AnnualExpenseD
         isOpen={spentOpen}
         onClose={() => setSpentOpen(false)}
         onSubmit={handleMarkSpent}
+      />
+      <LinkTransactionModal
+        expenseId={expense.id}
+        expenseName={expense.name}
+        isOpen={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        onLinked={() => router.refresh()}
       />
     </>
   )

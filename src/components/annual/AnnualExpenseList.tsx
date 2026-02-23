@@ -28,9 +28,11 @@ interface AnnualExpenseData {
 interface Props {
   active: AnnualExpenseData[]
   completed: AnnualExpenseData[]
+  trueRemaining?: number
+  monthlyBurden?: number
 }
 
-export default function AnnualExpenseList({ active, completed }: Props) {
+export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden }: Props) {
   const [showCompleted, setShowCompleted] = useState(false)
 
   return (
@@ -47,9 +49,20 @@ export default function AnnualExpenseList({ active, completed }: Props) {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {active.map((exp) => (
-              <AnnualExpenseCard key={exp.id} expense={exp} />
-            ))}
+            {active.map((exp) => {
+              // Compute per-expense affordable amount when there's a shortfall
+              const affordable =
+                trueRemaining !== undefined && monthlyBurden !== undefined && monthlyBurden > 0
+                  ? (exp.currentSetAside / monthlyBurden) * Math.max(0, trueRemaining)
+                  : undefined
+              return (
+                <AnnualExpenseCard
+                  key={exp.id}
+                  expense={exp}
+                  affordableMonthly={affordable}
+                />
+              )
+            })}
           </div>
 
           {completed.length > 0 && (
