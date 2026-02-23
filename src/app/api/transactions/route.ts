@@ -41,13 +41,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
   }
 
+  // Correct amount sign based on category type — must match server action behavior.
+  // Income = positive, expense = negative, transfer = keep user sign.
+  let finalAmount = amount
+  if (categoryId) {
+    const category = await db.category.findUnique({ where: { id: categoryId } })
+    if (category) {
+      if (category.type === 'expense') finalAmount = -Math.abs(amount)
+      else if (category.type === 'income') finalAmount = Math.abs(amount)
+    }
+  }
+
   const transaction = await db.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
         userId: session.userId,
         accountId: accountId ?? null,
         categoryId: categoryId ?? null,
-        amount,
+        amount: finalAmount,
         merchant,
         date: new Date(date),
         notes: notes ?? null,

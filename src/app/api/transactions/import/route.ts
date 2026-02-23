@@ -210,12 +210,23 @@ export async function POST(request: Request) {
         }
       }
 
+      // Normalize amount sign based on resolved category type.
+      // Expense = negative, income = positive, transfer = keep CSV sign.
+      let finalAmount = tx.amount
+      if (categoryId) {
+        const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
+        if (resolvedCat) {
+          if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
+          else if (resolvedCat.type === 'income') finalAmount = Math.abs(tx.amount)
+        }
+      }
+
       toImport.push({
         userId: session.userId,
         accountId: resolvedAccountId,
         date: txDate,
         merchant: tx.merchant,
-        amount: tx.amount,
+        amount: finalAmount,
         categoryId,
         originalCategory: tx.category?.trim() || null,
         originalStatement: tx.originalStatement ?? null,

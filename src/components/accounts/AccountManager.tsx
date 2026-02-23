@@ -135,7 +135,13 @@ export default function AccountManager({ accounts: initial }: Props) {
   const groupOrder = ['Cash & Banking', 'Credit', 'Loans', 'Investments', 'Other']
   const activeGroups = groupOrder.filter(g => grouped[g]?.length)
 
-  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0)
+  // Liability account balances must be subtracted for correct net worth.
+  // Credit cards, mortgages, and loans represent money owed, not owned.
+  const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
+  const totalBalance = accounts.reduce((sum, a) => {
+    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
+    return sum + a.balance
+  }, 0)
 
   return (
     <div>

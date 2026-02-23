@@ -37,13 +37,14 @@ export default async function SpendingPage({ searchParams }: Props) {
   const prevStart = new Date(year, month - 1, 1)
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
-  // Fetch expense transactions with category info for this month + prev month totals
+  // Fetch expense transactions (amount < 0) with category info for this month + prev month totals.
+  // Use amount sign as source of truth — consistent with dashboard and budget pages.
   const [expenseTransactions, prevExpenseAgg] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
         categoryId: { not: null },
       },
       include: { category: { select: { id: true, name: true, group: true } } },
@@ -52,7 +53,7 @@ export default async function SpendingPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
-        category: { type: 'expense' },
+        amount: { lt: 0 },
       },
       _sum: { amount: true },
     }),

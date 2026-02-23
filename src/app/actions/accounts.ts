@@ -25,6 +25,11 @@ export async function createAccount(
   if (!type) return { error: 'Account type is required.' }
   if (isNaN(balance)) return { error: 'Balance must be a valid number.' }
 
+  const duplicate = await db.account.findFirst({
+    where: { userId: session.userId, name: { equals: name, mode: 'insensitive' } },
+  })
+  if (duplicate) return { error: 'An account with this name already exists.' }
+
   await db.account.create({
     data: {
       userId: session.userId,
@@ -44,8 +49,16 @@ export async function deleteAccount(id: string): Promise<void> {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  // Cascade delete removes transactions too (configured in schema)
-  await db.account.delete({ where: { id, userId: session.userId } })
+  // Unlink transactions first (set accountId to null), then delete the account.
+  // Account→Transaction relation uses SetNull by default for optional FK,
+  // but being explicit is safer and matches the API route behavior.
+  await db.$transaction([
+    db.transaction.updateMany({
+      where: { accountId: id, userId: session.userId },
+      data: { accountId: null },
+    }),
+    db.account.delete({ where: { id, userId: session.userId } }),
+  ])
 
   revalidatePath('/accounts')
   revalidatePath('/dashboard')

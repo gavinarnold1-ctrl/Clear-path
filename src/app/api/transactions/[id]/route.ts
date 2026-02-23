@@ -31,11 +31,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const oldAccountId = existing.accountId
   const oldAmount = existing.amount
 
+  // Correct amount sign based on category type — must match server action behavior.
+  let finalAmount = body.amount
+  const resolvedCategoryId = body.categoryId !== undefined ? body.categoryId : existing.categoryId
+  if (finalAmount !== undefined && resolvedCategoryId) {
+    const category = await db.category.findUnique({ where: { id: resolvedCategoryId } })
+    if (category) {
+      if (category.type === 'expense') finalAmount = -Math.abs(finalAmount)
+      else if (category.type === 'income') finalAmount = Math.abs(finalAmount)
+    }
+  }
+
   const transaction = await db.$transaction(async (tx) => {
     const updated = await tx.transaction.update({
       where: { id },
       data: {
-        ...(body.amount !== undefined && { amount: body.amount }),
+        ...(finalAmount !== undefined && { amount: finalAmount }),
         ...(body.merchant && { merchant: body.merchant }),
         ...(body.date && { date: new Date(body.date) }),
         ...(body.notes !== undefined && { notes: body.notes }),
@@ -65,12 +76,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return updated
   })
 
-  // Recalculate budgets for affected categories
-  if (oldCategoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, oldCategoryId)
-  }
-  if (transaction.categoryId && transaction.categoryId !== oldCategoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, transaction.categoryId)
+  // Recalculate budgets for all affected categories
+  const categoriesToRecalc = new Set<string>()
+  if (oldCategoryId) categoriesToRecalc.add(oldCategoryId)
+  if (transaction.categoryId) categoriesToRecalc.add(transaction.categoryId)
+  for (const catId of categoriesToRecalc) {
+    await recalculateBudgetSpentForCategory(session.userId, catId)
   }
 
   return NextResponse.json(transaction)

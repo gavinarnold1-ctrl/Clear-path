@@ -57,7 +57,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     setEditingId(tx.id)
     setEditDate(new Date(tx.date).toISOString().split('T')[0])
     setEditMerchant(tx.merchant)
-    setEditAmount(String(tx.amount))
+    setEditAmount(String(Math.abs(tx.amount)))
     setEditCategoryId(tx.categoryId ?? '')
     setEditAccountId(tx.accountId ?? '')
     setEditNotes(tx.notes ?? '')
@@ -134,6 +134,8 @@ export default function TransactionList({ transactions: initial, categories, acc
         const data = await res.json()
         throw new Error(data.error ?? 'Save failed')
       }
+      // Refresh to get server-corrected values (amount sign, budget spent, etc.)
+      router.refresh()
     } catch (err) {
       // Revert on failure
       setTransactions(prevTransactions)
