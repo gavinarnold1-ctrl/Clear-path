@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid budget tier' }, { status: 400 })
   }
 
+  if (categoryId) {
+    const category = await db.category.findFirst({
+      where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+    })
+    if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+  }
+
   const budget = await db.budget.create({
     data: {
       userId: session.userId,

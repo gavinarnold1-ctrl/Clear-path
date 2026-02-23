@@ -31,11 +31,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const oldAccountId = existing.accountId
   const oldAmount = existing.amount
 
+  // Verify ownership of referenced accountId and categoryId
+  if (body.accountId !== undefined && body.accountId !== null) {
+    const account = await db.account.findFirst({
+      where: { id: body.accountId, userId: session.userId },
+    })
+    if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
+  const resolvedCategoryId = body.categoryId !== undefined ? body.categoryId : existing.categoryId
+  if (resolvedCategoryId) {
+    const category = await db.category.findFirst({
+      where: { id: resolvedCategoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+    })
+    if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+  }
+
   // Correct amount sign based on category type — must match server action behavior.
   let finalAmount = body.amount
-  const resolvedCategoryId = body.categoryId !== undefined ? body.categoryId : existing.categoryId
   if (finalAmount !== undefined && resolvedCategoryId) {
-    const category = await db.category.findUnique({ where: { id: resolvedCategoryId } })
+    const category = await db.category.findFirst({
+      where: { id: resolvedCategoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+    })
     if (category) {
       if (category.type === 'expense') finalAmount = -Math.abs(finalAmount)
       else if (category.type === 'income') finalAmount = Math.abs(finalAmount)

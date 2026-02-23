@@ -16,6 +16,10 @@ export interface InsightGenerationContext {
   history?: InsightHistory
 }
 
+function sanitizeForPrompt(value: string): string {
+  return value.replace(/[\n\r]/g, ' ').replace(/[\\`]/g, '').slice(0, 200)
+}
+
 export async function generateInsights(ctx: InsightGenerationContext): Promise<AIInsightResponse> {
   const { summary, temporal, velocity, budget, history } = ctx
 
@@ -94,7 +98,7 @@ INCOME & SAVINGS:
 SPENDING BY CATEGORY (with benchmarks where available):
 ${summary.categoryBreakdown
   .map((c) => {
-    let line = `- ${c.category}: $${c.total.toFixed(2)} total ($${c.avgTransaction.toFixed(2)} avg, ${c.transactionCount} transactions)`
+    let line = `- ${sanitizeForPrompt(c.category)}: $${c.total.toFixed(2)} total ($${c.avgTransaction.toFixed(2)} avg, ${c.transactionCount} transactions)`
     if (c.benchmark) {
       line += ` | Benchmark median: $${c.benchmark.median}/mo, Rating: ${c.benchmark.rating}`
     }
@@ -103,16 +107,16 @@ ${summary.categoryBreakdown
   .join('\n')}
 
 TOP MERCHANTS:
-${summary.topMerchants.map((m) => `- ${m.name}: $${m.total.toFixed(2)} (${m.count}x) [${m.category}]`).join('\n')}
+${summary.topMerchants.map((m) => `- ${sanitizeForPrompt(m.name)}: $${m.total.toFixed(2)} (${m.count}x) [${sanitizeForPrompt(m.category)}]`).join('\n')}
 
 RECURRING/SUBSCRIPTION CHARGES DETECTED:
-${summary.recurringCharges.map((r) => `- ${r.description}: $${r.amount.toFixed(2)} (${r.frequency})`).join('\n')}
+${summary.recurringCharges.map((r) => `- ${sanitizeForPrompt(r.description)}: $${r.amount.toFixed(2)} (${sanitizeForPrompt(r.frequency)})`).join('\n')}
 
 MONTH-OVER-MONTH CHANGES:
 ${summary.monthOverMonthChange
   .map(
     (m) =>
-      `- ${m.category}: $${m.previousMonth.toFixed(2)} → $${m.currentMonth.toFixed(2)} (${m.changePercent > 0 ? '+' : ''}${m.changePercent.toFixed(1)}%)`
+      `- ${sanitizeForPrompt(m.category)}: $${m.previousMonth.toFixed(2)} → $${m.currentMonth.toFixed(2)} (${m.changePercent > 0 ? '+' : ''}${m.changePercent.toFixed(1)}%)`
   )
   .join('\n')}`
 
@@ -144,21 +148,21 @@ BUDGET STATUS:
 - Unbudgeted spending this month: $${budget.unbudgetedSpending.toFixed(2)}`
 
     if (budget.overBudgetCategories.length > 0) {
-      userPrompt += `\n- Over budget: ${budget.overBudgetCategories.map((c) => `${c.name} ($${c.overBy.toFixed(2)} over)`).join(', ')}`
+      userPrompt += `\n- Over budget: ${budget.overBudgetCategories.map((c) => `${sanitizeForPrompt(c.name)} ($${c.overBy.toFixed(2)} over)`).join(', ')}`
     }
     if (budget.underUtilizedCategories.length > 0) {
-      userPrompt += `\n- Under-utilized: ${budget.underUtilizedCategories.map((c) => `${c.name} (${c.pctUsed}% used)`).join(', ')}`
+      userPrompt += `\n- Under-utilized: ${budget.underUtilizedCategories.map((c) => `${sanitizeForPrompt(c.name)} (${c.pctUsed}% used)`).join(', ')}`
     }
     if (budget.fixedBills.length > 0) {
       const unpaid = budget.fixedBills.filter((b) => !b.isPaid)
       if (unpaid.length > 0) {
-        userPrompt += `\n- Pending fixed bills: ${unpaid.map((b) => `${b.name} ($${b.amount.toFixed(2)})`).join(', ')}`
+        userPrompt += `\n- Pending fixed bills: ${unpaid.map((b) => `${sanitizeForPrompt(b.name)} ($${b.amount.toFixed(2)})`).join(', ')}`
       }
     }
     if (budget.annualExpenses.length > 0) {
       const underfunded = budget.annualExpenses.filter((a) => a.funded < a.annualAmount * 0.5 && a.monthsLeft <= 3)
       if (underfunded.length > 0) {
-        userPrompt += `\n- Underfunded annual expenses: ${underfunded.map((a) => `${a.name} (${Math.round((a.funded / a.annualAmount) * 100)}% funded, ${a.monthsLeft}mo left)`).join(', ')}`
+        userPrompt += `\n- Underfunded annual expenses: ${underfunded.map((a) => `${sanitizeForPrompt(a.name)} (${Math.round((a.funded / a.annualAmount) * 100)}% funded, ${a.monthsLeft}mo left)`).join(', ')}`
       }
     }
   }
