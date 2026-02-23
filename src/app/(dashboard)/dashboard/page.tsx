@@ -90,6 +90,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     budgetExpenses,
     categorySpending,
     chartData,
+    transactionCount,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     db.transaction.aggregate({
@@ -169,6 +170,13 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       select: { date: true, amount: true },
     }),
+    // Transaction count for the selected month
+    db.transaction.count({
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+      },
+    }),
   ])
 
   // Compute live budget spent from current-month expense transactions
@@ -216,6 +224,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       }
     }
   }
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const chartSeries = Object.entries(chartMonths).map(([key, vals]) => {
     const [, m] = key.split('-')
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -223,6 +232,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       label: monthNames[parseInt(m, 10) - 1],
       income: Math.round(vals.income * 100) / 100,
       expenses: Math.round(vals.expenses * 100) / 100,
+      isCurrent: key === currentMonthKey,
     }
   })
 
@@ -250,7 +260,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       </div>
 
       {/* Summary stats — 4 cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="Total balance"
           value={formatCurrency(totalBalance)}
@@ -273,6 +283,11 @@ export default async function DashboardPage({ searchParams }: Props) {
           value={formatCurrency(monthlyNet)}
           valueClass={monthlyNet >= 0 ? 'text-income' : 'text-expense'}
           sub={monthlyNet >= 0 ? 'Surplus' : 'Deficit'}
+        />
+        <StatCard
+          label={`Transactions — ${monthLabel}`}
+          value={transactionCount.toLocaleString()}
+          sub={`transaction${transactionCount !== 1 ? 's' : ''} this month`}
         />
       </div>
 
@@ -322,7 +337,12 @@ export default async function DashboardPage({ searchParams }: Props) {
 
         {/* Spending by category */}
         <div className="card">
-          <h2 className="mb-4 text-base font-semibold text-gray-900">Spending by category</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-900">Spending by category</h2>
+            <Link href="/spending" className="text-sm text-brand-600 hover:text-brand-700">
+              View all &rarr;
+            </Link>
+          </div>
 
           {spendingByCategory.length === 0 ? (
             <p className="text-sm text-gray-400">

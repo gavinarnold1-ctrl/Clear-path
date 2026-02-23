@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface CategoryRow {
   id: string
@@ -313,7 +314,9 @@ export default function CategoryManager({ categories: initial }: Props) {
                     <tr key={cat.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {cat.icon && <span className="mr-1.5">{cat.icon}</span>}
-                        {cat.name}
+                        <Link href={`/transactions?category=${cat.id}`} className="hover:underline hover:text-brand-600">
+                          {cat.name}
+                        </Link>
                         {!cat.userId && (
                           <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
                             default

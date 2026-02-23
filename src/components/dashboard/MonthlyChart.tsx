@@ -1,12 +1,13 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
 
 interface MonthData {
   label: string
   income: number
   expenses: number
+  isCurrent?: boolean
 }
 
 interface Props {
@@ -37,8 +38,26 @@ export default function MonthlyChart({ data }: Props) {
               ]}
             />
             <Legend />
-            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`income-${index}`}
+                  fillOpacity={entry.isCurrent ? 1 : 0.6}
+                  stroke={entry.isCurrent ? '#16a34a' : 'none'}
+                  strokeWidth={entry.isCurrent ? 2 : 0}
+                />
+              ))}
+            </Bar>
+            <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`expenses-${index}`}
+                  fillOpacity={entry.isCurrent ? 1 : 0.6}
+                  stroke={entry.isCurrent ? '#dc2626' : 'none'}
+                  strokeWidth={entry.isCurrent ? 2 : 0}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
