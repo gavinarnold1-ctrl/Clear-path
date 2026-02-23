@@ -3,6 +3,8 @@
  * Run with: npm run db:seed
  */
 import { PrismaClient, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
+import { seedTaxRules } from './seed-tax-rules'
+import { seedBenchmarks } from './seed-benchmarks'
 
 const db = new PrismaClient()
 
@@ -324,6 +326,11 @@ async function main() {
       await db.budget.update({ where: { id: budget.id }, data: { spent } })
     }
   }
+
+  // ─── Reference databases (tax rules + spending benchmarks) ──────────
+  console.log('Seeding reference databases...')
+  await seedTaxRules(db)
+  await seedBenchmarks(db)
 
   console.log('Seed complete. Demo user: demo@clear-path.app')
 }
