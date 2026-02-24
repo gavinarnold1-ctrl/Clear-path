@@ -63,15 +63,24 @@ export async function PATCH(req: NextRequest) {
   // If changing accounts, we need to reverse old balances and apply new ones per-transaction.
   // For category and merchant changes, updateMany is sufficient.
   if (updates.accountId !== undefined) {
+    // Group balance reversals by old account to minimize DB round-trips
+    const reversalsByAccount = new Map<string, number>()
+    for (const t of owned) {
+      if (t.accountId) {
+        reversalsByAccount.set(t.accountId, (reversalsByAccount.get(t.accountId) ?? 0) + t.amount)
+      }
+    }
+
+    // Sum amounts for the new account
+    const newAccountTotal = updates.accountId ? owned.reduce((sum, t) => sum + t.amount, 0) : 0
+
     await db.$transaction(async (tx) => {
-      // Reverse balances on old accounts
-      for (const t of owned) {
-        if (t.accountId) {
-          await tx.account.update({
-            where: { id: t.accountId },
-            data: { balance: { decrement: t.amount } },
-          })
-        }
+      // Reverse balances on old accounts (batched per account)
+      for (const [accountId, total] of reversalsByAccount) {
+        await tx.account.update({
+          where: { id: accountId },
+          data: { balance: { decrement: total } },
+        })
       }
 
       // Apply bulk update
@@ -80,16 +89,14 @@ export async function PATCH(req: NextRequest) {
         data,
       })
 
-      // Apply balances on new account
-      if (updates.accountId) {
-        for (const t of owned) {
-          await tx.account.update({
-            where: { id: updates.accountId! },
-            data: { balance: { increment: t.amount } },
-          })
-        }
+      // Apply total balance on new account in one call
+      if (updates.accountId && newAccountTotal !== 0) {
+        await tx.account.update({
+          where: { id: updates.accountId },
+          data: { balance: { increment: newAccountTotal } },
+        })
       }
-    })
+    }, { timeout: 15000 })
   } else {
     await db.transaction.updateMany({
       where: { id: { in: transactionIds }, userId: session.userId },
@@ -121,22 +128,28 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Some transactions not found' }, { status: 404 })
   }
 
+  // Group balance reversals by account to minimize DB round-trips
+  const reversalsByAccount = new Map<string, number>()
+  for (const t of owned) {
+    if (t.accountId) {
+      reversalsByAccount.set(t.accountId, (reversalsByAccount.get(t.accountId) ?? 0) + t.amount)
+    }
+  }
+
   await db.$transaction(async (tx) => {
     // Delete all transactions
     await tx.transaction.deleteMany({
       where: { id: { in: transactionIds }, userId: session.userId },
     })
 
-    // Reverse account balances
-    for (const t of owned) {
-      if (t.accountId) {
-        await tx.account.update({
-          where: { id: t.accountId },
-          data: { balance: { decrement: t.amount } },
-        })
-      }
+    // Reverse account balances (batched per account)
+    for (const [accountId, total] of reversalsByAccount) {
+      await tx.account.update({
+        where: { id: accountId },
+        data: { balance: { decrement: total } },
+      })
     }
-  })
+  }, { timeout: 15000 })
 
   return NextResponse.json({ deleted: owned.length })
 }
