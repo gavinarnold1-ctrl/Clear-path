@@ -25,6 +25,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   }
 
+  // Check for duplicate name (case-insensitive)
+  const existing = await db.householdMember.findFirst({
+    where: {
+      userId: session.userId,
+      name: { equals: name.trim(), mode: 'insensitive' },
+    },
+  })
+  if (existing) {
+    return NextResponse.json(
+      { error: 'A household member with this name already exists' },
+      { status: 409 }
+    )
+  }
+
   // If setting as default, unset any existing default
   if (isDefault) {
     await db.householdMember.updateMany({

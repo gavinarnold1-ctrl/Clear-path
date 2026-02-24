@@ -22,6 +22,7 @@ export interface ProfileSummary {
 export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: BudgetBuilderCTAProps) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
 
   async function handleGenerate() {
     setGenerating(true)
@@ -43,24 +44,58 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
 
   if (hasBudgets) {
     return (
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={generating}
-        className="btn-secondary flex items-center gap-2 disabled:opacity-50"
-      >
-        {generating ? (
-          <>
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Analyzing...
-          </>
-        ) : (
-          <>
-            <span>&#x2728;</span>
-            AI Budget Builder
-          </>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setShowMenu(prev => !prev)}
+          disabled={generating}
+          className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+        >
+          {generating ? (
+            <>
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <span>&#x2728;</span>
+              AI Budget Builder
+            </>
+          )}
+        </button>
+        {showMenu && !generating && (
+          <div className="absolute right-0 z-10 mt-1 w-56 rounded-card border border-mist bg-snow shadow-lg">
+            <button
+              type="button"
+              onClick={() => { setShowMenu(false); handleGenerate() }}
+              className="w-full px-4 py-2.5 text-left text-sm hover:bg-frost"
+            >
+              <p className="font-medium text-fjord">Regenerate all</p>
+              <p className="text-xs text-stone">Replace existing budgets</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowMenu(false); handleGenerate() }}
+              className="w-full border-t border-mist px-4 py-2.5 text-left text-sm hover:bg-frost"
+            >
+              <p className="font-medium text-fjord">Add missing</p>
+              <p className="text-xs text-stone">Fill gaps, keep existing</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMenu(false)}
+              className="w-full border-t border-mist px-4 py-2.5 text-left text-sm text-stone hover:bg-frost"
+            >
+              Dismiss
+            </button>
+          </div>
         )}
-      </button>
+        {error && (
+          <div className="absolute right-0 mt-1 w-56 rounded-lg border border-ember/30 bg-ember/10 px-3 py-2 text-xs text-ember">
+            {error}
+          </div>
+        )}
+      </div>
     )
   }
 

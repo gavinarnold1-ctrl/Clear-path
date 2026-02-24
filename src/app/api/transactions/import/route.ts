@@ -5,6 +5,25 @@ import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 
+/** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
+function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
+  const lower = name.toLowerCase()
+  const CREDIT_CARD_PATTERNS = ['card', 'visa', 'mastercard', 'amex', 'discover', 'platinum', 'venture', 'sapphire', 'freedom', 'chase ']
+  const SAVINGS_PATTERNS = ['saving', 'savings', 'money market', 'high yield', 'hysa']
+  const MORTGAGE_PATTERNS = ['mortgage', 'home loan']
+  const AUTO_PATTERNS = ['auto loan', 'car loan', 'vehicle']
+  const STUDENT_PATTERNS = ['student loan', 'student']
+  const INVESTMENT_PATTERNS = ['invest', 'brokerage', '401k', 'ira', 'roth', 'retirement']
+
+  if (CREDIT_CARD_PATTERNS.some(p => lower.includes(p))) return 'CREDIT_CARD'
+  if (SAVINGS_PATTERNS.some(p => lower.includes(p))) return 'SAVINGS'
+  if (MORTGAGE_PATTERNS.some(p => lower.includes(p))) return 'MORTGAGE'
+  if (AUTO_PATTERNS.some(p => lower.includes(p))) return 'AUTO_LOAN'
+  if (STUDENT_PATTERNS.some(p => lower.includes(p))) return 'STUDENT_LOAN'
+  if (INVESTMENT_PATTERNS.some(p => lower.includes(p))) return 'INVESTMENT'
+  return 'CHECKING'
+}
+
 /** Keywords in CSV category names that indicate income */
 const INCOME_CAT_KEYWORDS =
   /\b(income|salary|wages?|paycheck|deposit|refund|reimbursement|dividend|interest earned|bonus|gift received|cashback)\b/i
@@ -138,6 +157,23 @@ export async function POST(request: Request) {
       where: { userId: session.userId },
     })
     const propertyMap = new Map(userProperties.map((p) => [p.name.toLowerCase(), p]))
+
+    // R1.8: Build merchant→categoryId lookup from user's existing categorized transactions.
+    // For each merchant, find the most frequently used category.
+    const merchantCatRows = await db.transaction.groupBy({
+      by: ['merchant', 'categoryId'],
+      where: { userId: session.userId, categoryId: { not: null } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    })
+    const merchantCategoryMap = new Map<string, string>()
+    for (const row of merchantCatRows) {
+      const key = row.merchant.toLowerCase()
+      // First entry per merchant is the most frequent (ordered desc above)
+      if (!merchantCategoryMap.has(key) && row.categoryId) {
+        merchantCategoryMap.set(key, row.categoryId)
+      }
+    }
 
     let transactionsToProcess: {
       date: string
@@ -299,6 +335,15 @@ export async function POST(request: Request) {
         }
       }
 
+      // R1.8: Auto-categorize by merchant history when CSV had no category
+      if (!categoryId && tx.merchant) {
+        const merchantKey = tx.merchant.toLowerCase()
+        const histCatId = merchantCategoryMap.get(merchantKey)
+        if (histCatId) {
+          categoryId = histCatId
+        }
+      }
+
       // Match account by name (Monarch) or use provided accountId
       // Try exact match first, then partial match, then auto-create (R1.5)
       let resolvedAccountId: string | null = accountId ?? null
@@ -324,7 +369,7 @@ export async function POST(request: Request) {
               data: {
                 userId: session.userId,
                 name: tx.account.trim(),
-                type: 'CHECKING',
+                type: inferAccountType(tx.account.trim()),
                 balance: 0,
               },
             })
@@ -444,18 +489,9 @@ export async function POST(request: Request) {
       importedCount += created.count
     }
 
-    // Incrementally update account balances from imported transactions.
-    // Cannot reset balance = sum(transactions) because that would lose the
-    // account's initial balance — there is no separate initialBalance field.
-    const balanceDeltas = new Map<string, number>()
-    for (const tx of toImport) {
-      if (tx.accountId) {
-        balanceDeltas.set(tx.accountId, (balanceDeltas.get(tx.accountId) ?? 0) + tx.amount)
-      }
-    }
-    for (const [accId, delta] of balanceDeltas) {
-      await db.account.update({ where: { id: accId }, data: { balance: { increment: delta } } })
-    }
+    // R1.5b: Do NOT update account balances from CSV import transactions.
+    // CSV-imported account balances are manually entered or $0 by default.
+    // Only Plaid-connected accounts should have real balances from API.
 
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)

@@ -1,22 +1,25 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import SpendingBreakdown from '@/components/dashboard/SpendingBreakdown'
 import { formatCurrency } from '@/lib/utils'
 
 interface SpendingGroup {
   group: string
   amount: number
-  categories: { name: string; amount: number }[]
+  categories: { name: string; amount: number; id: string }[]
 }
 
 interface PersonSpending {
   name: string
+  id: string
   amount: number
 }
 
 interface PropertySpending {
   name: string
+  id: string
   type: string | null
   amount: number
 }
@@ -28,6 +31,7 @@ interface Props {
   byProperty: PropertySpending[]
   hasMembers: boolean
   hasProperties: boolean
+  currentMonth: string
 }
 
 type ViewTab = 'category' | 'person' | 'property'
@@ -39,6 +43,7 @@ export default function SpendingViews({
   byProperty,
   hasMembers,
   hasProperties,
+  currentMonth,
 }: Props) {
   const [activeTab, setActiveTab] = useState<ViewTab>('category')
 
@@ -73,12 +78,16 @@ export default function SpendingViews({
 
       {/* Views */}
       {activeTab === 'category' && (
-        <SpendingBreakdown data={spendingGroups} totalSpent={totalSpent} />
+        <SpendingBreakdown data={spendingGroups} totalSpent={totalSpent} currentMonth={currentMonth} />
       )}
 
       {activeTab === 'person' && (
         <BarBreakdown
-          items={byPerson.map((p) => ({ label: p.name, amount: p.amount }))}
+          items={byPerson.map((p) => ({
+            label: p.name,
+            amount: p.amount,
+            href: p.id ? `/transactions?personId=${p.id}&month=${currentMonth}` : undefined,
+          }))}
           totalSpent={totalSpent}
           emptyMessage="No person-tagged expenses this month."
         />
@@ -90,6 +99,7 @@ export default function SpendingViews({
             label: p.name,
             badge: p.type === 'RENTAL' ? 'Rental' : p.type === 'PERSONAL' ? 'Personal' : null,
             amount: p.amount,
+            href: p.id ? `/transactions?propertyId=${p.id}&month=${currentMonth}` : undefined,
           }))}
           totalSpent={totalSpent}
           emptyMessage="No property-tagged expenses this month."
@@ -109,7 +119,7 @@ function BarBreakdown({
   totalSpent,
   emptyMessage,
 }: {
-  items: { label: string; badge?: string | null; amount: number }[]
+  items: { label: string; badge?: string | null; amount: number; href?: string }[]
   totalSpent: number
   emptyMessage: string
 }) {
@@ -125,41 +135,53 @@ function BarBreakdown({
 
   return (
     <div className="space-y-3">
-      {items.map((item, i) => (
-        <div key={item.label} className="card">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-block h-3 w-3 rounded-full"
-                style={{ backgroundColor: BAR_COLORS[i % BAR_COLORS.length] }}
-              />
-              <span className="text-sm font-semibold text-fjord">{item.label}</span>
-              {item.badge && (
-                <span className="rounded-badge bg-frost px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                  {item.badge}
+      {items.map((item, i) => {
+        const content = (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{ backgroundColor: BAR_COLORS[i % BAR_COLORS.length] }}
+                />
+                <span className="text-sm font-semibold text-fjord">{item.label}</span>
+                {item.badge && (
+                  <span className="rounded-badge bg-frost px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                    {item.badge}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-sm font-semibold text-fjord">
+                  {formatCurrency(item.amount)}
                 </span>
-              )}
+                <span className="text-xs text-stone">
+                  {totalSpent > 0 ? `${((item.amount / totalSpent) * 100).toFixed(1)}%` : '—'}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-sm font-semibold text-fjord">
-                {formatCurrency(item.amount)}
-              </span>
-              <span className="text-xs text-stone">
-                {totalSpent > 0 ? `${((item.amount / totalSpent) * 100).toFixed(1)}%` : '—'}
-              </span>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-mist">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.round((item.amount / maxAmount) * 100)}%`,
+                  backgroundColor: BAR_COLORS[i % BAR_COLORS.length],
+                }}
+              />
             </div>
+          </>
+        )
+
+        return item.href ? (
+          <Link key={item.label} href={item.href} className="card block hover:border-fjord/30">
+            {content}
+          </Link>
+        ) : (
+          <div key={item.label} className="card">
+            {content}
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-mist">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.round((item.amount / maxAmount) * 100)}%`,
-                backgroundColor: BAR_COLORS[i % BAR_COLORS.length],
-              }}
-            />
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

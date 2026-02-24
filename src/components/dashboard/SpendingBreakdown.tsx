@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
 
 interface SpendingGroup {
   group: string
   amount: number
-  categories: { name: string; amount: number }[]
+  categories: { name: string; amount: number; id?: string }[]
 }
 
 interface Props {
   data: SpendingGroup[]
   totalSpent: number
+  currentMonth?: string
 }
 
 const COLORS = [
@@ -21,7 +23,7 @@ const COLORS = [
   '#a855f7', '#d946ef',
 ]
 
-export default function SpendingBreakdown({ data, totalSpent }: Props) {
+export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Props) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
 
   const pieData = data.map((g, i) => ({
@@ -104,25 +106,36 @@ export default function SpendingBreakdown({ data, totalSpent }: Props) {
                   <div className="border-t border-mist">
                     <table className="w-full text-sm">
                       <tbody className="divide-y divide-gray-50">
-                        {group.categories.map(cat => (
-                          <tr key={cat.name} className="hover:bg-snow">
-                            <td className="px-4 py-2 pl-10 text-fjord">{cat.name}</td>
-                            <td className="px-4 py-2 text-right text-stone">
-                              {formatCurrency(cat.amount)}
-                            </td>
-                            <td className="w-24 px-4 py-2">
-                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${Math.round((cat.amount / group.amount) * 100)}%`,
-                                    backgroundColor: COLORS[gi % COLORS.length],
-                                  }}
-                                />
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {group.categories.map(cat => {
+                          const catHref = cat.id && currentMonth
+                            ? `/transactions?categoryId=${cat.id}&month=${currentMonth}`
+                            : null
+                          return (
+                            <tr key={cat.name} className="hover:bg-snow">
+                              <td className="px-4 py-2 pl-10 text-fjord">
+                                {catHref ? (
+                                  <Link href={catHref} className="hover:underline">{cat.name}</Link>
+                                ) : (
+                                  cat.name
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-right text-stone">
+                                {formatCurrency(cat.amount)}
+                              </td>
+                              <td className="w-24 px-4 py-2">
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
+                                  <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                      width: `${Math.round((cat.amount / group.amount) * 100)}%`,
+                                      backgroundColor: COLORS[gi % COLORS.length],
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

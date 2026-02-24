@@ -82,11 +82,14 @@ export default async function SpendingPage({ searchParams }: Props) {
     totalSpent += Math.abs(tx.amount)
   }
 
+  const catIdMap = new Map<string, string>() // catName -> catId for click-through
   for (const tx of categorizedTx) {
     const group = tx.category?.group ?? 'Other'
     const catName = tx.category?.name ?? 'Unknown'
+    const catId = tx.category?.id ?? ''
     const amount = Math.abs(tx.amount)
 
+    if (catId && catName) catIdMap.set(catName, catId)
     if (!groupMap.has(group)) groupMap.set(group, new Map())
     const catMap = groupMap.get(group)!
     catMap.set(catName, (catMap.get(catName) ?? 0) + amount)
@@ -95,40 +98,47 @@ export default async function SpendingPage({ searchParams }: Props) {
   const spendingGroups = [...groupMap.entries()]
     .map(([group, catMap]) => {
       const categories = [...catMap.entries()]
-        .map(([name, amount]) => ({ name, amount }))
+        .map(([name, amount]) => ({ name, amount, id: catIdMap.get(name) ?? '' }))
         .sort((a, b) => b.amount - a.amount)
       const amount = categories.reduce((s, c) => s + c.amount, 0)
       return { group, amount, categories }
     })
     .sort((a, b) => b.amount - a.amount)
 
-  // Group by person
-  const byPerson: { name: string; amount: number }[] = []
-  const personMap = new Map<string, number>()
+  // Group by person (R3.3a: include person ID for click-through)
+  const byPerson: { name: string; id: string; amount: number }[] = []
+  const personAgg = new Map<string, { id: string; amount: number }>()
   for (const tx of expenseTransactions) {
     const name = tx.householdMember?.name ?? 'Unassigned'
-    personMap.set(name, (personMap.get(name) ?? 0) + Math.abs(tx.amount))
-  }
-  for (const [name, amount] of personMap) {
-    byPerson.push({ name, amount })
-  }
-  byPerson.sort((a, b) => b.amount - a.amount)
-
-  // Group by property
-  const byProperty: { name: string; type: string | null; amount: number }[] = []
-  const propertyMap = new Map<string, { type: string | null; amount: number }>()
-  for (const tx of expenseTransactions) {
-    const name = tx.property?.name ?? 'Unassigned'
-    const type = tx.property?.type ?? null
-    const existing = propertyMap.get(name)
+    const id = tx.householdMember?.id ?? ''
+    const existing = personAgg.get(name)
     if (existing) {
       existing.amount += Math.abs(tx.amount)
     } else {
-      propertyMap.set(name, { type, amount: Math.abs(tx.amount) })
+      personAgg.set(name, { id, amount: Math.abs(tx.amount) })
     }
   }
-  for (const [name, { type, amount }] of propertyMap) {
-    byProperty.push({ name, type, amount })
+  for (const [name, { id, amount }] of personAgg) {
+    byPerson.push({ name, id, amount })
+  }
+  byPerson.sort((a, b) => b.amount - a.amount)
+
+  // Group by property (R4.3: include property ID for click-through)
+  const byProperty: { name: string; id: string; type: string | null; amount: number }[] = []
+  const propertyAgg = new Map<string, { id: string; type: string | null; amount: number }>()
+  for (const tx of expenseTransactions) {
+    const name = tx.property?.name ?? 'Unassigned'
+    const id = tx.property?.id ?? ''
+    const type = tx.property?.type ?? null
+    const existing = propertyAgg.get(name)
+    if (existing) {
+      existing.amount += Math.abs(tx.amount)
+    } else {
+      propertyAgg.set(name, { id, type, amount: Math.abs(tx.amount) })
+    }
+  }
+  for (const [name, { id, type, amount }] of propertyAgg) {
+    byProperty.push({ name, id, type, amount })
   }
   byProperty.sort((a, b) => b.amount - a.amount)
 
@@ -181,6 +191,7 @@ export default async function SpendingPage({ searchParams }: Props) {
         byProperty={byProperty}
         hasMembers={hasMembers}
         hasProperties={hasProperties}
+        currentMonth={currentMonth}
       />
     </div>
   )

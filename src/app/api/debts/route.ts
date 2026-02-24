@@ -126,5 +126,16 @@ export async function POST(req: NextRequest) {
     include: { property: true, category: true },
   })
 
-  return NextResponse.json(debt, { status: 201 })
+  // R5.7: Return computed fields so the client can render immediately
+  const monthlyInterest = debt.currentBalance * (debt.interestRate / 12)
+  const monthlyPrincipal = Math.max(0, debt.minimumPayment - monthlyInterest)
+  const monthsRemaining =
+    monthlyPrincipal > 0 ? Math.ceil(debt.currentBalance / monthlyPrincipal) : null
+
+  return NextResponse.json({
+    ...debt,
+    monthlyInterest: Math.round(monthlyInterest * 100) / 100,
+    monthlyPrincipal: Math.round(monthlyPrincipal * 100) / 100,
+    monthsRemaining,
+  }, { status: 201 })
 }

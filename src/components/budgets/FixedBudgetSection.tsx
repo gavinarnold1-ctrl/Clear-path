@@ -21,28 +21,11 @@ interface FixedBudget {
 }
 
 function getFixedStatus(budget: FixedBudget, transactions: Transaction[]): FixedStatus {
-  // Primary: match by categoryId
-  let matches = budget.categoryId
+  // R1.2: Match STRICTLY by categoryId — no fuzzy/name-based matching.
+  // This prevents "Mortgage Payment" from matching "Credit Card Payment" transactions.
+  const matches = budget.categoryId
     ? transactions.filter((t) => t.categoryId === budget.categoryId)
     : []
-
-  // Fallback: match by category name or budget name when categoryId is null or matches nothing
-  if (matches.length === 0) {
-    const budgetCatName = budget.category?.name?.toLowerCase()
-    const budgetName = budget.name.toLowerCase()
-
-    matches = transactions.filter((t) => {
-      if (!t.category?.name) return false
-      const txCatName = t.category.name.toLowerCase()
-      // Exact name match to budget's linked category name
-      if (budgetCatName && txCatName === budgetCatName) return true
-      // Exact name match to budget name itself (e.g. budget "Mortgage" → category "Mortgage")
-      if (txCatName === budgetName) return true
-      // Partial match: "Mortgage Payment" contains "Mortgage"
-      if (txCatName.includes(budgetName) || budgetName.includes(txCatName)) return true
-      return false
-    })
-  }
 
   if (matches.length === 0) {
     const today = new Date().getDate()

@@ -6,10 +6,12 @@ import { logout } from '@/app/actions/auth'
 import { db } from '@/lib/db'
 import { DEMO_USER_ID } from '@/lib/demo'
 import OnboardingBanner from '@/components/onboarding/OnboardingBanner'
+import SidebarNav from '@/components/layout/SidebarNav'
+import type { NavGroup } from '@/components/layout/SidebarNav'
 
-const navGroups = [
+const navGroups: NavGroup[] = [
   {
-    label: null, // Daily use — no header for primary group
+    label: null,
     items: [
       { href: '/dashboard', label: 'Overview' },
       { href: '/budgets', label: 'Budgets' },
@@ -58,57 +60,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar — Fjord background per brand spec */}
-      <aside className="flex w-52 shrink-0 flex-col bg-fjord px-4 py-6">
-        <Link href="/" className="mb-8 flex items-center gap-2.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-frost/15 font-display text-sm text-snow">
-            O
-          </span>
-          <span className="font-display text-base tracking-tight text-snow">oversikt</span>
-        </Link>
-
-        <nav className="space-y-4">
-          {navGroups.map((group, gi) => (
-            <div key={gi}>
-              {group.label && (
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-snow/30">
-                  {group.label}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {group.items.map(({ href, label }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="block rounded-md px-3 py-2 text-[13px] font-medium text-snow/50 hover:bg-frost/10 hover:text-snow"
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        <div className="mt-auto space-y-3 pt-6">
-          {session && (
-            <p className="truncate px-1 text-xs text-snow/40" title={session.email}>
-              {session.name ?? session.email}
-            </p>
-          )}
-          <form action={logout}>
-            <button
-              type="submit"
-              className="w-full rounded-button border border-white/20 bg-transparent px-3 py-2 text-xs font-medium text-snow/60 hover:bg-frost/10 hover:text-snow"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </aside>
+      <SidebarNav
+        navGroups={navGroups}
+        userName={session?.name ?? null}
+        userEmail={session?.email ?? ''}
+        logoutAction={logout}
+      />
 
       {/* Main content — Snow background */}
-      <main className="flex-1 overflow-y-auto bg-snow p-8">
+      <main className="flex-1 overflow-y-auto bg-snow p-4 pt-16 md:p-8 md:pt-8">
         {isDemo && (
           <div className="mb-4 flex items-center justify-between rounded-card bg-birch/30 px-4 py-2.5 text-sm text-midnight">
             <span>

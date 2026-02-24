@@ -38,22 +38,22 @@ export default function MonthlyChart({ data }: Props) {
               ]}
             />
             <Legend />
-            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="income" fill="#52B788" radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell
                   key={`income-${index}`}
                   fillOpacity={entry.isCurrent ? 1 : 0.6}
-                  stroke={entry.isCurrent ? '#16a34a' : 'none'}
+                  stroke={entry.isCurrent ? '#2D5F3E' : 'none'}
                   strokeWidth={entry.isCurrent ? 2 : 0}
                 />
               ))}
             </Bar>
-            <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="expenses" fill="#C4704B" radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell
                   key={`expenses-${index}`}
                   fillOpacity={entry.isCurrent ? 1 : 0.6}
-                  stroke={entry.isCurrent ? '#dc2626' : 'none'}
+                  stroke={entry.isCurrent ? '#a35a3a' : 'none'}
                   strokeWidth={entry.isCurrent ? 2 : 0}
                 />
               ))}
