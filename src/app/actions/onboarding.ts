@@ -112,7 +112,6 @@ export async function completeOnboarding(answers: OnboardingAnswers) {
           data: {
             userId: session.userId,
             name: answers.partnerName.trim(),
-            role: 'partner',
           },
         })
       }
