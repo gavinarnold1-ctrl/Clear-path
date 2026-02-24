@@ -305,8 +305,8 @@ describe('T1.5 — Import route: auto-creates accounts (source verification)', (
     expect(code).toMatch(/Auto-create account/)
     expect(code).toMatch(/db\.account\.create/)
 
-    // Must set defaults for auto-created accounts
-    expect(code).toMatch(/type:\s*'CHECKING'/)
+    // R1.5a: Must infer account type from name (not always CHECKING)
+    expect(code).toMatch(/inferAccountType/)
     expect(code).toMatch(/balance:\s*0/)
   })
 

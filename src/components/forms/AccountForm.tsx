@@ -12,6 +12,9 @@ const ACCOUNT_TYPES = [
   { value: 'CREDIT_CARD', label: 'Credit Card' },
   { value: 'INVESTMENT', label: 'Investment' },
   { value: 'CASH', label: 'Cash' },
+  { value: 'MORTGAGE', label: 'Mortgage' },
+  { value: 'AUTO_LOAN', label: 'Auto Loan' },
+  { value: 'STUDENT_LOAN', label: 'Student Loan' },
 ]
 
 export default function AccountForm() {

@@ -15,6 +15,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const { name, isDefault } = body
 
+  // R10.2a: Duplicate name prevention on rename (case-insensitive)
+  if (name !== undefined && name.trim()) {
+    const duplicate = await db.householdMember.findFirst({
+      where: {
+        userId: session.userId,
+        name: { equals: name.trim(), mode: 'insensitive' },
+        id: { not: id },
+      },
+    })
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'A household member with this name already exists' },
+        { status: 409 }
+      )
+    }
+  }
+
   // If setting as default, unset any existing default
   if (isDefault && !existing.isDefault) {
     await db.householdMember.updateMany({
