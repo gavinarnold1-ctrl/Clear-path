@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { recalculateBudgetSpentForCategory } from '@/lib/budget-utils'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -10,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const transaction = await db.transaction.findUnique({
     where: { id, userId: session.userId },
-    include: { account: true, category: true },
+    include: { account: true, category: true, householdMember: true, property: true },
   })
   if (!transaction) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(transaction)
@@ -27,7 +26,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const existing = await db.transaction.findUnique({ where: { id, userId: session.userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const oldCategoryId = existing.categoryId
   const oldAccountId = existing.accountId
   const oldAmount = existing.amount
 
@@ -58,6 +56,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // Verify ownership of referenced householdMemberId
+  if (body.householdMemberId !== undefined && body.householdMemberId !== null) {
+    const member = await db.householdMember.findFirst({
+      where: { id: body.householdMemberId, userId: session.userId },
+    })
+    if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
+  }
+
+  // Verify ownership of referenced propertyId
+  if (body.propertyId !== undefined && body.propertyId !== null) {
+    const property = await db.property.findFirst({
+      where: { id: body.propertyId, userId: session.userId },
+    })
+    if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
+  }
+
   const transaction = await db.$transaction(async (tx) => {
     const updated = await tx.transaction.update({
       where: { id },
@@ -71,8 +85,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.accountId !== undefined && { accountId: body.accountId }),
         ...(body.originalStatement !== undefined && { originalStatement: body.originalStatement }),
         ...(body.transactionType !== undefined && { transactionType: body.transactionType }),
+        ...(body.householdMemberId !== undefined && { householdMemberId: body.householdMemberId }),
+        ...(body.propertyId !== undefined && { propertyId: body.propertyId }),
       },
-      include: { account: true, category: true },
+      include: { account: true, category: true, householdMember: true, property: true },
     })
 
     // Reverse old account balance, apply new
@@ -91,14 +107,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     return updated
   })
-
-  // Recalculate budgets for all affected categories
-  const categoriesToRecalc = new Set<string>()
-  if (oldCategoryId) categoriesToRecalc.add(oldCategoryId)
-  if (transaction.categoryId) categoriesToRecalc.add(transaction.categoryId)
-  for (const catId of categoriesToRecalc) {
-    await recalculateBudgetSpentForCategory(session.userId, catId)
-  }
 
   return NextResponse.json(transaction)
 }
@@ -123,10 +131,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       })
     }
   })
-
-  if (existing.categoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, existing.categoryId)
-  }
 
   return new NextResponse(null, { status: 204 })
 }

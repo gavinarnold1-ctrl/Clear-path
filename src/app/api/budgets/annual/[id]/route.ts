@@ -122,7 +122,6 @@ export async function PATCH(
             data: {
               name: expense.name,
               amount: expense.annualAmount,
-              spent: 0,
               period: 'YEARLY',
               tier: 'ANNUAL',
               startDate: new Date(now.getFullYear(), 0, 1),

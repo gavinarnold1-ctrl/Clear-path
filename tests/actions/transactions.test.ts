@@ -4,8 +4,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockTxCreate = vi.fn()
 const mockAccountUpdate = vi.fn()
-const mockBudgetFindFirst = vi.fn()
-const mockBudgetUpdate = vi.fn()
 const mockTxFindUnique = vi.fn()
 const mockTxDelete = vi.fn()
 const mockCategoryFindUnique = vi.fn()
@@ -13,7 +11,6 @@ const mockCategoryFindUnique = vi.fn()
 const mockPrismaTx = {
   transaction: { create: mockTxCreate, findUnique: mockTxFindUnique, delete: mockTxDelete },
   account: { update: mockAccountUpdate },
-  budget: { findFirst: mockBudgetFindFirst, update: mockBudgetUpdate },
 }
 
 vi.mock('@/lib/db', () => ({
@@ -63,7 +60,6 @@ describe('createTransaction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
-    mockBudgetFindFirst.mockResolvedValue(null)
     mockCategoryFindUnique.mockResolvedValue(null)
   })
 
@@ -134,40 +130,16 @@ describe('createTransaction', () => {
     expect(mockAccountUpdate).not.toHaveBeenCalled()
   })
 
-  it('updates matching budget spent when expense category matches', async () => {
-    const budget = { id: 'b1', spent: 0 }
-    mockBudgetFindFirst.mockResolvedValue(budget)
+  it('does not update budget spent (spent is computed on read)', async () => {
     mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'expense' })
 
     await expect(
       createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
     ).rejects.toThrow('NEXT_REDIRECT:/transactions')
 
-    expect(mockBudgetUpdate).toHaveBeenCalledWith({
-      where: { id: 'b1' },
-      data: { spent: { increment: 100 } },
-    })
-  })
-
-  it('does not update budget when no matching budget exists', async () => {
-    mockBudgetFindFirst.mockResolvedValue(null)
-    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'expense' })
-
-    await expect(
-      createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
-    ).rejects.toThrow('NEXT_REDIRECT:/transactions')
-    expect(mockBudgetUpdate).not.toHaveBeenCalled()
-  })
-
-  it('does not update budget for income transactions', async () => {
-    const budget = { id: 'b1', spent: 0 }
-    mockBudgetFindFirst.mockResolvedValue(budget)
-    mockCategoryFindUnique.mockResolvedValue({ id: 'cat-1', type: 'income' })
-
-    await expect(
-      createTransaction({ error: null }, fd({ ...validData, categoryId: 'cat-1' }))
-    ).rejects.toThrow('NEXT_REDIRECT:/transactions')
-    expect(mockBudgetUpdate).not.toHaveBeenCalled()
+    // No budget update calls — spent is computed from transactions on read
+    // Only account update should be called
+    expect(mockAccountUpdate).toHaveBeenCalledTimes(1)
   })
 
   it('redirects to /transactions on success', async () => {
@@ -183,7 +155,6 @@ describe('deleteTransaction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
-    mockBudgetFindFirst.mockResolvedValue(null)
   })
 
   it('redirects to /login when no session', async () => {
@@ -238,18 +209,15 @@ describe('deleteTransaction', () => {
     expect(mockAccountUpdate).not.toHaveBeenCalled()
   })
 
-  it('decrements budget.spent when deleting a categorised expense', async () => {
+  it('does not update budget spent on delete (spent is computed on read)', async () => {
     mockTxFindUnique.mockResolvedValue({
       id: 'tx-3', userId: 'u1', amount: -50, accountId: 'acc-1',
       categoryId: 'cat-1', date: new Date('2026-02-01'),
     })
-    mockBudgetFindFirst.mockResolvedValue({ id: 'b1' })
 
     await deleteTransaction('tx-3')
 
-    expect(mockBudgetUpdate).toHaveBeenCalledWith({
-      where: { id: 'b1' },
-      data: { spent: { decrement: 50 } },
-    })
+    // Account balance reversed, but no budget update
+    expect(mockAccountUpdate).toHaveBeenCalledTimes(1)
   })
 })

@@ -21,6 +21,8 @@ export async function createTransaction(
   const date = formData.get('date') as string
   const accountId = (formData.get('accountId') as string) || null
   const categoryId = (formData.get('categoryId') as string) || null
+  const householdMemberId = (formData.get('householdMemberId') as string) || null
+  const propertyId = (formData.get('propertyId') as string) || null
   const notes = (formData.get('notes') as string)?.trim() || null
   const tags = (formData.get('tags') as string)?.trim() || null
 
@@ -47,27 +49,12 @@ export async function createTransaction(
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record
     await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, amount: finalAmount, merchant, date: txDate, notes, tags },
+      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId, amount: finalAmount, merchant, date: txDate, notes, tags },
     })
 
     // 2. Adjust account balance (amount sign already correct)
     if (accountId) {
       await tx.account.update({ where: { id: accountId }, data: { balance: { increment: finalAmount } } })
-    }
-
-    // 3. Update matching active budget's spent counter (expenses only)
-    if (categoryId && finalAmount < 0) {
-      const budget = await tx.budget.findFirst({
-        where: {
-          userId: session.userId,
-          categoryId,
-          startDate: { lte: txDate },
-          OR: [{ endDate: null }, { endDate: { gte: txDate } }],
-        },
-      })
-      if (budget) {
-        await tx.budget.update({ where: { id: budget.id }, data: { spent: { increment: Math.abs(finalAmount) } } })
-      }
     }
   })
 
@@ -91,24 +78,6 @@ export async function deleteTransaction(id: string): Promise<void> {
     // Reverse account balance
     if (existing.accountId) {
       await tx.account.update({ where: { id: existing.accountId }, data: { balance: { increment: -existing.amount } } })
-    }
-
-    // Reverse budget spent (for expenses, amount is negative)
-    if (existing.categoryId && existing.amount < 0) {
-      const budget = await tx.budget.findFirst({
-        where: {
-          userId: session.userId,
-          categoryId: existing.categoryId,
-          startDate: { lte: existing.date },
-          OR: [{ endDate: null }, { endDate: { gte: existing.date } }],
-        },
-      })
-      if (budget) {
-        await tx.budget.update({
-          where: { id: budget.id },
-          data: { spent: { decrement: Math.abs(existing.amount) } },
-        })
-      }
     }
   })
 

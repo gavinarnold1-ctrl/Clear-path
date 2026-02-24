@@ -14,6 +14,8 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 - Manage annual/sinking fund expenses with auto-funding and spend tracking
 - View summary stats, spending breakdowns, and recent transactions on an overview dashboard
 - Manage account balances (checking, savings, credit, investment, cash, mortgage, auto loan, student loan)
+- Tag transactions by household member (person) and property for multi-person/multi-property tracking
+- Track debts with principal vs interest breakdown and payoff progress
 - Get AI-powered financial insights with actionable savings recommendations
 - Complete an onboarding quiz to personalize their setup
 - Explore the app with pre-seeded demo data (no registration required)
@@ -33,7 +35,7 @@ This file provides context, conventions, and workflows for AI assistants (Claude
 | AI | Anthropic SDK (`@anthropic-ai/sdk`) | ^0.x |
 | Charts | Recharts | ^3.7 |
 | Analytics | @vercel/speed-insights | ^1.x |
-| Testing | Vitest + Testing Library | ^2.1 |
+| Testing | Vitest + Testing Library | ^4.0 |
 | Runtime | Node.js | ≥ 22 |
 | Package manager | npm | — |
 
@@ -57,11 +59,18 @@ Clear-path/
 │   │   │   └── register/page.tsx
 │   │   ├── (dashboard)/     # Route group: protected pages behind the sidebar layout
 │   │   │   ├── layout.tsx       # Sidebar nav wrapper
-│   │   │   ├── dashboard/page.tsx   # Overview with stats, chart, budgets, spending breakdown
-│   │   │   ├── spending/page.tsx    # Full spending breakdown page
+│   │   │   ├── dashboard/page.tsx   # Overview: True Remaining hero, budget pulse, stats, chart
+│   │   │   ├── spending/
+│   │   │   │   ├── page.tsx           # Spending breakdown (by category, person, property)
+│   │   │   │   └── SpendingViews.tsx  # Client component: tabbed views for category/person/property
+│   │   │   ├── monthly-review/
+│   │   │   │   ├── page.tsx             # Monthly Review (renamed from Insights) with trajectory
+│   │   │   │   └── GenerateButton.tsx   # Client component for triggering review generation
 │   │   │   ├── insights/
-│   │   │   │   ├── page.tsx             # AI-powered financial insights
-│   │   │   │   └── GenerateButton.tsx   # Client component for triggering insight generation
+│   │   │   │   └── page.tsx             # Redirect to /monthly-review
+│   │   │   ├── settings/
+│   │   │   │   ├── page.tsx             # Settings: profile, members, properties, export, delete
+│   │   │   │   └── SettingsClient.tsx   # Client component for settings management
 │   │   │   ├── transactions/
 │   │   │   │   ├── page.tsx         # Transaction list with bulk operations
 │   │   │   │   ├── new/page.tsx     # Create transaction
@@ -72,6 +81,8 @@ Clear-path/
 │   │   │   │   ├── page.tsx         # Tiered budget view (fixed, flexible, annual)
 │   │   │   │   ├── new/page.tsx     # Create budget
 │   │   │   │   └── annual/page.tsx  # Annual sinking fund dashboard
+│   │   │   ├── debts/
+│   │   │   │   └── page.tsx         # Debts page with P&I breakdown, payoff progress
 │   │   │   ├── accounts/
 │   │   │   │   ├── page.tsx         # Account list with net worth
 │   │   │   │   └── new/page.tsx     # Create account
@@ -92,14 +103,30 @@ Clear-path/
 │   │   │   │       ├── [id]/route.ts    # PATCH/DELETE annual expense
 │   │   │   │       └── auto-fund/route.ts # POST: auto-fund annual expenses
 │   │   │   ├── categories/route.ts
-│   │   │   ├── cron/reset-demo/route.ts # Daily demo data reset (Vercel cron)
+│   │   │   ├── debts/
+│   │   │   │   ├── route.ts             # GET/POST debts (with computed P&I fields)
+│   │   │   │   └── [id]/route.ts        # GET/PATCH/DELETE single debt
+│   │   │   ├── household-members/
+│   │   │   │   ├── route.ts             # GET/POST household members
+│   │   │   │   └── [id]/route.ts        # PATCH/DELETE household member
+│   │   │   ├── properties/
+│   │   │   │   ├── route.ts             # GET/POST properties (PERSONAL/RENTAL)
+│   │   │   │   └── [id]/route.ts        # PATCH/DELETE property
+│   │   │   ├── cron/
+│   │   │   │   ├── reset-demo/route.ts        # Daily demo data reset (Vercel cron)
+│   │   │   │   └── monthly-snapshot/route.ts  # Monthly snapshot cron (1st of month)
 │   │   │   ├── insights/
 │   │   │   │   ├── route.ts             # GET active insights, POST generate new
 │   │   │   │   └── [id]/route.ts        # PATCH dismiss/complete insight
+│   │   │   ├── profile/
+│   │   │   │   ├── route.ts             # GET/PATCH user profile
+│   │   │   │   ├── password/route.ts    # POST: change password
+│   │   │   │   └── delete/route.ts      # POST: permanently delete account
 │   │   │   └── transactions/
 │   │   │       ├── route.ts         # GET list, POST create
 │   │   │       ├── [id]/route.ts    # GET one, PATCH, DELETE
 │   │   │       ├── bulk/route.ts    # POST: bulk edit/delete
+│   │   │       ├── export/route.ts  # GET: download transactions as CSV
 │   │   │       └── import/
 │   │   │           ├── route.ts         # POST: import confirmed transactions
 │   │   │           └── preview/route.ts # POST: parse CSV and return column mappings
@@ -114,6 +141,7 @@ Clear-path/
 │   │   ├── budgets/         # Tiered budget sections (Fixed, Flexible, Annual) + TrueRemainingBanner
 │   │   ├── categories/      # CategoryManager (inline edit/delete)
 │   │   ├── dashboard/       # MonthlyChart, SpendingBreakdown
+│   │   ├── debts/           # DebtManager (debt cards with P&I breakdown, add/delete)
 │   │   ├── forms/           # TransactionForm, BudgetForm, AccountForm, CategoryForm, LoginForm, RegisterForm
 │   │   ├── import/          # CsvUploader, ColumnMapper, ImportPreview, ImportSummary
 │   │   ├── insights/        # InsightCard, EfficiencyScoreGauge, SpendingComparison, InsightsList, InsightsSkeleton
@@ -137,6 +165,7 @@ Clear-path/
 │   │   ├── password.ts      # bcrypt hash / verify
 │   │   ├── seed-demo.ts     # Demo data generation logic
 │   │   ├── session.ts       # Cookie-based session management
+│   │   ├── snapshots.ts     # MonthlySnapshot computation + storage
 │   │   ├── temporal-context.ts # Time-aware context for AI prompts
 │   │   └── utils.ts         # formatCurrency, formatDate, budgetProgress, cn
 │   └── types/
@@ -147,7 +176,9 @@ Clear-path/
 │   ├── setup.ts             # Vitest global setup (jest-dom matchers, mock cleanup)
 │   ├── actions/             # Server action tests (auth, accounts, transactions, budgets)
 │   ├── components/ui/       # Component tests (ProgressBar, BudgetCard)
-│   └── lib/                 # Unit tests (utils, jwt, password, benchmarks, insights, csv-parser, column-mapping, budget-engine)
+│   ├── lib/                 # Unit tests (utils, jwt, password, benchmarks, insights, csv-parser, column-mapping, budget-engine)
+│   ├── phase1/              # Phase 1 spec tests (budget spent, fixed expense matching, amount signs, AI insights)
+│   └── phase2/              # Phase 2 spec tests (household members, property tagging, debts page)
 ├── .env.example             # Environment variable template
 ├── .gitignore
 ├── next.config.ts
@@ -177,8 +208,10 @@ User
  ├── Insight[]          (AI-generated financial recommendations)
  ├── InsightFeedback[]  (user ratings/comments on insights)
  ├── EfficiencyScore[]  (monthly financial efficiency scores)
- ├── HouseholdMember[]  (partner, dependents from onboarding)
- └── Property[]         (rental/primary/investment properties)
+ ├── HouseholdMember[]  (household people — taggable on transactions, has isDefault flag)
+ ├── Property[]         (personal/rental properties — taggable on transactions and debts)
+ ├── Debt[]             (mortgages, student loans, auto loans, credit cards — with P&I tracking)
+ └── MonthlySnapshot[]  (monthly metrics snapshot: income, expenses, savings rate, debt, etc.)
 
 Reference Databases (read-only, not user-scoped):
  ├── TaxRule[]                  (federal/state tax rules with thresholds)
@@ -191,10 +224,13 @@ Reference Databases (read-only, not user-scoped):
 ```
 
 Key relationships:
-- A `Transaction` optionally belongs to an `Account`, one `Category`, and optionally one `AnnualExpense`. Income vs expense is determined by amount sign (positive = income, negative = expense). An optional `transactionType` field stores "debit"/"credit" from Monarch CSV imports. Indexed on `[userId, date]`, `[userId, categoryId]`, `[accountId]`, and `[annualExpenseId]`.
+- A `Transaction` optionally belongs to an `Account`, one `Category`, one `AnnualExpense`, one `HouseholdMember`, and one `Property`. Income vs expense is determined by amount sign (positive = income, negative = expense). An optional `transactionType` field stores "debit"/"credit" from Monarch CSV imports. Indexed on `[userId, date]`, `[userId, categoryId]`, `[accountId]`, `[annualExpenseId]`, `[householdMemberId]`, and `[propertyId]`.
 - A `Category` has a `group` (e.g. "Food & Dining", "Housing"), a string `type` ("income" / "expense" / "transfer"), and an optional `budgetTier` (`BudgetTier` enum: FIXED / FLEXIBLE / ANNUAL). Has optional tax fields: `isTaxRelevant` and `scheduleECategory`. System default categories have `userId: null` and `isDefault: true`; user-created categories have `isDefault: false`. Unique on `[userId, type, group, name]`.
-- A `Budget` targets one `Category`, has a `period` (`BudgetPeriod` enum), `tier` (`BudgetTier` enum, default FLEXIBLE), and a stored `spent` field. FIXED tier budgets have extra fields: `isAutoPay`, `dueDay`, `varianceLimit`. Has an optional one-to-one `annualExpense` relation.
+- A `Budget` targets one `Category`, has a `period` (`BudgetPeriod` enum), `tier` (`BudgetTier` enum, default FLEXIBLE). `spent` is computed live from transactions — not stored. FIXED tier budgets have extra fields: `isAutoPay`, `dueDay`, `varianceLimit`. Has an optional one-to-one `annualExpense` relation.
 - An `AnnualExpense` is linked to a `Budget` via `budgetId` (one-to-one) and can have linked `Transaction[]`. Tracks annual costs with `annualAmount`, `dueMonth`/`dueYear`, `monthlySetAside`, `funded`, and `status` ("planned" / "funded" / "spent" / "overspent").
+- A `HouseholdMember` has `name` and `isDefault` (only one default per user). Transactions reference via `householdMemberId` (nullable, SetNull on delete).
+- A `Property` has `name`, `type` (`PropertyType` enum: PERSONAL / RENTAL), and `isDefault`. Transactions reference via `propertyId` (nullable, SetNull on delete). Properties also link to `Debt[]`.
+- A `Debt` tracks a liability with `type` (`DebtType` enum: MORTGAGE / STUDENT_LOAN / AUTO / CREDIT_CARD / PERSONAL_LOAN / OTHER), `currentBalance`, `originalBalance`, `interestRate`, `minimumPayment`, and optional `propertyId`/`categoryId`. Computed fields (`monthlyInterest`, `monthlyPrincipal`, `monthsRemaining`) are calculated on read, not stored.
 - An `Insight` stores AI-generated recommendations with priority, savings estimates, action items (JSON), and optional feedback from users.
 - An `EfficiencyScore` tracks monthly financial efficiency (0-100) with spending/savings/debt sub-scores; unique per user+period.
 - Reference database models (TaxRule, SpendingBenchmark, etc.) are NOT user-scoped — they are read-only datasets shipped with the app.
@@ -255,7 +291,7 @@ npm run test:coverage  # Coverage report
 - JWT-based sessions stored in an `httpOnly` cookie (`clear-path-session`).
 - `src/lib/jwt.ts` handles sign / verify using `jose` (Edge-compatible, no Node.js built-ins).
 - `src/lib/session.ts` provides `getSession()`, `setSession()`, `clearSession()` helpers for Server Components and Route Handlers.
-- `middleware.ts` guards protected routes (`/dashboard`, `/insights`, `/transactions`, `/budgets`, `/accounts`, `/categories`, `/spending`, `/onboarding`) and redirects unauthenticated users to `/login`.
+- `middleware.ts` guards protected routes (`/dashboard`, `/insights`, `/transactions`, `/budgets`, `/accounts`, `/categories`, `/spending`, `/onboarding`, `/debts`) and redirects unauthenticated users to `/login`.
 - Server actions in `src/app/actions/` handle auth, CRUD for accounts, transactions, budgets, and categories.
 
 ### API Routes
@@ -296,6 +332,14 @@ Net worth subtracts liability account balances. The following account types are 
 
 When deleting an account, transactions linked to it are **unlinked** (set `accountId: null`) before the account is deleted, using `db.$transaction([…])` to ensure atomicity.
 
+### Household Member / Property Deletion
+
+When deleting a household member or property, transactions referencing it are **unlinked** (set `householdMemberId: null` or `propertyId: null`) before deletion, using `db.$transaction([…])` to ensure atomicity. The schema also uses `onDelete: SetNull` as a safety net.
+
+### Default Member / Property
+
+Each user can have at most one default `HouseholdMember` and one default `Property` (via `isDefault: true`). When setting a new default, the API routes unset any existing default first. Defaults are pre-selected in the transaction form.
+
 ### Components
 
 - UI primitives go in `src/components/ui/` (BudgetCard, ProgressBar).
@@ -310,6 +354,7 @@ When deleting an account, transactions linked to it are **unlinked** (set `accou
 - Component tests use `@testing-library/react`.
 - Mock Prisma in server action tests — never hit a real database in CI.
 - `tests/` is excluded from `tsconfig.json` so test-only imports (vitest, jest-dom) don't interfere with the Next.js build.
+- Phase spec tests live in `tests/phase1/` and `tests/phase2/`, verifying PRD requirements via schema reads, source code verification, mocked API tests, and computed value unit tests. See `/docs/TESTS.md` for the full test spec.
 
 ---
 

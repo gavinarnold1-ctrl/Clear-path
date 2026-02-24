@@ -46,9 +46,8 @@ export default async function BudgetsPage() {
 
   const income = incomeAgg._sum.amount ?? 0
 
-  // Compute actual spent per category from this month's expense transactions.
-  // This is the source of truth — never trust the stored budget.spent alone,
-  // because it can drift if the seed or a bulk operation didn't update it.
+  // Compute spent per category from this month's expense transactions.
+  // Budget spent is always computed on read — never stored.
   const spentByCategory = new Map<string, number>()
   for (const tx of transactions) {
     if (tx.categoryId) {
@@ -59,10 +58,9 @@ export default async function BudgetsPage() {
     }
   }
 
-  // Override each budget's spent with the computed value
   const budgetsWithSpent = budgets.map((b) => ({
     ...b,
-    spent: b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : b.spent,
+    spent: b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0,
   }))
 
   const fixed = budgetsWithSpent.filter((b) => b.tier === 'FIXED')

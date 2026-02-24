@@ -17,6 +17,19 @@ interface AccountOption {
   type: string
 }
 
+interface HouseholdMemberOption {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
+interface PropertyOption {
+  id: string
+  name: string
+  type: string
+  isDefault: boolean
+}
+
 interface TransactionRow {
   id: string
   date: string
@@ -25,20 +38,29 @@ interface TransactionRow {
   notes: string | null
   categoryId: string | null
   accountId: string | null
+  householdMemberId: string | null
+  propertyId: string | null
   category: { id: string; name: string } | null
   account: { id: string; name: string } | null
+  householdMember: { id: string; name: string } | null
+  property: { id: string; name: string } | null
 }
 
 interface Props {
   transactions: TransactionRow[]
   categories: CategoryOption[]
   accounts: AccountOption[]
+  householdMembers?: HouseholdMemberOption[]
+  properties?: PropertyOption[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Filter state (R4.4: property filter on Transactions)
+  const [filterPropertyId, setFilterPropertyId] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,6 +70,8 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [editAmount, setEditAmount] = useState('')
   const [editCategoryId, setEditCategoryId] = useState<string>('')
   const [editAccountId, setEditAccountId] = useState<string>('')
+  const [editHouseholdMemberId, setEditHouseholdMemberId] = useState<string>('')
+  const [editPropertyId, setEditPropertyId] = useState<string>('')
   const [editNotes, setEditNotes] = useState('')
 
   // Selection state
@@ -82,6 +106,8 @@ export default function TransactionList({ transactions: initial, categories, acc
     setEditAmount(String(Math.abs(tx.amount)))
     setEditCategoryId(tx.categoryId ?? '')
     setEditAccountId(tx.accountId ?? '')
+    setEditHouseholdMemberId(tx.householdMemberId ?? '')
+    setEditPropertyId(tx.propertyId ?? '')
     setEditNotes(tx.notes ?? '')
     setError(null)
   }
@@ -125,6 +151,8 @@ export default function TransactionList({ transactions: initial, categories, acc
       date: editDate,
       categoryId: editCategoryId || null,
       accountId: editAccountId || null,
+      householdMemberId: editHouseholdMemberId || null,
+      propertyId: editPropertyId || null,
       notes: editNotes.trim() || null,
     }
 
@@ -135,6 +163,8 @@ export default function TransactionList({ transactions: initial, categories, acc
         if (tx.id !== editingId) return tx
         const cat = categories.find(c => c.id === editCategoryId) ?? null
         const acct = accounts.find(a => a.id === editAccountId) ?? null
+        const member = householdMembers.find(m => m.id === editHouseholdMemberId) ?? null
+        const prop = properties.find(p => p.id === editPropertyId) ?? null
         return {
           ...tx,
           date: new Date(editDate).toISOString(),
@@ -143,8 +173,12 @@ export default function TransactionList({ transactions: initial, categories, acc
           notes: editNotes.trim() || null,
           categoryId: editCategoryId || null,
           accountId: editAccountId || null,
+          householdMemberId: editHouseholdMemberId || null,
+          propertyId: editPropertyId || null,
           category: cat ? { id: cat.id, name: cat.name } : null,
           account: acct ? { id: acct.id, name: acct.name } : null,
+          householdMember: member ? { id: member.id, name: member.name } : null,
+          property: prop ? { id: prop.id, name: prop.name } : null,
         }
       })
     )
@@ -199,9 +233,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   }
 
   function toggleSelectAll() {
-    const allIds = transactions.map(tx => tx.id)
-    const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id))
-    if (allSelected) {
+    const allIds = filteredTransactions.map(tx => tx.id)
+    const allChecked = allIds.length > 0 && allIds.every(id => selected.has(id))
+    if (allChecked) {
       setSelected(new Set())
     } else {
       setSelected(new Set(allIds))
@@ -212,7 +246,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     setSelected(new Set())
   }
 
-  const allSelected = transactions.length > 0 && transactions.every(tx => selected.has(tx.id))
+  const allSelected = filteredTransactions.length > 0 && filteredTransactions.every(tx => selected.has(tx.id))
   const someSelected = selected.size > 0 && !allSelected
 
   // Bulk edit handlers
@@ -295,7 +329,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   }
 
   // Preview for delete confirmation: first 5 selected transactions sorted by date
-  const selectedTransactions = transactions
+  const selectedTransactions = filteredTransactions
     .filter(tx => selected.has(tx.id))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   const deletePreview = selectedTransactions.slice(0, 5)
@@ -309,8 +343,43 @@ export default function TransactionList({ transactions: initial, categories, acc
     return acc
   }, {})
 
+  // Apply property filter
+  const filteredTransactions = filterPropertyId
+    ? transactions.filter((tx) =>
+        filterPropertyId === '__none__'
+          ? tx.propertyId === null
+          : tx.propertyId === filterPropertyId
+      )
+    : transactions
+
   return (
     <div className="relative pb-16">
+      {/* Filter bar (R4.4) */}
+      {properties.length > 0 && (
+        <div className="mb-3 flex items-center gap-3">
+          <label className="text-sm font-medium text-stone">Filter:</label>
+          <select
+            value={filterPropertyId}
+            onChange={(e) => setFilterPropertyId(e.target.value)}
+            className="input text-sm"
+          >
+            <option value="">All Properties</option>
+            <option value="__none__">No Property</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          {filterPropertyId && (
+            <button
+              onClick={() => setFilterPropertyId('')}
+              className="text-xs text-stone hover:text-fjord"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="card overflow-hidden p-0">
         {error && (
           <div className="border-b border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
@@ -335,12 +404,18 @@ export default function TransactionList({ transactions: initial, categories, acc
               <th className="px-4 py-3 text-left font-medium text-stone">Merchant</th>
               <th className="px-4 py-3 text-left font-medium text-stone">Category</th>
               <th className="px-4 py-3 text-left font-medium text-stone">Account</th>
+              {householdMembers.length > 0 && (
+                <th className="px-4 py-3 text-left font-medium text-stone">Person</th>
+              )}
+              {properties.length > 0 && (
+                <th className="px-4 py-3 text-left font-medium text-stone">Property</th>
+              )}
               <th className="px-4 py-3 text-right font-medium text-stone">Amount</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-mist">
-            {transactions.map((tx) =>
+            {filteredTransactions.map((tx) =>
               editingId === tx.id ? (
                 <tr key={tx.id} className="bg-frost">
                   <td className="px-3 py-2">
@@ -397,6 +472,34 @@ export default function TransactionList({ transactions: initial, categories, acc
                       ))}
                     </select>
                   </td>
+                  {householdMembers.length > 0 && (
+                    <td className="px-4 py-2">
+                      <select
+                        value={editHouseholdMemberId}
+                        onChange={(e) => setEditHouseholdMemberId(e.target.value)}
+                        className="input text-sm"
+                      >
+                        <option value="">— None —</option>
+                        {householdMembers.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  )}
+                  {properties.length > 0 && (
+                    <td className="px-4 py-2">
+                      <select
+                        value={editPropertyId}
+                        onChange={(e) => setEditPropertyId(e.target.value)}
+                        className="input text-sm"
+                      >
+                        <option value="">— None —</option>
+                        {properties.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  )}
                   <td className="px-4 py-2">
                     <input
                       type="number"
@@ -440,6 +543,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <td className="px-4 py-3 font-medium text-fjord">{tx.merchant}</td>
                   <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-stone">{tx.account?.name ?? '—'}</td>
+                  {householdMembers.length > 0 && (
+                    <td className="px-4 py-3 text-stone">{tx.householdMember?.name ?? '—'}</td>
+                  )}
+                  {properties.length > 0 && (
+                    <td className="px-4 py-3 text-stone">{tx.property?.name ?? '—'}</td>
+                  )}
                   <td className={`px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {tx.amount < 0 ? '−' : '+'}
                     {formatCurrency(Math.abs(tx.amount))}
@@ -462,7 +571,9 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+          {filterPropertyId
+            ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
+            : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 

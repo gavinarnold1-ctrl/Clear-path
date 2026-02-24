@@ -10,11 +10,21 @@ export default async function NewTransactionPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [accounts, categories] = await Promise.all([
+  const [accounts, categories, householdMembers, properties] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId }, orderBy: { name: 'asc' } }),
     db.category.findMany({
       where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }], isActive: true },
       orderBy: [{ group: 'asc' }, { name: 'asc' }],
+    }),
+    db.householdMember.findMany({
+      where: { userId: session.userId },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true, isDefault: true },
+    }),
+    db.property.findMany({
+      where: { userId: session.userId },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true, isDefault: true },
     }),
   ])
 
@@ -22,7 +32,12 @@ export default async function NewTransactionPage() {
     <div className="max-w-lg">
       <h1 className="mb-6 text-2xl font-bold text-fjord">New transaction</h1>
       <div className="card">
-        <TransactionForm accounts={accounts} categories={categories} />
+        <TransactionForm
+          accounts={accounts}
+          categories={categories}
+          householdMembers={householdMembers}
+          properties={properties}
+        />
       </div>
     </div>
   )

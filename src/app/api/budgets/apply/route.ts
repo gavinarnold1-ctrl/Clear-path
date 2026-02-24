@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
             userId: session!.userId,
             name: item.name,
             amount: item.amount,
-            spent: 0,
+
             period: 'MONTHLY',
             tier: 'FIXED',
             startDate: startOfMonth,
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
             userId: session!.userId,
             name: item.name,
             amount: item.amount,
-            spent: 0,
+
             period: 'MONTHLY',
             tier: 'FLEXIBLE',
             startDate: startOfMonth,
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
             userId: session!.userId,
             name: item.name,
             amount: monthlySetAside,
-            spent: 0,
+
             period: 'MONTHLY',
             tier: 'ANNUAL',
             startDate: startOfMonth,

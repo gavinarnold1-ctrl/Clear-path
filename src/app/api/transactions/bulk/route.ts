@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { recalculateBudgetSpentForCategory } from '@/lib/budget-utils'
 
 export async function PATCH(req: NextRequest) {
   const session = await getSession()
@@ -51,13 +50,6 @@ export async function PATCH(req: NextRequest) {
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
 
-  // Collect all affected categoryIds for budget recalculation
-  const affectedCategoryIds = new Set<string>()
-  for (const tx of owned) {
-    if (tx.categoryId) affectedCategoryIds.add(tx.categoryId)
-  }
-  if (updates.categoryId) affectedCategoryIds.add(updates.categoryId)
-
   // Build the data object for updateMany — only include fields the user opted in to
   const data: Record<string, unknown> = {}
   if (updates.categoryId !== undefined) data.categoryId = updates.categoryId
@@ -105,11 +97,6 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
-  // Recalculate budgets for all affected categories
-  for (const catId of affectedCategoryIds) {
-    await recalculateBudgetSpentForCategory(session.userId, catId)
-  }
-
   return NextResponse.json({ updated: owned.length })
 }
 
@@ -134,12 +121,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Some transactions not found' }, { status: 404 })
   }
 
-  // Collect affected categoryIds before deletion
-  const affectedCategoryIds = new Set<string>()
-  for (const tx of owned) {
-    if (tx.categoryId) affectedCategoryIds.add(tx.categoryId)
-  }
-
   await db.$transaction(async (tx) => {
     // Delete all transactions
     await tx.transaction.deleteMany({
@@ -156,11 +137,6 @@ export async function DELETE(req: NextRequest) {
       }
     }
   })
-
-  // Recalculate budgets for all affected categories
-  for (const catId of affectedCategoryIds) {
-    await recalculateBudgetSpentForCategory(session.userId, catId)
-  }
 
   return NextResponse.json({ deleted: owned.length })
 }

@@ -7,6 +7,7 @@ import { formatCurrency, formatDate, budgetProgress } from '@/lib/utils'
 import ProgressBar from '@/components/ui/ProgressBar'
 import MonthPicker from './MonthPicker'
 import MonthlyChart from '@/components/dashboard/MonthlyChart'
+import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -139,7 +140,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         startDate: { lte: now },
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
-      include: { category: true },
+      include: { category: true, annualExpense: true },
     }),
     // Current month expense transactions for live budget spent computation
     db.transaction.findMany({
@@ -186,8 +187,28 @@ export default async function DashboardPage({ searchParams }: Props) {
       budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
     }
   }
-  const activeBudgets = rawBudgets
-    .map((b) => ({ ...b, spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : b.spent }))
+
+  const allBudgetsWithSpent = rawBudgets.map((b) => ({
+    ...b,
+    spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0,
+  }))
+
+  // True Remaining computation: income - fixed committed - flexible spent - annual set-asides
+  const fixedBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'FIXED')
+  const flexibleBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'FLEXIBLE')
+  const annualBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'ANNUAL')
+
+  const monthlyIncome = incomeAgg._sum.amount ?? 0
+  const fixedTotal = fixedBudgets.reduce((sum, b) => sum + b.amount, 0)
+  const flexibleSpent = flexibleBudgets.reduce((sum, b) => sum + b.spent, 0)
+  const annualSetAside = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
+
+  // Budget pulse: count on-track vs over-budget for flexible budgets
+  const flexOnTrack = flexibleBudgets.filter((b) => b.spent <= b.amount).length
+  const flexOverBudget = flexibleBudgets.filter((b) => b.spent > b.amount).length
+  const fixedPaid = fixedBudgets.filter((b) => b.spent > 0).length
+
+  const activeBudgets = allBudgetsWithSpent
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 4)
 
@@ -196,7 +217,6 @@ export default async function DashboardPage({ searchParams }: Props) {
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
-  const monthlyIncome = incomeAgg._sum.amount ?? 0
   const monthlyExpense = Math.abs(expenseAgg._sum.amount ?? 0)
   const monthlyNet = monthlyIncome - monthlyExpense
 
@@ -250,6 +270,8 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`
 
+  const hasBudgets = rawBudgets.length > 0
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -259,8 +281,63 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
-      {/* Summary stats — 4 cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* True Remaining Hero — R8.1, R6.6 */}
+      {hasBudgets ? (
+        <TrueRemainingBanner
+          income={monthlyIncome}
+          fixedTotal={fixedTotal}
+          flexibleSpent={flexibleSpent}
+          annualSetAside={annualSetAside}
+        />
+      ) : (
+        <div className="mb-6 rounded-xl border-2 border-mist bg-frost/50 p-5">
+          <p className="text-sm text-stone">
+            Set up budgets to see your True Remaining — what you can actually spend.{' '}
+            <Link href="/budgets/new" className="font-medium text-fjord hover:underline">
+              Create a budget
+            </Link>
+          </p>
+        </div>
+      )}
+
+      {/* Budget Pulse — quick health indicators */}
+      {hasBudgets && (
+        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="card">
+            <p className="text-xs font-medium text-stone">Fixed Bills</p>
+            <p className="mt-1 font-mono text-xl font-medium text-fjord">
+              {fixedPaid}/{fixedBudgets.length}
+            </p>
+            <p className="mt-0.5 text-xs text-stone">paid this month</p>
+          </div>
+          <div className="card">
+            <p className="text-xs font-medium text-stone">Flexible On Track</p>
+            <p className={`mt-1 font-mono text-xl font-medium ${flexOverBudget > 0 ? 'text-ember' : 'text-pine'}`}>
+              {flexOnTrack}/{flexibleBudgets.length}
+            </p>
+            <p className="mt-0.5 text-xs text-stone">
+              {flexOverBudget > 0 ? `${flexOverBudget} over budget` : 'all within budget'}
+            </p>
+          </div>
+          <div className="card">
+            <p className="text-xs font-medium text-stone">Annual Set-Aside</p>
+            <p className="mt-1 font-mono text-xl font-medium text-fjord">
+              {formatCurrency(annualSetAside)}
+            </p>
+            <p className="mt-0.5 text-xs text-stone">/mo across {annualBudgets.length} items</p>
+          </div>
+          <div className="card">
+            <p className="text-xs font-medium text-stone">Net this Month</p>
+            <p className={`mt-1 font-mono text-xl font-medium ${monthlyNet >= 0 ? 'text-income' : 'text-expense'}`}>
+              {formatCurrency(monthlyNet)}
+            </p>
+            <p className="mt-0.5 text-xs text-stone">{monthlyNet >= 0 ? 'surplus' : 'deficit'}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Summary stats */}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total balance"
           value={formatCurrency(totalBalance)}
@@ -279,21 +356,10 @@ export default async function DashboardPage({ searchParams }: Props) {
           change={expenseChange != null ? { pct: -expenseChange, label: 'vs prev month' } : null}
         />
         <StatCard
-          label={`Net — ${monthLabel}`}
-          value={formatCurrency(monthlyNet)}
-          valueClass={monthlyNet >= 0 ? 'text-income' : 'text-expense'}
-          sub={monthlyNet >= 0 ? 'Surplus' : 'Deficit'}
-        />
-        <StatCard
           label={`Transactions — ${monthLabel}`}
           value={transactionCount.toLocaleString()}
           sub={`transaction${transactionCount !== 1 ? 's' : ''} this month`}
         />
-      </div>
-
-      {/* Chart */}
-      <div className="mb-8">
-        <MonthlyChart data={chartSeries} />
       </div>
 
       {/* Budget overview + Spending by category */}
@@ -377,7 +443,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       </div>
 
       {/* Recent transactions */}
-      <div className="card">
+      <div className="card mb-8">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-fjord">Recent transactions</h2>
           <Link href="/transactions" className="text-sm text-fjord hover:text-midnight">
@@ -412,6 +478,11 @@ export default async function DashboardPage({ searchParams }: Props) {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Chart — below fold per R8.1 */}
+      <div>
+        <MonthlyChart data={chartSeries} />
       </div>
     </div>
   )

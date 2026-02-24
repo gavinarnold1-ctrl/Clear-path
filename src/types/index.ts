@@ -16,6 +16,16 @@ export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUST
 
 export type BudgetTier = 'FIXED' | 'FLEXIBLE' | 'ANNUAL'
 
+export type PropertyType = 'PERSONAL' | 'RENTAL'
+
+export type DebtType =
+  | 'MORTGAGE'
+  | 'STUDENT_LOAN'
+  | 'AUTO'
+  | 'CREDIT_CARD'
+  | 'PERSONAL_LOAN'
+  | 'OTHER'
+
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
 export interface User {
@@ -50,6 +60,23 @@ export interface Category {
   userId: string | null
 }
 
+export interface HouseholdMember {
+  id: string
+  userId: string
+  name: string
+  isDefault: boolean
+  createdAt: Date
+}
+
+export interface Property {
+  id: string
+  userId: string
+  name: string
+  type: PropertyType
+  isDefault: boolean
+  createdAt: Date
+}
+
 export interface Transaction {
   id: string
   date: Date
@@ -66,6 +93,10 @@ export interface Transaction {
   account?: Account | null
   categoryId: string | null
   category?: Category | null
+  householdMemberId: string | null
+  householdMember?: HouseholdMember | null
+  propertyId: string | null
+  property?: Property | null
   createdAt: Date
   updatedAt: Date
 }
@@ -74,7 +105,6 @@ export interface Budget {
   id: string
   name: string
   amount: number
-  spent: number
   period: BudgetPeriod
   tier: BudgetTier
   startDate: Date
@@ -105,6 +135,26 @@ export interface AnnualExpense {
   actualDate: Date | null
   notes: string | null
   userId: string
+}
+
+export interface Debt {
+  id: string
+  userId: string
+  name: string
+  type: DebtType
+  currentBalance: number
+  originalBalance: number | null
+  interestRate: number
+  minimumPayment: number
+  paymentDay: number | null
+  termMonths: number | null
+  startDate: Date | null
+  propertyId: string | null
+  property?: Property | null
+  categoryId: string | null
+  category?: Category | null
+  createdAt: Date
+  updatedAt: Date
 }
 
 // ─── Onboarding types ────────────────────────────────────────────────────────

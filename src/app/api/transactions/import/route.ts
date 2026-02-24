@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
-import { recalculateBudgetSpent, reconcileBudgetCategories } from '@/lib/budget-utils'
+import { reconcileBudgetCategories } from '@/lib/budget-utils'
+import { createMonthlySnapshot } from '@/lib/snapshots'
 
 /**
  * Fuzzy-match a CSV category name to an existing category when exact match fails.
@@ -346,8 +347,17 @@ export async function POST(request: Request) {
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)
 
-    // Recalculate budget spent values after import
-    await recalculateBudgetSpent(session.userId)
+    // R7.6: Create baseline snapshot on first import
+    // Check if this is the user's first snapshot — if so, create one for the current month
+    try {
+      const existingSnapshots = await db.monthlySnapshot.count({ where: { userId: session.userId } })
+      if (existingSnapshots === 0) {
+        const now = new Date()
+        await createMonthlySnapshot(session.userId, now.getFullYear(), now.getMonth() + 1)
+      }
+    } catch {
+      // Non-critical — don't fail the import if snapshot creation fails
+    }
 
     return NextResponse.json({
       imported: importedCount,

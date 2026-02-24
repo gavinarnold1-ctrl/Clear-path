@@ -185,7 +185,7 @@ async function main() {
         categoryId: mortgage.id,
         name: 'Mortgage',
         amount: 1850,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: feb1,
@@ -203,7 +203,7 @@ async function main() {
         categoryId: internet.id,
         name: 'Internet',
         amount: 79.99,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: feb1,
@@ -221,7 +221,7 @@ async function main() {
         categoryId: phone.id,
         name: 'Phone plan',
         amount: 55,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: feb1,
@@ -239,7 +239,7 @@ async function main() {
         categoryId: groceries.id,
         name: 'Groceries',
         amount: 500,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
         startDate: feb1,
@@ -254,7 +254,7 @@ async function main() {
         categoryId: dining.id,
         name: 'Dining out',
         amount: 200,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
         startDate: feb1,
@@ -270,7 +270,7 @@ async function main() {
         categoryId: travel.id,
         name: 'Summer vacation',
         amount: 300,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.ANNUAL,
         startDate: jan1,
@@ -291,40 +291,6 @@ async function main() {
         status: 'planned',
       },
     })
-  }
-
-  // ─── Compute budget spent from actual transactions ─────────────────
-  // Never hardcode spent — always derive from transaction data so the
-  // seed stays consistent with what the dashboard and budget pages query.
-  const allBudgets = await db.budget.findMany({ where: { userId: user.id } })
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-
-  for (const budget of allBudgets) {
-    if (!budget.categoryId) continue
-
-    // MONTHLY FIXED/FLEXIBLE: scope to current calendar month
-    // ANNUAL: scope from budget start to end of year
-    const start = budget.tier === 'ANNUAL' ? budget.startDate : monthStart
-    const end = budget.tier === 'ANNUAL'
-      ? (budget.endDate ?? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
-      : monthEnd
-
-    const result = await db.transaction.aggregate({
-      where: {
-        userId: user.id,
-        categoryId: budget.categoryId,
-        date: { gte: start, lte: end },
-        amount: { lt: 0 },
-      },
-      _sum: { amount: true },
-    })
-
-    const spent = Math.abs(result._sum.amount ?? 0)
-    if (spent > 0) {
-      await db.budget.update({ where: { id: budget.id }, data: { spent } })
-    }
   }
 
   // ─── Reference databases (tax rules + spending benchmarks) ──────────

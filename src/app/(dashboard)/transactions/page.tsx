@@ -11,10 +11,10 @@ export default async function TransactionsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [transactions, categories, accounts] = await Promise.all([
+  const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
       where: { userId: session.userId },
-      include: { account: true, category: true },
+      include: { account: true, category: true, householdMember: true, property: true },
       orderBy: { date: 'desc' },
     }),
     db.category.findMany({
@@ -30,6 +30,16 @@ export default async function TransactionsPage() {
       orderBy: { name: 'asc' },
       select: { id: true, name: true, type: true },
     }),
+    db.householdMember.findMany({
+      where: { userId: session.userId },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true, isDefault: true },
+    }),
+    db.property.findMany({
+      where: { userId: session.userId },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true, type: true, isDefault: true },
+    }),
   ])
 
   // Serialize dates for the client component
@@ -41,8 +51,12 @@ export default async function TransactionsPage() {
     notes: tx.notes,
     categoryId: tx.categoryId,
     accountId: tx.accountId,
+    householdMemberId: tx.householdMemberId,
+    propertyId: tx.propertyId,
     category: tx.category ? { id: tx.category.id, name: tx.category.name } : null,
     account: tx.account ? { id: tx.account.id, name: tx.account.name } : null,
+    householdMember: tx.householdMember ? { id: tx.householdMember.id, name: tx.householdMember.name } : null,
+    property: tx.property ? { id: tx.property.id, name: tx.property.name } : null,
   }))
 
   return (
@@ -72,6 +86,8 @@ export default async function TransactionsPage() {
           transactions={serialized}
           categories={categories}
           accounts={accounts}
+          householdMembers={householdMembers}
+          properties={properties}
         />
       )}
     </div>
