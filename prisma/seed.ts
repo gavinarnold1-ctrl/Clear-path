@@ -293,40 +293,6 @@ async function main() {
     })
   }
 
-  // ─── Compute budget spent from actual transactions ─────────────────
-  // Never hardcode spent — always derive from transaction data so the
-  // seed stays consistent with what the dashboard and budget pages query.
-  const allBudgets = await db.budget.findMany({ where: { userId: user.id } })
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-
-  for (const budget of allBudgets) {
-    if (!budget.categoryId) continue
-
-    // MONTHLY FIXED/FLEXIBLE: scope to current calendar month
-    // ANNUAL: scope from budget start to end of year
-    const start = budget.tier === 'ANNUAL' ? budget.startDate : monthStart
-    const end = budget.tier === 'ANNUAL'
-      ? (budget.endDate ?? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
-      : monthEnd
-
-    const result = await db.transaction.aggregate({
-      where: {
-        userId: user.id,
-        categoryId: budget.categoryId,
-        date: { gte: start, lte: end },
-        amount: { lt: 0 },
-      },
-      _sum: { amount: true },
-    })
-
-    const spent = Math.abs(result._sum.amount ?? 0)
-    if (spent > 0) {
-      await db.budget.update({ where: { id: budget.id }, data: { spent } })
-    }
-  }
-
   // ─── Reference databases (tax rules + spending benchmarks) ──────────
   console.log('Seeding reference databases...')
   await seedTaxRules(db)
