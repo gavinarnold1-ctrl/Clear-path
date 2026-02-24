@@ -106,12 +106,25 @@ export async function POST(request: Request) {
     })
     const accountMap = new Map(userAccounts.map((a) => [a.name.toLowerCase(), a]))
 
+    // Load user's household members and properties for CSV person/property mapping
+    const userMembers = await db.householdMember.findMany({
+      where: { userId: session.userId },
+    })
+    const memberMap = new Map(userMembers.map((m) => [m.name.toLowerCase(), m]))
+
+    const userProperties = await db.property.findMany({
+      where: { userId: session.userId },
+    })
+    const propertyMap = new Map(userProperties.map((p) => [p.name.toLowerCase(), p]))
+
     let transactionsToProcess: {
       date: string
       merchant: string
       amount: number
       category?: string
       account?: string
+      person?: string
+      property?: string
       originalStatement?: string
       notes?: string
       tags?: string
@@ -169,6 +182,9 @@ export async function POST(request: Request) {
         merchant: tx.merchant,
         amount: tx.amount,
         category: tx.category,
+        account: tx.account,
+        person: tx.person,
+        property: tx.property,
       }))
     }
 
@@ -186,6 +202,8 @@ export async function POST(request: Request) {
     const toImport: {
       userId: string
       accountId: string | null
+      householdMemberId: string | null
+      propertyId: string | null
       date: Date
       merchant: string
       amount: number
@@ -259,7 +277,7 @@ export async function POST(request: Request) {
       }
 
       // Match account by name (Monarch) or use provided accountId
-      // Try exact match first, then partial match (CSV name contains user account or vice versa)
+      // Try exact match first, then partial match, then auto-create (R1.5)
       let resolvedAccountId: string | null = accountId ?? null
       if (tx.account) {
         const csvAccountKey = tx.account.toLowerCase().trim()
@@ -268,14 +286,71 @@ export async function POST(request: Request) {
           resolvedAccountId = exactMatch.id
         } else {
           // Partial match: "Webster Bank Checking" matches user account "Webster bank"
+          let found = false
           for (const [userKey, userAccount] of accountMap) {
             if (csvAccountKey.includes(userKey) || userKey.includes(csvAccountKey)) {
               resolvedAccountId = userAccount.id
-              // Cache this CSV name for subsequent rows from the same account
               accountMap.set(csvAccountKey, userAccount)
+              found = true
               break
             }
           }
+          // Auto-create account if no match found (R1.5)
+          if (!found) {
+            const newAccount = await db.account.create({
+              data: {
+                userId: session.userId,
+                name: tx.account.trim(),
+                type: 'CHECKING',
+                balance: 0,
+              },
+            })
+            accountMap.set(csvAccountKey, newAccount)
+            resolvedAccountId = newAccount.id
+          }
+        }
+      }
+
+      // Match person (household member) by name or auto-create (R1.4)
+      let resolvedMemberId: string | null = null
+      if (tx.person) {
+        const csvPersonKey = tx.person.toLowerCase().trim()
+        const memberMatch = memberMap.get(csvPersonKey)
+        if (memberMatch) {
+          resolvedMemberId = memberMatch.id
+        } else {
+          // Auto-create household member
+          const newMember = await db.householdMember.create({
+            data: {
+              userId: session.userId,
+              name: tx.person.trim(),
+              isDefault: false,
+            },
+          })
+          memberMap.set(csvPersonKey, newMember)
+          resolvedMemberId = newMember.id
+        }
+      }
+
+      // Match property by name or auto-create (R1.4)
+      let resolvedPropertyId: string | null = null
+      if (tx.property) {
+        const csvPropertyKey = tx.property.toLowerCase().trim()
+        const propertyMatch = propertyMap.get(csvPropertyKey)
+        if (propertyMatch) {
+          resolvedPropertyId = propertyMatch.id
+        } else {
+          // Auto-create property
+          const newProperty = await db.property.create({
+            data: {
+              userId: session.userId,
+              name: tx.property.trim(),
+              type: 'PERSONAL',
+              isDefault: false,
+            },
+          })
+          propertyMap.set(csvPropertyKey, newProperty)
+          resolvedPropertyId = newProperty.id
         }
       }
 
@@ -297,6 +372,8 @@ export async function POST(request: Request) {
       toImport.push({
         userId: session.userId,
         accountId: resolvedAccountId,
+        householdMemberId: resolvedMemberId,
+        propertyId: resolvedPropertyId,
         date: txDate,
         merchant: tx.merchant,
         amount: finalAmount,

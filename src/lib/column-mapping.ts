@@ -1,4 +1,4 @@
-export type AppField = 'date' | 'merchant' | 'amount' | 'category' | 'account' | 'ignore'
+export type AppField = 'date' | 'merchant' | 'amount' | 'category' | 'account' | 'person' | 'property' | 'ignore'
 
 // Monarch Money CSV headers (case-insensitive match)
 const MONARCH_HEADERS = [
@@ -65,6 +65,23 @@ const COLUMN_PATTERNS: Record<Exclude<AppField, 'ignore'>, string[]> = {
     'bank account',
     'from account',
     'source account',
+  ],
+  person: [
+    'person',
+    'owner',
+    'member',
+    'household member',
+    'paid by',
+    'who',
+    'spender',
+  ],
+  property: [
+    'property',
+    'property name',
+    'location',
+    'address',
+    'rental',
+    'house',
   ],
 }
 

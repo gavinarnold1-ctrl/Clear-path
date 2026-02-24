@@ -8,6 +8,7 @@ import FixedBudgetSection from '@/components/budgets/FixedBudgetSection'
 import FlexibleBudgetSection from '@/components/budgets/FlexibleBudgetSection'
 import AnnualBudgetSection from '@/components/budgets/AnnualBudgetSection'
 import BudgetBuilderFlow from '@/components/budget-builder/BudgetBuilderFlow'
+import UnbudgetedSection from '@/components/budgets/UnbudgetedSection'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
@@ -134,6 +135,26 @@ export default async function BudgetsPage() {
   const flexible = budgetsWithSpent.filter((b) => b.tier === 'FLEXIBLE')
   const annual = budgetsWithSpent.filter((b) => b.tier === 'ANNUAL')
 
+  // R6.7: Compute unbudgeted categories — expense categories with spending but no budget
+  const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId).filter(Boolean))
+  const unbudgetedCategories: { categoryId: string; categoryName: string; spent: number }[] = []
+  for (const tx of transactions) {
+    if (tx.categoryId && !budgetedCategoryIds.has(tx.categoryId) && tx.category) {
+      const existing = unbudgetedCategories.find((u) => u.categoryId === tx.categoryId)
+      if (existing) {
+        existing.spent += Math.abs(tx.amount)
+      } else {
+        unbudgetedCategories.push({
+          categoryId: tx.categoryId,
+          categoryName: tx.category.name,
+          spent: Math.abs(tx.amount),
+        })
+      }
+    }
+  }
+  // Sort by spend descending
+  unbudgetedCategories.sort((a, b) => b.spent - a.spent)
+
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = flexible.reduce((sum, b) => sum + b.spent, 0)
   const annualSetAside = annual.reduce((sum, b) => {
@@ -166,6 +187,7 @@ export default async function BudgetsPage() {
           <FixedBudgetSection budgets={fixed} transactions={transactions} />
           <FlexibleBudgetSection budgets={flexible} />
           <AnnualBudgetSection budgets={annual} />
+          <UnbudgetedSection categories={unbudgetedCategories} />
           {annual.length > 0 && (
             <div className="-mt-5 mb-8 text-right">
               <Link
