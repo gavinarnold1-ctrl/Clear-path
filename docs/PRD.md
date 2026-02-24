@@ -1,6 +1,6 @@
 # Oversikt — Product Requirements Document
 
-*Version 2.5 — February 23, 2026*
+*Version 2.6 — February 23, 2026*
 *This is the single source of truth. All other docs are reference material.*
 
 -----
@@ -84,12 +84,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                                                                                                                                                                                                                                                                              |Status|
 |----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
-|R1.1|Budget spent computed from transactions on read, never stored                                                                                                                                                                                                                            |🟢     |
-|R1.2|Fixed expense paid/missed matches transactions by category within month                                                                                                                                                                                                                  |🟢     |
-|R1.3|CSV import sign logic: if category type=income, amount stays positive. If type=expense, amount stored negative. Currently flipping income to negative (1583.33 → -$1,583.33).                                                                                                            |🟢     |
-|R1.4|CSV import mapping: add Person and Property to the column mapping dropdown (currently only Date, Merchant, Amount, Category, Account, Ignore)                                                                                                                                            |🟢     |
-|R1.5|CSV import account linking: Account column is auto-detected but "Import into account" overrides to "No account". Resolve conflict — if Account column is mapped, use per-row values. If not mapped, use the global "Import into account" dropdown. Auto-create accounts that don't exist.|🟢     |
-|R1.6|Migration: fix all existing transactions where category type=income but amount is negative (flip sign)                                                                                                                                                                                   |🟡     |
+|R1.1|Budget spent computed from transactions on read, never stored                                                                                                                                                                                                                            |🔴     |
+|R1.2|Fixed expense paid/missed matches transactions by category within month                                                                                                                                                                                                                  |🔴     |
+|R1.3|CSV import sign logic: if category type=income, amount stays positive. If type=expense, amount stored negative. Currently flipping income to negative (1583.33 → -$1,583.33).                                                                                                            |🔴     |
+|R1.4|CSV import mapping: add Person and Property to the column mapping dropdown (currently only Date, Merchant, Amount, Category, Account, Ignore)                                                                                                                                            |🔴     |
+|R1.5|CSV import account linking: Account column is auto-detected but "Import into account" overrides to "No account". Resolve conflict — if Account column is mapped, use per-row values. If not mapped, use the global "Import into account" dropdown. Auto-create accounts that don't exist.|🔴     |
+|R1.6|Migration: fix all existing transactions where category type=income but amount is negative (flip sign)                                                                                                                                                                                   |🔴     |
 |R1.7|Plaid import flips sign convention                                                                                                                                                                                                                                                       |⬜     |
 
 #### R2. Bank connectivity
@@ -107,8 +107,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 |----|--------------------------------------|------|
 |R3.1|Create household members (names)      |🟢     |
 |R3.2|Tag transactions to a household member|🟢     |
-|R3.3|Spending: "By Person" view            |🟢     |
-|R3.4|Monthly Review: per-person breakdown  |🟢     |
+|R3.3|Spending: "By Person" view            |⬜     |
+|R3.4|Monthly Review: per-person breakdown  |⬜     |
 
 #### R4. Property separation
 
@@ -116,52 +116,54 @@ A financial tool for households with real-world complexity: multiple people, at 
 |----|------------------------------------------------|------|
 |R4.1|Create properties (name, type: Personal/Rental) |🟢     |
 |R4.2|Tag transactions to a property                  |🟢     |
-|R4.3|Spending: "By Property" view                    |🟢     |
-|R4.4|Transactions: property filter                   |🟢     |
+|R4.3|Spending: "By Property" view                    |⬜     |
+|R4.4|Transactions: property filter                   |⬜     |
 |R4.5|Filter Rental → all rental expenses for the year|⬜     |
 
 #### R5. Debt visibility
 
-|ID  |Requirement                                           |Status|
-|----|------------------------------------------------------|------|
-|R5.1|Add debts (name, type, balance, rate, minimum payment)|🟢     |
-|R5.2|Debts page: principal vs interest breakdown           |🟢     |
-|R5.3|Debts page: total summary (owed, payments, avg rate)  |🟢     |
-|R5.4|Debt links to property (mortgage → rental)            |🟢     |
-|R5.5|Monthly Review: debt trajectory                       |🟢     |
+|ID  |Requirement                                                                                                                                            |Status|
+|----|-------------------------------------------------------------------------------------------------------------------------------------------------------|------|
+|R5.1|Add debts (name, type, balance, rate, minimum payment)                                                                                                 |🟢     |
+|R5.2|Debts page: principal vs interest breakdown                                                                                                            |🟢     |
+|R5.3|Debts page: total summary (owed, payments, avg rate)                                                                                                   |🟢     |
+|R5.4|Debt links to property (mortgage → rental)                                                                                                             |🟢     |
+|R5.5|Monthly Review: debt trajectory                                                                                                                        |⬜     |
+|R5.6|Mortgage escrow: optional monthly escrow amount (taxes + insurance). Show as third segment in payment breakdown bar. Total monthly cost = P&I + escrow.|⬜     |
 
 #### R6. Budget tracking
 
-|ID  |Requirement                                                                                                                             |Status|
-|----|----------------------------------------------------------------------------------------------------------------------------------------|------|
-|R6.1|Fixed: paid/missed from transaction matching                                                                                            |🟢     |
-|R6.2|Flexible: accurate spent/limit with $/day remaining                                                                                     |🟢     |
-|R6.3|Annual: funding progress with set-aside calculations                                                                                    |🟢     |
-|R6.4|Annual Plan: apply-cash and link-transaction funding                                                                                    |🟢     |
-|R6.5|Auto-Fund All distributes True Remaining                                                                                                |🟢     |
-|R6.6|True Remaining as primary metric on Overview                                                                                            |🟡     |
-|R6.7|Unbudgeted spending surfaced: categories with transactions but no budget shown on Budgets page as "Unbudgeted" section with actual spend|🟢     |
+|ID  |Requirement                                                                                                                                         |Status|
+|----|----------------------------------------------------------------------------------------------------------------------------------------------------|------|
+|R6.1|Fixed: paid/missed from transaction matching                                                                                                        |🔴     |
+|R6.2|Flexible: accurate spent/limit with $/day remaining                                                                                                 |🔴     |
+|R6.3|Annual: funding progress with set-aside calculations                                                                                                |🟢     |
+|R6.4|Annual Plan: apply-cash and link-transaction funding                                                                                                |🟢     |
+|R6.5|Auto-Fund All distributes True Remaining                                                                                                            |🟢     |
+|R6.6|True Remaining as primary metric on Overview                                                                                                        |🟡     |
+|R6.7|Unbudgeted spending surfaced: categories with transactions but no budget shown on Budgets page as "Unbudgeted" section with actual spend            |⬜     |
+|R6.8|Category click-through: tap any category on Budgets, Spending, or Unbudgeted section → filtered transaction list for that category and current month|⬜     |
 
 #### R7. Monthly Review
 
 |ID  |Requirement                              |Status|
 |----|-----------------------------------------|------|
-|R7.1|Monthly snapshots capture key metrics    |🟢     |
-|R7.2|"Since you started" trajectory comparison|🟢     |
+|R7.1|Monthly snapshots capture key metrics    |⬜     |
+|R7.2|"Since you started" trajectory comparison|⬜     |
 |R7.3|AI-generated review with efficiency score|🟢     |
-|R7.4|Includes person and property breakdowns  |🟢     |
-|R7.5|Includes debt paydown progress           |🟢     |
-|R7.6|Baseline snapshot on first data import   |🟢     |
-|R7.7|Monthly cron on 1st of each month        |🟢     |
+|R7.4|Includes person and property breakdowns  |⬜     |
+|R7.5|Includes debt paydown progress           |⬜     |
+|R7.6|Baseline snapshot on first data import   |⬜     |
+|R7.7|Monthly cron on 1st of each month        |⬜     |
 
 #### R8. Information architecture
 
 |ID  |Requirement                                                                                                                |Status|
 |----|---------------------------------------------------------------------------------------------------------------------------|------|
 |R8.1|Overview leads with True Remaining                                                                                         |🟡     |
-|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟢     |
-|R8.3|"Insights" renamed "Monthly Review"                                                                                        |🟢     |
-|R8.4|Nav grouped: daily / periodic / setup                                                                                      |🟢     |
+|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟡     |
+|R8.3|"Insights" renamed "Monthly Review"                                                                                        |⬜     |
+|R8.4|Nav grouped: daily / periodic / setup                                                                                      |⬜     |
 
 #### R9. Brand and deployment
 
@@ -178,12 +180,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID   |Requirement                                                 |Status|
 |-----|------------------------------------------------------------|------|
-|R10.1|Profile management: edit name, email, change password       |🟢     |
-|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|🟢     |
-|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |🟢     |
+|R10.1|Profile management: edit name, email, change password       |⬜     |
+|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|⬜     |
+|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |⬜     |
 |R10.4|Connected accounts: view Plaid connections, disconnect      |⬜     |
-|R10.5|Data export: download transactions as CSV                   |🟢     |
-|R10.6|Delete account: permanent, with confirmation                |🟢     |
+|R10.5|Data export: download transactions as CSV                   |⬜     |
+|R10.6|Delete account: permanent, with confirmation                |⬜     |
 
 #### R11. Security
 
@@ -208,7 +210,7 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 ## Implementation Order
 
-25 steps. 5 phases. Each step references requirement IDs.
+27 steps. 5 phases. Each step references requirement IDs.
 
 ### Phase 1: Fix the foundation
 
@@ -238,14 +240,16 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 *True Remaining first, trajectory over time, Settings consolidation.*
 
-|Step|Req                       |Do                                                                                                              |
-|----|--------------------------|----------------------------------------------------------------------------------------------------------------|
-|11  |R8.1, R6.6                |Overview redesign: True Remaining hero, budget pulse, chart below fold.                                         |
-|12  |R8.2–R8.4                 |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.                             |
-|13  |R10.1–R10.6               |Settings page: profile, household members, properties, connected accounts, export, delete account.              |
-|14  |R3.3–R3.4, R4.3–R4.5, R6.7|"By Person" + "By Property" on Spending. Property filter on Transactions. Unbudgeted categories on Budgets page.|
-|15  |R7.1, R7.6–R7.7           |MonthlySnapshot model + cron. Baseline on first import.                                                         |
-|16  |R7.2, R7.4–R7.5, R5.5     |"Since you started" on Monthly Review with debt, person, property.                                              |
+|Step|Req                       |Do                                                                                                                                                                                       |
+|----|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|11  |R8.1, R6.6                |Overview redesign: True Remaining hero, budget pulse, chart below fold.                                                                                                                  |
+|12  |R8.2–R8.4                 |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.                                                                                                      |
+|13  |R10.1–R10.6               |Settings page: profile, household members, properties, connected accounts, export, delete account.                                                                                       |
+|14  |R3.3–R3.4, R4.3–R4.5, R6.7|"By Person" + "By Property" on Spending. Property filter on Transactions. Unbudgeted categories on Budgets page.                                                                         |
+|15  |R5.6                      |Add escrow fields to Debt model. Show escrow as third segment (gray) in payment breakdown bar. Total monthly cost = P&I + escrow. Optional field on Add/Edit debt form for mortgage type.|
+|16  |R6.8                      |Category click-through: tap any category on Budgets, Spending, or Unbudgeted → navigate to Transactions filtered by that category + current month.                                       |
+|17  |R7.1, R7.6–R7.7           |MonthlySnapshot model + cron. Baseline on first import.                                                                                                                                  |
+|18  |R7.2, R7.4–R7.5, R5.5     |"Since you started" on Monthly Review with debt, person, property.                                                                                                                       |
 
 ### Phase 4: Bank connectivity
 
@@ -253,9 +257,9 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req       |Do                                |
 |----|----------|----------------------------------|
-|17  |R2.1, R1.7|Plaid SDK + API routes. Sign flip.|
-|18  |R2.1      |Plaid Link on Accounts page.      |
-|19  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
+|19  |R2.1, R1.7|Plaid SDK + API routes. Sign flip.|
+|20  |R2.1      |Plaid Link on Accounts page.      |
+|21  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
 
 ### Phase 5: Security, brand, and ship
 
@@ -263,12 +267,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req         |Do                                           |
 |----|------------|---------------------------------------------|
-|20  |R11.1–R11.14|Security hardening (see security spec below).|
-|21  |R9.1        |Rebrand codebase.                            |
-|22  |R9.2–R9.3   |Domain + rename repo.                        |
-|23  |R9.4–R9.5   |Landing page + demo mode.                    |
-|24  |R9.6        |Mobile responsive audit at 375px.            |
-|25  |—           |Final verification. Ship.                    |
+|22  |R11.1–R11.14|Security hardening (see security spec below).|
+|23  |R9.1        |Rebrand codebase.                            |
+|24  |R9.2–R9.3   |Domain + rename repo.                        |
+|25  |R9.4–R9.5   |Landing page + demo mode.                    |
+|26  |R9.6        |Mobile responsive audit at 375px.            |
+|27  |—           |Final verification. Ship.                    |
 
 -----
 
@@ -276,23 +280,24 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 V2 adds intelligence and tax. "Shows you what's true" becomes "helps you optimize."
 
-|ID  |Scope                                                          |
-|----|---------------------------------------------------------------|
-|V2.1|Tax system — Schedule E, IRS crosswalk, deduction strategies   |
-|V2.2|Spending benchmarks — BLS data comparisons                     |
-|V2.3|Debt payoff modeling — avalanche/snowball, what-if scenarios   |
-|V2.4|Multi-user household — separate logins, permissions, settlement|
-|V2.5|Contextual AI on every page — inline observations, cached daily|
-|V2.6|Share/export Monthly Review                                    |
-|V2.7|Smart auto-tagging — AI suggests person/property from patterns |
-|V2.8|Onboarding wizard                                              |
-|V2.9|Depreciation tracking for rental improvements                  |
+|ID   |Scope                                                                                                 |
+|-----|------------------------------------------------------------------------------------------------------|
+|V2.1 |Tax system — Schedule E, IRS crosswalk, deduction strategies                                          |
+|V2.2 |Spending benchmarks — BLS data comparisons                                                            |
+|V2.3 |Debt payoff modeling — avalanche/snowball, what-if scenarios                                          |
+|V2.4 |Multi-user household — separate logins, permissions, settlement                                       |
+|V2.5 |Contextual AI on every page — inline observations, cached daily                                       |
+|V2.6 |Share/export Monthly Review                                                                           |
+|V2.7 |Smart auto-tagging — AI suggests person/property from patterns                                        |
+|V2.8 |Onboarding wizard                                                                                     |
+|V2.9 |Depreciation tracking for rental improvements                                                         |
+|V2.10|Property value and equity tracker — estimated value, equity = value minus balance, appreciation trends|
 
 -----
 
-## Security Spec (Step 20)
+## Security Spec (Step 22)
 
-Step 20 is a dedicated security hardening pass. Claude Code addresses each R11 requirement:
+Step 17 is a dedicated security hardening pass. Claude Code addresses each R11 requirement:
 
 ### Authentication (R11.1–R11.3)
 
@@ -462,7 +467,7 @@ Read /docs/PRD.md. Implement Step [N], requirements [R-IDs].
 
 ## Schema Reference
 
-### MonthlySnapshot (Step 15)
+### MonthlySnapshot (Step 17)
 
 ```prisma
 model MonthlySnapshot {
@@ -545,6 +550,7 @@ model Debt {
   originalBalance Float?
   interestRate    Float
   minimumPayment  Float
+  escrowAmount    Float?    // Optional: monthly taxes + insurance for mortgages
   paymentDay      Int?
   termMonths      Int?
   startDate       DateTime?
@@ -574,3 +580,4 @@ enum DebtType { MORTGAGE STUDENT_LOAN AUTO CREDIT_CARD PERSONAL_LOAN OTHER }
 |2026-02-23|2.3    |Reverted R1.1, R1.2, R6.1, R6.2 to 🔴 — screenshot confirms Budget.spent still $0 and Fixed expenses still MISSED. Added R6.7: surface unbudgeted categories. Phase 1 NOT complete.                                                                                                        |
 |2026-02-23|2.4    |Added Claude Code rules 7-9: mandatory build check after every file change, tsc type-check, read full file before editing.                                                                                                                                                                |
 |2026-02-23|2.5    |CSV import: mapping UI exists but missing Person/Property in dropdown. Amount 1583.33 positive in CSV but stored as -$1,583.33 — sign logic inverted for income. Account column detected but "Import into account" overrides to none. R1.3–R1.6 rewritten. Added migration step. 25 steps.|
+|2026-02-23|2.6    |Added R5.6 (mortgage escrow — optional monthly escrow in payment breakdown), R6.8 (category click-through to filtered transactions). Added V2.10 (property value/equity tracker). 27 steps.                                                                                               |

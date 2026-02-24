@@ -1,6 +1,6 @@
 # Oversikt — Test Specifications
 
-*Paired with `/docs/PRD.md` v2.5*
+*Paired with `/docs/PRD.md` v2.6*
 *This file lives at `/docs/TESTS.md`*
 
 -----
@@ -185,8 +185,6 @@ Verify:
 
 -----
 
-## Phase 2 Tests: Complete the Data Model
-
 *Run after Steps 8–10 are complete.*
 
 ### T2.1 Household members (Step 8)
@@ -294,7 +292,7 @@ Regression:
 
 ## Phase 3 Tests: Reshape the Experience
 
-*Run after Steps 11–16 are complete.*
+*Run after Steps 11–18 are complete.*
 
 ### T3.1 Overview redesign (Step 11)
 
@@ -398,7 +396,58 @@ Transactions page:
   11. Person column is visible and filterable
 ```
 
-### T3.5 Monthly snapshots (Step 15)
+### T3.5 Mortgage escrow (Step 15)
+
+```
+Test: Escrow field on Debt model and UI
+
+Schema:
+  1. Debt model has escrowAmount Float? field
+
+Add/Edit form:
+  2. When debt type = MORTGAGE: "Monthly Escrow (taxes & insurance)" field appears
+  3. Field is optional — can be left blank
+  4. Non-mortgage debt types: escrow field does not appear
+
+Debt card display:
+  5. If escrow is set: payment breakdown bar shows three segments:
+     - Green: Principal ($1,438.54)
+     - Ember: Interest ($2,161.46)
+     - Gray: Escrow (e.g., $800)
+  6. Total monthly cost label shows P&I + escrow (e.g., $4,400.00/mo)
+  7. If escrow is null: bar shows only P&I (unchanged from current)
+
+Summary:
+  8. Total Monthly Payments in summary includes escrow amounts
+  9. Escrow does NOT affect debt balance, payoff progress, or est. remaining
+```
+
+### T3.6 Category click-through (Step 16)
+
+```
+Test: Tap category → filtered transaction list
+
+Budgets page — Fixed:
+  1. Tap "Mortgage Payment" → navigates to Transactions filtered by
+     Mortgage category + current month
+  2. URL includes query params (e.g., /transactions?category=X&month=2026-02)
+
+Budgets page — Flexible:
+  3. Tap "Groceries" → Transactions filtered by Groceries + current month
+  4. Transaction count matches the spent amount on Budgets page
+
+Budgets page — Unbudgeted:
+  5. Tap an unbudgeted category → same filtered view
+
+Spending page:
+  6. Tap any category in spending breakdown → filtered Transactions
+
+Navigation:
+  7. Back button or breadcrumb returns to previous page
+  8. Filters are pre-applied on arrival (category dropdown shows correct value)
+```
+
+### T3.7 Monthly snapshots (Step 17)
 
 ```
 Test: MonthlySnapshot model and cron
@@ -428,7 +477,7 @@ Cron:
   10. Vercel cron config schedules it for 1st of month at 6am
 ```
 
-### T3.6 Monthly Review trajectory (Step 16)
+### T3.8 Monthly Review trajectory (Step 18)
 
 ```
 Test: "Since you started" displays correctly
@@ -459,9 +508,9 @@ Regression:
 
 ## Phase 4 Tests: Bank Connectivity
 
-*Run after Steps 17–19 are complete.*
+*Run after Steps 19–21 are complete.*
 
-### T4.1 Plaid API routes (Step 17)
+### T4.1 Plaid API routes (Step 19)
 
 ```
 Test: Plaid endpoints functional
@@ -490,7 +539,7 @@ Transaction metadata:
   12. Plaid transactions have propertyId = user's default property (or null)
 ```
 
-### T4.2 Plaid Link UI (Step 18)
+### T4.2 Plaid Link UI (Step 20)
 
 ```
 Test: Plaid Link component on Accounts page
@@ -507,7 +556,7 @@ Verify:
   6. Net worth includes both Plaid and manual account balances
 ```
 
-### T4.3 Daily sync cron (Step 19)
+### T4.3 Daily sync cron (Step 21)
 
 ```
 Test: Automated daily sync
@@ -531,9 +580,9 @@ Regression:
 
 ## Phase 5 Tests: Security, Brand, and Ship
 
-*Run after Steps 20–24 are complete.*
+*Run after Steps 22–26 are complete.*
 
-### T5.0 Security hardening (Step 20)
+### T5.0 Security hardening (Step 22)
 
 ```
 Test: All R11 requirements met
@@ -584,7 +633,7 @@ Security page:
   29. Linked from landing page footer
 ```
 
-### T5.1 Rebrand (Step 21)
+### T5.1 Rebrand (Step 23)
 
 ```
 Test: No traces of "Clear Path" or "ClearPath"
@@ -599,7 +648,7 @@ Verify:
   7. Sidebar still shows "oversikt" wordmark
 ```
 
-### T5.2 Domain (Step 22)
+### T5.2 Domain (Step 24)
 
 ```
 Test: App accessible at new domain
@@ -611,7 +660,7 @@ Verify:
   4. Old URL (clear-path-wheat.vercel.app) redirects or is decommissioned
 ```
 
-### T5.3 Landing page and demo (Step 23)
+### T5.3 Landing page and demo (Step 25)
 
 ```
 Test: Unauthenticated experience works
@@ -637,7 +686,7 @@ Registration:
   14. New account starts empty (no demo data)
 ```
 
-### T5.4 Mobile responsive (Step 24)
+### T5.4 Mobile responsive (Step 26)
 
 ```
 Test: All pages at 375px viewport width
@@ -667,7 +716,7 @@ Specific checks:
 
 -----
 
-## Final Verification (Step 25)
+## Final Verification (Step 27)
 
 *Every test from every phase, run one more time.*
 
@@ -693,9 +742,9 @@ Update this as phases complete:
 
 |Phase                       |Tests    |Status                          |
 |----------------------------|---------|--------------------------------|
-|Phase 1: Foundation         |T1.1–T1.8|🟢 All passing                   |
+|Phase 1: Foundation         |T1.1–T1.8|🔴 R1.1, R1.2, R1.3 still failing|
 |Phase 2: Data Model         |T2.1–T2.3|🟢                               |
-|Phase 3: Experience         |T3.1–T3.6|🟢 All passing                   |
+|Phase 3: Experience         |T3.1–T3.8|🟡 In progress                   |
 |Phase 4: Plaid              |T4.1–T4.3|⬜                               |
 |Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜                               |
 |Final Verification          |All      |⬜                               |
