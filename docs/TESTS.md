@@ -1,6 +1,6 @@
 # Oversikt — Test Specifications
 
-*Paired with `/docs/PRD.md` v2.1*
+*Paired with `/docs/PRD.md` v2.4*
 *This file lives at `/docs/TESTS.md`*
 
 -----
@@ -14,9 +14,9 @@ After completing each phase in the PRD, Claude Code runs the corresponding test 
 - **UI tests** — check rendered pages for correct content
 - **Regression tests** — confirm nothing broke from previous phases
 
-Claude Code runs these in the terminal using the app's existing stack (Prisma, Next.js API routes, and browser checks via curl or a test script). For UI verification, Claude Code can use the dev server and check rendered HTML or describe what to verify manually.
+Claude Code runs these in the terminal using the app’s existing stack (Prisma, Next.js API routes, and browser checks via curl or a test script). For UI verification, Claude Code can use the dev server and check rendered HTML or describe what to verify manually.
 
-**Pass criteria:** Every test in a phase must pass before starting the next phase. If a test fails, fix it within the current phase scope — don't move forward.
+**Pass criteria:** Every test in a phase must pass before starting the next phase. If a test fails, fix it within the current phase scope — don’t move forward.
 
 -----
 
@@ -108,9 +108,24 @@ Verify:
   6. Dismiss flow works: dismiss an insight → it doesn't reappear on next generate
 ```
 
------
+### T1.5 Unbudgeted categories surfaced (R6.7)
 
-## Phase 2 Tests: Complete the Data Model
+```
+Test: Categories with transactions but no budget appear on Budgets page
+
+Setup:
+  - Ensure at least one category has transactions but no budget entry
+    (e.g., "Other Income", "Transfer", "Uncategorized" from CSV imports)
+
+Verify:
+  1. Budgets page has an "Unbudgeted" or "Other Spending" section
+  2. Each unbudgeted category shows: name, actual spend this month
+  3. User can click to create a budget from the unbudgeted entry
+  4. Total unbudgeted spending amount shown
+  5. This section does NOT include income categories (only expense)
+```
+
+-----
 
 *Run after Steps 5–7 are complete.*
 
@@ -297,6 +312,30 @@ Delete account:
   21. "Delete my account" button → confirmation dialog with "type DELETE to confirm"
   22. Confirmed deletion → removes all user data, redirects to landing page
   23. Deleted user cannot log in again
+```
+
+### T3.4 Spending views (Step 11)
+
+```
+Test: By Person and By Property views work
+
+By Person:
+  1. Spending page has a "By Person" toggle/filter
+  2. With household members assigned to some transactions:
+     shows spending grouped by person name
+  3. Untagged transactions appear under "Unassigned" or similar
+  4. Person totals sum to overall total
+
+By Property:
+  5. Spending page has a "By Property" toggle/filter
+  6. Shows spending grouped by property name
+  7. "Rental" filter shows only rental-tagged transactions
+  8. Property totals sum to overall total
+
+Transactions page:
+  9. Property filter dropdown exists above table
+  10. Selecting a property filters the transaction list
+  11. Person column is visible and filterable
 ```
 
 ### T3.4 Spending views (Step 11)
@@ -616,11 +655,11 @@ Additionally verify:
 
 Update this as phases complete:
 
-|Phase                       |Tests    |Status|
-|----------------------------|---------|------|
-|Phase 1: Foundation         |T1.1–T1.4|⬜     |
-|Phase 2: Data Model         |T2.1–T2.3|⬜     |
-|Phase 3: Experience         |T3.1–T3.6|⬜     |
-|Phase 4: Plaid              |T4.1–T4.3|⬜     |
-|Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜     |
-|Final Verification          |All      |⬜     |
+|Phase                       |Tests    |Status                    |
+|----------------------------|---------|--------------------------|
+|Phase 1: Foundation         |T1.1–T1.5|🔴 R1.1, R1.2 still failing|
+|Phase 2: Data Model         |T2.1–T2.3|🟢                         |
+|Phase 3: Experience         |T3.1–T3.6|🟡 In progress             |
+|Phase 4: Plaid              |T4.1–T4.3|⬜                         |
+|Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜                         |
+|Final Verification          |All      |⬜                         |

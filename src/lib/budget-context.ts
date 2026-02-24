@@ -31,8 +31,10 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
     }),
   ])
 
-  // Compute spent per category from current-month expense transactions
+  // Compute spent per category from current-month expense transactions.
+  // Build two maps: by categoryId (primary) and by category name (fallback).
   const spentByCategory = new Map<string, number>()
+  const spentByCategoryName = new Map<string, number>()
   for (const tx of monthExpenses) {
     if (tx.categoryId) {
       spentByCategory.set(
@@ -40,13 +42,30 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
         (spentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
       )
     }
+    if (tx.category?.name) {
+      const nameKey = tx.category.name.toLowerCase()
+      spentByCategoryName.set(
+        nameKey,
+        (spentByCategoryName.get(nameKey) ?? 0) + Math.abs(tx.amount)
+      )
+    }
   }
 
-  // Enrich budgets with computed spent
-  const budgetsWithSpent = budgets.map((b) => ({
-    ...b,
-    spent: b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0,
-  }))
+  // Enrich budgets with computed spent — fallback to name matching when categoryId is null
+  const budgetsWithSpent = budgets.map((b) => {
+    let spent = b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0
+
+    if (spent === 0 && !b.categoryId) {
+      const catName = b.category?.name?.toLowerCase()
+      if (catName && spentByCategoryName.has(catName)) {
+        spent = spentByCategoryName.get(catName)!
+      } else {
+        spent = spentByCategoryName.get(b.name.toLowerCase()) ?? 0
+      }
+    }
+
+    return { ...b, spent }
+  })
 
   const totalBudgeted = budgetsWithSpent
     .filter((b) => b.tier !== 'ANNUAL')
