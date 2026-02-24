@@ -52,15 +52,19 @@ interface Props {
   accounts: AccountOption[]
   householdMembers?: HouseholdMemberOption[]
   properties?: PropertyOption[]
+  initialCategoryId?: string
+  initialMonth?: string
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '' }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // Filter state (R4.4: property filter on Transactions)
+  // Filter state (R4.4: property filter, R6.8: category + month filters)
   const [filterPropertyId, setFilterPropertyId] = useState<string>('')
+  const [filterCategoryId, setFilterCategoryId] = useState<string>(initialCategoryId)
+  const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,6 +101,25 @@ export default function TransactionList({ transactions: initial, categories, acc
   useEffect(() => {
     setTransactions(initial)
   }, [initial])
+
+  // Apply filters (declared early — used by selection helpers and render)
+  const filteredTransactions = transactions.filter((tx) => {
+    // Property filter (R4.4)
+    if (filterPropertyId) {
+      if (filterPropertyId === '__none__' ? tx.propertyId !== null : tx.propertyId !== filterPropertyId) return false
+    }
+    // Category filter (R6.8)
+    if (filterCategoryId) {
+      if (tx.categoryId !== filterCategoryId) return false
+    }
+    // Month filter (R6.8)
+    if (filterMonth) {
+      const txDate = new Date(tx.date)
+      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`
+      if (txMonth !== filterMonth) return false
+    }
+    return true
+  })
 
   function startEdit(tx: TransactionRow) {
     if (editingId === tx.id) return
@@ -343,21 +366,43 @@ export default function TransactionList({ transactions: initial, categories, acc
     return acc
   }, {})
 
-  // Apply property filter
-  const filteredTransactions = filterPropertyId
-    ? transactions.filter((tx) =>
-        filterPropertyId === '__none__'
-          ? tx.propertyId === null
-          : tx.propertyId === filterPropertyId
-      )
-    : transactions
-
   return (
     <div className="relative pb-16">
-      {/* Filter bar (R4.4) */}
-      {properties.length > 0 && (
-        <div className="mb-3 flex items-center gap-3">
-          <label className="text-sm font-medium text-stone">Filter:</label>
+      {/* Filter bar (R4.4 + R6.8) */}
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <label className="text-sm font-medium text-stone">Filter:</label>
+        <select
+          value={filterCategoryId}
+          onChange={(e) => setFilterCategoryId(e.target.value)}
+          className="input text-sm"
+        >
+          <option value="">All Categories</option>
+          {Object.entries(groupedCategories).map(([group, cats]) => (
+            <optgroup key={group} label={group}>
+              {cats.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <select
+          value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)}
+          className="input text-sm"
+        >
+          <option value="">All Months</option>
+          {(() => {
+            const months = new Set<string>()
+            for (const tx of transactions) {
+              const d = new Date(tx.date)
+              months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+            }
+            return [...months].sort().reverse().map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))
+          })()}
+        </select>
+        {properties.length > 0 && (
           <select
             value={filterPropertyId}
             onChange={(e) => setFilterPropertyId(e.target.value)}
@@ -369,16 +414,16 @@ export default function TransactionList({ transactions: initial, categories, acc
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          {filterPropertyId && (
-            <button
-              onClick={() => setFilterPropertyId('')}
-              className="text-xs text-stone hover:text-fjord"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      )}
+        )}
+        {(filterPropertyId || filterCategoryId || filterMonth) && (
+          <button
+            onClick={() => { setFilterPropertyId(''); setFilterCategoryId(''); setFilterMonth('') }}
+            className="text-xs text-stone hover:text-fjord"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
 
       <div className="card overflow-hidden p-0">
         {error && (
@@ -571,7 +616,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {filterPropertyId
+          {(filterPropertyId || filterCategoryId || filterMonth)
             ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
             : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>

@@ -5,16 +5,28 @@ import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 
+/** Keywords in CSV category names that indicate income */
+const INCOME_CAT_KEYWORDS =
+  /\b(income|salary|wages?|paycheck|deposit|refund|reimbursement|dividend|interest earned|bonus|gift received|cashback)\b/i
+
+/** Keywords in CSV category names that indicate expense */
+const EXPENSE_CAT_KEYWORDS =
+  /\b(expense|bill|fee|charge|purchase|withdrawal|utilities|rent|groceries|dining|entertainment|subscription)\b/i
+
 /**
  * Fuzzy-match a CSV category name to an existing category when exact match fails.
- * Tries contains matching and word overlap, prioritizing budget-linked categories.
+ * Tries contains matching and word overlap, prioritizing budget-linked categories
+ * and categories whose type aligns with the transaction amount sign.
  */
-function findPartialCategoryMatch<T extends { id: string; name: string }>(
+function findPartialCategoryMatch<T extends { id: string; name: string; type?: string }>(
   csvKey: string,
   categoryMap: Map<string, T>,
-  budgetCategoryIds: Set<string>
+  budgetCategoryIds: Set<string>,
+  amountSign?: number
 ): T | null {
   const csvWords = new Set(csvKey.split(/[\s&,]+/).filter((w) => w.length > 2))
+  const expectedType =
+    amountSign !== undefined ? (amountSign > 0 ? 'income' : 'expense') : undefined
 
   let bestMatch: T | null = null
   let bestScore = 0
@@ -46,6 +58,16 @@ function findPartialCategoryMatch<T extends { id: string; name: string }>(
     // Budget-linked categories get a priority bonus
     if (score > 0 && budgetCategoryIds.has(existingCat.id)) {
       score += 0.3
+    }
+
+    // Prefer categories whose type matches the amount sign
+    const catType = (existingCat as { type?: string }).type
+    if (score > 0 && expectedType && catType) {
+      if (catType === expectedType) {
+        score += 0.2
+      } else if (catType !== 'transfer') {
+        score -= 0.2
+      }
     }
 
     if (score > bestScore) {
@@ -106,12 +128,25 @@ export async function POST(request: Request) {
     })
     const accountMap = new Map(userAccounts.map((a) => [a.name.toLowerCase(), a]))
 
+    // Load user's household members and properties for CSV person/property mapping
+    const userMembers = await db.householdMember.findMany({
+      where: { userId: session.userId },
+    })
+    const memberMap = new Map(userMembers.map((m) => [m.name.toLowerCase(), m]))
+
+    const userProperties = await db.property.findMany({
+      where: { userId: session.userId },
+    })
+    const propertyMap = new Map(userProperties.map((p) => [p.name.toLowerCase(), p]))
+
     let transactionsToProcess: {
       date: string
       merchant: string
       amount: number
       category?: string
       account?: string
+      person?: string
+      property?: string
       originalStatement?: string
       notes?: string
       tags?: string
@@ -169,6 +204,9 @@ export async function POST(request: Request) {
         merchant: tx.merchant,
         amount: tx.amount,
         category: tx.category,
+        account: tx.account,
+        person: tx.person,
+        property: tx.property,
       }))
     }
 
@@ -186,6 +224,8 @@ export async function POST(request: Request) {
     const toImport: {
       userId: string
       accountId: string | null
+      householdMemberId: string | null
+      propertyId: string | null
       date: Date
       merchant: string
       amount: number
@@ -226,9 +266,9 @@ export async function POST(request: Request) {
         const catKey = tx.category.toLowerCase()
         let matched = categoryMap.get(catKey) ?? null
 
-        // Fallback: partial/fuzzy match, prioritizing budget-linked categories
+        // Fallback: partial/fuzzy match, prioritizing budget-linked categories + type alignment
         if (!matched) {
-          matched = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds)
+          matched = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds, tx.amount)
           if (matched) {
             categoryMap.set(catKey, matched)
           }
@@ -237,11 +277,12 @@ export async function POST(request: Request) {
         if (matched) {
           categoryId = matched.id
         } else {
-          // Infer category type from transactionType (most reliable), then amount sign
+          // Infer category type from transactionType (most reliable), then category name keywords, then amount sign
           const isTransfer = tx.transactionType === 'transfer' ||
             catKey.includes('transfer') || catKey.includes('credit card payment')
           const isCredit = tx.transactionType === 'credit'
-          const catType = isTransfer ? 'transfer' : (isCredit || tx.amount > 0) ? 'income' : 'expense'
+          const nameHasIncomeSignal = INCOME_CAT_KEYWORDS.test(catKey) && !EXPENSE_CAT_KEYWORDS.test(catKey)
+          const catType = isTransfer ? 'transfer' : (isCredit || nameHasIncomeSignal || tx.amount > 0) ? 'income' : 'expense'
 
           // Auto-create category from CSV data
           const newCat = await db.category.create({
@@ -259,7 +300,7 @@ export async function POST(request: Request) {
       }
 
       // Match account by name (Monarch) or use provided accountId
-      // Try exact match first, then partial match (CSV name contains user account or vice versa)
+      // Try exact match first, then partial match, then auto-create (R1.5)
       let resolvedAccountId: string | null = accountId ?? null
       if (tx.account) {
         const csvAccountKey = tx.account.toLowerCase().trim()
@@ -268,35 +309,107 @@ export async function POST(request: Request) {
           resolvedAccountId = exactMatch.id
         } else {
           // Partial match: "Webster Bank Checking" matches user account "Webster bank"
+          let found = false
           for (const [userKey, userAccount] of accountMap) {
             if (csvAccountKey.includes(userKey) || userKey.includes(csvAccountKey)) {
               resolvedAccountId = userAccount.id
-              // Cache this CSV name for subsequent rows from the same account
               accountMap.set(csvAccountKey, userAccount)
+              found = true
               break
             }
+          }
+          // Auto-create account if no match found (R1.5)
+          if (!found) {
+            const newAccount = await db.account.create({
+              data: {
+                userId: session.userId,
+                name: tx.account.trim(),
+                type: 'CHECKING',
+                balance: 0,
+              },
+            })
+            accountMap.set(csvAccountKey, newAccount)
+            resolvedAccountId = newAccount.id
           }
         }
       }
 
-      // Normalize amount sign. Priority: transactionType > category type > CSV sign.
+      // Match person (household member) by name or auto-create (R1.4)
+      let resolvedMemberId: string | null = null
+      if (tx.person) {
+        const csvPersonKey = tx.person.toLowerCase().trim()
+        const memberMatch = memberMap.get(csvPersonKey)
+        if (memberMatch) {
+          resolvedMemberId = memberMatch.id
+        } else {
+          // Auto-create household member
+          const newMember = await db.householdMember.create({
+            data: {
+              userId: session.userId,
+              name: tx.person.trim(),
+              isDefault: false,
+            },
+          })
+          memberMap.set(csvPersonKey, newMember)
+          resolvedMemberId = newMember.id
+        }
+      }
+
+      // Match property by name or auto-create (R1.4)
+      let resolvedPropertyId: string | null = null
+      if (tx.property) {
+        const csvPropertyKey = tx.property.toLowerCase().trim()
+        const propertyMatch = propertyMap.get(csvPropertyKey)
+        if (propertyMatch) {
+          resolvedPropertyId = propertyMatch.id
+        } else {
+          // Auto-create property
+          const newProperty = await db.property.create({
+            data: {
+              userId: session.userId,
+              name: tx.property.trim(),
+              type: 'PERSONAL',
+              isDefault: false,
+            },
+          })
+          propertyMap.set(csvPropertyKey, newProperty)
+          resolvedPropertyId = newProperty.id
+        }
+      }
+
+      // Normalize amount sign. Priority:
+      //   1. transactionType ('credit'/'debit') — most reliable (Monarch CSV)
+      //   2. CSV category name keywords ("income", "salary", etc.) — explicit user label
+      //   3. Matched category type — fallback
       // App convention: income = positive, expense = negative.
       let finalAmount = tx.amount
       if (tx.transactionType === 'credit') {
         finalAmount = Math.abs(tx.amount)
       } else if (tx.transactionType === 'debit') {
         finalAmount = -Math.abs(tx.amount)
-      } else if (categoryId) {
-        const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
-        if (resolvedCat) {
-          if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
-          else if (resolvedCat.type === 'income') finalAmount = Math.abs(tx.amount)
+      } else {
+        const csvCatLower = (tx.category || '').toLowerCase()
+        const csvSaysIncome = INCOME_CAT_KEYWORDS.test(csvCatLower) && !EXPENSE_CAT_KEYWORDS.test(csvCatLower)
+        const csvSaysExpense = EXPENSE_CAT_KEYWORDS.test(csvCatLower) && !INCOME_CAT_KEYWORDS.test(csvCatLower)
+
+        if (csvSaysIncome) {
+          finalAmount = Math.abs(tx.amount)
+        } else if (csvSaysExpense) {
+          finalAmount = -Math.abs(tx.amount)
+        } else if (categoryId) {
+          const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
+          if (resolvedCat) {
+            if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
+            else if (resolvedCat.type === 'income') finalAmount = Math.abs(tx.amount)
+          }
         }
       }
 
       toImport.push({
         userId: session.userId,
         accountId: resolvedAccountId,
+        householdMemberId: resolvedMemberId,
+        propertyId: resolvedPropertyId,
         date: txDate,
         merchant: tx.merchant,
         amount: finalAmount,

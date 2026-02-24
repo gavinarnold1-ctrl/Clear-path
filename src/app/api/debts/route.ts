@@ -38,7 +38,7 @@ export async function GET() {
 
   // Compute summary
   const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0)
-  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment, 0)
+  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment + (d.escrowAmount ?? 0), 0)
   const weightedRate =
     totalDebt > 0
       ? debts.reduce((sum, d) => sum + d.currentBalance * d.interestRate, 0) / totalDebt
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     originalBalance,
     interestRate,
     minimumPayment,
+    escrowAmount,
     paymentDay,
     termMonths,
     startDate,
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
       originalBalance: originalBalance ?? null,
       interestRate,
       minimumPayment,
+      escrowAmount: escrowAmount != null ? escrowAmount : null,
       paymentDay: paymentDay ?? null,
       termMonths: termMonths ?? null,
       startDate: startDate ? new Date(startDate) : null,

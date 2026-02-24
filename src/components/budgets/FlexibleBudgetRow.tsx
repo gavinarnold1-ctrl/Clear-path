@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import ProgressBar from '@/components/ui/ProgressBar'
 import { formatCurrency, budgetProgress } from '@/lib/utils'
 
@@ -5,6 +6,7 @@ interface Props {
   name: string
   amount: number
   spent: number
+  categoryId: string | null
   category: { name: string; icon: string | null } | null
 }
 
@@ -20,7 +22,12 @@ function getDailyAllowance(amount: number, spent: number): { daily: number; days
   return { daily, daysLeft }
 }
 
-export default function FlexibleBudgetRow({ name, amount, spent, category }: Props) {
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+export default function FlexibleBudgetRow({ name, amount, spent, categoryId, category }: Props) {
   const pct = budgetProgress(spent, amount)
   const remaining = amount - spent
   const isOver = spent > amount
@@ -29,8 +36,12 @@ export default function FlexibleBudgetRow({ name, amount, spent, category }: Pro
   const pctColor =
     pct >= 100 ? 'text-ember' : pct >= 90 ? 'text-ember' : pct >= 75 ? 'text-birch' : 'text-fjord'
 
-  return (
-    <div className="rounded-lg px-3 py-3 hover:bg-snow">
+  const href = categoryId
+    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
+    : null
+
+  const content = (
+    <>
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {category?.icon && <span className="text-sm">{category.icon}</span>}
@@ -57,6 +68,14 @@ export default function FlexibleBudgetRow({ name, amount, spent, category }: Pro
         )}
         <span className={`font-semibold ${pctColor}`}>{pct}%</span>
       </div>
-    </div>
+    </>
+  )
+
+  const className = "block rounded-lg px-3 py-3 hover:bg-snow"
+
+  return href ? (
+    <Link href={href} className={className}>{content}</Link>
+  ) : (
+    <div className={className}>{content}</div>
   )
 }

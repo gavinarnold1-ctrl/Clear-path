@@ -4,6 +4,8 @@ export interface ParsedTransaction {
   amount: number // negative = expense, positive = income (kept as-is from CSV)
   category?: string
   account?: string
+  person?: string
+  property?: string
   raw: Record<string, string>
 }
 
@@ -69,6 +71,8 @@ export function transformRows(
     .filter(({ header }) => mapping[header] === 'amount')
   const categoryCol = headers.findIndex((h) => mapping[h] === 'category')
   const accountCol = headers.findIndex((h) => mapping[h] === 'account')
+  const personCol = headers.findIndex((h) => mapping[h] === 'person')
+  const propertyCol = headers.findIndex((h) => mapping[h] === 'property')
 
   if (dateCol === -1) {
     return {
@@ -133,6 +137,10 @@ export function transformRows(
       const category = rawCategory ? sanitizeCell(rawCategory) : undefined
       const rawAccount = accountCol >= 0 ? row[accountCol]?.trim() || undefined : undefined
       const account = rawAccount ? sanitizeCell(rawAccount) : undefined
+      const rawPerson = personCol >= 0 ? row[personCol]?.trim() || undefined : undefined
+      const person = rawPerson ? sanitizeCell(rawPerson) : undefined
+      const rawProperty = propertyCol >= 0 ? row[propertyCol]?.trim() || undefined : undefined
+      const property = rawProperty ? sanitizeCell(rawProperty) : undefined
 
       const raw: Record<string, string> = {}
       headers.forEach((h, i) => {
@@ -146,6 +154,8 @@ export function transformRows(
         amount,
         category,
         ...(account && { account }),
+        ...(person && { person }),
+        ...(property && { property }),
         raw,
       })
     } catch (err) {

@@ -149,7 +149,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
       },
-      select: { categoryId: true, amount: true },
+      select: { categoryId: true, amount: true, category: { select: { id: true, name: true } } },
     }),
     db.transaction.groupBy({
       by: ['categoryId'],
@@ -180,18 +180,39 @@ export default async function DashboardPage({ searchParams }: Props) {
     }),
   ])
 
-  // Compute live budget spent from current-month expense transactions
+  // Compute live budget spent from current-month expense transactions.
+  // Build two maps: by categoryId (primary) and by category name (fallback).
   const budgetSpentMap = new Map<string, number>()
+  const spentByCatName = new Map<string, number>()
+  const catNameToIdMap = new Map<string, string>()
   for (const tx of budgetExpenses) {
     if (tx.categoryId) {
       budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
     }
+    if (tx.category?.name) {
+      const nameKey = tx.category.name.toLowerCase()
+      spentByCatName.set(nameKey, (spentByCatName.get(nameKey) ?? 0) + Math.abs(tx.amount))
+      if (tx.categoryId) catNameToIdMap.set(nameKey, tx.categoryId)
+    }
   }
 
-  const allBudgetsWithSpent = rawBudgets.map((b) => ({
-    ...b,
-    spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0,
-  }))
+  const allBudgetsWithSpent = rawBudgets.map((b) => {
+    // Primary: match by categoryId
+    let spent = b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0
+
+    // Fallback: match by category/budget name when categoryId is null
+    if (spent === 0 && !b.categoryId) {
+      const catName = b.category?.name?.toLowerCase()
+      if (catName && spentByCatName.has(catName)) {
+        spent = spentByCatName.get(catName)!
+      } else {
+        const budgetNameKey = b.name.toLowerCase()
+        spent = spentByCatName.get(budgetNameKey) ?? 0
+      }
+    }
+
+    return { ...b, spent }
+  })
 
   // True Remaining computation: income - fixed committed - flexible spent - annual set-asides
   const fixedBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'FIXED')

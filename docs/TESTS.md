@@ -1,6 +1,6 @@
 # Oversikt — Test Specifications
 
-*Paired with `/docs/PRD.md` v2.1*
+*Paired with `/docs/PRD.md` v2.6*
 *This file lives at `/docs/TESTS.md`*
 
 -----
@@ -22,7 +22,7 @@ Claude Code runs these in the terminal using the app's existing stack (Prisma, N
 
 ## Phase 1 Tests: Fix the Foundation
 
-*Run after Steps 1–4 are complete.*
+*Run after Steps 1–7 are complete.*
 
 ### T1.1 Budget.spent computed correctly (Step 1)
 
@@ -74,24 +74,86 @@ Edge cases:
   10. A transaction on any day of the month counts (not just the due date)
 ```
 
-### T1.3 Amount sign enforcement (Step 3)
+### T1.3 CSV import sign logic (Step 3)
 
 ```
-Test: Signs enforced at API level
+Test: Income amounts stay positive, expense amounts stored negative
 
-Verify via API calls:
-  1. POST /api/transactions with category type "expense" → amount stored as negative
-  2. POST /api/transactions with category type "income" → amount stored as positive
-  3. Direct DB query: no expense transactions have positive amounts
-  4. Direct DB query: no income transactions have negative amounts
-  5. CSV import: re-import a test CSV → verify signs are correct in DB
+Setup: Import a CSV with a known income row (e.g., Ledyard Bank, 1583.33,
+category "Other Income") and a known expense row (e.g., 365 Retail, 2.12,
+category "Groceries")
 
-Verify in DB:
-  6. SELECT amount FROM Transaction WHERE category type = 'expense' → all negative
-  7. SELECT amount FROM Transaction WHERE category type = 'income' → all positive
+Verify:
+  1. After import: Ledyard Bank transaction amount = +$1,583.33 (positive)
+  2. After import: 365 Retail transaction amount = -$2.12 (negative)
+  3. Transactions page: Ledyard Bank shows green +$1,583.33
+  4. Transactions page: 365 Retail shows ember -$2.12
+  5. DB query: no transactions where category type=income AND amount < 0
+  6. DB query: no transactions where category type=expense AND amount > 0
+
+Edge case:
+  7. CSV with negative income value (e.g., -1583.33 for "Other Income")
+     → stored as +$1,583.33 (absolute value, forced positive by category type)
+  8. CSV with positive expense value (e.g., 2.12 for "Groceries")
+     → stored as -$2.12 (forced negative by category type)
 ```
 
-### T1.4 AI Insights with corrected data (Step 4)
+### T1.4 CSV column mapping — Person and Property (Step 4)
+
+```
+Test: Person and Property appear in mapping dropdown
+
+Verify:
+  1. Upload a CSV → mapping screen shows
+  2. Dropdown options include: Date, Merchant, Amount, Category, Account, Person, Property, Ignore
+  3. Map "Owner" column → Person → transactions get householdMemberId set
+  4. If mapped Person value doesn't match existing household member → auto-create member
+  5. If Person column is not mapped → transactions get householdMemberId = null
+  6. If Property column is not mapped → transactions get propertyId = null
+  7. If Property column IS mapped → values match/create properties, transactions linked
+```
+
+### T1.5 CSV account linking (Step 5)
+
+```
+Test: Account column values create and link accounts
+
+Setup: CSV has an Account column with values like "Adv Plus Banking (...6809)",
+"Venture X (...3346)"
+
+Verify:
+  1. Map Account column → Account in dropdown
+  2. After import: each unique account value creates an Account record (if new)
+  3. After import: every transaction has accountId set (no "—" in Account column)
+  4. If Account column mapped AND "Import into account" is "No account":
+     per-row values take priority
+  5. If Account column NOT mapped AND "Import into account" has a selection:
+     all transactions link to that account
+  6. Accounts page shows newly created accounts with correct names
+```
+
+### T1.6 Migration — fix existing sign errors (Step 6)
+
+```
+Test: One-time migration corrects historical sign errors
+
+Before migration:
+  1. Query: SELECT count(*) FROM Transaction t JOIN Category c ON t.categoryId = c.id
+     WHERE c.type = 'income' AND t.amount < 0
+     → should return > 0 (e.g., Ledyard Bank)
+
+Run migration script.
+
+After migration:
+  2. Same query → returns 0
+  3. Ledyard Bank transaction: amount = +$1,583.33
+  4. Dividend Received: amount = +$64.31 (was already correct, unchanged)
+  5. Groceries transactions: all still negative
+  6. Overview page totals have changed to reflect corrected signs
+  7. Spending totals still correct (expenses only)
+```
+
+### T1.7 AI Insights with corrected data (Step 7)
 
 ```
 Test: Insights reflect accurate budget data
@@ -100,21 +162,32 @@ Verify:
   1. "Generate Insights" / "Generate Review" button triggers successfully
   2. Response returns within reasonable time (<30s)
   3. The "$2,823 Spent Outside Your Budget" alert is gone or significantly reduced
-     (most spending should now show as tracked within budgets)
   4. Efficiency score sub-components have changed from pre-fix values
-     (Spending was 74 — should improve now that budgets track correctly)
-  5. API error handling: disconnect network or use invalid API key →
-     graceful error message, not crash
-  6. Dismiss flow works: dismiss an insight → it doesn't reappear on next generate
+  5. API error handling: graceful error message on failure, not crash
+  6. Dismiss flow works: dismiss an insight → it doesn't reappear
+```
+
+### T1.8 Unbudgeted categories surfaced (R6.7)
+
+```
+Test: Categories with transactions but no budget appear on Budgets page
+
+Setup:
+  - Ensure at least one category has transactions but no budget entry
+
+Verify:
+  1. Budgets page has an "Unbudgeted" or "Other Spending" section
+  2. Each unbudgeted category shows: name, actual spend this month
+  3. User can click to create a budget from the unbudgeted entry
+  4. Total unbudgeted spending amount shown
+  5. This section does NOT include income categories (only expense)
 ```
 
 -----
 
-## Phase 2 Tests: Complete the Data Model
+*Run after Steps 8–10 are complete.*
 
-*Run after Steps 5–7 are complete.*
-
-### T2.1 Household members (Step 5)
+### T2.1 Household members (Step 8)
 
 ```
 Test: HouseholdMember CRUD and transaction tagging
@@ -142,7 +215,7 @@ UI:
   14. Settings/setup area allows creating household members
 ```
 
-### T2.2 Property tagging (Step 6)
+### T2.2 Property tagging (Step 9)
 
 ```
 Test: Property CRUD and transaction tagging
@@ -170,7 +243,7 @@ UI:
   14. Settings/setup area allows creating properties
 ```
 
-### T2.3 Debts page (Step 7)
+### T2.3 Debts page (Step 10)
 
 ```
 Test: Debt CRUD and Debts page rendering
@@ -219,9 +292,9 @@ Regression:
 
 ## Phase 3 Tests: Reshape the Experience
 
-*Run after Steps 8–13 are complete.*
+*Run after Steps 11–18 are complete.*
 
-### T3.1 Overview redesign (Step 8)
+### T3.1 Overview redesign (Step 11)
 
 ```
 Test: True Remaining is the hero metric
@@ -241,7 +314,7 @@ Regression:
   9. Month-over-month percentages still calculate
 ```
 
-### T3.2 Navigation restructure (Step 9)
+### T3.2 Navigation restructure (Step 12)
 
 ```
 Test: Nav matches PRD spec
@@ -258,7 +331,7 @@ Verify nav order:
   9. All nav links work and load correct pages
 ```
 
-### T3.3 Settings page (Step 10)
+### T3.3 Settings page (Step 13)
 
 ```
 Test: Settings page consolidates all setup functions
@@ -299,7 +372,7 @@ Delete account:
   23. Deleted user cannot log in again
 ```
 
-### T3.4 Spending views (Step 11)
+### T3.4 Spending views (Step 14)
 
 ```
 Test: By Person and By Property views work
@@ -323,7 +396,58 @@ Transactions page:
   11. Person column is visible and filterable
 ```
 
-### T3.5 Monthly snapshots (Step 12)
+### T3.5 Mortgage escrow (Step 15)
+
+```
+Test: Escrow field on Debt model and UI
+
+Schema:
+  1. Debt model has escrowAmount Float? field
+
+Add/Edit form:
+  2. When debt type = MORTGAGE: "Monthly Escrow (taxes & insurance)" field appears
+  3. Field is optional — can be left blank
+  4. Non-mortgage debt types: escrow field does not appear
+
+Debt card display:
+  5. If escrow is set: payment breakdown bar shows three segments:
+     - Green: Principal ($1,438.54)
+     - Ember: Interest ($2,161.46)
+     - Gray: Escrow (e.g., $800)
+  6. Total monthly cost label shows P&I + escrow (e.g., $4,400.00/mo)
+  7. If escrow is null: bar shows only P&I (unchanged from current)
+
+Summary:
+  8. Total Monthly Payments in summary includes escrow amounts
+  9. Escrow does NOT affect debt balance, payoff progress, or est. remaining
+```
+
+### T3.6 Category click-through (Step 16)
+
+```
+Test: Tap category → filtered transaction list
+
+Budgets page — Fixed:
+  1. Tap "Mortgage Payment" → navigates to Transactions filtered by
+     Mortgage category + current month
+  2. URL includes query params (e.g., /transactions?category=X&month=2026-02)
+
+Budgets page — Flexible:
+  3. Tap "Groceries" → Transactions filtered by Groceries + current month
+  4. Transaction count matches the spent amount on Budgets page
+
+Budgets page — Unbudgeted:
+  5. Tap an unbudgeted category → same filtered view
+
+Spending page:
+  6. Tap any category in spending breakdown → filtered Transactions
+
+Navigation:
+  7. Back button or breadcrumb returns to previous page
+  8. Filters are pre-applied on arrival (category dropdown shows correct value)
+```
+
+### T3.7 Monthly snapshots (Step 17)
 
 ```
 Test: MonthlySnapshot model and cron
@@ -353,7 +477,7 @@ Cron:
   10. Vercel cron config schedules it for 1st of month at 6am
 ```
 
-### T3.6 Monthly Review trajectory (Step 13)
+### T3.8 Monthly Review trajectory (Step 18)
 
 ```
 Test: "Since you started" displays correctly
@@ -384,9 +508,9 @@ Regression:
 
 ## Phase 4 Tests: Bank Connectivity
 
-*Run after Steps 14–16 are complete.*
+*Run after Steps 19–21 are complete.*
 
-### T4.1 Plaid API routes (Step 14)
+### T4.1 Plaid API routes (Step 19)
 
 ```
 Test: Plaid endpoints functional
@@ -415,7 +539,7 @@ Transaction metadata:
   12. Plaid transactions have propertyId = user's default property (or null)
 ```
 
-### T4.2 Plaid Link UI (Step 15)
+### T4.2 Plaid Link UI (Step 20)
 
 ```
 Test: Plaid Link component on Accounts page
@@ -432,7 +556,7 @@ Verify:
   6. Net worth includes both Plaid and manual account balances
 ```
 
-### T4.3 Daily sync cron (Step 16)
+### T4.3 Daily sync cron (Step 21)
 
 ```
 Test: Automated daily sync
@@ -456,9 +580,9 @@ Regression:
 
 ## Phase 5 Tests: Security, Brand, and Ship
 
-*Run after Steps 17–21 are complete.*
+*Run after Steps 22–26 are complete.*
 
-### T5.0 Security hardening (Step 17)
+### T5.0 Security hardening (Step 22)
 
 ```
 Test: All R11 requirements met
@@ -509,7 +633,7 @@ Security page:
   29. Linked from landing page footer
 ```
 
-### T5.1 Rebrand (Step 18)
+### T5.1 Rebrand (Step 23)
 
 ```
 Test: No traces of "Clear Path" or "ClearPath"
@@ -524,7 +648,7 @@ Verify:
   7. Sidebar still shows "oversikt" wordmark
 ```
 
-### T5.2 Domain (Step 19)
+### T5.2 Domain (Step 24)
 
 ```
 Test: App accessible at new domain
@@ -536,7 +660,7 @@ Verify:
   4. Old URL (clear-path-wheat.vercel.app) redirects or is decommissioned
 ```
 
-### T5.3 Landing page and demo (Step 20)
+### T5.3 Landing page and demo (Step 25)
 
 ```
 Test: Unauthenticated experience works
@@ -562,7 +686,7 @@ Registration:
   14. New account starts empty (no demo data)
 ```
 
-### T5.4 Mobile responsive (Step 21)
+### T5.4 Mobile responsive (Step 26)
 
 ```
 Test: All pages at 375px viewport width
@@ -592,7 +716,7 @@ Specific checks:
 
 -----
 
-## Final Verification (Step 22)
+## Final Verification (Step 27)
 
 *Every test from every phase, run one more time.*
 
@@ -616,11 +740,11 @@ Additionally verify:
 
 Update this as phases complete:
 
-|Phase                       |Tests    |Status|
-|----------------------------|---------|------|
-|Phase 1: Foundation         |T1.1–T1.4|⬜     |
-|Phase 2: Data Model         |T2.1–T2.3|⬜     |
-|Phase 3: Experience         |T3.1–T3.6|⬜     |
-|Phase 4: Plaid              |T4.1–T4.3|⬜     |
-|Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜     |
-|Final Verification          |All      |⬜     |
+|Phase                       |Tests    |Status                          |
+|----------------------------|---------|--------------------------------|
+|Phase 1: Foundation         |T1.1–T1.8|🔴 R1.1, R1.2, R1.3 still failing|
+|Phase 2: Data Model         |T2.1–T2.3|🟢                               |
+|Phase 3: Experience         |T3.1–T3.8|🟡 In progress                   |
+|Phase 4: Plaid              |T4.1–T4.3|⬜                               |
+|Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜                               |
+|Final Verification          |All      |⬜                               |

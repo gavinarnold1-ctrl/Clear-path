@@ -17,17 +17,48 @@ export async function POST(req: NextRequest) {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // Resolve category IDs by name — look for user or system defaults
-  async function findCategoryId(name: string, type: string): Promise<string | null> {
-    const cat = await db.category.findFirst({
-      where: {
-        OR: [{ userId: session!.userId }, { userId: null, isDefault: true }],
-        name: { equals: name, mode: 'insensitive' },
-        type,
-      },
-      orderBy: { userId: 'desc' }, // prefer user categories over defaults
+  // Load all user + system default categories for fuzzy matching
+  const allCategories = await db.category.findMany({
+    where: {
+      OR: [{ userId: session!.userId }, { userId: null, isDefault: true }],
+    },
+    orderBy: { userId: 'desc' }, // user categories first (preferred)
+  })
+
+  // Resolve category IDs by name — exact first, then fuzzy partial match
+  function findCategoryId(name: string, type: string): string | null {
+    const nameLower = name.toLowerCase()
+    const filtered = allCategories.filter((c) => c.type === type)
+
+    // 1. Exact match (case insensitive)
+    const exact = filtered.find((c) => c.name.toLowerCase() === nameLower)
+    if (exact) return exact.id
+
+    // 2. Contains match: "Mortgage Payment" matches category "Mortgage"
+    const containsMatch = filtered.find((c) => {
+      const catLower = c.name.toLowerCase()
+      return nameLower.includes(catLower) || catLower.includes(nameLower)
     })
-    return cat?.id ?? null
+    if (containsMatch) return containsMatch.id
+
+    // 3. Word overlap: "Restaurants" matches "Restaurants & Bars"
+    const nameWords = nameLower.split(/[\s&,]+/).filter((w) => w.length > 2)
+    if (nameWords.length > 0) {
+      let bestMatch: typeof filtered[0] | null = null
+      let bestScore = 0
+      for (const cat of filtered) {
+        const catWords = cat.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
+        const overlap = nameWords.filter((w) => catWords.some((cw) => cw.includes(w) || w.includes(cw))).length
+        const score = overlap / Math.max(nameWords.length, catWords.length)
+        if (score > bestScore && score >= 0.4) {
+          bestScore = score
+          bestMatch = cat
+        }
+      }
+      if (bestMatch) return bestMatch.id
+    }
+
+    return null
   }
 
   try {
@@ -36,7 +67,7 @@ export async function POST(req: NextRequest) {
 
       // ── Fixed budgets ──
       for (const item of proposal.fixed) {
-        const categoryId = await findCategoryId(item.category, 'expense')
+        const categoryId = findCategoryId(item.category, 'expense')
 
         await tx.budget.create({
           data: {
@@ -57,7 +88,7 @@ export async function POST(req: NextRequest) {
 
       // ── Flexible budgets ──
       for (const item of proposal.flexible) {
-        const categoryId = await findCategoryId(item.category, 'expense')
+        const categoryId = findCategoryId(item.category, 'expense')
 
         await tx.budget.create({
           data: {
@@ -76,7 +107,7 @@ export async function POST(req: NextRequest) {
 
       // ── Annual budgets + AnnualExpense records ──
       for (const item of proposal.annual) {
-        const categoryId = await findCategoryId(item.category, 'expense')
+        const categoryId = findCategoryId(item.category, 'expense')
 
         // AI may return null/undefined for dueMonth on suggested items — default to 6 months out
         const dueMonth =
