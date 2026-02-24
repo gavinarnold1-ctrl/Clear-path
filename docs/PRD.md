@@ -1,6 +1,6 @@
 # Oversikt — Product Requirements Document
 
-*Version 2.1 — February 23, 2026*
+*Version 2.3 — February 23, 2026*
 *This is the single source of truth. All other docs are reference material.*
 
 -----
@@ -82,13 +82,14 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 #### R1. Accurate data
 
-|ID  |Requirement                                                            |Status|
-|----|-----------------------------------------------------------------------|------|
-|R1.1|Budget spent computed from transactions on read, never stored          |🟢     |
-|R1.2|Fixed expense paid/missed matches transactions by category within month|🟢     |
-|R1.3|Amount signs enforced at API level for all mutation endpoints          |🟢     |
-|R1.4|CSV import preserves original data, applies correct signs              |🟢     |
-|R1.5|Plaid import flips sign convention                                     |⬜     |
+|ID  |Requirement                                                                                                     |Status|
+|----|----------------------------------------------------------------------------------------------------------------|------|
+|R1.1|Budget spent computed from transactions on read, never stored                                                   |🔴     |
+|R1.2|Fixed expense paid/missed matches transactions by category within month                                         |🔴     |
+|R1.3|Amount signs enforced: income categories → positive, expense categories → negative. At API level AND CSV import.|🟢     |
+|R1.4|CSV import: if account name in CSV doesn't match existing account, auto-create it                               |🟢     |
+|R1.5|CSV import: link every transaction to its account (no "—" in Account column)                                    |🟢     |
+|R1.6|Plaid import flips sign convention                                                                              |⬜     |
 
 #### R2. Bank connectivity
 
@@ -105,8 +106,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 |----|--------------------------------------|------|
 |R3.1|Create household members (names)      |🟢     |
 |R3.2|Tag transactions to a household member|🟢     |
-|R3.3|Spending: "By Person" view            |🟢     |
-|R3.4|Monthly Review: per-person breakdown  |🟢     |
+|R3.3|Spending: "By Person" view            |⬜     |
+|R3.4|Monthly Review: per-person breakdown  |⬜     |
 
 #### R4. Property separation
 
@@ -114,8 +115,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 |----|------------------------------------------------|------|
 |R4.1|Create properties (name, type: Personal/Rental) |🟢     |
 |R4.2|Tag transactions to a property                  |🟢     |
-|R4.3|Spending: "By Property" view                    |🟢     |
-|R4.4|Transactions: property filter                   |🟢     |
+|R4.3|Spending: "By Property" view                    |⬜     |
+|R4.4|Transactions: property filter                   |⬜     |
 |R4.5|Filter Rental → all rental expenses for the year|⬜     |
 
 #### R5. Debt visibility
@@ -126,39 +127,40 @@ A financial tool for households with real-world complexity: multiple people, at 
 |R5.2|Debts page: principal vs interest breakdown           |🟢     |
 |R5.3|Debts page: total summary (owed, payments, avg rate)  |🟢     |
 |R5.4|Debt links to property (mortgage → rental)            |🟢     |
-|R5.5|Monthly Review: debt trajectory                       |🟢     |
+|R5.5|Monthly Review: debt trajectory                       |⬜     |
 
 #### R6. Budget tracking
 
-|ID  |Requirement                                         |Status|
-|----|----------------------------------------------------|------|
-|R6.1|Fixed: paid/missed from transaction matching        |🟢     |
-|R6.2|Flexible: accurate spent/limit with $/day remaining |🟢     |
-|R6.3|Annual: funding progress with set-aside calculations|🟢     |
-|R6.4|Annual Plan: apply-cash and link-transaction funding|🟢     |
-|R6.5|Auto-Fund All distributes True Remaining            |🟢     |
-|R6.6|True Remaining as primary metric on Overview        |🟢     |
+|ID  |Requirement                                                                                                                             |Status|
+|----|----------------------------------------------------------------------------------------------------------------------------------------|------|
+|R6.1|Fixed: paid/missed from transaction matching                                                                                            |🔴     |
+|R6.2|Flexible: accurate spent/limit with $/day remaining                                                                                     |🔴     |
+|R6.3|Annual: funding progress with set-aside calculations                                                                                    |🟢     |
+|R6.4|Annual Plan: apply-cash and link-transaction funding                                                                                    |🟢     |
+|R6.5|Auto-Fund All distributes True Remaining                                                                                                |🟢     |
+|R6.6|True Remaining as primary metric on Overview                                                                                            |🟡     |
+|R6.7|Unbudgeted spending surfaced: categories with transactions but no budget shown on Budgets page as "Unbudgeted" section with actual spend|⬜     |
 
 #### R7. Monthly Review
 
 |ID  |Requirement                              |Status|
 |----|-----------------------------------------|------|
-|R7.1|Monthly snapshots capture key metrics    |🟢     |
-|R7.2|"Since you started" trajectory comparison|🟢     |
+|R7.1|Monthly snapshots capture key metrics    |⬜     |
+|R7.2|"Since you started" trajectory comparison|⬜     |
 |R7.3|AI-generated review with efficiency score|🟢     |
-|R7.4|Includes person and property breakdowns  |🟢     |
-|R7.5|Includes debt paydown progress           |🟢     |
-|R7.6|Baseline snapshot on first data import   |🟢     |
-|R7.7|Monthly cron on 1st of each month        |🟢     |
+|R7.4|Includes person and property breakdowns  |⬜     |
+|R7.5|Includes debt paydown progress           |⬜     |
+|R7.6|Baseline snapshot on first data import   |⬜     |
+|R7.7|Monthly cron on 1st of each month        |⬜     |
 
 #### R8. Information architecture
 
 |ID  |Requirement                                                                                                                |Status|
 |----|---------------------------------------------------------------------------------------------------------------------------|------|
-|R8.1|Overview leads with True Remaining                                                                                         |🟢     |
-|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟢     |
-|R8.3|"Insights" renamed "Monthly Review"                                                                                        |🟢     |
-|R8.4|Nav grouped: daily / periodic / setup                                                                                      |🟢     |
+|R8.1|Overview leads with True Remaining                                                                                         |🟡     |
+|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟡     |
+|R8.3|"Insights" renamed "Monthly Review"                                                                                        |⬜     |
+|R8.4|Nav grouped: daily / periodic / setup                                                                                      |⬜     |
 
 #### R9. Brand and deployment
 
@@ -175,12 +177,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID   |Requirement                                                 |Status|
 |-----|------------------------------------------------------------|------|
-|R10.1|Profile management: edit name, email, change password       |🟢     |
-|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|🟢     |
-|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |🟢     |
-|R10.4|Connected accounts: view Plaid connections, disconnect      |🟡     |
-|R10.5|Data export: download transactions as CSV                   |🟢     |
-|R10.6|Delete account: permanent, with confirmation                |🟢     |
+|R10.1|Profile management: edit name, email, change password       |⬜     |
+|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|⬜     |
+|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |⬜     |
+|R10.4|Connected accounts: view Plaid connections, disconnect      |⬜     |
+|R10.5|Data export: download transactions as CSV                   |⬜     |
+|R10.6|Delete account: permanent, with confirmation                |⬜     |
 
 #### R11. Security
 
@@ -205,18 +207,19 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 ## Implementation Order
 
-22 steps. 5 phases. Each step references requirement IDs.
+23 steps. 5 phases. Each step references requirement IDs.
 
 ### Phase 1: Fix the foundation
 
 *Every number on screen is correct.*
 
-|Step|Req |Do                                                                   |
-|----|----|---------------------------------------------------------------------|
-|1   |R1.1|Remove `Budget.spent`. Compute from transactions on read.            |
-|2   |R1.2|Fix fixed expense matching — categoryId within month, not exact date.|
-|3   |R1.3|Verify amount signs at API level for all mutation endpoints.         |
-|4   |R7.3|Re-test AI insights with corrected data.                             |
+|Step|Req      |Do                                                                                                                                                                                      |
+|----|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|1   |R1.1     |Remove `Budget.spent`. Compute from transactions on read.                                                                                                                               |
+|2   |R1.2     |Fix fixed expense matching — categoryId within month, not exact date.                                                                                                                   |
+|3   |R1.3     |Fix sign enforcement: CSV import and API must set positive for income categories, negative for expense. Ledyard Bank "Other Income" currently stored as -$1,583.33 — must be +$1,583.33.|
+|4   |R1.4–R1.5|Fix CSV import account handling: look up account by name, auto-create if not found, link every transaction to its account.                                                              |
+|5   |R7.3     |Re-test AI insights with corrected data.                                                                                                                                                |
 
 ### Phase 2: Complete the data model
 
@@ -224,22 +227,22 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req      |Do                                                                            |
 |----|---------|------------------------------------------------------------------------------|
-|5   |R3.1–R3.2|HouseholdMember model + person tag on transactions. Setup UI on Settings page.|
-|6   |R4.1–R4.2|Property model + property tag on transactions. Setup UI on Settings page.     |
-|7   |R5.1–R5.4|Debt model + Debts page.                                                      |
+|6   |R3.1–R3.2|HouseholdMember model + person tag on transactions. Setup UI on Settings page.|
+|7   |R4.1–R4.2|Property model + property tag on transactions. Setup UI on Settings page.     |
+|8   |R5.1–R5.4|Debt model + Debts page.                                                      |
 
 ### Phase 3: Reshape the experience
 
 *True Remaining first, trajectory over time, Settings consolidation.*
 
-|Step|Req                  |Do                                                                                                |
-|----|---------------------|--------------------------------------------------------------------------------------------------|
-|8   |R8.1, R6.6           |Overview redesign: True Remaining hero, budget pulse, chart below fold.                           |
-|9   |R8.2–R8.4            |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.               |
-|10  |R10.1–R10.6          |Settings page: profile, household members, properties, connected accounts, export, delete account.|
-|11  |R3.3–R3.4, R4.3–R4.5 |"By Person" + "By Property" on Spending. Property filter on Transactions.                         |
-|12  |R7.1, R7.6–R7.7      |MonthlySnapshot model + cron. Baseline on first import.                                           |
-|13  |R7.2, R7.4–R7.5, R5.5|"Since you started" on Monthly Review with debt, person, property.                                |
+|Step|Req                       |Do                                                                                                              |
+|----|--------------------------|----------------------------------------------------------------------------------------------------------------|
+|9   |R8.1, R6.6                |Overview redesign: True Remaining hero, budget pulse, chart below fold.                                         |
+|10  |R8.2–R8.4                 |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.                             |
+|11  |R10.1–R10.6               |Settings page: profile, household members, properties, connected accounts, export, delete account.              |
+|12  |R3.3–R3.4, R4.3–R4.5, R6.7|"By Person" + "By Property" on Spending. Property filter on Transactions. Unbudgeted categories on Budgets page.|
+|13  |R7.1, R7.6–R7.7           |MonthlySnapshot model + cron. Baseline on first import.                                                         |
+|14  |R7.2, R7.4–R7.5, R5.5     |"Since you started" on Monthly Review with debt, person, property.                                              |
 
 ### Phase 4: Bank connectivity
 
@@ -247,9 +250,9 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req       |Do                                |
 |----|----------|----------------------------------|
-|14  |R2.1, R1.5|Plaid SDK + API routes. Sign flip.|
-|15  |R2.1      |Plaid Link on Accounts page.      |
-|16  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
+|15  |R2.1, R1.6|Plaid SDK + API routes. Sign flip.|
+|16  |R2.1      |Plaid Link on Accounts page.      |
+|17  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
 
 ### Phase 5: Security, brand, and ship
 
@@ -257,12 +260,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req         |Do                                           |
 |----|------------|---------------------------------------------|
-|17  |R11.1–R11.14|Security hardening (see security spec below).|
-|18  |R9.1        |Rebrand codebase.                            |
-|19  |R9.2–R9.3   |Domain + rename repo.                        |
-|20  |R9.4–R9.5   |Landing page + demo mode.                    |
-|21  |R9.6        |Mobile responsive audit at 375px.            |
-|22  |—           |Final verification. Ship.                    |
+|18  |R11.1–R11.14|Security hardening (see security spec below).|
+|19  |R9.1        |Rebrand codebase.                            |
+|20  |R9.2–R9.3   |Domain + rename repo.                        |
+|21  |R9.4–R9.5   |Landing page + demo mode.                    |
+|22  |R9.6        |Mobile responsive audit at 375px.            |
+|23  |—           |Final verification. Ship.                    |
 
 -----
 
@@ -284,7 +287,7 @@ V2 adds intelligence and tax. "Shows you what's true" becomes "helps you optimiz
 
 -----
 
-## Security Spec (Step 17)
+## Security Spec (Step 18)
 
 Step 17 is a dedicated security hardening pass. Claude Code addresses each R11 requirement:
 
@@ -450,7 +453,7 @@ Update PRD status columns. Commit. Next step.
 
 ## Schema Reference
 
-### MonthlySnapshot (Step 11)
+### MonthlySnapshot (Step 13)
 
 ```prisma
 model MonthlySnapshot {
@@ -488,7 +491,7 @@ model MonthlySnapshot {
 }
 ```
 
-### HouseholdMember (Step 5)
+### HouseholdMember (Step 6)
 
 ```prisma
 model HouseholdMember {
@@ -503,7 +506,7 @@ model HouseholdMember {
 }
 ```
 
-### Property (Step 6)
+### Property (Step 7)
 
 ```prisma
 model Property {
@@ -521,7 +524,7 @@ model Property {
 enum PropertyType { PERSONAL RENTAL }
 ```
 
-### Debt (Step 7)
+### Debt (Step 8)
 
 ```prisma
 model Debt {
@@ -552,8 +555,11 @@ enum DebtType { MORTGAGE STUDENT_LOAN AUTO CREDIT_CARD PERSONAL_LOAN OTHER }
 
 ## Changelog
 
-|Date      |Version|Change                                                                                                                |
-|----------|-------|----------------------------------------------------------------------------------------------------------------------|
-|2026-02-23|1.0    |Initial PRD. 24 steps, V1/V1.1/V2 split.                                                                              |
-|2026-02-23|2.0    |Simplified. Two releases: V1 and V2. Household, property, debts in V1. 20 steps, 5 phases.                            |
-|2026-02-23|2.1    |Added R10 (Settings), R11 (Security). Security spec with AI data handling, Plaid encryption, auth hardening. 22 steps.|
+|Date      |Version|Change                                                                                                                                                                            |
+|----------|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|2026-02-23|1.0    |Initial PRD. 24 steps, V1/V1.1/V2 split.                                                                                                                                          |
+|2026-02-23|2.0    |Simplified. Two releases: V1 and V2. Household, property, debts in V1. 20 steps, 5 phases.                                                                                        |
+|2026-02-23|2.1    |Added R10 (Settings), R11 (Security). Security spec with AI data handling, Plaid encryption, auth hardening. 22 steps.                                                            |
+|2026-02-23|2.2    |Fixed R1: income sign bug (Ledyard Bank -$1,583 should be +$1,583), CSV import must auto-create accounts. R1 now has 6 sub-requirements. 23 steps.                                |
+|2026-02-23|2.2    |Status update: Phase 1 ✅, Phase 2 ✅, Phase 3 🟡 in progress. R1–R5, R6.1–R6.2 all green.                                                                                           |
+|2026-02-23|2.3    |Reverted R1.1, R1.2, R6.1, R6.2 to 🔴 — screenshot confirms Budget.spent still $0 and Fixed expenses still MISSED. Added R6.7: surface unbudgeted categories. Phase 1 NOT complete.|
