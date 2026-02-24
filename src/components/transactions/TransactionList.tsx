@@ -98,6 +98,15 @@ export default function TransactionList({ transactions: initial, categories, acc
     setTransactions(initial)
   }, [initial])
 
+  // Apply property filter (declared early — used by selection helpers and render)
+  const filteredTransactions = filterPropertyId
+    ? transactions.filter((tx) =>
+        filterPropertyId === '__none__'
+          ? tx.propertyId === null
+          : tx.propertyId === filterPropertyId
+      )
+    : transactions
+
   function startEdit(tx: TransactionRow) {
     if (editingId === tx.id) return
     setEditingId(tx.id)
@@ -342,15 +351,6 @@ export default function TransactionList({ transactions: initial, categories, acc
     acc[g].push(cat)
     return acc
   }, {})
-
-  // Apply property filter
-  const filteredTransactions = filterPropertyId
-    ? transactions.filter((tx) =>
-        filterPropertyId === '__none__'
-          ? tx.propertyId === null
-          : tx.propertyId === filterPropertyId
-      )
-    : transactions
 
   return (
     <div className="relative pb-16">
