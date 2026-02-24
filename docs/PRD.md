@@ -103,8 +103,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                           |Status|
 |----|--------------------------------------|------|
-|R3.1|Create household members (names)      |⬜     |
-|R3.2|Tag transactions to a household member|⬜     |
+|R3.1|Create household members (names)      |🟢     |
+|R3.2|Tag transactions to a household member|🟢     |
 |R3.3|Spending: "By Person" view            |⬜     |
 |R3.4|Monthly Review: per-person breakdown  |⬜     |
 
@@ -112,8 +112,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                                     |Status|
 |----|------------------------------------------------|------|
-|R4.1|Create properties (name, type: Personal/Rental) |⬜     |
-|R4.2|Tag transactions to a property                  |⬜     |
+|R4.1|Create properties (name, type: Personal/Rental) |🟢     |
+|R4.2|Tag transactions to a property                  |🟢     |
 |R4.3|Spending: "By Property" view                    |⬜     |
 |R4.4|Transactions: property filter                   |⬜     |
 |R4.5|Filter Rental → all rental expenses for the year|⬜     |
@@ -122,10 +122,10 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                                           |Status|
 |----|------------------------------------------------------|------|
-|R5.1|Add debts (name, type, balance, rate, minimum payment)|⬜     |
-|R5.2|Debts page: principal vs interest breakdown           |⬜     |
-|R5.3|Debts page: total summary (owed, payments, avg rate)  |⬜     |
-|R5.4|Debt links to property (mortgage → rental)            |⬜     |
+|R5.1|Add debts (name, type, balance, rate, minimum payment)|🟢     |
+|R5.2|Debts page: principal vs interest breakdown           |🟢     |
+|R5.3|Debts page: total summary (owed, payments, avg rate)  |🟢     |
+|R5.4|Debt links to property (mortgage → rental)            |🟢     |
 |R5.5|Monthly Review: debt trajectory                       |⬜     |
 
 #### R6. Budget tracking
