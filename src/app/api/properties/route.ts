@@ -30,6 +30,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Type must be PERSONAL or RENTAL' }, { status: 400 })
   }
 
+  // Check for duplicate name (case-insensitive)
+  const existing = await db.property.findFirst({
+    where: {
+      userId: session.userId,
+      name: { equals: name.trim(), mode: 'insensitive' },
+    },
+  })
+  if (existing) {
+    return NextResponse.json(
+      { error: 'A property with this name already exists' },
+      { status: 409 }
+    )
+  }
+
   // If setting as default, unset any existing default
   if (isDefault) {
     await db.property.updateMany({

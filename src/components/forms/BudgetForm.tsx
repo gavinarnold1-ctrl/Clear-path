@@ -176,7 +176,7 @@ export default function BudgetForm({ categories }: Props) {
             <label htmlFor="period" className="mb-1 block text-sm font-medium text-fjord">
               Period
             </label>
-            <select id="period" name="period" className="input" required>
+            <select id="period" name="period" className="input" defaultValue="MONTHLY" required>
               {PERIODS.map(({ value, label }) => (
                 <option key={value} value={value}>
                   {label}
@@ -219,7 +219,7 @@ export default function BudgetForm({ categories }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="dueMonth" className="mb-1 block text-sm font-medium text-fjord">
-                Due month
+                Planned month
               </label>
               <select id="dueMonth" name="dueMonth" className="input" required>
                 {MONTHS.map((m, i) => (

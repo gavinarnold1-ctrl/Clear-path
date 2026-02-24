@@ -128,6 +128,9 @@ export default function DebtManager({ debts: initial, properties, categories }: 
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to create debt')
       }
+      // R5.7: Add the new debt to local state immediately so it appears without page refresh
+      const newDebt = await res.json()
+      setDebts(prev => [...prev, newDebt])
       resetForm()
       setShowForm(false)
       router.refresh()

@@ -8,7 +8,7 @@ import TransactionList from '@/components/transactions/TransactionList'
 export const metadata: Metadata = { title: 'Transactions' }
 
 interface PageProps {
-  searchParams: Promise<{ categoryId?: string; month?: string }>
+  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string }>
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps) {
@@ -18,6 +18,8 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const initialCategoryId = params.categoryId ?? ''
   const initialMonth = params.month ?? ''
+  const initialPersonId = params.personId ?? ''
+  const initialPropertyId = params.propertyId ?? ''
 
   const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
@@ -98,6 +100,8 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           properties={properties}
           initialCategoryId={initialCategoryId}
           initialMonth={initialMonth}
+          initialPersonId={initialPersonId}
+          initialPropertyId={initialPropertyId}
         />
       )}
     </div>

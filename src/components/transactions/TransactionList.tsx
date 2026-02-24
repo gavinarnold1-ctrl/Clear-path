@@ -54,15 +54,18 @@ interface Props {
   properties?: PropertyOption[]
   initialCategoryId?: string
   initialMonth?: string
+  initialPersonId?: string
+  initialPropertyId?: string
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '' }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '' }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // Filter state (R4.4: property filter, R6.8: category + month filters)
-  const [filterPropertyId, setFilterPropertyId] = useState<string>('')
+  // Filter state (R4.4: property filter, R6.8: category + month filters, R3.3a: person filter)
+  const [filterPropertyId, setFilterPropertyId] = useState<string>(initialPropertyId)
+  const [filterPersonId, setFilterPersonId] = useState<string>(initialPersonId)
   const [filterCategoryId, setFilterCategoryId] = useState<string>(initialCategoryId)
   const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
   const [saving, setSaving] = useState(false)
@@ -107,6 +110,10 @@ export default function TransactionList({ transactions: initial, categories, acc
     // Property filter (R4.4)
     if (filterPropertyId) {
       if (filterPropertyId === '__none__' ? tx.propertyId !== null : tx.propertyId !== filterPropertyId) return false
+    }
+    // Person filter (R3.3a)
+    if (filterPersonId) {
+      if (filterPersonId === '__none__' ? tx.householdMemberId !== null : tx.householdMemberId !== filterPersonId) return false
     }
     // Category filter (R6.8)
     if (filterCategoryId) {
@@ -402,6 +409,19 @@ export default function TransactionList({ transactions: initial, categories, acc
             ))
           })()}
         </select>
+        {householdMembers.length > 0 && (
+          <select
+            value={filterPersonId}
+            onChange={(e) => setFilterPersonId(e.target.value)}
+            className="input text-sm"
+          >
+            <option value="">All People</option>
+            <option value="__none__">No Person</option>
+            {householdMembers.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        )}
         {properties.length > 0 && (
           <select
             value={filterPropertyId}
@@ -415,9 +435,9 @@ export default function TransactionList({ transactions: initial, categories, acc
             ))}
           </select>
         )}
-        {(filterPropertyId || filterCategoryId || filterMonth) && (
+        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth) && (
           <button
-            onClick={() => { setFilterPropertyId(''); setFilterCategoryId(''); setFilterMonth('') }}
+            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth('') }}
             className="text-xs text-stone hover:text-fjord"
           >
             Clear all
@@ -616,7 +636,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {(filterPropertyId || filterCategoryId || filterMonth)
+          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth)
             ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
             : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>
