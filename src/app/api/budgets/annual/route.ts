@@ -80,7 +80,6 @@ export async function POST(request: Request) {
       data: {
         name: name.trim(),
         amount: annualAmount,
-        spent: 0,
         period: 'YEARLY',
         tier: 'ANNUAL',
         startDate: new Date(now.getFullYear(), 0, 1),
