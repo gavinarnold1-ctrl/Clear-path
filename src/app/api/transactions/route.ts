@@ -16,13 +16,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid category type filter' }, { status: 400 })
   }
 
+  const householdMemberId = searchParams.get('householdMemberId') ?? undefined
+  const propertyId = searchParams.get('propertyId') ?? undefined
+
   const transactions = await db.transaction.findMany({
     where: {
       userId: session.userId,
       ...(categoryType && { category: { type: categoryType } }),
       ...(accountId && { accountId }),
+      ...(householdMemberId && { householdMemberId }),
+      ...(propertyId && { propertyId }),
     },
-    include: { account: true, category: true },
+    include: { account: true, category: true, householdMember: true, property: true },
     orderBy: { date: 'desc' },
   })
 
@@ -34,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { accountId, categoryId, amount, merchant, date, notes, tags } = body
+  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId } = body
 
   if (!amount || !merchant || !date) {
     return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
@@ -67,6 +72,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Verify ownership of referenced householdMemberId
+  if (householdMemberId) {
+    const member = await db.householdMember.findFirst({
+      where: { id: householdMemberId, userId: session.userId },
+    })
+    if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
+  }
+
+  // Verify ownership of referenced propertyId
+  if (propertyId) {
+    const property = await db.property.findFirst({
+      where: { id: propertyId, userId: session.userId },
+    })
+    if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
+  }
+
   const transaction = await db.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
@@ -78,8 +99,10 @@ export async function POST(req: NextRequest) {
         date: new Date(date),
         notes: notes ?? null,
         tags: tags ?? null,
+        householdMemberId: householdMemberId ?? null,
+        propertyId: propertyId ?? null,
       },
-      include: { account: true, category: true },
+      include: { account: true, category: true, householdMember: true, property: true },
     })
 
     // Update account balance

@@ -21,6 +21,8 @@ export async function createTransaction(
   const date = formData.get('date') as string
   const accountId = (formData.get('accountId') as string) || null
   const categoryId = (formData.get('categoryId') as string) || null
+  const householdMemberId = (formData.get('householdMemberId') as string) || null
+  const propertyId = (formData.get('propertyId') as string) || null
   const notes = (formData.get('notes') as string)?.trim() || null
   const tags = (formData.get('tags') as string)?.trim() || null
 
@@ -47,7 +49,7 @@ export async function createTransaction(
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record
     await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, amount: finalAmount, merchant, date: txDate, notes, tags },
+      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId, amount: finalAmount, merchant, date: txDate, notes, tags },
     })
 
     // 2. Adjust account balance (amount sign already correct)

@@ -38,6 +38,20 @@ enum BudgetTier {
   ANNUAL
 }
 
+enum PropertyType {
+  PERSONAL
+  RENTAL
+}
+
+enum DebtType {
+  MORTGAGE
+  STUDENT_LOAN
+  AUTO
+  CREDIT_CARD
+  PERSONAL_LOAN
+  OTHER
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -59,6 +73,7 @@ model User {
   annualExpenses   AnnualExpense[]
   householdMembers HouseholdMember[]
   properties       Property[]
+  debts            Debt[]
 }
 
 model Account {
@@ -95,6 +110,7 @@ model Category {
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets      Budget[]
+  debts        Debt[]
 
   @@unique([userId, type, group, name])
   @@index([type])
@@ -115,19 +131,25 @@ model Transaction {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  categoryId       String?
-  category         Category?      @relation(fields: [categoryId], references: [id])
-  accountId        String?
-  account          Account?       @relation(fields: [accountId], references: [id])
-  userId           String
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  annualExpenseId  String?
-  annualExpense    AnnualExpense? @relation(fields: [annualExpenseId], references: [id], onDelete: SetNull)
+  categoryId          String?
+  category            Category?         @relation(fields: [categoryId], references: [id])
+  accountId           String?
+  account             Account?          @relation(fields: [accountId], references: [id])
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  annualExpenseId     String?
+  annualExpense       AnnualExpense?    @relation(fields: [annualExpenseId], references: [id], onDelete: SetNull)
+  householdMemberId   String?
+  householdMember     HouseholdMember?  @relation(fields: [householdMemberId], references: [id], onDelete: SetNull)
+  propertyId          String?
+  property            Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([userId, categoryId])
   @@index([accountId])
   @@index([annualExpenseId])
+  @@index([householdMemberId])
+  @@index([propertyId])
 }
 
 model Budget {
@@ -277,23 +299,52 @@ model UserProfile {
 }
 
 model HouseholdMember {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  role      String   // "partner" | "dependent"
-  createdAt DateTime @default(now())
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
 
   @@index([userId])
 }
 
 model Property {
-  id           String   @id @default(cuid())
+  id           String        @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String   // Nickname (e.g., "Nicoll St Duplex")
-  propertyType String   // "rental" | "primary" | "investment"
-  createdAt    DateTime @default(now())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  type         PropertyType
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  debts        Debt[]
+
+  @@index([userId])
+}
+
+// ─── Debts ──────────────────────────────────────────────────────────────────
+
+model Debt {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  type            DebtType
+  currentBalance  Float
+  originalBalance Float?
+  interestRate    Float
+  minimumPayment  Float
+  paymentDay      Int?
+  termMonths      Int?
+  startDate       DateTime?
+  propertyId      String?
+  property        Property? @relation(fields: [propertyId], references: [id])
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([userId])
 }

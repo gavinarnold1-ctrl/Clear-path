@@ -13,20 +13,35 @@ interface CategoryOption {
   name: string
   type: string
 }
+interface HouseholdMemberOption {
+  id: string
+  name: string
+  isDefault: boolean
+}
+interface PropertyOption {
+  id: string
+  name: string
+  isDefault: boolean
+}
 
 interface Props {
   accounts: AccountOption[]
   categories: CategoryOption[]
+  householdMembers?: HouseholdMemberOption[]
+  properties?: PropertyOption[]
 }
 
 const initialState = { error: null }
 const today = new Date().toISOString().split('T')[0]
 
-export default function TransactionForm({ accounts, categories }: Props) {
+export default function TransactionForm({ accounts, categories, householdMembers = [], properties = [] }: Props) {
   const [state, formAction, isPending] = useActionState(createTransaction, initialState)
 
   const incomeCategories = categories.filter((c) => c.type === 'income')
   const expenseCategories = categories.filter((c) => c.type === 'expense')
+
+  const defaultMember = householdMembers.find(m => m.isDefault)
+  const defaultProperty = properties.find(p => p.isDefault)
 
   return (
     <form action={formAction} className="space-y-5">
@@ -123,6 +138,50 @@ export default function TransactionForm({ accounts, categories }: Props) {
           )}
         </select>
       </div>
+
+      {/* Person (household member) */}
+      {householdMembers.length > 0 && (
+        <div>
+          <label htmlFor="householdMemberId" className="mb-1 block text-sm font-medium text-fjord">
+            Person <span className="font-normal text-stone">(optional)</span>
+          </label>
+          <select
+            id="householdMemberId"
+            name="householdMemberId"
+            className="input"
+            defaultValue={defaultMember?.id ?? ''}
+          >
+            <option value="">No person</option>
+            {householdMembers.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Property */}
+      {properties.length > 0 && (
+        <div>
+          <label htmlFor="propertyId" className="mb-1 block text-sm font-medium text-fjord">
+            Property <span className="font-normal text-stone">(optional)</span>
+          </label>
+          <select
+            id="propertyId"
+            name="propertyId"
+            className="input"
+            defaultValue={defaultProperty?.id ?? ''}
+          >
+            <option value="">No property</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Notes */}
       <div>
