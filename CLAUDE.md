@@ -59,11 +59,18 @@ Clear-path/
 │   │   │   └── register/page.tsx
 │   │   ├── (dashboard)/     # Route group: protected pages behind the sidebar layout
 │   │   │   ├── layout.tsx       # Sidebar nav wrapper
-│   │   │   ├── dashboard/page.tsx   # Overview with stats, chart, budgets, spending breakdown
-│   │   │   ├── spending/page.tsx    # Full spending breakdown page
+│   │   │   ├── dashboard/page.tsx   # Overview: True Remaining hero, budget pulse, stats, chart
+│   │   │   ├── spending/
+│   │   │   │   ├── page.tsx           # Spending breakdown (by category, person, property)
+│   │   │   │   └── SpendingViews.tsx  # Client component: tabbed views for category/person/property
+│   │   │   ├── monthly-review/
+│   │   │   │   ├── page.tsx             # Monthly Review (renamed from Insights) with trajectory
+│   │   │   │   └── GenerateButton.tsx   # Client component for triggering review generation
 │   │   │   ├── insights/
-│   │   │   │   ├── page.tsx             # AI-powered financial insights
-│   │   │   │   └── GenerateButton.tsx   # Client component for triggering insight generation
+│   │   │   │   └── page.tsx             # Redirect to /monthly-review
+│   │   │   ├── settings/
+│   │   │   │   ├── page.tsx             # Settings: profile, members, properties, export, delete
+│   │   │   │   └── SettingsClient.tsx   # Client component for settings management
 │   │   │   ├── transactions/
 │   │   │   │   ├── page.tsx         # Transaction list with bulk operations
 │   │   │   │   ├── new/page.tsx     # Create transaction
@@ -105,14 +112,21 @@ Clear-path/
 │   │   │   ├── properties/
 │   │   │   │   ├── route.ts             # GET/POST properties (PERSONAL/RENTAL)
 │   │   │   │   └── [id]/route.ts        # PATCH/DELETE property
-│   │   │   ├── cron/reset-demo/route.ts # Daily demo data reset (Vercel cron)
+│   │   │   ├── cron/
+│   │   │   │   ├── reset-demo/route.ts        # Daily demo data reset (Vercel cron)
+│   │   │   │   └── monthly-snapshot/route.ts  # Monthly snapshot cron (1st of month)
 │   │   │   ├── insights/
 │   │   │   │   ├── route.ts             # GET active insights, POST generate new
 │   │   │   │   └── [id]/route.ts        # PATCH dismiss/complete insight
+│   │   │   ├── profile/
+│   │   │   │   ├── route.ts             # GET/PATCH user profile
+│   │   │   │   ├── password/route.ts    # POST: change password
+│   │   │   │   └── delete/route.ts      # POST: permanently delete account
 │   │   │   └── transactions/
 │   │   │       ├── route.ts         # GET list, POST create
 │   │   │       ├── [id]/route.ts    # GET one, PATCH, DELETE
 │   │   │       ├── bulk/route.ts    # POST: bulk edit/delete
+│   │   │       ├── export/route.ts  # GET: download transactions as CSV
 │   │   │       └── import/
 │   │   │           ├── route.ts         # POST: import confirmed transactions
 │   │   │           └── preview/route.ts # POST: parse CSV and return column mappings
@@ -151,6 +165,7 @@ Clear-path/
 │   │   ├── password.ts      # bcrypt hash / verify
 │   │   ├── seed-demo.ts     # Demo data generation logic
 │   │   ├── session.ts       # Cookie-based session management
+│   │   ├── snapshots.ts     # MonthlySnapshot computation + storage
 │   │   ├── temporal-context.ts # Time-aware context for AI prompts
 │   │   └── utils.ts         # formatCurrency, formatDate, budgetProgress, cn
 │   └── types/
@@ -195,7 +210,8 @@ User
  ├── EfficiencyScore[]  (monthly financial efficiency scores)
  ├── HouseholdMember[]  (household people — taggable on transactions, has isDefault flag)
  ├── Property[]         (personal/rental properties — taggable on transactions and debts)
- └── Debt[]             (mortgages, student loans, auto loans, credit cards — with P&I tracking)
+ ├── Debt[]             (mortgages, student loans, auto loans, credit cards — with P&I tracking)
+ └── MonthlySnapshot[]  (monthly metrics snapshot: income, expenses, savings rate, debt, etc.)
 
 Reference Databases (read-only, not user-scoped):
  ├── TaxRule[]                  (federal/state tax rules with thresholds)

@@ -7,16 +7,32 @@ import { db } from '@/lib/db'
 import { DEMO_USER_ID } from '@/lib/demo'
 import OnboardingBanner from '@/components/onboarding/OnboardingBanner'
 
-const navItems = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/insights', label: 'Insights' },
-  { href: '/transactions', label: 'Transactions' },
-  { href: '/spending', label: 'Spending' },
-  { href: '/budgets', label: 'Budgets' },
-  { href: '/budgets/annual', label: 'Annual Plan' },
-  { href: '/debts', label: 'Debts' },
-  { href: '/accounts', label: 'Accounts' },
-  { href: '/categories', label: 'Categories' },
+const navGroups = [
+  {
+    label: null, // Daily use — no header for primary group
+    items: [
+      { href: '/dashboard', label: 'Overview' },
+      { href: '/budgets', label: 'Budgets' },
+      { href: '/spending', label: 'Spending' },
+      { href: '/budgets/annual', label: 'Annual Plan' },
+      { href: '/debts', label: 'Debts' },
+      { href: '/transactions', label: 'Transactions' },
+    ],
+  },
+  {
+    label: 'Periodic',
+    items: [
+      { href: '/monthly-review', label: 'Monthly Review' },
+    ],
+  },
+  {
+    label: 'Setup',
+    items: [
+      { href: '/settings', label: 'Settings' },
+      { href: '/accounts', label: 'Accounts' },
+      { href: '/categories', label: 'Categories' },
+    ],
+  },
 ]
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
@@ -51,15 +67,26 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <span className="font-display text-base tracking-tight text-snow">oversikt</span>
         </Link>
 
-        <nav className="space-y-0.5">
-          {navItems.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="block rounded-md px-3 py-2 text-[13px] font-medium text-snow/50 hover:bg-frost/10 hover:text-snow"
-            >
-              {label}
-            </Link>
+        <nav className="space-y-4">
+          {navGroups.map((group, gi) => (
+            <div key={gi}>
+              {group.label && (
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-snow/30">
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map(({ href, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="block rounded-md px-3 py-2 text-[13px] font-medium text-snow/50 hover:bg-frost/10 hover:text-snow"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

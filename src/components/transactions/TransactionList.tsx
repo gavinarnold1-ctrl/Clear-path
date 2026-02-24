@@ -58,6 +58,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Filter state (R4.4: property filter on Transactions)
+  const [filterPropertyId, setFilterPropertyId] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -230,9 +233,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   }
 
   function toggleSelectAll() {
-    const allIds = transactions.map(tx => tx.id)
-    const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id))
-    if (allSelected) {
+    const allIds = filteredTransactions.map(tx => tx.id)
+    const allChecked = allIds.length > 0 && allIds.every(id => selected.has(id))
+    if (allChecked) {
       setSelected(new Set())
     } else {
       setSelected(new Set(allIds))
@@ -243,7 +246,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     setSelected(new Set())
   }
 
-  const allSelected = transactions.length > 0 && transactions.every(tx => selected.has(tx.id))
+  const allSelected = filteredTransactions.length > 0 && filteredTransactions.every(tx => selected.has(tx.id))
   const someSelected = selected.size > 0 && !allSelected
 
   // Bulk edit handlers
@@ -326,7 +329,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   }
 
   // Preview for delete confirmation: first 5 selected transactions sorted by date
-  const selectedTransactions = transactions
+  const selectedTransactions = filteredTransactions
     .filter(tx => selected.has(tx.id))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   const deletePreview = selectedTransactions.slice(0, 5)
@@ -340,8 +343,43 @@ export default function TransactionList({ transactions: initial, categories, acc
     return acc
   }, {})
 
+  // Apply property filter
+  const filteredTransactions = filterPropertyId
+    ? transactions.filter((tx) =>
+        filterPropertyId === '__none__'
+          ? tx.propertyId === null
+          : tx.propertyId === filterPropertyId
+      )
+    : transactions
+
   return (
     <div className="relative pb-16">
+      {/* Filter bar (R4.4) */}
+      {properties.length > 0 && (
+        <div className="mb-3 flex items-center gap-3">
+          <label className="text-sm font-medium text-stone">Filter:</label>
+          <select
+            value={filterPropertyId}
+            onChange={(e) => setFilterPropertyId(e.target.value)}
+            className="input text-sm"
+          >
+            <option value="">All Properties</option>
+            <option value="__none__">No Property</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          {filterPropertyId && (
+            <button
+              onClick={() => setFilterPropertyId('')}
+              className="text-xs text-stone hover:text-fjord"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="card overflow-hidden p-0">
         {error && (
           <div className="border-b border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
@@ -377,7 +415,7 @@ export default function TransactionList({ transactions: initial, categories, acc
             </tr>
           </thead>
           <tbody className="divide-y divide-mist">
-            {transactions.map((tx) =>
+            {filteredTransactions.map((tx) =>
               editingId === tx.id ? (
                 <tr key={tx.id} className="bg-frost">
                   <td className="px-3 py-2">
@@ -533,7 +571,9 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+          {filterPropertyId
+            ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
+            : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 

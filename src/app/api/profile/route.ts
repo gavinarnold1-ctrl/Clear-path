@@ -1,0 +1,60 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSession, setSession } from '@/lib/session'
+import { db } from '@/lib/db'
+
+// GET current user profile
+export async function GET() {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const user = await db.user.findUnique({
+    where: { id: session.userId },
+    select: { id: true, name: true, email: true, createdAt: true },
+  })
+
+  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  return NextResponse.json(user)
+}
+
+// PATCH update name / email
+export async function PATCH(req: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const { name, email } = body as { name?: string; email?: string }
+
+  const updates: { name?: string | null; email?: string } = {}
+
+  if (name !== undefined) {
+    updates.name = name?.trim() || null
+  }
+
+  if (email !== undefined) {
+    const trimmed = email.trim().toLowerCase()
+    if (!trimmed) return NextResponse.json({ error: 'Email is required.' }, { status: 400 })
+
+    // Check uniqueness
+    const existing = await db.user.findUnique({ where: { email: trimmed } })
+    if (existing && existing.id !== session.userId) {
+      return NextResponse.json({ error: 'Email is already in use.' }, { status: 409 })
+    }
+    updates.email = trimmed
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No fields to update.' }, { status: 400 })
+  }
+
+  const user = await db.user.update({
+    where: { id: session.userId },
+    data: updates,
+    select: { id: true, name: true, email: true },
+  })
+
+  // Refresh session with updated info
+  await setSession({ userId: user.id, email: user.email, name: user.name })
+
+  return NextResponse.json(user)
+}

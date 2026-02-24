@@ -4,12 +4,12 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import MonthPicker from '../dashboard/MonthPicker'
-import SpendingBreakdown from '@/components/dashboard/SpendingBreakdown'
+import SpendingViews from './SpendingViews'
 
 export const metadata: Metadata = { title: 'Spending Breakdown' }
 
 interface Props {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; view?: string }>
 }
 
 export default async function SpendingPage({ searchParams }: Props) {
@@ -37,17 +37,19 @@ export default async function SpendingPage({ searchParams }: Props) {
   const prevStart = new Date(year, month - 1, 1)
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
-  // Fetch expense transactions (amount < 0) with category info for this month + prev month totals.
-  // Use amount sign as source of truth — consistent with dashboard and budget pages.
-  const [expenseTransactions, prevExpenseAgg] = await Promise.all([
+  // Fetch expense transactions with category, person, and property info
+  const [expenseTransactions, prevExpenseAgg, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
-        categoryId: { not: null },
       },
-      include: { category: { select: { id: true, name: true, group: true } } },
+      include: {
+        category: { select: { id: true, name: true, group: true } },
+        householdMember: { select: { id: true, name: true } },
+        property: { select: { id: true, name: true, type: true } },
+      },
     }),
     db.transaction.aggregate({
       where: {
@@ -57,24 +59,39 @@ export default async function SpendingPage({ searchParams }: Props) {
       },
       _sum: { amount: true },
     }),
+    db.householdMember.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    db.property.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true, type: true },
+      orderBy: { name: 'asc' },
+    }),
   ])
 
-  // Group by category group, then by category
+  // Filter to only categorized transactions for the category view
+  const categorizedTx = expenseTransactions.filter((tx) => tx.categoryId !== null)
+
+  // Group by category group → category
   const groupMap = new Map<string, Map<string, number>>()
   let totalSpent = 0
 
   for (const tx of expenseTransactions) {
+    totalSpent += Math.abs(tx.amount)
+  }
+
+  for (const tx of categorizedTx) {
     const group = tx.category?.group ?? 'Other'
     const catName = tx.category?.name ?? 'Unknown'
     const amount = Math.abs(tx.amount)
-    totalSpent += amount
 
     if (!groupMap.has(group)) groupMap.set(group, new Map())
     const catMap = groupMap.get(group)!
     catMap.set(catName, (catMap.get(catName) ?? 0) + amount)
   }
 
-  // Sort groups by total descending
   const spendingGroups = [...groupMap.entries()]
     .map(([group, catMap]) => {
       const categories = [...catMap.entries()]
@@ -85,12 +102,45 @@ export default async function SpendingPage({ searchParams }: Props) {
     })
     .sort((a, b) => b.amount - a.amount)
 
+  // Group by person
+  const byPerson: { name: string; amount: number }[] = []
+  const personMap = new Map<string, number>()
+  for (const tx of expenseTransactions) {
+    const name = tx.householdMember?.name ?? 'Unassigned'
+    personMap.set(name, (personMap.get(name) ?? 0) + Math.abs(tx.amount))
+  }
+  for (const [name, amount] of personMap) {
+    byPerson.push({ name, amount })
+  }
+  byPerson.sort((a, b) => b.amount - a.amount)
+
+  // Group by property
+  const byProperty: { name: string; type: string | null; amount: number }[] = []
+  const propertyMap = new Map<string, { type: string | null; amount: number }>()
+  for (const tx of expenseTransactions) {
+    const name = tx.property?.name ?? 'Unassigned'
+    const type = tx.property?.type ?? null
+    const existing = propertyMap.get(name)
+    if (existing) {
+      existing.amount += Math.abs(tx.amount)
+    } else {
+      propertyMap.set(name, { type, amount: Math.abs(tx.amount) })
+    }
+  }
+  for (const [name, { type, amount }] of propertyMap) {
+    byProperty.push({ name, type, amount })
+  }
+  byProperty.sort((a, b) => b.amount - a.amount)
+
   const prevTotal = Math.abs(prevExpenseAgg._sum.amount ?? 0)
   const pctChange = prevTotal > 0
     ? ((totalSpent - prevTotal) / prevTotal) * 100
     : totalSpent > 0 ? 100 : 0
 
   const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`
+
+  const hasMembers = householdMembers.length > 0
+  const hasProperties = properties.length > 0
 
   return (
     <div>
@@ -124,7 +174,14 @@ export default async function SpendingPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <SpendingBreakdown data={spendingGroups} totalSpent={totalSpent} />
+      <SpendingViews
+        spendingGroups={spendingGroups}
+        totalSpent={totalSpent}
+        byPerson={byPerson}
+        byProperty={byProperty}
+        hasMembers={hasMembers}
+        hasProperties={hasProperties}
+      />
     </div>
   )
 }

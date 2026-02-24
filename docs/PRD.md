@@ -105,8 +105,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 |----|--------------------------------------|------|
 |R3.1|Create household members (names)      |🟢     |
 |R3.2|Tag transactions to a household member|🟢     |
-|R3.3|Spending: "By Person" view            |⬜     |
-|R3.4|Monthly Review: per-person breakdown  |⬜     |
+|R3.3|Spending: "By Person" view            |🟢     |
+|R3.4|Monthly Review: per-person breakdown  |🟢     |
 
 #### R4. Property separation
 
@@ -114,8 +114,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 |----|------------------------------------------------|------|
 |R4.1|Create properties (name, type: Personal/Rental) |🟢     |
 |R4.2|Tag transactions to a property                  |🟢     |
-|R4.3|Spending: "By Property" view                    |⬜     |
-|R4.4|Transactions: property filter                   |⬜     |
+|R4.3|Spending: "By Property" view                    |🟢     |
+|R4.4|Transactions: property filter                   |🟢     |
 |R4.5|Filter Rental → all rental expenses for the year|⬜     |
 
 #### R5. Debt visibility
@@ -126,7 +126,7 @@ A financial tool for households with real-world complexity: multiple people, at 
 |R5.2|Debts page: principal vs interest breakdown           |🟢     |
 |R5.3|Debts page: total summary (owed, payments, avg rate)  |🟢     |
 |R5.4|Debt links to property (mortgage → rental)            |🟢     |
-|R5.5|Monthly Review: debt trajectory                       |⬜     |
+|R5.5|Monthly Review: debt trajectory                       |🟢     |
 
 #### R6. Budget tracking
 
@@ -137,28 +137,28 @@ A financial tool for households with real-world complexity: multiple people, at 
 |R6.3|Annual: funding progress with set-aside calculations|🟢     |
 |R6.4|Annual Plan: apply-cash and link-transaction funding|🟢     |
 |R6.5|Auto-Fund All distributes True Remaining            |🟢     |
-|R6.6|True Remaining as primary metric on Overview        |🟡     |
+|R6.6|True Remaining as primary metric on Overview        |🟢     |
 
 #### R7. Monthly Review
 
 |ID  |Requirement                              |Status|
 |----|-----------------------------------------|------|
-|R7.1|Monthly snapshots capture key metrics    |⬜     |
-|R7.2|"Since you started" trajectory comparison|⬜     |
+|R7.1|Monthly snapshots capture key metrics    |🟢     |
+|R7.2|"Since you started" trajectory comparison|🟢     |
 |R7.3|AI-generated review with efficiency score|🟢     |
-|R7.4|Includes person and property breakdowns  |⬜     |
-|R7.5|Includes debt paydown progress           |⬜     |
-|R7.6|Baseline snapshot on first data import   |⬜     |
-|R7.7|Monthly cron on 1st of each month        |⬜     |
+|R7.4|Includes person and property breakdowns  |🟢     |
+|R7.5|Includes debt paydown progress           |🟢     |
+|R7.6|Baseline snapshot on first data import   |🟢     |
+|R7.7|Monthly cron on 1st of each month        |🟢     |
 
 #### R8. Information architecture
 
 |ID  |Requirement                                                                                                                |Status|
 |----|---------------------------------------------------------------------------------------------------------------------------|------|
-|R8.1|Overview leads with True Remaining                                                                                         |🟡     |
-|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟡     |
-|R8.3|"Insights" renamed "Monthly Review"                                                                                        |⬜     |
-|R8.4|Nav grouped: daily / periodic / setup                                                                                      |⬜     |
+|R8.1|Overview leads with True Remaining                                                                                         |🟢     |
+|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟢     |
+|R8.3|"Insights" renamed "Monthly Review"                                                                                        |🟢     |
+|R8.4|Nav grouped: daily / periodic / setup                                                                                      |🟢     |
 
 #### R9. Brand and deployment
 
@@ -175,12 +175,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID   |Requirement                                                 |Status|
 |-----|------------------------------------------------------------|------|
-|R10.1|Profile management: edit name, email, change password       |⬜     |
-|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|⬜     |
-|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |⬜     |
-|R10.4|Connected accounts: view Plaid connections, disconnect      |⬜     |
-|R10.5|Data export: download transactions as CSV                   |⬜     |
-|R10.6|Delete account: permanent, with confirmation                |⬜     |
+|R10.1|Profile management: edit name, email, change password       |🟢     |
+|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|🟢     |
+|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |🟢     |
+|R10.4|Connected accounts: view Plaid connections, disconnect      |🟡     |
+|R10.5|Data export: download transactions as CSV                   |🟢     |
+|R10.6|Delete account: permanent, with confirmation                |🟢     |
 
 #### R11. Security
 
