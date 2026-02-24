@@ -12,6 +12,7 @@ interface DebtRow {
   originalBalance: number | null
   interestRate: number
   minimumPayment: number
+  escrowAmount: number | null
   paymentDay: number | null
   termMonths: number | null
   startDate: string | null
@@ -69,6 +70,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
   const [formOriginalBalance, setFormOriginalBalance] = useState('')
   const [formRate, setFormRate] = useState('')
   const [formPayment, setFormPayment] = useState('')
+  const [formEscrowAmount, setFormEscrowAmount] = useState('')
   const [formPaymentDay, setFormPaymentDay] = useState('')
   const [formTermMonths, setFormTermMonths] = useState('')
   const [formPropertyId, setFormPropertyId] = useState('')
@@ -81,6 +83,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
     setFormOriginalBalance('')
     setFormRate('')
     setFormPayment('')
+    setFormEscrowAmount('')
     setFormPaymentDay('')
     setFormTermMonths('')
     setFormPropertyId('')
@@ -114,6 +117,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
           originalBalance: formOriginalBalance ? parseFloat(formOriginalBalance) : null,
           interestRate,
           minimumPayment,
+          escrowAmount: formEscrowAmount ? parseFloat(formEscrowAmount) : null,
           paymentDay: formPaymentDay ? parseInt(formPaymentDay, 10) : null,
           termMonths: formTermMonths ? parseInt(formTermMonths, 10) : null,
           propertyId: formPropertyId || null,
@@ -202,8 +206,12 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                     <p className="text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
                   </div>
                   <div>
-                    <p className="text-xs text-stone">Payment</p>
-                    <p className="text-lg font-bold text-fjord">{formatCurrency(debt.minimumPayment)}/mo</p>
+                    <p className="text-xs text-stone">
+                      {debt.escrowAmount ? 'Total Monthly' : 'Payment'}
+                    </p>
+                    <p className="text-lg font-bold text-fjord">
+                      {formatCurrency(debt.minimumPayment + (debt.escrowAmount ?? 0))}/mo
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-stone">Est. Remaining</p>
@@ -220,7 +228,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
                     Monthly Payment Breakdown
                   </p>
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
                     <div className="flex items-center gap-1.5">
                       <span className="h-2.5 w-2.5 rounded-full bg-pine" />
                       <span className="text-stone">Principal:</span>
@@ -231,20 +239,36 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                       <span className="text-stone">Interest:</span>
                       <span className="font-semibold text-fjord">{formatCurrency(debt.monthlyInterest)}</span>
                     </div>
+                    {debt.escrowAmount != null && debt.escrowAmount > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-stone" />
+                        <span className="text-stone">Escrow:</span>
+                        <span className="font-semibold text-fjord">{formatCurrency(debt.escrowAmount)}</span>
+                      </div>
+                    )}
                   </div>
-                  {/* Simple P&I bar */}
-                  {debt.minimumPayment > 0 && (
-                    <div className="mt-2 flex h-2 overflow-hidden rounded-bar">
-                      <div
-                        className="bg-pine"
-                        style={{ width: `${(debt.monthlyPrincipal / debt.minimumPayment) * 100}%` }}
-                      />
-                      <div
-                        className="bg-ember"
-                        style={{ width: `${(debt.monthlyInterest / debt.minimumPayment) * 100}%` }}
-                      />
-                    </div>
-                  )}
+                  {/* P&I (+Escrow) bar */}
+                  {debt.minimumPayment > 0 && (() => {
+                    const totalBar = debt.minimumPayment + (debt.escrowAmount ?? 0)
+                    return (
+                      <div className="mt-2 flex h-2 overflow-hidden rounded-bar">
+                        <div
+                          className="bg-pine"
+                          style={{ width: `${(debt.monthlyPrincipal / totalBar) * 100}%` }}
+                        />
+                        <div
+                          className="bg-ember"
+                          style={{ width: `${(debt.monthlyInterest / totalBar) * 100}%` }}
+                        />
+                        {debt.escrowAmount != null && debt.escrowAmount > 0 && (
+                          <div
+                            className="bg-stone"
+                            style={{ width: `${(debt.escrowAmount / totalBar) * 100}%` }}
+                          />
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Progress bar for original → current */}
@@ -361,6 +385,26 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                 </div>
               </div>
             </div>
+
+            {formType === 'MORTGAGE' && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-fjord">
+                  Monthly Escrow (taxes &amp; insurance) <span className="font-normal text-stone">(optional)</span>
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formEscrowAmount}
+                    onChange={(e) => setFormEscrowAmount(e.target.value)}
+                    className="input pl-7"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>

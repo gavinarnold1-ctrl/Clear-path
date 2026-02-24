@@ -337,6 +337,7 @@ model Debt {
   originalBalance Float?
   interestRate    Float
   minimumPayment  Float
+  escrowAmount    Float?    // Optional: monthly taxes + insurance for mortgages
   paymentDay      Int?
   termMonths      Int?
   startDate       DateTime?

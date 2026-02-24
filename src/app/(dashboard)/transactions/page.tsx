@@ -7,9 +7,17 @@ import TransactionList from '@/components/transactions/TransactionList'
 
 export const metadata: Metadata = { title: 'Transactions' }
 
-export default async function TransactionsPage() {
+interface PageProps {
+  searchParams: Promise<{ categoryId?: string; month?: string }>
+}
+
+export default async function TransactionsPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
+
+  const params = await searchParams
+  const initialCategoryId = params.categoryId ?? ''
+  const initialMonth = params.month ?? ''
 
   const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
@@ -88,6 +96,8 @@ export default async function TransactionsPage() {
           accounts={accounts}
           householdMembers={householdMembers}
           properties={properties}
+          initialCategoryId={initialCategoryId}
+          initialMonth={initialMonth}
         />
       )}
     </div>

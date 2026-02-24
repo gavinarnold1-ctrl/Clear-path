@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { formatOrdinalDay } from '@/lib/budget-engine'
 
@@ -10,6 +11,7 @@ interface Props {
   dueDay: number | null
   isAutoPay: boolean | null
   varianceLimit: number | null
+  categoryId: string | null
   category: { name: string; icon: string | null } | null
   status: FixedStatus
 }
@@ -21,11 +23,23 @@ const STATUS_CONFIG: Record<FixedStatus, { icon: string; color: string }> = {
   pending: { icon: '\u25CB', color: 'text-stone' },
 }
 
-export default function FixedBudgetRow({ name, amount, spent, dueDay, isAutoPay, status }: Props) {
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+export default function FixedBudgetRow({ name, amount, spent, dueDay, isAutoPay, categoryId, status }: Props) {
   const cfg = STATUS_CONFIG[status]
 
+  const href = categoryId
+    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
+    : undefined
+
+  const Wrapper = href ? Link : 'div'
+  const wrapperProps = href ? { href } : {}
+
   return (
-    <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-snow">
+    <Wrapper {...wrapperProps} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-snow">
       <span className={`text-lg font-bold ${cfg.color}`}>{cfg.icon}</span>
       <div className="min-w-0 flex-1">
         <span className="font-medium text-fjord">{name}</span>
@@ -46,6 +60,6 @@ export default function FixedBudgetRow({ name, amount, spent, dueDay, isAutoPay,
           <span className="text-sm font-semibold text-fjord">{formatCurrency(amount)}</span>
         )}
       </div>
-    </div>
+    </Wrapper>
   )
 }

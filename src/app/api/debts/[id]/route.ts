@@ -76,6 +76,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(body.originalBalance !== undefined && { originalBalance: body.originalBalance }),
       ...(body.interestRate !== undefined && { interestRate: body.interestRate }),
       ...(body.minimumPayment !== undefined && { minimumPayment: body.minimumPayment }),
+      ...(body.escrowAmount !== undefined && { escrowAmount: body.escrowAmount }),
       ...(body.paymentDay !== undefined && { paymentDay: body.paymentDay }),
       ...(body.termMonths !== undefined && { termMonths: body.termMonths }),
       ...(body.startDate !== undefined && { startDate: body.startDate ? new Date(body.startDate) : null }),

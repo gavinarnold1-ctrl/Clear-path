@@ -5,16 +5,28 @@ import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 
+/** Keywords in CSV category names that indicate income */
+const INCOME_CAT_KEYWORDS =
+  /\b(income|salary|wages?|paycheck|deposit|refund|reimbursement|dividend|interest earned|bonus|gift received|cashback)\b/i
+
+/** Keywords in CSV category names that indicate expense */
+const EXPENSE_CAT_KEYWORDS =
+  /\b(expense|bill|fee|charge|purchase|withdrawal|utilities|rent|groceries|dining|entertainment|subscription)\b/i
+
 /**
  * Fuzzy-match a CSV category name to an existing category when exact match fails.
- * Tries contains matching and word overlap, prioritizing budget-linked categories.
+ * Tries contains matching and word overlap, prioritizing budget-linked categories
+ * and categories whose type aligns with the transaction amount sign.
  */
-function findPartialCategoryMatch<T extends { id: string; name: string }>(
+function findPartialCategoryMatch<T extends { id: string; name: string; type?: string }>(
   csvKey: string,
   categoryMap: Map<string, T>,
-  budgetCategoryIds: Set<string>
+  budgetCategoryIds: Set<string>,
+  amountSign?: number
 ): T | null {
   const csvWords = new Set(csvKey.split(/[\s&,]+/).filter((w) => w.length > 2))
+  const expectedType =
+    amountSign !== undefined ? (amountSign > 0 ? 'income' : 'expense') : undefined
 
   let bestMatch: T | null = null
   let bestScore = 0
@@ -46,6 +58,16 @@ function findPartialCategoryMatch<T extends { id: string; name: string }>(
     // Budget-linked categories get a priority bonus
     if (score > 0 && budgetCategoryIds.has(existingCat.id)) {
       score += 0.3
+    }
+
+    // Prefer categories whose type matches the amount sign
+    const catType = (existingCat as { type?: string }).type
+    if (score > 0 && expectedType && catType) {
+      if (catType === expectedType) {
+        score += 0.2
+      } else if (catType !== 'transfer') {
+        score -= 0.2
+      }
     }
 
     if (score > bestScore) {
@@ -244,9 +266,9 @@ export async function POST(request: Request) {
         const catKey = tx.category.toLowerCase()
         let matched = categoryMap.get(catKey) ?? null
 
-        // Fallback: partial/fuzzy match, prioritizing budget-linked categories
+        // Fallback: partial/fuzzy match, prioritizing budget-linked categories + type alignment
         if (!matched) {
-          matched = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds)
+          matched = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds, tx.amount)
           if (matched) {
             categoryMap.set(catKey, matched)
           }
@@ -255,11 +277,12 @@ export async function POST(request: Request) {
         if (matched) {
           categoryId = matched.id
         } else {
-          // Infer category type from transactionType (most reliable), then amount sign
+          // Infer category type from transactionType (most reliable), then category name keywords, then amount sign
           const isTransfer = tx.transactionType === 'transfer' ||
             catKey.includes('transfer') || catKey.includes('credit card payment')
           const isCredit = tx.transactionType === 'credit'
-          const catType = isTransfer ? 'transfer' : (isCredit || tx.amount > 0) ? 'income' : 'expense'
+          const nameHasIncomeSignal = INCOME_CAT_KEYWORDS.test(catKey) && !EXPENSE_CAT_KEYWORDS.test(catKey)
+          const catType = isTransfer ? 'transfer' : (isCredit || nameHasIncomeSignal || tx.amount > 0) ? 'income' : 'expense'
 
           // Auto-create category from CSV data
           const newCat = await db.category.create({
@@ -354,18 +377,31 @@ export async function POST(request: Request) {
         }
       }
 
-      // Normalize amount sign. Priority: transactionType > category type > CSV sign.
+      // Normalize amount sign. Priority:
+      //   1. transactionType ('credit'/'debit') — most reliable (Monarch CSV)
+      //   2. CSV category name keywords ("income", "salary", etc.) — explicit user label
+      //   3. Matched category type — fallback
       // App convention: income = positive, expense = negative.
       let finalAmount = tx.amount
       if (tx.transactionType === 'credit') {
         finalAmount = Math.abs(tx.amount)
       } else if (tx.transactionType === 'debit') {
         finalAmount = -Math.abs(tx.amount)
-      } else if (categoryId) {
-        const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
-        if (resolvedCat) {
-          if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
-          else if (resolvedCat.type === 'income') finalAmount = Math.abs(tx.amount)
+      } else {
+        const csvCatLower = (tx.category || '').toLowerCase()
+        const csvSaysIncome = INCOME_CAT_KEYWORDS.test(csvCatLower) && !EXPENSE_CAT_KEYWORDS.test(csvCatLower)
+        const csvSaysExpense = EXPENSE_CAT_KEYWORDS.test(csvCatLower) && !INCOME_CAT_KEYWORDS.test(csvCatLower)
+
+        if (csvSaysIncome) {
+          finalAmount = Math.abs(tx.amount)
+        } else if (csvSaysExpense) {
+          finalAmount = -Math.abs(tx.amount)
+        } else if (categoryId) {
+          const resolvedCat = categoryMap.get(tx.category?.toLowerCase() ?? '')
+          if (resolvedCat) {
+            if (resolvedCat.type === 'expense') finalAmount = -Math.abs(tx.amount)
+            else if (resolvedCat.type === 'income') finalAmount = Math.abs(tx.amount)
+          }
         }
       }
 

@@ -90,6 +90,7 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
               dueDay={budget.dueDay}
               isAutoPay={budget.isAutoPay}
               varianceLimit={budget.varianceLimit}
+              categoryId={budget.categoryId}
               category={budget.category}
               status={status}
             />

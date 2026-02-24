@@ -6,6 +6,7 @@ interface FlexibleBudget {
   amount: number
   spent: number
   period: string
+  categoryId: string | null
   category: { name: string; icon: string | null } | null
 }
 
@@ -29,6 +30,7 @@ export default function FlexibleBudgetSection({ budgets }: Props) {
             name={budget.name}
             amount={budget.amount}
             spent={budget.spent}
+            categoryId={budget.categoryId}
             category={budget.category}
           />
         ))}

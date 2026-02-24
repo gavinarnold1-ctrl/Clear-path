@@ -35,7 +35,7 @@ export default async function DebtsPage() {
 
   // Compute summary
   const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0)
-  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment, 0)
+  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment + (d.escrowAmount ?? 0), 0)
   const weightedRate =
     totalDebt > 0
       ? debts.reduce((sum, d) => sum + d.currentBalance * d.interestRate, 0) / totalDebt
@@ -55,6 +55,7 @@ export default async function DebtsPage() {
       originalBalance: d.originalBalance,
       interestRate: d.interestRate,
       minimumPayment: d.minimumPayment,
+      escrowAmount: d.escrowAmount ?? null,
       paymentDay: d.paymentDay,
       termMonths: d.termMonths,
       startDate: d.startDate?.toISOString() ?? null,

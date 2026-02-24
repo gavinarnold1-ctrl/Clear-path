@@ -11,6 +11,11 @@ interface Props {
   categories: UnbudgetedCategory[]
 }
 
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default function UnbudgetedSection({ categories }: Props) {
   if (categories.length === 0) return null
 
@@ -28,13 +33,19 @@ export default function UnbudgetedSection({ categories }: Props) {
       <div className="card divide-y divide-mist">
         {categories.map((cat) => (
           <div key={cat.categoryId} className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
+            <Link
+              href={`/transactions?categoryId=${cat.categoryId}&month=${getCurrentMonth()}`}
+              className="flex items-center gap-3 hover:text-midnight"
+            >
               <span className="font-medium text-fjord">{cat.categoryName}</span>
-            </div>
+            </Link>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-semibold text-ember">
+              <Link
+                href={`/transactions?categoryId=${cat.categoryId}&month=${getCurrentMonth()}`}
+                className="text-sm font-semibold text-ember hover:underline"
+              >
                 {formatCurrency(cat.spent)}
-              </span>
+              </Link>
               <Link
                 href={`/budgets/new?categoryId=${cat.categoryId}`}
                 className="text-xs font-medium text-fjord hover:text-midnight"
