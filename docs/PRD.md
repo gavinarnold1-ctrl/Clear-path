@@ -1,6 +1,6 @@
 # Oversikt — Product Requirements Document
 
-*Version 2.6 — February 23, 2026*
+*Version 2.7 — February 24, 2026*
 *This is the single source of truth. All other docs are reference material.*
 
 -----
@@ -84,13 +84,15 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                                                                                                                                                                                                                                                                              |Status|
 |----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
-|R1.1|Budget spent computed from transactions on read, never stored                                                                                                                                                                                                                            |🔴     |
+|R1.1|Budget spent computed from transactions on read, never stored                                                                                                                                                                                                                           |🔴     |
 |R1.2|Fixed expense paid/missed matches transactions by category within month                                                                                                                                                                                                                  |🔴     |
-|R1.3|CSV import sign logic: if category type=income, amount stays positive. If type=expense, amount stored negative. Currently flipping income to negative (1583.33 → -$1,583.33).                                                                                                            |🔴     |
-|R1.4|CSV import mapping: add Person and Property to the column mapping dropdown (currently only Date, Merchant, Amount, Category, Account, Ignore)                                                                                                                                            |🔴     |
+|R1.3|CSV import sign logic: if category type=income, amount stays positive. If type=expense, amount stored negative. Currently flipping income to negative (1583.33 → -$1,583.33).                                                                                                           |🔴     |
+|R1.4|CSV import mapping: add Person and Property to the column mapping dropdown (currently only Date, Merchant, Amount, Category, Account, Ignore)                                                                                                                                           |🔴     |
 |R1.5|CSV import account linking: Account column is auto-detected but "Import into account" overrides to "No account". Resolve conflict — if Account column is mapped, use per-row values. If not mapped, use the global "Import into account" dropdown. Auto-create accounts that don't exist.|🔴     |
-|R1.6|Migration: fix all existing transactions where category type=income but amount is negative (flip sign)                                                                                                                                                                                   |🔴     |
-|R1.7|Plaid import flips sign convention                                                                                                                                                                                                                                                       |⬜     |
+|R1.6|CSV import category matching: match imported category names to existing categories by name (case-insensitive). If match found, use existing category (preserves group assignment). Only create new category if no match. New categories assigned to correct group via default mapping table.                            |🔴     |
+|R1.7|Transaction classification: every transaction has a classification — expense, income, or transfer. Transfers excluded from spending totals, budget calculations, and Spending Breakdown. User can reclassify any transfer as income or expense. Credit card payments and internal account movements default to transfer.|🔴     |
+|R1.8|Migration: fix all existing transactions where category type=income but amount is negative (flip sign)                                                                                                                                                                                  |🔴     |
+|R1.9|Plaid import flips sign convention                                                                                                                                                                                                                                                      |⬜     |
 
 #### R2. Bank connectivity
 
@@ -210,21 +212,23 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 ## Implementation Order
 
-27 steps. 5 phases. Each step references requirement IDs.
+29 steps. 5 phases. Each step references requirement IDs.
 
 ### Phase 1: Fix the foundation
 
 *Every number on screen is correct.*
 
-|Step|Req |Do                                                                                                                                                                 |
-|----|----|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|1   |R1.1|Remove `Budget.spent`. Compute from transactions on read.                                                                                                          |
-|2   |R1.2|Fix fixed expense matching — categoryId within month, not exact date.                                                                                              |
-|3   |R1.3|Fix CSV import sign logic: check category type before storing. Income → positive, Expense → negative. Currently converts all to negative.                          |
-|4   |R1.4|Add Person and Property to CSV column mapping dropdown. Map "Owner" → Person, allow Property mapping.                                                              |
-|5   |R1.5|Fix CSV account linking: per-row Account column values should look up or create accounts. "Import into account" dropdown only used when Account column is unmapped.|
-|6   |R1.6|Write migration script: flip sign on all existing transactions where category type=income but amount<0. Run once.                                                  |
-|7   |R7.3|Re-test AI insights with corrected data.                                                                                                                           |
+|Step|Req |Do                                                                                                                                                                                                                                                                                                                                                                                |
+|----|----|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|1   |R1.1|Remove `Budget.spent`. Compute from transactions on read.                                                                                                                                                                                                                                                                                                                         |
+|2   |R1.2|Fix fixed expense matching — categoryId within month, not exact date.                                                                                                                                                                                                                                                                                                             |
+|3   |R1.3|Fix CSV import sign logic: check category type before storing. Income → positive, Expense → negative. Currently converts all to negative.                                                                                                                                                                                                                                         |
+|4   |R1.4|Add Person and Property to CSV column mapping dropdown. Map "Owner" → Person, allow Property mapping.                                                                                                                                                                                                                                                                             |
+|5   |R1.5|Fix CSV account linking: per-row Account column values should look up or create accounts. "Import into account" dropdown only used when Account column is unmapped.                                                                                                                                                                                                               |
+|6   |R1.6|CSV category matching: on import, match each category name (case-insensitive) to existing categories. If match found, reuse that category (keeps group assignment like Food & Dining, Auto & Transport). If no match, create new category and assign to best-fit group using a default mapping table. Never create a flat "Imported" group.                                       |
+|7   |R1.7|Transaction classification: add `classification` field (expense/income/transfer) to Transaction model. Default: categories named "Transfer", "Credit Card Payment" → transfer. Income categories → income. Everything else → expense. Transfers excluded from Spending totals and budget spent calculations. Add reclassify action on transaction row (transfer ↔ income/expense).|
+|8   |R1.8|Write migration script: flip sign on all existing transactions where category type=income but amount<0. Classify existing transactions (transfer categories → transfer, income → income, rest → expense). Run once.                                                                                                                                                               |
+|9   |R7.3|Re-test AI insights with corrected data.                                                                                                                                                                                                                                                                                                                                          |
 
 ### Phase 2: Complete the data model
 
@@ -232,9 +236,9 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req      |Do                                                                            |
 |----|---------|------------------------------------------------------------------------------|
-|8   |R3.1–R3.2|HouseholdMember model + person tag on transactions. Setup UI on Settings page.|
-|9   |R4.1–R4.2|Property model + property tag on transactions. Setup UI on Settings page.     |
-|10  |R5.1–R5.4|Debt model + Debts page.                                                      |
+|10  |R3.1–R3.2|HouseholdMember model + person tag on transactions. Setup UI on Settings page.|
+|11  |R4.1–R4.2|Property model + property tag on transactions. Setup UI on Settings page.     |
+|12  |R5.1–R5.4|Debt model + Debts page.                                                      |
 
 ### Phase 3: Reshape the experience
 
@@ -242,14 +246,14 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req                       |Do                                                                                                                                                                                       |
 |----|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|11  |R8.1, R6.6                |Overview redesign: True Remaining hero, budget pulse, chart below fold.                                                                                                                  |
-|12  |R8.2–R8.4                 |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.                                                                                                      |
-|13  |R10.1–R10.6               |Settings page: profile, household members, properties, connected accounts, export, delete account.                                                                                       |
-|14  |R3.3–R3.4, R4.3–R4.5, R6.7|"By Person" + "By Property" on Spending. Property filter on Transactions. Unbudgeted categories on Budgets page.                                                                         |
-|15  |R5.6                      |Add escrow fields to Debt model. Show escrow as third segment (gray) in payment breakdown bar. Total monthly cost = P&I + escrow. Optional field on Add/Edit debt form for mortgage type.|
-|16  |R6.8                      |Category click-through: tap any category on Budgets, Spending, or Unbudgeted → navigate to Transactions filtered by that category + current month.                                       |
-|17  |R7.1, R7.6–R7.7           |MonthlySnapshot model + cron. Baseline on first import.                                                                                                                                  |
-|18  |R7.2, R7.4–R7.5, R5.5     |"Since you started" on Monthly Review with debt, person, property.                                                                                                                       |
+|13  |R8.1, R6.6                |Overview redesign: True Remaining hero, budget pulse, chart below fold.                                                                                                                  |
+|14  |R8.2–R8.4                 |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.                                                                                                      |
+|15  |R10.1–R10.6               |Settings page: profile, household members, properties, connected accounts, export, delete account.                                                                                       |
+|16  |R3.3–R3.4, R4.3–R4.5, R6.7|"By Person" + "By Property" on Spending. Property filter on Transactions. Unbudgeted categories on Budgets page.                                                                         |
+|17  |R5.6                      |Add escrow fields to Debt model. Show escrow as third segment (gray) in payment breakdown bar. Total monthly cost = P&I + escrow. Optional field on Add/Edit debt form for mortgage type.|
+|18  |R6.8                      |Category click-through: tap any category on Budgets, Spending, or Unbudgeted → navigate to Transactions filtered by that category + current month.                                       |
+|19  |R7.1, R7.6–R7.7           |MonthlySnapshot model + cron. Baseline on first import.                                                                                                                                  |
+|20  |R7.2, R7.4–R7.5, R5.5     |"Since you started" on Monthly Review with debt, person, property.                                                                                                                       |
 
 ### Phase 4: Bank connectivity
 
@@ -257,9 +261,9 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req       |Do                                |
 |----|----------|----------------------------------|
-|19  |R2.1, R1.7|Plaid SDK + API routes. Sign flip.|
-|20  |R2.1      |Plaid Link on Accounts page.      |
-|21  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
+|21  |R2.1, R1.9|Plaid SDK + API routes. Sign flip.|
+|22  |R2.1      |Plaid Link on Accounts page.      |
+|23  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
 
 ### Phase 5: Security, brand, and ship
 
@@ -267,12 +271,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req         |Do                                           |
 |----|------------|---------------------------------------------|
-|22  |R11.1–R11.14|Security hardening (see security spec below).|
-|23  |R9.1        |Rebrand codebase.                            |
-|24  |R9.2–R9.3   |Domain + rename repo.                        |
-|25  |R9.4–R9.5   |Landing page + demo mode.                    |
-|26  |R9.6        |Mobile responsive audit at 375px.            |
-|27  |—           |Final verification. Ship.                    |
+|24  |R11.1–R11.14|Security hardening (see security spec below).|
+|25  |R9.1        |Rebrand codebase.                            |
+|26  |R9.2–R9.3   |Domain + rename repo.                        |
+|27  |R9.4–R9.5   |Landing page + demo mode.                    |
+|28  |R9.6        |Mobile responsive audit at 375px.            |
+|29  |—           |Final verification. Ship.                    |
 
 -----
 
@@ -295,7 +299,7 @@ V2 adds intelligence and tax. "Shows you what's true" becomes "helps you optimiz
 
 -----
 
-## Security Spec (Step 22)
+## Security Spec (Step 24)
 
 Step 17 is a dedicated security hardening pass. Claude Code addresses each R11 requirement:
 
@@ -467,7 +471,7 @@ Read /docs/PRD.md. Implement Step [N], requirements [R-IDs].
 
 ## Schema Reference
 
-### MonthlySnapshot (Step 17)
+### MonthlySnapshot (Step 19)
 
 ```prisma
 model MonthlySnapshot {
@@ -505,7 +509,7 @@ model MonthlySnapshot {
 }
 ```
 
-### HouseholdMember (Step 8)
+### HouseholdMember (Step 10)
 
 ```prisma
 model HouseholdMember {
@@ -520,7 +524,7 @@ model HouseholdMember {
 }
 ```
 
-### Property (Step 9)
+### Property (Step 11)
 
 ```prisma
 model Property {
@@ -538,7 +542,7 @@ model Property {
 enum PropertyType { PERSONAL RENTAL }
 ```
 
-### Debt (Step 10)
+### Debt (Step 12)
 
 ```prisma
 model Debt {
@@ -581,3 +585,4 @@ enum DebtType { MORTGAGE STUDENT_LOAN AUTO CREDIT_CARD PERSONAL_LOAN OTHER }
 |2026-02-23|2.4    |Added Claude Code rules 7-9: mandatory build check after every file change, tsc type-check, read full file before editing.                                                                                                                                                                |
 |2026-02-23|2.5    |CSV import: mapping UI exists but missing Person/Property in dropdown. Amount 1583.33 positive in CSV but stored as -$1,583.33 — sign logic inverted for income. Account column detected but "Import into account" overrides to none. R1.3–R1.6 rewritten. Added migration step. 25 steps.|
 |2026-02-23|2.6    |Added R5.6 (mortgage escrow — optional monthly escrow in payment breakdown), R6.8 (category click-through to filtered transactions). Added V2.10 (property value/equity tracker). 27 steps.                                                                                               |
+|2026-02-24|2.7    |Added R1.6 (CSV category matching to existing groups — fixes "Imported" flat group), R1.7 (transaction classification: expense/income/transfer — transfers excluded from spending to prevent double-counting). 29 steps.                                                                  |

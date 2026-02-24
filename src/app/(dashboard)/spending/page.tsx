@@ -38,12 +38,14 @@ export default async function SpendingPage({ searchParams }: Props) {
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
   // Fetch expense transactions with category, person, and property info
+  // R1.7: Exclude transfer-classified transactions from spending totals
   const [expenseTransactions, prevExpenseAgg, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
+        classification: { not: 'transfer' },
       },
       include: {
         category: { select: { id: true, name: true, group: true } },
@@ -56,6 +58,7 @@ export default async function SpendingPage({ searchParams }: Props) {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
         amount: { lt: 0 },
+        classification: { not: 'transfer' },
       },
       _sum: { amount: true },
     }),

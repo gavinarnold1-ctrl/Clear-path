@@ -18,6 +18,8 @@ export type BudgetTier = 'FIXED' | 'FLEXIBLE' | 'ANNUAL'
 
 export type PropertyType = 'PERSONAL' | 'RENTAL'
 
+export type TransactionClassification = 'expense' | 'income' | 'transfer'
+
 export type DebtType =
   | 'MORTGAGE'
   | 'STUDENT_LOAN'
@@ -82,6 +84,7 @@ export interface Transaction {
   date: Date
   merchant: string
   amount: number
+  classification: TransactionClassification
   transactionType: string | null
   originalStatement: string | null
   originalCategory: string | null
@@ -146,6 +149,7 @@ export interface Debt {
   originalBalance: number | null
   interestRate: number
   minimumPayment: number
+  escrowAmount: number | null
   paymentDay: number | null
   termMonths: number | null
   startDate: Date | null
