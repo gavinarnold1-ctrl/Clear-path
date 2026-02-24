@@ -94,11 +94,13 @@ export default async function DashboardPage({ searchParams }: Props) {
     transactionCount,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
+    // R1.7: Exclude transfers from income/expense totals
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { gt: 0 },
+        classification: { not: 'transfer' },
       },
       _sum: { amount: true },
     }),
@@ -107,24 +109,27 @@ export default async function DashboardPage({ searchParams }: Props) {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
+        classification: { not: 'transfer' },
       },
       _sum: { amount: true },
     }),
-    // Previous month income
+    // Previous month income (exclude transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
         amount: { gt: 0 },
+        classification: { not: 'transfer' },
       },
       _sum: { amount: true },
     }),
-    // Previous month expenses
+    // Previous month expenses (exclude transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
         amount: { lt: 0 },
+        classification: { not: 'transfer' },
       },
       _sum: { amount: true },
     }),
@@ -142,12 +147,13 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       include: { category: true, annualExpense: true },
     }),
-    // Current month expense transactions for live budget spent computation
+    // Current month expense transactions for live budget spent computation (exclude transfers)
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
+        classification: { not: 'transfer' },
       },
       select: { categoryId: true, amount: true, category: { select: { id: true, name: true } } },
     }),
@@ -158,16 +164,18 @@ export default async function DashboardPage({ searchParams }: Props) {
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
         categoryId: { not: null },
+        classification: { not: 'transfer' },
       },
       _sum: { amount: true },
       orderBy: { _sum: { amount: 'asc' } },
       take: 6,
     }),
-    // Monthly aggregates for chart (last 6 months)
+    // Monthly aggregates for chart (last 6 months) — exclude transfers
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: chartStart, lte: endDate },
+        classification: { not: 'transfer' },
       },
       select: { date: true, amount: true },
     }),

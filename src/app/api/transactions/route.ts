@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { classifyTransaction } from '@/lib/classification'
 
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
+const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
@@ -18,6 +20,11 @@ export async function GET(req: NextRequest) {
 
   const householdMemberId = searchParams.get('householdMemberId') ?? undefined
   const propertyId = searchParams.get('propertyId') ?? undefined
+  const classification = searchParams.get('classification') ?? undefined
+
+  if (classification && !VALID_CLASSIFICATIONS.has(classification)) {
+    return NextResponse.json({ error: 'Invalid classification filter' }, { status: 400 })
+  }
 
   const transactions = await db.transaction.findMany({
     where: {
@@ -26,6 +33,7 @@ export async function GET(req: NextRequest) {
       ...(accountId && { accountId }),
       ...(householdMemberId && { householdMemberId }),
       ...(propertyId && { propertyId }),
+      ...(classification && { classification }),
     },
     include: { account: true, category: true, householdMember: true, property: true },
     orderBy: { date: 'desc' },
@@ -88,6 +96,19 @@ export async function POST(req: NextRequest) {
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
   }
 
+  // Determine classification (R1.7)
+  let resolvedClassification = body.classification
+  if (!resolvedClassification || !VALID_CLASSIFICATIONS.has(resolvedClassification)) {
+    if (categoryId) {
+      const catForClassify = await db.category.findFirst({
+        where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+      })
+      resolvedClassification = classifyTransaction(catForClassify?.name ?? null, catForClassify?.type ?? null)
+    } else {
+      resolvedClassification = finalAmount > 0 ? 'income' : 'expense'
+    }
+  }
+
   const transaction = await db.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
@@ -95,6 +116,7 @@ export async function POST(req: NextRequest) {
         accountId: accountId ?? null,
         categoryId: categoryId ?? null,
         amount: finalAmount,
+        classification: resolvedClassification,
         merchant,
         date: new Date(date),
         notes: notes ?? null,

@@ -22,12 +22,13 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     propertySpending,
     latestScore,
   ] = await Promise.all([
+    // R1.7: Exclude transfers from income/expense totals in snapshots
     db.transaction.aggregate({
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { gt: 0 } },
+      where: { userId, date: { gte: startDate, lte: endDate }, amount: { gt: 0 }, classification: { not: 'transfer' } },
       _sum: { amount: true },
     }),
     db.transaction.aggregate({
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 } },
+      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, classification: { not: 'transfer' } },
       _sum: { amount: true },
     }),
     db.transaction.count({
@@ -38,7 +39,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       include: { annualExpense: true },
     }),
     db.transaction.findMany({
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 } },
+      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, classification: { not: 'transfer' } },
       select: { categoryId: true, amount: true },
     }),
     db.debt.findMany({ where: { userId } }),

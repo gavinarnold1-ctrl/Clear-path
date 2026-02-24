@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
+import { inferCategoryGroup } from '@/lib/category-groups'
+import { classifyTransaction } from '@/lib/classification'
 
 /** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
 function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
@@ -31,6 +33,10 @@ const INCOME_CAT_KEYWORDS =
 /** Keywords in CSV category names that indicate expense */
 const EXPENSE_CAT_KEYWORDS =
   /\b(expense|bill|fee|charge|purchase|withdrawal|utilities|rent|groceries|dining|entertainment|subscription)\b/i
+
+/** Keywords in CSV category names that indicate a transfer */
+const TRANSFER_CAT_KEYWORDS =
+  /\b(transfer|credit card payment|payment transfer|internal transfer|account transfer)\b/i
 
 /**
  * Fuzzy-match a CSV category name to an existing category when exact match fails.
@@ -265,6 +271,7 @@ export async function POST(request: Request) {
       date: Date
       merchant: string
       amount: number
+      classification: string
       categoryId: string | null
       originalCategory: string | null
       originalStatement: string | null
@@ -315,18 +322,19 @@ export async function POST(request: Request) {
         } else {
           // Infer category type from transactionType (most reliable), then category name keywords, then amount sign
           const isTransfer = tx.transactionType === 'transfer' ||
-            catKey.includes('transfer') || catKey.includes('credit card payment')
+            TRANSFER_CAT_KEYWORDS.test(catKey)
           const isCredit = tx.transactionType === 'credit'
           const nameHasIncomeSignal = INCOME_CAT_KEYWORDS.test(catKey) && !EXPENSE_CAT_KEYWORDS.test(catKey)
           const catType = isTransfer ? 'transfer' : (isCredit || nameHasIncomeSignal || tx.amount > 0) ? 'income' : 'expense'
 
-          // Auto-create category from CSV data
+          // Auto-create category with best-fit group (R1.6 — never use "Imported")
+          const bestGroup = inferCategoryGroup(tx.category.trim(), catType)
           const newCat = await db.category.create({
             data: {
               userId: session.userId,
               name: tx.category.trim(),
               type: catType,
-              group: 'Imported',
+              group: bestGroup,
               isDefault: false,
             },
           })
@@ -450,6 +458,13 @@ export async function POST(request: Request) {
         }
       }
 
+      // Determine classification from matched/created category (R1.7)
+      const resolvedCatForClassification = tx.category ? categoryMap.get(tx.category.toLowerCase()) : null
+      const classification = classifyTransaction(
+        resolvedCatForClassification?.name ?? tx.category ?? null,
+        resolvedCatForClassification?.type ?? null
+      )
+
       toImport.push({
         userId: session.userId,
         accountId: resolvedAccountId,
@@ -458,6 +473,7 @@ export async function POST(request: Request) {
         date: txDate,
         merchant: tx.merchant,
         amount: finalAmount,
+        classification,
         categoryId,
         originalCategory: tx.category?.trim() || null,
         originalStatement: tx.originalStatement ?? null,
