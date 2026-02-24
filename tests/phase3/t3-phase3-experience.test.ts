@@ -247,8 +247,8 @@ describe('T3.5 Monthly snapshots', () => {
 
   it('MonthlySnapshot has @@unique([userId, month]) constraint', () => {
     const src = readSrc(schemaPath)
-    // Extract the MonthlySnapshot model block
-    const modelMatch = src.match(/model\s+MonthlySnapshot\s*\{([^}]+)\}/)
+    // Extract the MonthlySnapshot model block (use [\s\S]+? to handle } in comments)
+    const modelMatch = src.match(/model\s+MonthlySnapshot\s*\{([\s\S]+?)\n\}/)
     expect(modelMatch).not.toBeNull()
     const modelBody = modelMatch![1]
     expect(modelBody).toMatch(/@@unique\(\s*\[\s*userId\s*,\s*month\s*\]\s*\)/)

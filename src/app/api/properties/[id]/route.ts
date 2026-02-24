@@ -21,6 +21,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Type must be PERSONAL or RENTAL' }, { status: 400 })
   }
 
+  // R10.2a: Duplicate name prevention on rename (case-insensitive)
+  if (name !== undefined && name.trim()) {
+    const duplicate = await db.property.findFirst({
+      where: {
+        userId: session.userId,
+        name: { equals: name.trim(), mode: 'insensitive' },
+        id: { not: id },
+      },
+    })
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'A property with this name already exists' },
+        { status: 409 }
+      )
+    }
+  }
+
   // If setting as default, unset any existing default
   if (isDefault && !existing.isDefault) {
     await db.property.updateMany({

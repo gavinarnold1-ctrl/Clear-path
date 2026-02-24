@@ -26,14 +26,7 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
   const withBenchmarks = categories.filter((c) => c.benchmark)
 
   if (withBenchmarks.length === 0) {
-    return (
-      <div className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Spending vs Benchmark</h2>
-        <p className="text-sm text-stone">
-          No benchmark data available for your current categories.
-        </p>
-      </div>
-    )
+    return null
   }
 
   const maxAmount = Math.max(
@@ -41,9 +34,13 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
   )
 
   return (
-    <div className="card">
-      <h2 className="mb-4 text-base font-semibold text-fjord">Spending vs Benchmark</h2>
-      <p className="mb-4 text-xs text-stone">Monthly averages over {months} months</p>
+    <div className="card border-mist/60 bg-frost/50">
+      <h2 className="mb-1 text-sm font-semibold text-stone">Spending vs National Median</h2>
+      <p className="mb-4 text-xs text-stone">
+        Based on BLS Consumer Expenditure data. These national medians don&apos;t account for
+        your household size, location, or income &mdash; treat as a rough reference only.
+        Personalized benchmarks coming in a future update.
+      </p>
 
       <div className="space-y-4">
         {withBenchmarks.map((c) => {

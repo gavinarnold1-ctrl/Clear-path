@@ -34,7 +34,7 @@ export async function createAccount(
     data: {
       userId: session.userId,
       name,
-      type: type as 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH',
+      type: type as 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN',
       balance,
       currency,
     },
