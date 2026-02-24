@@ -185,7 +185,7 @@ async function main() {
         categoryId: mortgage.id,
         name: 'Mortgage',
         amount: 1850,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: feb1,
@@ -203,7 +203,7 @@ async function main() {
         categoryId: internet.id,
         name: 'Internet',
         amount: 79.99,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: feb1,
@@ -221,7 +221,7 @@ async function main() {
         categoryId: phone.id,
         name: 'Phone plan',
         amount: 55,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: feb1,
@@ -239,7 +239,7 @@ async function main() {
         categoryId: groceries.id,
         name: 'Groceries',
         amount: 500,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
         startDate: feb1,
@@ -254,7 +254,7 @@ async function main() {
         categoryId: dining.id,
         name: 'Dining out',
         amount: 200,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
         startDate: feb1,
@@ -270,7 +270,7 @@ async function main() {
         categoryId: travel.id,
         name: 'Summer vacation',
         amount: 300,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.ANNUAL,
         startDate: jan1,
