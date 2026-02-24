@@ -143,7 +143,7 @@ export async function completeOnboarding(answers: OnboardingAnswers) {
             data: {
               userId: session.userId,
               name: property.name.trim(),
-              propertyType: 'rental',
+              type: 'RENTAL',
             },
           })
         }

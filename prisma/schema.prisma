@@ -315,7 +315,7 @@ model Property {
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
-  type         PropertyType
+  type         PropertyType  @default(PERSONAL)
   isDefault    Boolean       @default(false)
   createdAt    DateTime      @default(now())
   transactions Transaction[]
