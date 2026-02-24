@@ -173,20 +173,14 @@ describe('T1.2 — Fixed expense matching by categoryId within month', () => {
 // ─── Test: MISSED status when no transaction and past due date ──────────────
 
 describe('T1.2 — Fixed expense MISSED detection', () => {
-  let dateSpy: ReturnType<typeof vi.spyOn>
-
   afterEach(() => {
-    dateSpy?.mockRestore()
+    vi.useRealTimers()
   })
 
   it('shows MISSED when no transaction and current date > dueDay', () => {
     // Mock current date to be the 20th
-    const mockDate = new Date(2026, 1, 20) // Feb 20
-    dateSpy = vi.spyOn(global, 'Date').mockImplementation((...args: unknown[]) => {
-      if (args.length === 0) return mockDate
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new (Function.prototype.bind.apply(Date as any, [null, ...args] as any))()
-    }) as ReturnType<typeof vi.spyOn>
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 1, 20)) // Feb 20
 
     const budget: FixedBudget = {
       id: 'b-insurance',
@@ -205,12 +199,8 @@ describe('T1.2 — Fixed expense MISSED detection', () => {
 
   it('shows PENDING when no transaction and current date <= dueDay', () => {
     // Mock current date to be the 5th
-    const mockDate = new Date(2026, 1, 5) // Feb 5
-    dateSpy = vi.spyOn(global, 'Date').mockImplementation((...args: unknown[]) => {
-      if (args.length === 0) return mockDate
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return new (Function.prototype.bind.apply(Date as any, [null, ...args] as any))()
-    }) as ReturnType<typeof vi.spyOn>
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 1, 5)) // Feb 5
 
     const budget: FixedBudget = {
       id: 'b-insurance',

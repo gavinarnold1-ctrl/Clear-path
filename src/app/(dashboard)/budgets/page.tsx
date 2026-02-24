@@ -153,10 +153,10 @@ export default async function BudgetsPage() {
     }
   }
   // Sort by spend descending
-  unbudgetedCategories.sort((a, b) => b.spent - a.spent)
+  unbudgetedCategories.sort((x, y) => y.spent - x.spent)
 
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
-  const flexibleSpent = flexible.reduce((sum, b) => sum + b.spent, 0)
+  const flexibleSpent = flexible.reduce((sum, item) => sum + item.spent, 0)
   const annualSetAside = annual.reduce((sum, b) => {
     return sum + (b.annualExpense?.monthlySetAside ?? 0)
   }, 0)

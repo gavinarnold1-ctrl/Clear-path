@@ -420,6 +420,16 @@ This ensures the Prisma client is generated and database tables exist before the
 - Do not add comments or docstrings to code you did not change.
 - Remove dead code; do not leave `// removed` stubs.
 
+### Requirements & Progress Workflow
+
+- **Do not edit `docs/PRD.md` or `docs/TESTS.md`.** These are read-only requirements managed externally.
+- **Read `docs/PRD.md` for requirements and `docs/TESTS.md` for test specs** before starting any task.
+- **Track implementation progress in `docs/PROGRESS.md`.**
+- **After every file change:**
+  1. Run `npm run build` (zero errors before commit).
+  2. Run `npx tsc --noEmit` for faster type-checking.
+  3. Read the full file before editing.
+
 ### When in Doubt
 
 - Ask before deleting files or resetting the database.
