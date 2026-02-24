@@ -1,6 +1,6 @@
 # Oversikt — Product Requirements Document
 
-*Version 2.0 — February 23, 2026*
+*Version 2.1 — February 23, 2026*
 *This is the single source of truth. All other docs are reference material.*
 
 -----
@@ -72,10 +72,11 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 **Setup:**
 
-|Page      |Purpose                                                |
-|----------|-------------------------------------------------------|
-|Accounts  |Connected money — Plaid Link, manual accounts, balances|
-|Categories|How things are organized — edit, merge, delete         |
+|Page      |Purpose                                                                  |
+|----------|-------------------------------------------------------------------------|
+|Settings  |Your profile, household members, properties, connected accounts, security|
+|Accounts  |Connected money — Plaid Link, manual accounts, balances                  |
+|Categories|How things are organized — edit, merge, delete                           |
 
 ### Requirements
 
@@ -152,12 +153,12 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 #### R8. Information architecture
 
-|ID  |Requirement                                                                                                     |Status|
-|----|----------------------------------------------------------------------------------------------------------------|------|
-|R8.1|Overview leads with True Remaining                                                                              |🟡     |
-|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Accounts → Categories|🟡     |
-|R8.3|"Insights" renamed "Monthly Review"                                                                             |⬜     |
-|R8.4|Nav grouped: daily / periodic / setup                                                                           |⬜     |
+|ID  |Requirement                                                                                                                |Status|
+|----|---------------------------------------------------------------------------------------------------------------------------|------|
+|R8.1|Overview leads with True Remaining                                                                                         |🟡     |
+|R8.2|Nav: Overview → Budgets → Spending → Annual Plan → Debts → Transactions / Monthly Review / Settings → Accounts → Categories|🟡     |
+|R8.3|"Insights" renamed "Monthly Review"                                                                                        |⬜     |
+|R8.4|Nav grouped: daily / periodic / setup                                                                                      |⬜     |
 
 #### R9. Brand and deployment
 
@@ -170,11 +171,41 @@ A financial tool for households with real-world complexity: multiple people, at 
 |R9.5|Demo mode with full seed data                   |⬜     |
 |R9.6|All pages work at 375px mobile                  |🟡     |
 
+#### R10. Settings
+
+|ID   |Requirement                                                 |Status|
+|-----|------------------------------------------------------------|------|
+|R10.1|Profile management: edit name, email, change password       |⬜     |
+|R10.2|Household members: create, edit, delete (R3.1 UI lives here)|⬜     |
+|R10.3|Properties: create, edit, delete (R4.1 UI lives here)       |⬜     |
+|R10.4|Connected accounts: view Plaid connections, disconnect      |⬜     |
+|R10.5|Data export: download transactions as CSV                   |⬜     |
+|R10.6|Delete account: permanent, with confirmation                |⬜     |
+
+#### R11. Security
+
+|ID    |Requirement                                                                           |Status|
+|------|--------------------------------------------------------------------------------------|------|
+|R11.1 |Passwords hashed with bcrypt, never stored plaintext                                  |🟢     |
+|R11.2 |JWT tokens: HttpOnly, Secure, SameSite=Strict cookies. Short expiry (1h) with refresh.|🟡     |
+|R11.3 |Rate limiting on auth endpoints (login, register) — prevent brute force               |⬜     |
+|R11.4 |Every database query scoped by userId — no cross-user data leakage                    |🟡     |
+|R11.5 |Plaid access tokens encrypted at rest (AES-256), never sent to frontend               |⬜     |
+|R11.6 |Plaid Link handles bank credentials — Oversikt never sees usernames/passwords         |⬜     |
+|R11.7 |AI data minimization: send aggregated/anonymized data to Anthropic, not raw PII       |🟡     |
+|R11.8 |No bank account numbers, routing numbers, or Plaid tokens in AI prompts               |⬜     |
+|R11.9 |Anthropic API: data not used for model training (API ToS)                             |🟢     |
+|R11.10|Environment secrets in Vercel env vars, never in code or git                          |🟡     |
+|R11.11|HTTPS everywhere (Vercel default)                                                     |🟢     |
+|R11.12|Input validation and SQL injection protection (Prisma parameterized queries)          |🟢     |
+|R11.13|CSRF protection on all mutation endpoints                                             |⬜     |
+|R11.14|Security page/statement accessible from landing page explaining data practices        |⬜     |
+
 -----
 
 ## Implementation Order
 
-20 steps. 5 phases. Each step references requirement IDs.
+22 steps. 5 phases. Each step references requirement IDs.
 
 ### Phase 1: Fix the foundation
 
@@ -191,23 +222,24 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 *Transactions carry the metadata that makes Oversikt useful.*
 
-|Step|Req      |Do                                                      |
-|----|---------|--------------------------------------------------------|
-|5   |R3.1–R3.2|HouseholdMember model + person tag on transactions + UI.|
-|6   |R4.1–R4.2|Property model + property tag on transactions + UI.     |
-|7   |R5.1–R5.4|Debt model + Debts page.                                |
+|Step|Req      |Do                                                                            |
+|----|---------|------------------------------------------------------------------------------|
+|5   |R3.1–R3.2|HouseholdMember model + person tag on transactions. Setup UI on Settings page.|
+|6   |R4.1–R4.2|Property model + property tag on transactions. Setup UI on Settings page.     |
+|7   |R5.1–R5.4|Debt model + Debts page.                                                      |
 
 ### Phase 3: Reshape the experience
 
-*True Remaining first, trajectory over time.*
+*True Remaining first, trajectory over time, Settings consolidation.*
 
-|Step|Req                  |Do                                                                       |
-|----|---------------------|-------------------------------------------------------------------------|
-|8   |R8.1, R6.6           |Overview redesign: True Remaining hero, budget pulse, chart below fold.  |
-|9   |R8.2–R8.4            |Reorder nav. Rename Insights → Monthly Review. Add Debts. Group sections.|
-|10  |R3.3–R3.4, R4.3–R4.5 |"By Person" + "By Property" on Spending. Property filter on Transactions.|
-|11  |R7.1, R7.6–R7.7      |MonthlySnapshot model + cron. Baseline on first import.                  |
-|12  |R7.2, R7.4–R7.5, R5.5|"Since you started" on Monthly Review with debt, person, property.       |
+|Step|Req                  |Do                                                                                                |
+|----|---------------------|--------------------------------------------------------------------------------------------------|
+|8   |R8.1, R6.6           |Overview redesign: True Remaining hero, budget pulse, chart below fold.                           |
+|9   |R8.2–R8.4            |Reorder nav. Rename Insights → Monthly Review. Add Debts, Settings. Group sections.               |
+|10  |R10.1–R10.6          |Settings page: profile, household members, properties, connected accounts, export, delete account.|
+|11  |R3.3–R3.4, R4.3–R4.5 |"By Person" + "By Property" on Spending. Property filter on Transactions.                         |
+|12  |R7.1, R7.6–R7.7      |MonthlySnapshot model + cron. Baseline on first import.                                           |
+|13  |R7.2, R7.4–R7.5, R5.5|"Since you started" on Monthly Review with debt, person, property.                                |
 
 ### Phase 4: Bank connectivity
 
@@ -215,21 +247,22 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |Step|Req       |Do                                |
 |----|----------|----------------------------------|
-|13  |R2.1, R1.5|Plaid SDK + API routes. Sign flip.|
-|14  |R2.1      |Plaid Link on Accounts page.      |
-|15  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
+|14  |R2.1, R1.5|Plaid SDK + API routes. Sign flip.|
+|15  |R2.1      |Plaid Link on Accounts page.      |
+|16  |R2.2–R2.3 |Daily sync cron. Balance refresh. |
 
-### Phase 5: Brand and ship
+### Phase 5: Security, brand, and ship
 
-*Live on oversikt.app.*
+*Hardened, branded, live.*
 
-|Step|Req      |Do                               |
-|----|---------|---------------------------------|
-|16  |R9.1     |Rebrand codebase.                |
-|17  |R9.2–R9.3|Domain + rename repo.            |
-|18  |R9.4–R9.5|Landing page + demo mode.        |
-|19  |R9.6     |Mobile responsive audit at 375px.|
-|20  |—        |Final verification. Ship.        |
+|Step|Req         |Do                                           |
+|----|------------|---------------------------------------------|
+|17  |R11.1–R11.14|Security hardening (see security spec below).|
+|18  |R9.1        |Rebrand codebase.                            |
+|19  |R9.2–R9.3   |Domain + rename repo.                        |
+|20  |R9.4–R9.5   |Landing page + demo mode.                    |
+|21  |R9.6        |Mobile responsive audit at 375px.            |
+|22  |—           |Final verification. Ship.                    |
 
 -----
 
@@ -237,17 +270,158 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 V2 adds intelligence and tax. "Shows you what's true" becomes "helps you optimize."
 
-|ID   |Scope                                                          |
-|-----|---------------------------------------------------------------|
-|R10.1|Tax system — Schedule E, IRS crosswalk, deduction strategies   |
-|R10.2|Spending benchmarks — BLS data comparisons                     |
-|R10.3|Debt payoff modeling — avalanche/snowball, what-if scenarios   |
-|R10.4|Multi-user household — separate logins, permissions, settlement|
-|R10.5|Contextual AI on every page — inline observations, cached daily|
-|R10.6|Share/export Monthly Review                                    |
-|R10.7|Smart auto-tagging — AI suggests person/property from patterns |
-|R10.8|Onboarding wizard                                              |
-|R10.9|Depreciation tracking for rental improvements                  |
+|ID  |Scope                                                          |
+|----|---------------------------------------------------------------|
+|V2.1|Tax system — Schedule E, IRS crosswalk, deduction strategies   |
+|V2.2|Spending benchmarks — BLS data comparisons                     |
+|V2.3|Debt payoff modeling — avalanche/snowball, what-if scenarios   |
+|V2.4|Multi-user household — separate logins, permissions, settlement|
+|V2.5|Contextual AI on every page — inline observations, cached daily|
+|V2.6|Share/export Monthly Review                                    |
+|V2.7|Smart auto-tagging — AI suggests person/property from patterns |
+|V2.8|Onboarding wizard                                              |
+|V2.9|Depreciation tracking for rental improvements                  |
+
+-----
+
+## Security Spec (Step 17)
+
+Step 17 is a dedicated security hardening pass. Claude Code addresses each R11 requirement:
+
+### Authentication (R11.1–R11.3)
+
+```
+R11.1 — Already done: bcrypt password hashing. Verify: no plaintext passwords
+        anywhere in codebase (grep for password storage patterns).
+
+R11.2 — JWT hardening:
+  - Tokens set as HttpOnly cookies (not localStorage)
+  - Secure flag = true (HTTPS only)
+  - SameSite = Strict (no cross-site requests)
+  - Token expiry: 1 hour access token, 7 day refresh token
+  - Refresh token rotation: issue new refresh token on each use, invalidate old one
+  - If currently using localStorage for JWT, migrate to HttpOnly cookies
+
+R11.3 — Rate limiting on auth endpoints:
+  - /api/auth/login: max 5 attempts per IP per 15 minutes
+  - /api/auth/register: max 3 per IP per hour
+  - Implementation: use Vercel Edge Middleware or upstash/ratelimit
+  - Return 429 Too Many Requests with Retry-After header
+```
+
+### Data isolation (R11.4)
+
+```
+Audit every API route and Prisma query:
+  - Every SELECT, UPDATE, DELETE must include WHERE userId = currentUser.id
+  - No endpoint accepts a userId parameter from the client (derive from JWT)
+  - Test: create two users, verify User A cannot access User B's
+    transactions, budgets, debts, household members, or properties
+  - Prisma middleware option: add a global filter that enforces userId scoping
+```
+
+### Plaid security (R11.5–R11.6)
+
+```
+R11.5 — Encrypt Plaid access tokens at rest:
+  - Use AES-256-GCM encryption before storing in database
+  - Encryption key stored in PLAID_ENCRYPTION_KEY env var (not in code)
+  - Decrypt only server-side when making Plaid API calls
+  - access_token, item_id never appear in API responses to frontend
+
+R11.6 — Plaid Link architecture (inherent):
+  - Bank credentials are entered in Plaid's hosted UI (Link)
+  - Oversikt receives a public_token → exchanges for access_token server-side
+  - Oversikt never sees, stores, or transmits bank usernames or passwords
+  - Document this in the security page for users
+```
+
+### AI data handling (R11.7–R11.9)
+
+```
+R11.7 — Data minimization in AI prompts:
+  Audit the Anthropic API call in the insights/review generation.
+  The prompt should send:
+    ✅ Aggregated spending by category (e.g., "Groceries: $211.48")
+    ✅ Budget limits and utilization percentages
+    ✅ Monthly totals (income, expenses, savings rate)
+    ✅ Debt summary (total balance, avg rate — no account numbers)
+    ✅ Person names (first name only, user-created)
+    ✅ Property names and types
+  The prompt must NOT send:
+    ❌ Bank account numbers or routing numbers
+    ❌ Plaid access tokens
+    ❌ Full merchant names with location details (use category only where possible)
+    ❌ Email addresses or full names from auth
+    ❌ Transaction IDs or internal database IDs
+
+R11.8 — Verify: grep AI prompt construction code. Confirm no Plaid tokens,
+         account numbers, or sensitive identifiers in the prompt string.
+
+R11.9 — Anthropic API data policy: API inputs/outputs are not used for
+         model training. Document this on the security page.
+         Reference: https://www.anthropic.com/policies/privacy
+```
+
+### Infrastructure (R11.10–R11.13)
+
+```
+R11.10 — Environment variables audit:
+  - Verify .env is in .gitignore
+  - Verify no secrets hardcoded in source files:
+    grep -r "sk-ant\|sk_live\|access-development\|PLAID_SECRET" src/
+  - All secrets in Vercel Environment Variables dashboard
+  - .env.example lists required vars with placeholder values (no real secrets)
+
+R11.11 — HTTPS: Vercel enforces by default. Verify no http:// URLs in code.
+
+R11.12 — Input validation:
+  - Prisma parameterized queries prevent SQL injection (inherent)
+  - Verify: API routes validate input types (amounts are numbers, dates are dates)
+  - Verify: no raw SQL queries (prisma.$queryRaw) without parameterization
+
+R11.13 — CSRF protection:
+  - If using HttpOnly cookies for auth: add CSRF token to mutation requests
+  - Or: verify SameSite=Strict cookie prevents cross-origin requests
+  - Next.js API routes with SameSite=Strict cookies are generally CSRF-safe
+```
+
+### Security page (R11.14)
+
+```
+Create /security (or /about/security) — a public page accessible from the
+landing page footer. Content:
+
+"How Oversikt protects your data"
+
+1. Your bank credentials
+   Oversikt never sees your bank username or password. We use Plaid, a
+   trusted financial data platform used by thousands of apps, to connect
+   to your bank. Your credentials are entered directly in Plaid's secure
+   interface.
+
+2. Your financial data
+   - All data encrypted in transit (HTTPS/TLS)
+   - Database encrypted at rest (provided by hosting infrastructure)
+   - Each user's data is isolated — no one can see another user's information
+
+3. AI-powered insights
+   When generating your Monthly Review, we send aggregated spending
+   summaries (like "Groceries: $211") to our AI provider (Anthropic).
+   We never send bank account numbers, login credentials, or other
+   sensitive identifiers. Anthropic does not use API data to train their
+   models.
+
+4. What we don't do
+   - We don't sell your data
+   - We don't share individual financial data with third parties
+   - We don't store your bank login credentials
+   - We don't display ads
+
+5. Account control
+   You can disconnect bank accounts, export your data, or delete your
+   account entirely from Settings at any time.
+```
 
 -----
 
@@ -378,7 +552,8 @@ enum DebtType { MORTGAGE STUDENT_LOAN AUTO CREDIT_CARD PERSONAL_LOAN OTHER }
 
 ## Changelog
 
-|Date      |Version|Change                                                                                    |
-|----------|-------|------------------------------------------------------------------------------------------|
-|2026-02-23|1.0    |Initial PRD. 24 steps, V1/V1.1/V2 split.                                                  |
-|2026-02-23|2.0    |Simplified. Two releases: V1 and V2. Household, property, debts in V1. 20 steps, 5 phases.|
+|Date      |Version|Change                                                                                                                |
+|----------|-------|----------------------------------------------------------------------------------------------------------------------|
+|2026-02-23|1.0    |Initial PRD. 24 steps, V1/V1.1/V2 split.                                                                              |
+|2026-02-23|2.0    |Simplified. Two releases: V1 and V2. Household, property, debts in V1. 20 steps, 5 phases.                            |
+|2026-02-23|2.1    |Added R10 (Settings), R11 (Security). Security spec with AI data handling, Plaid encryption, auth hardening. 22 steps.|

@@ -1,6 +1,6 @@
 # Oversikt — Test Specifications
 
-*Paired with `/docs/PRD.md` v2.0*
+*Paired with `/docs/PRD.md` v2.1*
 *This file lives at `/docs/TESTS.md`*
 
 -----
@@ -219,7 +219,7 @@ Regression:
 
 ## Phase 3 Tests: Reshape the Experience
 
-*Run after Steps 8–12 are complete.*
+*Run after Steps 8–13 are complete.*
 
 ### T3.1 Overview redesign (Step 8)
 
@@ -249,15 +249,57 @@ Test: Nav matches PRD spec
 Verify nav order:
   1. Section 1 (daily): Overview, Budgets, Spending, Annual Plan, Debts, Transactions
   2. Section 2 (periodic): Monthly Review
-  3. Section 3 (setup): Accounts, Categories
+  3. Section 3 (setup): Settings, Accounts, Categories
   4. Spacing or divider between sections (not header labels)
   5. "Insights" text appears nowhere in nav — replaced by "Monthly Review"
   6. /insights route redirects to /monthly-review (or equivalent)
   7. Debts appears in nav and links to /debts
-  8. All nav links work and load correct pages
+  8. Settings appears in nav and links to /settings
+  9. All nav links work and load correct pages
 ```
 
-### T3.3 Spending views (Step 10)
+### T3.3 Settings page (Step 10)
+
+```
+Test: Settings page consolidates all setup functions
+
+Profile:
+  1. Current name and email displayed
+  2. Edit name → saves, reflected in sidebar/welcome message
+  3. Change email → saves, new email works for login
+  4. Change password → requires current password, validates new password, saves
+  5. Invalid current password → rejected with error
+
+Household members:
+  6. List of existing household members displayed
+  7. Add member → appears in list and in transaction Person dropdown
+  8. Edit member name → updated everywhere
+  9. Delete member → removed, transactions with that member set to null
+  10. "Shared" or default member clearly indicated
+
+Properties:
+  11. List of existing properties displayed
+  12. Add property with name + type (Personal/Rental) → appears in list
+  13. Edit property → updated everywhere
+  14. Delete property → removed, transactions set to null
+  15. Default property (Personal) clearly indicated
+
+Connected accounts:
+  16. List of Plaid-connected institutions shown (after Plaid is built)
+  17. "Disconnect" button per institution → removes Plaid link
+  18. Manual accounts not shown here (managed on Accounts page)
+
+Data export:
+  19. "Export transactions" button → downloads CSV
+  20. CSV includes: date, merchant, category, amount, person, property, account
+
+Delete account:
+  21. "Delete my account" button → confirmation dialog with "type DELETE to confirm"
+  22. Confirmed deletion → removes all user data, redirects to landing page
+  23. Deleted user cannot log in again
+```
+
+### T3.4 Spending views (Step 11)
 
 ```
 Test: By Person and By Property views work
@@ -281,7 +323,7 @@ Transactions page:
   11. Person column is visible and filterable
 ```
 
-### T3.4 Monthly snapshots (Step 11)
+### T3.5 Monthly snapshots (Step 12)
 
 ```
 Test: MonthlySnapshot model and cron
@@ -311,7 +353,7 @@ Cron:
   10. Vercel cron config schedules it for 1st of month at 6am
 ```
 
-### T3.5 Monthly Review trajectory (Step 12)
+### T3.6 Monthly Review trajectory (Step 13)
 
 ```
 Test: "Since you started" displays correctly
@@ -342,9 +384,9 @@ Regression:
 
 ## Phase 4 Tests: Bank Connectivity
 
-*Run after Steps 13–15 are complete.*
+*Run after Steps 14–16 are complete.*
 
-### T4.1 Plaid API routes (Step 13)
+### T4.1 Plaid API routes (Step 14)
 
 ```
 Test: Plaid endpoints functional
@@ -373,7 +415,7 @@ Transaction metadata:
   12. Plaid transactions have propertyId = user's default property (or null)
 ```
 
-### T4.2 Plaid Link UI (Step 14)
+### T4.2 Plaid Link UI (Step 15)
 
 ```
 Test: Plaid Link component on Accounts page
@@ -390,7 +432,7 @@ Verify:
   6. Net worth includes both Plaid and manual account balances
 ```
 
-### T4.3 Daily sync cron (Step 15)
+### T4.3 Daily sync cron (Step 16)
 
 ```
 Test: Automated daily sync
@@ -412,11 +454,62 @@ Regression:
 
 -----
 
-## Phase 5 Tests: Brand and Ship
+## Phase 5 Tests: Security, Brand, and Ship
 
-*Run after Steps 16–19 are complete.*
+*Run after Steps 17–21 are complete.*
 
-### T5.1 Rebrand (Step 16)
+### T5.0 Security hardening (Step 17)
+
+```
+Test: All R11 requirements met
+
+Authentication:
+  1. grep -ri "password" src/ → no plaintext storage, only bcrypt hashes
+  2. JWT stored in HttpOnly cookie (not localStorage)
+     Check: document.cookie in browser console should NOT show the token
+     Check: Set-Cookie response header includes HttpOnly, Secure, SameSite=Strict
+  3. Token expiry: decode JWT → exp claim is ~1 hour from issue
+  4. Login rate limiting: attempt 6 logins with wrong password →
+     6th attempt returns 429 Too Many Requests
+  5. Register rate limiting: attempt 4 registrations from same IP →
+     4th attempt returns 429
+
+Data isolation:
+  6. Create User A and User B with different transactions
+  7. As User A: GET /api/transactions → only User A's data
+  8. As User A: GET /api/transactions/[User-B-transaction-id] → 404 or 403
+  9. As User A: GET /api/budgets → only User A's budgets
+  10. As User A: GET /api/debts → only User A's debts
+  11. No API endpoint accepts userId as a query parameter
+
+Plaid security:
+  12. In database: plaid access_token column is encrypted (not readable plaintext)
+  13. GET any API endpoint → response body never contains access_token or item_id
+  14. Frontend code (grep src/): no reference to access_token
+  15. PLAID_ENCRYPTION_KEY exists in env vars
+
+AI data handling:
+  16. Find the Anthropic API call in the codebase
+  17. Read the prompt construction: verify it sends aggregated summaries
+  18. Verify NO bank account numbers in prompt
+  19. Verify NO Plaid tokens in prompt
+  20. Verify NO email addresses or passwords in prompt
+  21. Verify NO internal database IDs in prompt
+
+Infrastructure:
+  22. .env is in .gitignore
+  23. grep -r "sk-ant\|sk_live\|PLAID_SECRET" src/ → 0 results
+  24. .env.example exists with placeholder values
+  25. No http:// URLs in source code (all https://)
+  26. No prisma.$queryRaw calls without parameterization
+
+Security page:
+  27. /security page exists and is publicly accessible
+  28. Content covers: bank credentials (Plaid), data encryption, AI handling, no data sales
+  29. Linked from landing page footer
+```
+
+### T5.1 Rebrand (Step 18)
 
 ```
 Test: No traces of "Clear Path" or "ClearPath"
@@ -431,7 +524,7 @@ Verify:
   7. Sidebar still shows "oversikt" wordmark
 ```
 
-### T5.2 Domain (Step 17)
+### T5.2 Domain (Step 19)
 
 ```
 Test: App accessible at new domain
@@ -443,7 +536,7 @@ Verify:
   4. Old URL (clear-path-wheat.vercel.app) redirects or is decommissioned
 ```
 
-### T5.3 Landing page and demo (Step 18)
+### T5.3 Landing page and demo (Step 20)
 
 ```
 Test: Unauthenticated experience works
@@ -469,13 +562,13 @@ Registration:
   14. New account starts empty (no demo data)
 ```
 
-### T5.4 Mobile responsive (Step 19)
+### T5.4 Mobile responsive (Step 21)
 
 ```
 Test: All pages at 375px viewport width
 
 For each page (Overview, Budgets, Spending, Annual Plan, Debts,
-Transactions, Monthly Review, Accounts, Categories):
+Transactions, Monthly Review, Settings, Accounts, Categories):
 
   1. Page loads without horizontal scrollbar on body
   2. All text is readable (no truncation that hides meaning)
@@ -494,11 +587,12 @@ Specific checks:
   13. Annual Plan: forecast chart readable, expense cards stack
   14. Debts: debt cards stack, P&I numbers readable
   15. Monthly Review: trajectory metrics stack, efficiency ring scales
+  16. Settings: all sections accessible, forms usable, delete confirmation works
 ```
 
 -----
 
-## Final Verification (Step 20)
+## Final Verification (Step 22)
 
 *Every test from every phase, run one more time.*
 
@@ -512,6 +606,8 @@ Additionally verify:
   4. No console errors on any page during normal navigation
   5. Auth flow: register → login → use app → logout → login again
   6. Data isolation: User A cannot see User B's data
+  7. Security page accessible from landing page footer
+  8. Settings page: all sections render and save correctly
 ```
 
 -----
@@ -520,11 +616,11 @@ Additionally verify:
 
 Update this as phases complete:
 
-|Phase              |Tests    |Status|
-|-------------------|---------|------|
-|Phase 1: Foundation|T1.1–T1.4|⬜     |
-|Phase 2: Data Model|T2.1–T2.3|⬜     |
-|Phase 3: Experience|T3.1–T3.5|⬜     |
-|Phase 4: Plaid     |T4.1–T4.3|⬜     |
-|Phase 5: Brand/Ship|T5.1–T5.4|⬜     |
-|Final Verification |All      |⬜     |
+|Phase                       |Tests    |Status|
+|----------------------------|---------|------|
+|Phase 1: Foundation         |T1.1–T1.4|⬜     |
+|Phase 2: Data Model         |T2.1–T2.3|⬜     |
+|Phase 3: Experience         |T3.1–T3.6|⬜     |
+|Phase 4: Plaid              |T4.1–T4.3|⬜     |
+|Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜     |
+|Final Verification          |All      |⬜     |
