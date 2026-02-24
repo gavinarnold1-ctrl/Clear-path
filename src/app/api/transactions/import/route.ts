@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
-import { recalculateBudgetSpent, reconcileBudgetCategories } from '@/lib/budget-utils'
+import { reconcileBudgetCategories } from '@/lib/budget-utils'
 
 /**
  * Fuzzy-match a CSV category name to an existing category when exact match fails.
@@ -345,9 +345,6 @@ export async function POST(request: Request) {
 
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)
-
-    // Recalculate budget spent values after import
-    await recalculateBudgetSpent(session.userId)
 
     return NextResponse.json({
       imported: importedCount,

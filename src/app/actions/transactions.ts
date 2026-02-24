@@ -54,21 +54,6 @@ export async function createTransaction(
     if (accountId) {
       await tx.account.update({ where: { id: accountId }, data: { balance: { increment: finalAmount } } })
     }
-
-    // 3. Update matching active budget's spent counter (expenses only)
-    if (categoryId && finalAmount < 0) {
-      const budget = await tx.budget.findFirst({
-        where: {
-          userId: session.userId,
-          categoryId,
-          startDate: { lte: txDate },
-          OR: [{ endDate: null }, { endDate: { gte: txDate } }],
-        },
-      })
-      if (budget) {
-        await tx.budget.update({ where: { id: budget.id }, data: { spent: { increment: Math.abs(finalAmount) } } })
-      }
-    }
   })
 
   revalidatePath('/transactions')
@@ -91,24 +76,6 @@ export async function deleteTransaction(id: string): Promise<void> {
     // Reverse account balance
     if (existing.accountId) {
       await tx.account.update({ where: { id: existing.accountId }, data: { balance: { increment: -existing.amount } } })
-    }
-
-    // Reverse budget spent (for expenses, amount is negative)
-    if (existing.categoryId && existing.amount < 0) {
-      const budget = await tx.budget.findFirst({
-        where: {
-          userId: session.userId,
-          categoryId: existing.categoryId,
-          startDate: { lte: existing.date },
-          OR: [{ endDate: null }, { endDate: { gte: existing.date } }],
-        },
-      })
-      if (budget) {
-        await tx.budget.update({
-          where: { id: budget.id },
-          data: { spent: { decrement: Math.abs(existing.amount) } },
-        })
-      }
     }
   })
 

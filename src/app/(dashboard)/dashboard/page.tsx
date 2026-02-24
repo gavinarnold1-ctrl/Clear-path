@@ -187,7 +187,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     }
   }
   const activeBudgets = rawBudgets
-    .map((b) => ({ ...b, spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : b.spent }))
+    .map((b) => ({ ...b, spent: b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0 }))
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 4)
 

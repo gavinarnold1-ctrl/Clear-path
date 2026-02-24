@@ -134,7 +134,6 @@ model Budget {
   id        String    @id @default(cuid())
   name      String
   amount    Float // target spend / save limit
-  spent     Float        @default(0)
   period    BudgetPeriod
   tier      BudgetTier   @default(FLEXIBLE)
   startDate DateTime

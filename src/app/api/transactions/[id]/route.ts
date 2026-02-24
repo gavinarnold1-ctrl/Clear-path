@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { recalculateBudgetSpentForCategory } from '@/lib/budget-utils'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -27,7 +26,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const existing = await db.transaction.findUnique({ where: { id, userId: session.userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const oldCategoryId = existing.categoryId
   const oldAccountId = existing.accountId
   const oldAmount = existing.amount
 
@@ -92,14 +90,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return updated
   })
 
-  // Recalculate budgets for all affected categories
-  const categoriesToRecalc = new Set<string>()
-  if (oldCategoryId) categoriesToRecalc.add(oldCategoryId)
-  if (transaction.categoryId) categoriesToRecalc.add(transaction.categoryId)
-  for (const catId of categoriesToRecalc) {
-    await recalculateBudgetSpentForCategory(session.userId, catId)
-  }
-
   return NextResponse.json(transaction)
 }
 
@@ -123,10 +113,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       })
     }
   })
-
-  if (existing.categoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, existing.categoryId)
-  }
 
   return new NextResponse(null, { status: 204 })
 }

@@ -51,28 +51,11 @@ export async function createBudget(
       return { error: 'Due day must be between 1 and 31.' }
     }
 
-    const spent = categoryId
-      ? Math.abs(
-          (
-            await db.transaction.aggregate({
-              where: {
-                userId: session.userId,
-                categoryId,
-                amount: { lt: 0 },
-                date: { gte: new Date(startDate) },
-              },
-              _sum: { amount: true },
-            })
-          )._sum.amount ?? 0
-        )
-      : 0
-
     await db.budget.create({
       data: {
         userId: session.userId,
         name,
         amount,
-        spent,
         period: 'MONTHLY',
         tier: 'FIXED',
         categoryId,
@@ -88,31 +71,11 @@ export async function createBudget(
     const period = (formData.get('period') as string) || 'MONTHLY'
     const endDate = (formData.get('endDate') as string) || null
 
-    const spent = categoryId
-      ? Math.abs(
-          (
-            await db.transaction.aggregate({
-              where: {
-                userId: session.userId,
-                categoryId,
-                amount: { lt: 0 },
-                date: {
-                  gte: new Date(startDate),
-                  ...(endDate ? { lte: new Date(endDate) } : {}),
-                },
-              },
-              _sum: { amount: true },
-            })
-          )._sum.amount ?? 0
-        )
-      : 0
-
     await db.budget.create({
       data: {
         userId: session.userId,
         name,
         amount,
-        spent,
         period: period as 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM',
         tier: 'FLEXIBLE',
         categoryId,
@@ -140,7 +103,6 @@ export async function createBudget(
           userId: session.userId,
           name,
           amount: monthlySetAside,
-          spent: 0,
           period: 'MONTHLY',
           tier: 'ANNUAL',
           categoryId,

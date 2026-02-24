@@ -31,14 +31,31 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
     }),
   ])
 
-  const totalBudgeted = budgets
+  // Compute spent per category from current-month expense transactions
+  const spentByCategory = new Map<string, number>()
+  for (const tx of monthExpenses) {
+    if (tx.categoryId) {
+      spentByCategory.set(
+        tx.categoryId,
+        (spentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
+      )
+    }
+  }
+
+  // Enrich budgets with computed spent
+  const budgetsWithSpent = budgets.map((b) => ({
+    ...b,
+    spent: b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0,
+  }))
+
+  const totalBudgeted = budgetsWithSpent
     .filter((b) => b.tier !== 'ANNUAL')
     .reduce((s, b) => s + b.amount, 0)
-  const totalSpent = budgets
+  const totalSpent = budgetsWithSpent
     .filter((b) => b.tier !== 'ANNUAL')
     .reduce((s, b) => s + b.spent, 0)
 
-  const overBudgetCategories = budgets
+  const overBudgetCategories = budgetsWithSpent
     .filter((b) => b.spent > b.amount && b.tier !== 'ANNUAL')
     .map((b) => ({
       name: b.category?.name ?? b.name,
@@ -47,7 +64,7 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
       overBy: b.spent - b.amount,
     }))
 
-  const underUtilizedCategories = budgets
+  const underUtilizedCategories = budgetsWithSpent
     .filter((b) => b.tier === 'FLEXIBLE' && b.amount > 0 && b.spent / b.amount < 0.3)
     .map((b) => ({
       name: b.category?.name ?? b.name,
@@ -63,7 +80,7 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
   )
   const unbudgetedSpending = unbudgeted.reduce((s, t) => s + Math.abs(t.amount), 0)
 
-  const fixedBills = budgets
+  const fixedBills = budgetsWithSpent
     .filter((b) => b.tier === 'FIXED')
     .map((b) => ({
       name: b.category?.name ?? b.name,

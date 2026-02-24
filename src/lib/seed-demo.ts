@@ -284,7 +284,7 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         categoryId: categoryMap.get(fb.category) ?? null,
         name: fb.name,
         amount: fb.amount,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FIXED,
         startDate: budgetStart,
@@ -310,7 +310,7 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         categoryId: categoryMap.get(fb.category) ?? null,
         name: fb.name,
         amount: fb.amount,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.FLEXIBLE,
         startDate: budgetStart,
@@ -327,7 +327,7 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         categoryId: vacationCatId,
         name: 'Vacation Fund',
         amount: 250,
-        spent: 0,
+
         period: BudgetPeriod.MONTHLY,
         tier: BudgetTier.ANNUAL,
         startDate: yearStart,
@@ -350,32 +350,4 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     })
   }
 
-  // Compute budget spent from transactions
-  const allBudgets = await db.budget.findMany({ where: { userId: DEMO_USER_ID } })
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-
-  for (const budget of allBudgets) {
-    if (!budget.categoryId) continue
-
-    const start = budget.tier === 'ANNUAL' ? budget.startDate : monthStart
-    const end = budget.tier === 'ANNUAL'
-      ? (budget.endDate ?? new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
-      : monthEnd
-
-    const result = await db.transaction.aggregate({
-      where: {
-        userId: DEMO_USER_ID,
-        categoryId: budget.categoryId,
-        date: { gte: start, lte: end },
-        amount: { lt: 0 },
-      },
-      _sum: { amount: true },
-    })
-
-    const spent = Math.abs(result._sum.amount ?? 0)
-    if (spent > 0) {
-      await db.budget.update({ where: { id: budget.id }, data: { spent } })
-    }
-  }
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { recalculateBudgetSpentForCategory } from '@/lib/budget-utils'
 
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
 
@@ -93,10 +92,6 @@ export async function POST(req: NextRequest) {
 
     return created
   })
-
-  if (transaction.categoryId) {
-    await recalculateBudgetSpentForCategory(session.userId, transaction.categoryId)
-  }
 
   return NextResponse.json(transaction, { status: 201 })
 }

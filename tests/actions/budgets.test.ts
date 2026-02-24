@@ -8,7 +8,6 @@ const mockBudgetFindFirst = vi.fn()
 const mockBudgetUpdate = vi.fn()
 const mockAnnualExpenseCreate = vi.fn()
 const mockAnnualExpenseUpdate = vi.fn()
-const mockTxAggregate = vi.fn()
 
 const mockPrismaTx = {
   budget: { create: mockBudgetCreate, update: mockBudgetUpdate },
@@ -25,9 +24,6 @@ vi.mock('@/lib/db', () => ({
     },
     annualExpense: {
       update: (...args: unknown[]) => mockAnnualExpenseUpdate(...args),
-    },
-    transaction: {
-      aggregate: (...args: unknown[]) => mockTxAggregate(...args),
     },
     $transaction: vi.fn((fnOrArray: unknown) => {
       if (typeof fnOrArray === 'function') {
@@ -69,7 +65,6 @@ describe('createBudget', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
-    mockTxAggregate.mockResolvedValue({ _sum: { amount: 0 } })
   })
 
   it('redirects to /login when no session', async () => {

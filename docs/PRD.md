@@ -83,9 +83,9 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                                                            |Status|
 |----|-----------------------------------------------------------------------|------|
-|R1.1|Budget spent computed from transactions on read, never stored          |🔴     |
-|R1.2|Fixed expense paid/missed matches transactions by category within month|🔴     |
-|R1.3|Amount signs enforced at API level for all mutation endpoints          |🟡     |
+|R1.1|Budget spent computed from transactions on read, never stored          |🟢     |
+|R1.2|Fixed expense paid/missed matches transactions by category within month|🟢     |
+|R1.3|Amount signs enforced at API level for all mutation endpoints          |🟢     |
 |R1.4|CSV import preserves original data, applies correct signs              |🟢     |
 |R1.5|Plaid import flips sign convention                                     |⬜     |
 
@@ -131,8 +131,8 @@ A financial tool for households with real-world complexity: multiple people, at 
 
 |ID  |Requirement                                         |Status|
 |----|----------------------------------------------------|------|
-|R6.1|Fixed: paid/missed from transaction matching        |🔴     |
-|R6.2|Flexible: accurate spent/limit with $/day remaining |🔴     |
+|R6.1|Fixed: paid/missed from transaction matching        |🟢     |
+|R6.2|Flexible: accurate spent/limit with $/day remaining |🟢     |
 |R6.3|Annual: funding progress with set-aside calculations|🟢     |
 |R6.4|Annual Plan: apply-cash and link-transaction funding|🟢     |
 |R6.5|Auto-Fund All distributes True Remaining            |🟢     |
