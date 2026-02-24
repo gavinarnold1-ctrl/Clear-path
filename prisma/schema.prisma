@@ -90,7 +90,11 @@ model Account {
 
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerId      String?       // R3.2a: Account owner — default person tag for transactions
+  owner        HouseholdMember? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   transactions Transaction[]
+
+  @@index([ownerId])
 }
 
 model Category {
@@ -144,6 +148,8 @@ model Transaction {
   householdMember     HouseholdMember?  @relation(fields: [householdMemberId], references: [id], onDelete: SetNull)
   propertyId          String?
   property            Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  debtId              String?           // R5.8: Link payment transactions to a debt
+  debt                Debt?             @relation(fields: [debtId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([userId, categoryId])
@@ -151,6 +157,7 @@ model Transaction {
   @@index([annualExpenseId])
   @@index([householdMemberId])
   @@index([propertyId])
+  @@index([debtId])
 }
 
 model Budget {
@@ -307,6 +314,7 @@ model HouseholdMember {
   isDefault    Boolean       @default(false)
   createdAt    DateTime      @default(now())
   transactions Transaction[]
+  accounts     Account[]     // R3.2a: Accounts owned by this person
 
   @@index([userId])
 }
@@ -347,6 +355,7 @@ model Debt {
   category        Category? @relation(fields: [categoryId], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  transactions    Transaction[] // R5.8: Payment transactions linked to this debt
 
   @@index([userId])
 }

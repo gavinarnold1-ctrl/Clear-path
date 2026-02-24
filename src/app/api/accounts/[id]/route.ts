@@ -16,7 +16,7 @@ export async function PATCH(
 
   const { id } = await params
   const body = await req.json()
-  const { name, type, balance, institution } = body
+  const { name, type, balance, institution, ownerId } = body
 
   const existing = await db.account.findFirst({
     where: { id, userId: session.userId },
@@ -29,6 +29,16 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
   }
 
+  // R3.2a: Validate ownerId belongs to this user
+  if (ownerId) {
+    const member = await db.householdMember.findFirst({
+      where: { id: ownerId, userId: session.userId },
+    })
+    if (!member) {
+      return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
+    }
+  }
+
   const updated = await db.account.update({
     where: { id },
     data: {
@@ -36,6 +46,7 @@ export async function PATCH(
       ...(type !== undefined && { type }),
       ...(balance !== undefined && { balance: parseFloat(balance) }),
       ...(institution !== undefined && { institution: institution || null }),
+      ...(ownerId !== undefined && { ownerId: ownerId || null }),
     },
   })
 

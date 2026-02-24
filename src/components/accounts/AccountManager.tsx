@@ -4,6 +4,11 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
+interface HouseholdMemberOption {
+  id: string
+  name: string
+}
+
 interface AccountRow {
   id: string
   name: string
@@ -11,11 +16,14 @@ interface AccountRow {
   balance: number
   currency: string
   institution: string | null
+  ownerId: string | null
+  ownerName: string | null
   txCount: number
 }
 
 interface Props {
   accounts: AccountRow[]
+  householdMembers: HouseholdMemberOption[]
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -38,7 +46,7 @@ const TYPE_GROUPS: Record<string, string[]> = {
 
 const ALL_TYPES = Object.keys(TYPE_LABELS)
 
-export default function AccountManager({ accounts: initial }: Props) {
+export default function AccountManager({ accounts: initial, householdMembers }: Props) {
   const router = useRouter()
   const [accounts, setAccounts] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -46,6 +54,7 @@ export default function AccountManager({ accounts: initial }: Props) {
   const [editType, setEditType] = useState('')
   const [editBalance, setEditBalance] = useState('')
   const [editInstitution, setEditInstitution] = useState('')
+  const [editOwnerId, setEditOwnerId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AccountRow | null>(null)
@@ -62,6 +71,7 @@ export default function AccountManager({ accounts: initial }: Props) {
     setEditType(acct.type)
     setEditBalance(String(acct.balance))
     setEditInstitution(acct.institution ?? '')
+    setEditOwnerId(acct.ownerId ?? '')
     setError(null)
   }
 
@@ -75,6 +85,7 @@ export default function AccountManager({ accounts: initial }: Props) {
 
     const prev = accounts
     const balance = parseFloat(editBalance) || 0
+    const ownerMatch = householdMembers.find(m => m.id === editOwnerId)
     setAccounts(accts =>
       accts.map(a => a.id === editingId ? {
         ...a,
@@ -82,6 +93,8 @@ export default function AccountManager({ accounts: initial }: Props) {
         type: editType,
         balance,
         institution: editInstitution.trim() || null,
+        ownerId: editOwnerId || null,
+        ownerName: ownerMatch?.name ?? null,
       } : a)
     )
     setEditingId(null)
@@ -90,7 +103,7 @@ export default function AccountManager({ accounts: initial }: Props) {
       const res = await fetch(`/api/accounts/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, type: editType, balance: String(balance), institution: editInstitution.trim() }),
+        body: JSON.stringify({ name, type: editType, balance: String(balance), institution: editInstitution.trim(), ownerId: editOwnerId || '' }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -231,6 +244,17 @@ export default function AccountManager({ accounts: initial }: Props) {
                         onKeyDown={e => e.key === 'Enter' && saveEdit()}
                       />
                     </div>
+                    {householdMembers.length > 0 && (
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-stone">Owner</label>
+                        <select value={editOwnerId} onChange={e => setEditOwnerId(e.target.value)} className="input text-sm">
+                          <option value="">No owner</option>
+                          {householdMembers.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-3 flex justify-end gap-2">
                     <button onClick={() => { setEditingId(null); setError(null) }} className="text-xs text-stone hover:text-fjord">Cancel</button>
@@ -250,6 +274,7 @@ export default function AccountManager({ accounts: initial }: Props) {
                     <p className="text-xs text-stone">
                       {TYPE_LABELS[acct.type] ?? acct.type}
                       {acct.institution && <span> &middot; {acct.institution}</span>}
+                      {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
                       {' '}&middot; {acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
                     </p>
                   </div>

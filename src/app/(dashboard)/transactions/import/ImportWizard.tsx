@@ -51,7 +51,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
   const [monarchPreviewRows, setMonarchPreviewRows] = useState<string[][]>([])
 
   // Import config
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
+  const [accountId, setAccountId] = useState('')
   const [skipDuplicates, setSkipDuplicates] = useState(true)
 
   // Result

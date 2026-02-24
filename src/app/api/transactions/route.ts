@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       ...(householdMemberId && { householdMemberId }),
       ...(propertyId && { propertyId }),
     },
-    include: { account: true, category: true, householdMember: true, property: true },
+    include: { account: true, category: true, householdMember: true, property: true, debt: true },
     orderBy: { date: 'desc' },
   })
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId } = body
+  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId, debtId } = body
 
   if (!amount || !merchant || !date) {
     return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
@@ -72,10 +72,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // R3.2a: If no person tag provided, default to account owner
+  let resolvedMemberId: string | null = householdMemberId ?? null
+  if (!resolvedMemberId && accountId) {
+    const acctWithOwner = await db.account.findFirst({
+      where: { id: accountId, userId: session.userId },
+      select: { ownerId: true },
+    })
+    if (acctWithOwner?.ownerId) {
+      resolvedMemberId = acctWithOwner.ownerId
+    }
+  }
+
   // Verify ownership of referenced householdMemberId
-  if (householdMemberId) {
+  if (resolvedMemberId) {
     const member = await db.householdMember.findFirst({
-      where: { id: householdMemberId, userId: session.userId },
+      where: { id: resolvedMemberId, userId: session.userId },
     })
     if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
   }
@@ -86,6 +98,14 @@ export async function POST(req: NextRequest) {
       where: { id: propertyId, userId: session.userId },
     })
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
+  }
+
+  // R5.8: Verify ownership of referenced debtId
+  if (debtId) {
+    const debt = await db.debt.findFirst({
+      where: { id: debtId, userId: session.userId },
+    })
+    if (!debt) return NextResponse.json({ error: 'Debt not found' }, { status: 404 })
   }
 
   const transaction = await db.$transaction(async (tx) => {
@@ -99,10 +119,11 @@ export async function POST(req: NextRequest) {
         date: new Date(date),
         notes: notes ?? null,
         tags: tags ?? null,
-        householdMemberId: householdMemberId ?? null,
+        householdMemberId: resolvedMemberId,
         propertyId: propertyId ?? null,
+        debtId: debtId ?? null,
       },
-      include: { account: true, category: true, householdMember: true, property: true },
+      include: { account: true, category: true, householdMember: true, property: true, debt: true },
     })
 
     // Update account balance
@@ -110,6 +131,14 @@ export async function POST(req: NextRequest) {
       await tx.account.update({
         where: { id: created.accountId },
         data: { balance: { increment: created.amount } },
+      })
+    }
+
+    // R5.8: Debt payments reduce currentBalance (payment is negative amount)
+    if (created.debtId && created.amount < 0) {
+      await tx.debt.update({
+        where: { id: created.debtId },
+        data: { currentBalance: { decrement: Math.abs(created.amount) } },
       })
     }
 

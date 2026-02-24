@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest) {
 
   const accounts = await db.account.findMany({
     where: { userId: session.userId },
+    include: { owner: { select: { id: true, name: true } } },
     orderBy: { name: 'asc' },
   })
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, type, balance, currency } = body
+  const { name, type, balance, currency, ownerId } = body
 
   if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
@@ -34,6 +35,14 @@ export async function POST(req: NextRequest) {
   })
   if (duplicate) return NextResponse.json({ error: 'An account with this name already exists.' }, { status: 409 })
 
+  // R3.2a: Validate ownerId belongs to this user
+  if (ownerId) {
+    const member = await db.householdMember.findFirst({
+      where: { id: ownerId, userId: session.userId },
+    })
+    if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
+  }
+
   const account = await db.account.create({
     data: {
       userId: session.userId,
@@ -41,6 +50,7 @@ export async function POST(req: NextRequest) {
       type,
       balance: balance ?? 0,
       currency: currency ?? 'USD',
+      ...(ownerId && { ownerId }),
     },
   })
 

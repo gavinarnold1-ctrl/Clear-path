@@ -400,6 +400,17 @@ export async function POST(request: Request) {
         }
       }
 
+      // R3.2a: If no person tag, use account owner as default
+      if (!resolvedMemberId && resolvedAccountId) {
+        // Find the matched account to check for ownerId
+        for (const acct of accountMap.values()) {
+          if (acct.id === resolvedAccountId && acct.ownerId) {
+            resolvedMemberId = acct.ownerId
+            break
+          }
+        }
+      }
+
       // Match property by name or auto-create (R1.4)
       let resolvedPropertyId: string | null = null
       if (tx.property) {

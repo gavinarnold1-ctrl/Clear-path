@@ -17,7 +17,15 @@ export async function GET() {
 
   const debts = await db.debt.findMany({
     where: { userId: session.userId },
-    include: { property: true, category: true },
+    include: {
+      property: true,
+      category: true,
+      transactions: {
+        select: { id: true, date: true, merchant: true, amount: true },
+        orderBy: { date: 'desc' },
+        take: 10,
+      },
+    },
     orderBy: { currentBalance: 'desc' },
   })
 

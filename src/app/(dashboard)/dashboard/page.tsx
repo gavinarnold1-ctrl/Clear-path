@@ -94,37 +94,43 @@ export default async function DashboardPage({ searchParams }: Props) {
     transactionCount,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
+    // R1.14: Exclude transfers from income totals
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { gt: 0 },
+        NOT: { category: { type: 'transfer' } },
       },
       _sum: { amount: true },
     }),
+    // R1.14: Exclude transfers from expense totals
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
+        NOT: { category: { type: 'transfer' } },
       },
       _sum: { amount: true },
     }),
-    // Previous month income
+    // Previous month income (excluding transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
         amount: { gt: 0 },
+        NOT: { category: { type: 'transfer' } },
       },
       _sum: { amount: true },
     }),
-    // Previous month expenses
+    // Previous month expenses (excluding transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
         amount: { lt: 0 },
+        NOT: { category: { type: 'transfer' } },
       },
       _sum: { amount: true },
     }),
@@ -151,6 +157,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       select: { categoryId: true, amount: true, category: { select: { id: true, name: true } } },
     }),
+    // R1.14: Exclude transfers from spending breakdown
     db.transaction.groupBy({
       by: ['categoryId'],
       where: {
@@ -158,16 +165,18 @@ export default async function DashboardPage({ searchParams }: Props) {
         date: { gte: startDate, lte: endDate },
         amount: { lt: 0 },
         categoryId: { not: null },
+        NOT: { category: { type: 'transfer' } },
       },
       _sum: { amount: true },
       orderBy: { _sum: { amount: 'asc' } },
       take: 6,
     }),
-    // Monthly aggregates for chart (last 6 months)
+    // Monthly aggregates for chart (last 6 months, excluding transfers)
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: chartStart, lte: endDate },
+        NOT: { category: { type: 'transfer' } },
       },
       select: { date: true, amount: true },
     }),
@@ -389,7 +398,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-fjord">Active budgets</h2>
-            <Link href="/budgets" className="text-sm text-fjord hover:text-midnight">
+            <Link href={`/budgets?month=${currentMonth}`} className="text-sm text-fjord hover:text-midnight">
               View all &rarr;
             </Link>
           </div>
@@ -426,7 +435,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-fjord">Spending by category</h2>
-            <Link href="/spending" className="text-sm text-fjord hover:text-midnight">
+            <Link href={`/spending?month=${currentMonth}`} className="text-sm text-fjord hover:text-midnight">
               View all &rarr;
             </Link>
           </div>
@@ -467,7 +476,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       <div className="card mb-8">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-fjord">Recent transactions</h2>
-          <Link href="/transactions" className="text-sm text-fjord hover:text-midnight">
+          <Link href={`/transactions?month=${currentMonth}`} className="text-sm text-fjord hover:text-midnight">
             View all &rarr;
           </Link>
         </div>

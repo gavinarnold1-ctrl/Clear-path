@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
@@ -8,12 +9,19 @@ import EfficiencyScoreGauge from '@/components/insights/EfficiencyScoreGauge'
 import SpendingComparison from '@/components/insights/SpendingComparison'
 import InsightsList from '@/components/insights/InsightsList'
 import GenerateButton from './GenerateButton'
+import MonthSelector from './MonthSelector'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
 
-export default async function MonthlyReviewPage() {
+interface Props {
+  searchParams: Promise<{ month?: string }>
+}
+
+export default async function MonthlyReviewPage({ searchParams }: Props) {
   const session = await getSession()
   if (!session) redirect('/login')
+
+  const { month: selectedMonth } = await searchParams
 
   const [insights, latestScore, transactionCount, snapshots, debts] = await Promise.all([
     db.insight.findMany({
@@ -36,6 +44,19 @@ export default async function MonthlyReviewPage() {
       select: { currentBalance: true, originalBalance: true, name: true, type: true },
     }),
   ])
+
+  // R7.8: Convert snapshot months (Date) to YYYY-MM strings
+  function formatMonth(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+
+  // R7.8: Available months for selector (from snapshots)
+  const availableMonths = snapshots.map((s) => formatMonth(s.month)).reverse()
+
+  // R7.8: If a month is selected, scope to that snapshot
+  const activeSnapshot = selectedMonth
+    ? snapshots.find((s) => formatMonth(s.month) === selectedMonth) ?? null
+    : snapshots[snapshots.length - 1] ?? null
 
   // Build summary for spending comparison chart
   const summary = transactionCount > 0 ? await buildTransactionSummary(session.userId, 3) : null
@@ -75,22 +96,33 @@ export default async function MonthlyReviewPage() {
   const firstDebt = firstSnapshot?.totalDebt ?? null
   const debtPaidDown = firstDebt !== null ? firstDebt - currentTotalDebt : null
 
-  // Parse person/property breakdowns from latest snapshot (R7.4)
-  const personBreakdown: Record<string, number> = latestSnapshot?.personBreakdown
-    ? (() => { try { return JSON.parse(latestSnapshot.personBreakdown) } catch { return {} } })()
+  // Parse person/property breakdowns from active snapshot (R7.4, R7.8)
+  const personBreakdown: Record<string, number> = activeSnapshot?.personBreakdown
+    ? (() => { try { return JSON.parse(activeSnapshot.personBreakdown as string) } catch { return {} } })()
     : {}
-  const propertyBreakdown: Record<string, number> = latestSnapshot?.propertyBreakdown
-    ? (() => { try { return JSON.parse(latestSnapshot.propertyBreakdown) } catch { return {} } })()
+  const propertyBreakdown: Record<string, number> = activeSnapshot?.propertyBreakdown
+    ? (() => { try { return JSON.parse(activeSnapshot.propertyBreakdown as string) } catch { return {} } })()
     : {}
 
   const hasPersonData = Object.keys(personBreakdown).length > 0
   const hasPropertyData = Object.keys(propertyBreakdown).length > 0
 
+  // R7.8: month param for clickable links
+  const monthParam = selectedMonth || activeSnapshot?.month || ''
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-fjord">Monthly Review</h1>
-        <GenerateButton hasTransactions={transactionCount > 0} />
+        <div className="flex items-center gap-3">
+          {availableMonths.length > 0 && (
+            <MonthSelector
+              availableMonths={availableMonths}
+              selectedMonth={selectedMonth ?? ''}
+            />
+          )}
+          <GenerateButton hasTransactions={transactionCount > 0} />
+        </div>
       </div>
 
       {transactionCount === 0 ? (
@@ -102,6 +134,52 @@ export default async function MonthlyReviewPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* R7.8: Month snapshot summary with clickable blocks */}
+          {activeSnapshot && (
+            <div className="card">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <Link
+                  href={`/transactions?month=${monthParam}&categoryType=income`}
+                  className="group rounded-lg p-2 hover:bg-frost"
+                >
+                  <p className="text-xs font-medium text-stone">Income</p>
+                  <p className="mt-0.5 font-mono text-lg font-semibold text-income group-hover:underline">
+                    {formatCurrency(activeSnapshot.totalIncome)}
+                  </p>
+                </Link>
+                <Link
+                  href={`/transactions?month=${monthParam}&categoryType=expense`}
+                  className="group rounded-lg p-2 hover:bg-frost"
+                >
+                  <p className="text-xs font-medium text-stone">Expenses</p>
+                  <p className="mt-0.5 font-mono text-lg font-semibold text-expense group-hover:underline">
+                    {formatCurrency(activeSnapshot.totalExpenses)}
+                  </p>
+                </Link>
+                <Link
+                  href={`/spending?month=${monthParam}`}
+                  className="group rounded-lg p-2 hover:bg-frost"
+                >
+                  <p className="text-xs font-medium text-stone">Savings Rate</p>
+                  <p className={`mt-0.5 font-mono text-lg font-semibold group-hover:underline ${activeSnapshot.savingsRate >= 0 ? 'text-income' : 'text-expense'}`}>
+                    {(activeSnapshot.savingsRate * 100).toFixed(1)}%
+                  </p>
+                </Link>
+                {activeSnapshot.totalDebt != null && activeSnapshot.totalDebt > 0 && (
+                  <Link
+                    href="/debts"
+                    className="group rounded-lg p-2 hover:bg-frost"
+                  >
+                    <p className="text-xs font-medium text-stone">Debt</p>
+                    <p className="mt-0.5 font-mono text-lg font-semibold text-expense group-hover:underline">
+                      {formatCurrency(activeSnapshot.totalDebt)}
+                    </p>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Efficiency score + highlight stat row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {latestScore ? (
@@ -189,9 +267,9 @@ export default async function MonthlyReviewPage() {
             </div>
           )}
 
-          {/* Debt Progress — R5.5 */}
+          {/* Debt Progress — R5.5 (clickable R7.8) */}
           {debts.length > 0 && (
-            <div className="card">
+            <Link href="/debts" className="card block hover:border-fjord/30">
               <h2 className="mb-4 text-base font-semibold text-fjord">Debt Progress</h2>
               <div className="mb-3 grid grid-cols-2 gap-4">
                 <div>
@@ -227,10 +305,10 @@ export default async function MonthlyReviewPage() {
                   )
                 })}
               </ul>
-            </div>
+            </Link>
           )}
 
-          {/* Per-person breakdown — R7.4 */}
+          {/* Per-person breakdown — R7.4 (clickable R7.8) */}
           {hasPersonData && (
             <div className="card">
               <h2 className="mb-4 text-base font-semibold text-fjord">Spending by Person</h2>
@@ -238,16 +316,21 @@ export default async function MonthlyReviewPage() {
                 {Object.entries(personBreakdown)
                   .sort(([, a], [, b]) => b - a)
                   .map(([name, amount]) => (
-                    <li key={name} className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-fjord">{name}</span>
-                      <span className="font-mono text-stone">{formatCurrency(amount)}</span>
+                    <li key={name}>
+                      <Link
+                        href={`/spending?month=${monthParam}&view=person`}
+                        className="flex items-center justify-between text-sm hover:text-midnight"
+                      >
+                        <span className="font-medium text-fjord">{name}</span>
+                        <span className="font-mono text-stone">{formatCurrency(amount)}</span>
+                      </Link>
                     </li>
                   ))}
               </ul>
             </div>
           )}
 
-          {/* Per-property breakdown — R7.4 */}
+          {/* Per-property breakdown — R7.4 (clickable R7.8) */}
           {hasPropertyData && (
             <div className="card">
               <h2 className="mb-4 text-base font-semibold text-fjord">Spending by Property</h2>
@@ -255,9 +338,14 @@ export default async function MonthlyReviewPage() {
                 {Object.entries(propertyBreakdown)
                   .sort(([, a], [, b]) => b - a)
                   .map(([name, amount]) => (
-                    <li key={name} className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-fjord">{name}</span>
-                      <span className="font-mono text-stone">{formatCurrency(amount)}</span>
+                    <li key={name}>
+                      <Link
+                        href={`/spending?month=${monthParam}&view=property`}
+                        className="flex items-center justify-between text-sm hover:text-midnight"
+                      >
+                        <span className="font-medium text-fjord">{name}</span>
+                        <span className="font-mono text-stone">{formatCurrency(amount)}</span>
+                      </Link>
                     </li>
                   ))}
               </ul>
