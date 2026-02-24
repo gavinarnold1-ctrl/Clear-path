@@ -38,13 +38,10 @@ export default function FlexibleBudgetRow({ name, amount, spent, categoryId, cat
 
   const href = categoryId
     ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
-    : undefined
+    : null
 
-  const Wrapper = href ? Link : 'div'
-  const wrapperProps = href ? { href } : {}
-
-  return (
-    <Wrapper {...wrapperProps} className="block rounded-lg px-3 py-3 hover:bg-snow">
+  const content = (
+    <>
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {category?.icon && <span className="text-sm">{category.icon}</span>}
@@ -71,6 +68,14 @@ export default function FlexibleBudgetRow({ name, amount, spent, categoryId, cat
         )}
         <span className={`font-semibold ${pctColor}`}>{pct}%</span>
       </div>
-    </Wrapper>
+    </>
+  )
+
+  const className = "block rounded-lg px-3 py-3 hover:bg-snow"
+
+  return href ? (
+    <Link href={href} className={className}>{content}</Link>
+  ) : (
+    <div className={className}>{content}</div>
   )
 }

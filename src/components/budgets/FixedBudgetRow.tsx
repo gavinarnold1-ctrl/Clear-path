@@ -33,13 +33,10 @@ export default function FixedBudgetRow({ name, amount, spent, dueDay, isAutoPay,
 
   const href = categoryId
     ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
-    : undefined
+    : null
 
-  const Wrapper = href ? Link : 'div'
-  const wrapperProps = href ? { href } : {}
-
-  return (
-    <Wrapper {...wrapperProps} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-snow">
+  const content = (
+    <>
       <span className={`text-lg font-bold ${cfg.color}`}>{cfg.icon}</span>
       <div className="min-w-0 flex-1">
         <span className="font-medium text-fjord">{name}</span>
@@ -60,6 +57,14 @@ export default function FixedBudgetRow({ name, amount, spent, dueDay, isAutoPay,
           <span className="text-sm font-semibold text-fjord">{formatCurrency(amount)}</span>
         )}
       </div>
-    </Wrapper>
+    </>
+  )
+
+  const className = "flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-snow"
+
+  return href ? (
+    <Link href={href} className={className}>{content}</Link>
+  ) : (
+    <div className={className}>{content}</div>
   )
 }
