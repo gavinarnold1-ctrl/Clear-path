@@ -113,7 +113,7 @@ Removed endpoints:
 | R6.4a | AI Budget Builder: regenerate/add-missing/cancel  | 🟢 Done |
 | R7.8  | Monthly Review month selector + clickable blocks  | 🟢 Done |
 | R8.5  | Overview "View all" buttons navigate with context | 🟢 Done |
-| R7.9  | Net Worth on Monthly Review                       | ⬜ TODO |
+| R7.9  | Net Worth on Monthly Review                       | 🟢 Done |
 
 ---
 

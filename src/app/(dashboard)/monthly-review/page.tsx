@@ -23,7 +23,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -42,6 +42,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     db.debt.findMany({
       where: { userId: session.userId },
       select: { currentBalance: true, originalBalance: true, name: true, type: true },
+    }),
+    // Account balances for net worth (R7.9)
+    db.account.findMany({
+      where: { userId: session.userId },
+      select: { type: true, balance: true },
     }),
   ])
 
@@ -95,6 +100,23 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
   const currentTotalDebt = debts.reduce((s, d) => s + d.currentBalance, 0)
   const firstDebt = firstSnapshot?.totalDebt ?? null
   const debtPaidDown = firstDebt !== null ? firstDebt - currentTotalDebt : null
+
+  // Net worth: assets minus liabilities (R7.9)
+  const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
+  const currentNetWorth = accounts.reduce((sum, a) => {
+    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
+    return sum + a.balance
+  }, 0)
+  const hasAccounts = accounts.length > 0
+
+  // Net worth from active snapshot vs previous snapshot for delta
+  const activeSnapshotIdx = activeSnapshot
+    ? snapshots.findIndex((s) => formatMonth(s.month) === formatMonth(activeSnapshot.month))
+    : -1
+  const prevSnapshot = activeSnapshotIdx > 0 ? snapshots[activeSnapshotIdx - 1] : null
+  const netWorthDelta = activeSnapshot?.netWorth != null && prevSnapshot?.netWorth != null
+    ? activeSnapshot.netWorth - prevSnapshot.netWorth
+    : null
 
   // Parse person/property breakdowns from active snapshot (R7.4, R7.8)
   const personBreakdown: Record<string, number> = activeSnapshot?.personBreakdown
@@ -177,6 +199,56 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                   </Link>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Net Worth — R7.9 */}
+          {hasAccounts && (
+            <div className="card">
+              <h2 className="mb-3 text-base font-semibold text-fjord">Net Worth</h2>
+              <div className="flex items-baseline gap-4">
+                <p className={`font-mono text-2xl font-bold ${currentNetWorth >= 0 ? 'text-fjord' : 'text-expense'}`}>
+                  {formatCurrency(currentNetWorth)}
+                </p>
+                {netWorthDelta !== null && (
+                  <p className={`text-sm font-medium ${netWorthDelta >= 0 ? 'text-income' : 'text-expense'}`}>
+                    {netWorthDelta >= 0 ? '+' : ''}{formatCurrency(netWorthDelta)} vs prev month
+                  </p>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-stone">assets minus liabilities across all accounts</p>
+              {/* Mini trend from snapshots */}
+              {snapshots.length >= 2 && (
+                <div className="mt-4 flex items-end gap-1">
+                  {(() => {
+                    const nwValues = snapshots
+                      .filter((s) => s.netWorth != null)
+                      .map((s) => ({ month: formatMonth(s.month), value: s.netWorth as number }))
+                    if (nwValues.length < 2) return null
+                    const maxAbs = Math.max(...nwValues.map((v) => Math.abs(v.value)), 1)
+                    return (
+                      <>
+                        {nwValues.map((v, i) => {
+                          const height = Math.max(4, Math.round((Math.abs(v.value) / maxAbs) * 48))
+                          const isActive = activeSnapshot && v.month === formatMonth(activeSnapshot.month)
+                          return (
+                            <div key={i} className="flex flex-col items-center gap-1">
+                              <div
+                                className={`w-6 rounded-sm ${v.value >= 0 ? 'bg-pine/60' : 'bg-ember/60'} ${isActive ? 'ring-2 ring-fjord' : ''}`}
+                                style={{ height: `${height}px` }}
+                                title={`${v.month}: ${formatCurrency(v.value)}`}
+                              />
+                              <span className="text-[9px] text-stone">
+                                {v.month.split('-')[1]}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
