@@ -217,11 +217,9 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                     <p className="text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
                   </div>
                   <div>
-                    <p className="text-xs text-stone">
-                      {debt.escrowAmount ? 'Total Monthly' : 'Payment'}
-                    </p>
+                    <p className="text-xs text-stone">Monthly Payment</p>
                     <p className="text-lg font-bold text-fjord">
-                      {formatCurrency(debt.minimumPayment + (debt.escrowAmount ?? 0))}/mo
+                      {formatCurrency(debt.minimumPayment)}/mo
                     </p>
                   </div>
                   <div>
@@ -260,7 +258,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                   </div>
                   {/* P&I (+Escrow) bar */}
                   {debt.minimumPayment > 0 && (() => {
-                    const totalBar = debt.minimumPayment + (debt.escrowAmount ?? 0)
+                    const totalBar = debt.minimumPayment
                     return (
                       <div className="mt-2 flex h-2 overflow-hidden rounded-bar">
                         <div
@@ -402,7 +400,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">Monthly Payment</label>
+                <label className="mb-1 block text-sm font-medium text-fjord">Total Monthly Payment</label>
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">$</span>
                   <input

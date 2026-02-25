@@ -35,7 +35,7 @@ export default async function DebtsPage() {
 
   // Compute summary
   const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0)
-  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment + (d.escrowAmount ?? 0), 0)
+  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment, 0)
   const weightedRate =
     totalDebt > 0
       ? debts.reduce((sum, d) => sum + d.currentBalance * d.interestRate, 0) / totalDebt
@@ -43,8 +43,9 @@ export default async function DebtsPage() {
 
   // Serialize for client component
   const serializedDebts = debts.map((d) => {
+    const piPayment = d.minimumPayment - (d.escrowAmount ?? 0)
     const monthlyInterest = d.currentBalance * (d.interestRate / 12)
-    const monthlyPrincipal = Math.max(0, d.minimumPayment - monthlyInterest)
+    const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
     const monthsRemaining = monthlyPrincipal > 0 ? Math.ceil(d.currentBalance / monthlyPrincipal) : null
 
     return {

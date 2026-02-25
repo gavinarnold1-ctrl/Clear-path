@@ -30,9 +30,12 @@ export async function GET() {
   })
 
   // Compute derived fields for each debt
+  // minimumPayment is the TOTAL monthly payment (including escrow).
+  // Subtract escrow to get the P&I portion before computing principal.
   const enriched = debts.map((debt) => {
+    const piPayment = debt.minimumPayment - (debt.escrowAmount ?? 0)
     const monthlyInterest = debt.currentBalance * (debt.interestRate / 12)
-    const monthlyPrincipal = Math.max(0, debt.minimumPayment - monthlyInterest)
+    const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
     const monthsRemaining =
       monthlyPrincipal > 0 ? Math.ceil(debt.currentBalance / monthlyPrincipal) : null
 
@@ -46,7 +49,7 @@ export async function GET() {
 
   // Compute summary
   const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0)
-  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment + (d.escrowAmount ?? 0), 0)
+  const totalPayments = debts.reduce((sum, d) => sum + d.minimumPayment, 0)
   const weightedRate =
     totalDebt > 0
       ? debts.reduce((sum, d) => sum + d.currentBalance * d.interestRate, 0) / totalDebt
@@ -135,8 +138,9 @@ export async function POST(req: NextRequest) {
   })
 
   // R5.7: Return computed fields so the client can render immediately
+  const piPayment = debt.minimumPayment - (debt.escrowAmount ?? 0)
   const monthlyInterest = debt.currentBalance * (debt.interestRate / 12)
-  const monthlyPrincipal = Math.max(0, debt.minimumPayment - monthlyInterest)
+  const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
   const monthsRemaining =
     monthlyPrincipal > 0 ? Math.ceil(debt.currentBalance / monthlyPrincipal) : null
 
