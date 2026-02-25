@@ -81,21 +81,21 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Pr
               <div key={group.group} className="card overflow-hidden p-0">
                 <button
                   onClick={() => setExpandedGroup(expandedGroup === group.group ? null : group.group)}
-                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-snow"
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 hover:bg-snow"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
-                      className="inline-block h-3 w-3 rounded-full"
+                      className="inline-block h-3 w-3 shrink-0 rounded-full"
                       style={{ backgroundColor: COLORS[gi % COLORS.length] }}
                     />
-                    <span className="font-semibold text-fjord">{group.group}</span>
-                    <span className="text-xs text-stone">
+                    <span className="truncate font-semibold text-fjord">{group.group}</span>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-stone">
                       {group.categories.length} categor{group.categories.length !== 1 ? 'ies' : 'y'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-fjord">{formatCurrency(group.amount)}</span>
-                    <span className="text-xs text-stone">
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="whitespace-nowrap font-semibold text-fjord">{formatCurrency(group.amount)}</span>
+                    <span className="whitespace-nowrap text-xs text-stone">
                       {totalSpent > 0 ? `${((group.amount / totalSpent) * 100).toFixed(1)}%` : '—'}
                     </span>
                     <span className="text-stone">{expandedGroup === group.group ? '▲' : '▼'}</span>
