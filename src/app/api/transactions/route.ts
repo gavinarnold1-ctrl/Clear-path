@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { classifyTransaction } from '@/lib/category-groups'
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
 const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
 
@@ -68,20 +69,23 @@ export async function POST(req: NextRequest) {
   // Correct amount sign based on category type — must match server action behavior.
   // Income = positive, expense = negative, transfer = keep user sign.
   let finalAmount = amount
-  let classification = 'expense'
+  let resolvedCategory: { type: string; group: string | null } | null = null
   if (categoryId) {
     const category = await db.category.findFirst({
       where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
     })
     if (category) {
+      resolvedCategory = category
       if (category.type === 'expense') finalAmount = -Math.abs(amount)
       else if (category.type === 'income') finalAmount = Math.abs(amount)
-      // Derive classification from category type + amount
-      if (category.type === 'transfer') classification = 'transfer'
-      else if (category.type === 'income' && finalAmount > 0) classification = 'income'
-      else classification = 'expense'
     }
   }
+  // Derive classification from category group (deterministic hierarchy).
+  const classification = classifyTransaction(
+    resolvedCategory?.group,
+    resolvedCategory?.type,
+    finalAmount,
+  )
 
   // R3.2a: If no person tag provided, default to account owner
   let resolvedMemberId: string | null = householdMemberId ?? null

@@ -50,6 +50,13 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [propSaving, setPropSaving] = useState(false)
   const [propMsg, setPropMsg] = useState<string | null>(null)
 
+  // Data tools state
+  const [fixingClassification, setFixingClassification] = useState(false)
+  const [fixMsg, setFixMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetMsg, setResetMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
@@ -219,6 +226,50 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       }
     } catch {
       setPropMsg('Network error.')
+    }
+  }
+
+  // ─── Data Tools ─────────────────────────────────────────────────────────
+  async function fixClassifications() {
+    if (fixingClassification) return
+    setFixingClassification(true)
+    setFixMsg(null)
+    try {
+      const res = await fetch('/api/transactions/fix-classification', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setFixMsg({ type: 'error', text: data.error ?? 'Failed to fix classifications.' })
+        return
+      }
+      setFixMsg({ type: 'success', text: data.message })
+      router.refresh()
+    } catch {
+      setFixMsg({ type: 'error', text: 'Network error.' })
+    } finally {
+      setFixingClassification(false)
+    }
+  }
+
+  async function resetAllData() {
+    if (resetting) return
+    setResetting(true)
+    setResetMsg(null)
+    try {
+      const res = await fetch('/api/profile/reset', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setResetMsg({ type: 'error', text: data.error ?? 'Failed to reset data.' })
+        return
+      }
+      setResetMsg({ type: 'success', text: data.message })
+      setShowResetConfirm(false)
+      setMembers([])
+      setProperties([])
+      router.refresh()
+    } catch {
+      setResetMsg({ type: 'error', text: 'Network error.' })
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -454,6 +505,78 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         <a href="/api/transactions/export" download className="btn-secondary inline-block text-sm">
           Download Transactions CSV
         </a>
+      </section>
+
+      {/* Data Tools */}
+      <section className="card">
+        <h2 className="mb-4 text-base font-semibold text-fjord">Data Tools</h2>
+
+        {/* Fix Classifications */}
+        <div className="mb-5">
+          <h3 className="mb-1 text-sm font-semibold text-fjord">Fix Transaction Classifications</h3>
+          <p className="mb-3 text-sm text-stone">
+            Recalculates income/expense/transfer classification for all transactions based on category groups.
+            Run this after importing or if totals look off.
+          </p>
+          {fixMsg && (
+            <p className={`mb-2 text-sm ${fixMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
+              {fixMsg.text}
+            </p>
+          )}
+          <button
+            onClick={fixClassifications}
+            disabled={fixingClassification}
+            className="btn-secondary text-sm disabled:opacity-50"
+          >
+            {fixingClassification ? 'Fixing...' : 'Fix Classifications'}
+          </button>
+        </div>
+
+        <hr className="my-5 border-mist" />
+
+        {/* Nuke & Reset */}
+        <div>
+          <h3 className="mb-1 text-sm font-semibold text-ember">Reset All Data</h3>
+          <p className="mb-3 text-sm text-stone">
+            Deletes all your transactions, accounts, budgets, debts, and categories.
+            Your login stays intact so you can start fresh.
+          </p>
+          {resetMsg && (
+            <p className={`mb-2 text-sm ${resetMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
+              {resetMsg.text}
+            </p>
+          )}
+          {!showResetConfirm ? (
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="btn-danger text-sm"
+            >
+              Nuke All Data
+            </button>
+          ) : (
+            <div className="rounded-lg border border-ember/30 bg-ember/5 p-4">
+              <p className="mb-3 text-sm font-medium text-fjord">
+                This will permanently delete all your financial data. Your account will remain but all
+                transactions, accounts, budgets, debts, categories, and settings will be wiped clean.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={resetAllData}
+                  disabled={resetting}
+                  className="btn-danger text-sm disabled:opacity-50"
+                >
+                  {resetting ? 'Resetting...' : 'Yes, Delete Everything'}
+                </button>
+                <button
+                  onClick={() => { setShowResetConfirm(false); setResetMsg(null) }}
+                  className="text-sm text-stone hover:text-fjord"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* R10.6: Delete Account */}

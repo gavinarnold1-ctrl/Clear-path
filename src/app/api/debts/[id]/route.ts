@@ -29,8 +29,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!debt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const piPayment = debt.minimumPayment - (debt.escrowAmount ?? 0)
   const monthlyInterest = debt.currentBalance * (debt.interestRate / 12)
-  const monthlyPrincipal = Math.max(0, debt.minimumPayment - monthlyInterest)
+  const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
   const monthsRemaining =
     monthlyPrincipal > 0 ? Math.ceil(debt.currentBalance / monthlyPrincipal) : null
 

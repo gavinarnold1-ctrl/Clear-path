@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { classifyTransaction } from '@/lib/category-groups'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -44,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
 
-  // Correct amount sign and classification based on category type.
+  // Correct amount sign and derive classification from category group.
   let finalAmount = body.amount
   let classification: string | undefined
   if (resolvedCategoryId) {
@@ -57,9 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         else if (category.type === 'income') finalAmount = Math.abs(finalAmount)
       }
       const resolvedAmount = finalAmount ?? existing.amount
-      if (category.type === 'transfer') classification = 'transfer'
-      else if (category.type === 'income' && resolvedAmount > 0) classification = 'income'
-      else classification = 'expense'
+      classification = classifyTransaction(category.group, category.type, resolvedAmount)
     }
   }
 
