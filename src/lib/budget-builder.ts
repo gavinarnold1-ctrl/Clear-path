@@ -356,7 +356,7 @@ TEMPORAL CONTEXT:
 Current date: ${temporalContext.currentMonth} ${temporalContext.dayOfMonth}, ${temporalContext.currentYear}
 For annual items, set due months that make sense (property tax: varies by state, insurance: typically renewal month, vacation: summer, gifts: December).
 
-OUTPUT FORMAT — Return valid JSON:
+OUTPUT FORMAT — Return ONLY valid JSON with no markdown, no commentary, no text before or after the JSON object:
 {
   "fixed": [
     {
@@ -431,27 +431,41 @@ CURRENT SAVINGS RATE: ${profile.savingsRate}%
 
 Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Annual). For categories with limited data, use your judgment and mark with lower confidence. Include 2-3 suggested annual expenses even if not in the data — common ones most households have.`
 
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4000,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
-  })
+  // Retry up to 2 attempts in case the model returns non-JSON on the first try
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: userPrompt },
+        // Prefill forces the model to continue with JSON instead of markdown/text
+        { role: 'assistant', content: '{' },
+      ],
+    })
 
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('')
+    // Prepend the '{' from our prefill since it's not included in the response
+    const responseText = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('')
+    const text = '{' + responseText
 
-  const cleaned = repairJSON(text)
+    const cleaned = repairJSON(text)
 
-  try {
-    return JSON.parse(cleaned) as BudgetProposal
-  } catch (parseError) {
-    throw new Error(
-      `Failed to parse AI budget response as JSON: ${(parseError as Error).message}. Raw response length: ${text.length}`
-    )
+    try {
+      return JSON.parse(cleaned) as BudgetProposal
+    } catch (parseError) {
+      lastError = parseError as Error
+      // First attempt failed — retry once
+      continue
+    }
   }
+
+  throw new Error(
+    `Failed to parse AI budget response as JSON after 2 attempts: ${lastError?.message}`
+  )
 }
 
 /**
