@@ -19,6 +19,7 @@ export async function createAccount(
   const name = (formData.get('name') as string)?.trim()
   const type = formData.get('type') as string
   const balance = parseFloat((formData.get('balance') as string) ?? '0')
+  const balanceAsOfDateStr = (formData.get('balanceAsOfDate') as string)?.trim() || null
   const currency = (formData.get('currency') as string)?.trim() || 'USD'
   const ownerId = (formData.get('ownerId') as string)?.trim() || null
 
@@ -31,12 +32,15 @@ export async function createAccount(
   })
   if (duplicate) return { error: 'An account with this name already exists.' }
 
+  // R1.5b: User-entered balance is stored as startingBalance baseline.
   await db.account.create({
     data: {
       userId: session.userId,
       name,
       type: type as 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN',
       balance,
+      startingBalance: balance,
+      balanceAsOfDate: balanceAsOfDateStr ? new Date(balanceAsOfDateStr) : null,
       currency,
       ...(ownerId && { ownerId }),
     },

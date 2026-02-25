@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, type, balance, currency, ownerId } = body
+  const { name, type, balance, currency, ownerId, balanceAsOfDate } = body
 
   if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
@@ -43,12 +43,18 @@ export async function POST(req: NextRequest) {
     if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
   }
 
+  // R1.5b: User-entered balance becomes the startingBalance baseline.
+  // Both balance and startingBalance store the same value on creation.
+  const startingBal = balance ?? 0
+
   const account = await db.account.create({
     data: {
       userId: session.userId,
       name,
       type,
-      balance: balance ?? 0,
+      balance: startingBal,
+      startingBalance: startingBal,
+      balanceAsOfDate: balanceAsOfDate ? new Date(balanceAsOfDate) : null,
       currency: currency ?? 'USD',
       ...(ownerId && { ownerId }),
     },

@@ -407,7 +407,7 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
+    max_tokens: 12000,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   })
@@ -417,38 +417,101 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
     .map((block) => block.text)
     .join('')
 
-  // Strip markdown fences and extract JSON object
-  let cleaned = text.replace(/```json\n?|\n?```/g, '').trim()
-
-  // Extract just the JSON object if there's surrounding text
-  const jsonStart = cleaned.indexOf('{')
-  const jsonEnd = cleaned.lastIndexOf('}')
-  if (jsonStart !== -1 && jsonEnd !== -1) {
-    cleaned = cleaned.slice(jsonStart, jsonEnd + 1)
-  }
-
-  // Fix common LLM JSON issues:
-  // 1. Trailing commas before } or ]
-  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1')
-  // 2. Single-line // comments
-  cleaned = cleaned.replace(/\/\/[^\n]*$/gm, '')
-  // 3. Single quotes used as property delimiters (only outside of double-quoted strings)
-  // This is conservative — only replace 'key': patterns
-  cleaned = cleaned.replace(/'([^']+)'\s*:/g, '"$1":')
+  const cleaned = repairJSON(text)
 
   try {
     return JSON.parse(cleaned) as BudgetProposal
-  } catch (firstError) {
-    // Second attempt: try stripping control characters that break JSON
-    const sanitized = cleaned.replace(/[\x00-\x1f\x7f]/g, (ch) =>
-      ch === '\n' || ch === '\r' || ch === '\t' ? ch : ''
+  } catch (parseError) {
+    throw new Error(
+      `Failed to parse AI budget response as JSON: ${(parseError as Error).message}. Raw response length: ${text.length}`
     )
-    try {
-      return JSON.parse(sanitized) as BudgetProposal
-    } catch {
-      throw new Error(
-        `Failed to parse AI budget response as JSON: ${(firstError as Error).message}. Raw response length: ${text.length}`
-      )
+  }
+}
+
+/**
+ * Repair common LLM JSON issues:
+ * - Markdown fences
+ * - Trailing commas
+ * - Single-line comments
+ * - Single-quoted keys
+ * - Unescaped double quotes inside string values
+ * - Newlines inside strings
+ * - Control characters
+ */
+function repairJSON(raw: string): string {
+  // Strip markdown fences
+  let s = raw.replace(/```json\n?|\n?```/g, '').trim()
+
+  // Extract just the JSON object
+  const jsonStart = s.indexOf('{')
+  const jsonEnd = s.lastIndexOf('}')
+  if (jsonStart !== -1 && jsonEnd !== -1) {
+    s = s.slice(jsonStart, jsonEnd + 1)
+  }
+
+  // Remove single-line // comments
+  s = s.replace(/\/\/[^\n]*$/gm, '')
+  // Remove trailing commas before } or ]
+  s = s.replace(/,\s*([}\]])/g, '$1')
+  // Single-quoted keys → double-quoted
+  s = s.replace(/'([^']+)'\s*:/g, '"$1":')
+  // Strip control characters except tab/newline/carriage-return
+  s = s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+
+  // Fix unescaped double quotes inside string values.
+  // Walk character by character to find strings and escape inner quotes.
+  const result: string[] = []
+  let i = 0
+  while (i < s.length) {
+    if (s[i] === '"') {
+      // Start of a JSON string — find the real end
+      result.push('"')
+      i++
+      while (i < s.length) {
+        if (s[i] === '\\') {
+          // Escaped character — keep both
+          result.push(s[i], s[i + 1] ?? '')
+          i += 2
+          continue
+        }
+        if (s[i] === '"') {
+          // Is this the closing quote or an unescaped inner quote?
+          // Closing quote is followed by :, ,, }, ], or whitespace then one of those
+          const rest = s.slice(i + 1).trimStart()
+          if (
+            rest.length === 0 ||
+            rest[0] === ':' ||
+            rest[0] === ',' ||
+            rest[0] === '}' ||
+            rest[0] === ']'
+          ) {
+            result.push('"')
+            i++
+            break
+          } else {
+            // Unescaped inner quote — escape it
+            result.push('\\"')
+            i++
+            continue
+          }
+        }
+        if (s[i] === '\n') {
+          result.push('\\n')
+          i++
+          continue
+        }
+        if (s[i] === '\r') {
+          i++
+          continue
+        }
+        result.push(s[i])
+        i++
+      }
+    } else {
+      result.push(s[i])
+      i++
     }
   }
+
+  return result.join('')
 }

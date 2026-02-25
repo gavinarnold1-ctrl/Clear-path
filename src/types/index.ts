@@ -42,6 +42,8 @@ export interface Account {
   name: string
   type: AccountType
   balance: number
+  startingBalance: number
+  balanceAsOfDate: Date | null
   currency: string
   institution: string | null
   isManual: boolean

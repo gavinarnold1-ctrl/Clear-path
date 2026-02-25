@@ -518,20 +518,9 @@ export async function POST(request: Request) {
       importedCount += created.count
     }
 
-    // Update account balances from imported transactions.
-    // Sum amounts by accountId and increment each account's balance.
-    const balanceDeltas = new Map<string, number>()
-    for (const tx of toImport) {
-      if (tx.accountId) {
-        balanceDeltas.set(tx.accountId, (balanceDeltas.get(tx.accountId) ?? 0) + tx.amount)
-      }
-    }
-    for (const [acctId, delta] of balanceDeltas) {
-      await db.account.update({
-        where: { id: acctId },
-        data: { balance: { increment: delta } },
-      })
-    }
+    // R1.5b: CSV-imported accounts do NOT compute balance by summing transactions.
+    // Balance is manually entered by user via startingBalance + balanceAsOfDate.
+    // Use "Recalculate Balances" in Settings after setting a baseline.
 
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)

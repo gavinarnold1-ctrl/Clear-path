@@ -40,6 +40,8 @@ export default async function AccountsPage() {
     name: acct.name,
     type: acct.type,
     balance: acct.balance,
+    startingBalance: acct.startingBalance,
+    balanceAsOfDate: acct.balanceAsOfDate ? acct.balanceAsOfDate.toISOString().split('T')[0] : null,
     currency: acct.currency,
     institution: acct.institution,
     ownerId: acct.ownerId,
