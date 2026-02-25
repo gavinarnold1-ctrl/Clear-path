@@ -100,6 +100,7 @@ Removed endpoints:
 - **R6.4a**: BudgetBuilderCTA shows dropdown menu with "Regenerate all", "Add missing", and "Dismiss" when budgets exist.
 - **R7.8**: Monthly Review has month selector dropdown scoped to available snapshots. Clickable data blocks link to filtered views.
 - **R8.5**: Overview "View all" links: Active Budgets → /budgets, Spending by Category → /spending, Recent Transactions → /transactions. All carry `?month=` param.
+- **R7.9**: Net Worth section on Monthly Review. `netWorth Float?` field added to MonthlySnapshot. Computed as assets minus liabilities (same formula as Accounts page). Shows current value, month-over-month delta, and mini bar chart trend. Does NOT appear on Overview page.
 - **Settings Data Tools**: "Fix Classifications" (recalculate transaction classification) and "Reset All Data" (nuke all user data, keep account) buttons. "Recalculate Balances" button removed per PRD v2.17.
 
 ### Additional Features
@@ -216,9 +217,9 @@ Audited all expense calculation paths across the codebase. The dashboard uses `c
 
 | Phase                        | Tests     | Status |
 |------------------------------|-----------|--------|
-| Phase 1: Foundation          | T1.1–T1.17 | 🟢 T1.1 ✅, T1.2 ✅, T1.5 ✅ (all source verification pass) |
+| Phase 1: Foundation          | T1.1–T1.18 | 🟢 T1.1 ✅, T1.2 ✅, T1.5 ✅ (all source verification pass) |
 | Phase 2: Data Model          | T2.1–T2.3 | 🟢 T2.3 ✅ (45/45 pass) |
-| Phase 3: Experience          | T3.1–T3.11 | 🟢 T3.8 ✅ (34/34 pass) |
+| Phase 3: Experience          | T3.1–T3.12 | 🟢 T3.8 ✅ (34/34 pass) |
 | Phase 4: Plaid               | T4.1–T4.3 | ⬜ |
 | Phase 5: Security/Brand/Ship | T5.0–T5.4 | ⬜ |
 | Final Verification           | All       | ⬜ |
