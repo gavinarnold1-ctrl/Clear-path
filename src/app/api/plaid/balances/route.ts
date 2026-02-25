@@ -4,7 +4,8 @@ import { db } from '@/lib/db'
 import { plaidClient } from '@/lib/plaid'
 import { decrypt } from '@/lib/encryption'
 
-export async function GET() {
+// Changed from GET to POST: this endpoint mutates account balances (R11.13 — no mutations via GET)
+export async function POST() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
