@@ -407,7 +407,7 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
+    max_tokens: 8000,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   })
@@ -417,6 +417,38 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
     .map((block) => block.text)
     .join('')
 
-  const cleaned = text.replace(/```json\n?|\n?```/g, '').trim()
-  return JSON.parse(cleaned) as BudgetProposal
+  // Strip markdown fences and extract JSON object
+  let cleaned = text.replace(/```json\n?|\n?```/g, '').trim()
+
+  // Extract just the JSON object if there's surrounding text
+  const jsonStart = cleaned.indexOf('{')
+  const jsonEnd = cleaned.lastIndexOf('}')
+  if (jsonStart !== -1 && jsonEnd !== -1) {
+    cleaned = cleaned.slice(jsonStart, jsonEnd + 1)
+  }
+
+  // Fix common LLM JSON issues:
+  // 1. Trailing commas before } or ]
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1')
+  // 2. Single-line // comments
+  cleaned = cleaned.replace(/\/\/[^\n]*$/gm, '')
+  // 3. Single quotes used as property delimiters (only outside of double-quoted strings)
+  // This is conservative — only replace 'key': patterns
+  cleaned = cleaned.replace(/'([^']+)'\s*:/g, '"$1":')
+
+  try {
+    return JSON.parse(cleaned) as BudgetProposal
+  } catch (firstError) {
+    // Second attempt: try stripping control characters that break JSON
+    const sanitized = cleaned.replace(/[\x00-\x1f\x7f]/g, (ch) =>
+      ch === '\n' || ch === '\r' || ch === '\t' ? ch : ''
+    )
+    try {
+      return JSON.parse(sanitized) as BudgetProposal
+    } catch {
+      throw new Error(
+        `Failed to parse AI budget response as JSON: ${(firstError as Error).message}. Raw response length: ${text.length}`
+      )
+    }
+  }
 }
