@@ -236,6 +236,17 @@ export async function GET(req: NextRequest) {
               where: { id: ourAccount.id },
               data: { balance, plaidLastSynced: new Date() },
             })
+
+            // Sync linked Debt balance (update only — don't overwrite user-edited fields)
+            const linkedDebt = await db.debt.findUnique({
+              where: { accountId: ourAccount.id },
+            })
+            if (linkedDebt) {
+              await db.debt.update({
+                where: { id: linkedDebt.id },
+                data: { currentBalance: Math.abs(balance) },
+              })
+            }
           }
         } catch (balErr) {
           console.error(`Balance refresh failed for item ${itemId}:`, balErr)

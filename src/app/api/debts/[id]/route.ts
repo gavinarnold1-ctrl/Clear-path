@@ -21,6 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     include: {
       property: true,
       category: true,
+      account: { select: { id: true, name: true, type: true, balance: true, institution: true } },
       transactions: {
         select: { id: true, date: true, merchant: true, amount: true },
         orderBy: { date: 'desc' },
@@ -75,6 +76,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
 
+  // Verify ownership of referenced account
+  if (body.accountId !== undefined && body.accountId !== null) {
+    const account = await db.account.findFirst({
+      where: { id: body.accountId, userId: session.userId },
+    })
+    if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
+
   const updated = await db.debt.update({
     where: { id },
     data: {
@@ -90,6 +99,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(body.startDate !== undefined && { startDate: body.startDate ? new Date(body.startDate) : null }),
       ...(body.propertyId !== undefined && { propertyId: body.propertyId }),
       ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+      ...(body.accountId !== undefined && { accountId: body.accountId }),
     },
     include: { property: true, category: true },
   })

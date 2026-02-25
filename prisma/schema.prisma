@@ -103,6 +103,7 @@ model Account {
   ownerId      String?       // R3.2a: Account owner — default person tag for transactions
   owner        HouseholdMember? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   transactions Transaction[]
+  debt         Debt?         // One-to-one: auto-populated debt for loan/credit accounts
 
   @@index([ownerId])
   @@index([plaidItemId])
@@ -366,6 +367,8 @@ model Debt {
   property        Property? @relation(fields: [propertyId], references: [id])
   categoryId      String?
   category        Category? @relation(fields: [categoryId], references: [id])
+  accountId       String?   @unique // Links Debt to a Plaid-connected Account (one debt per account)
+  account         Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   transactions    Transaction[] // R5.8: Payment transactions linked to this debt

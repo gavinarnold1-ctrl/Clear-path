@@ -20,6 +20,7 @@ export async function GET() {
     include: {
       property: true,
       category: true,
+      account: { select: { id: true, name: true, type: true, balance: true, institution: true } },
       transactions: {
         select: { id: true, date: true, merchant: true, amount: true },
         orderBy: { date: 'desc' },
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
     startDate,
     propertyId,
     categoryId,
+    accountId,
   } = body
 
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -118,6 +120,14 @@ export async function POST(req: NextRequest) {
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
 
+  // Verify ownership of referenced account
+  if (accountId) {
+    const account = await db.account.findFirst({
+      where: { id: accountId, userId: session.userId },
+    })
+    if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
+
   const debt = await db.debt.create({
     data: {
       userId: session.userId,
@@ -133,6 +143,7 @@ export async function POST(req: NextRequest) {
       startDate: startDate ? new Date(startDate) : null,
       propertyId: propertyId ?? null,
       categoryId: categoryId ?? null,
+      accountId: accountId ?? null,
     },
     include: { property: true, category: true },
   })

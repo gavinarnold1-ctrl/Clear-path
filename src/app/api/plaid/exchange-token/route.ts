@@ -3,6 +3,18 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { plaidClient, mapPlaidAccountType } from '@/lib/plaid'
 import { encrypt } from '@/lib/encryption'
+import type { DebtType, AccountType } from '@prisma/client'
+
+/** Map loan/credit AccountType → DebtType. Returns null for non-debt account types. */
+function accountTypeToDebtType(type: AccountType): DebtType | null {
+  switch (type) {
+    case 'MORTGAGE': return 'MORTGAGE'
+    case 'STUDENT_LOAN': return 'STUDENT_LOAN'
+    case 'AUTO_LOAN': return 'AUTO'
+    case 'CREDIT_CARD': return 'CREDIT_CARD'
+    default: return null
+  }
+}
 
 export async function POST(request: Request) {
   const session = await getSession()
@@ -82,6 +94,25 @@ export async function POST(request: Request) {
         },
       })
       createdAccounts.push(account)
+
+      // Auto-create Debt record for loan/credit-type accounts
+      const debtType = accountTypeToDebtType(accountType)
+      if (debtType) {
+        // Credit cards: only create debt if balance > 0
+        if (debtType === 'CREDIT_CARD' && balance <= 0) continue
+
+        await db.debt.create({
+          data: {
+            userId: session.userId,
+            name: plaidAccount.official_name || plaidAccount.name,
+            type: debtType,
+            currentBalance: Math.abs(balance),
+            interestRate: 0,
+            minimumPayment: 0,
+            accountId: account.id,
+          },
+        })
+      }
     }
 
     return NextResponse.json({

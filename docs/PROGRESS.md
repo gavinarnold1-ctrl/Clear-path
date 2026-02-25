@@ -139,6 +139,15 @@ Removed endpoints:
 - **R6.10 fix**: Income vs Expenses chart now uses `classification` field instead of amount sign. Refunds no longer inflate income bar.
 - **R8.6**: Streamlined onboarding — new users see "Connect bank / Import CSV / Start manually" instead of 6-question wizard. Plaid Link available from first screen. Dashboard shows GetStarted inline when `accounts.length === 0`.
 
+### Plaid → Debt Auto-Population (2026-02-25)
+
+- **Schema**: Added `accountId` (optional, unique) to Debt model with `onDelete: SetNull` — links Debt ↔ Account.
+- **Exchange-token**: After creating Plaid accounts, auto-creates Debt records for MORTGAGE, STUDENT_LOAN, AUTO_LOAN, and CREDIT_CARD (balance > 0) account types. Sets `interestRate: 0` and `minimumPayment: 0` (user fills in later).
+- **Balance refresh**: Both `/api/plaid/balances` and `/api/cron/sync-plaid` update linked Debt `currentBalance` after refreshing account balances. Only updates balance — does not overwrite user-edited fields (name, interestRate, minimumPayment, escrowAmount, etc.).
+- **Account deletion**: `onDelete: SetNull` unlinks the Debt (sets `accountId: null`) preserving user's manual edits.
+- **Debts API**: GET/POST/PATCH routes updated to include `accountId` and `account` relation.
+- **Types**: `Debt` interface in `src/types/index.ts` updated with `accountId` and `account`.
+
 ---
 
 ## Phase 5: Security, Brand, and Ship

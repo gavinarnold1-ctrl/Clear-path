@@ -164,6 +164,8 @@ export interface Debt {
   property?: Property | null
   categoryId: string | null
   category?: Category | null
+  accountId: string | null
+  account?: Account | null
   createdAt: Date
   updatedAt: Date
 }
