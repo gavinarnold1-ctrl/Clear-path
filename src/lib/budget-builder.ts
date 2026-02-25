@@ -310,9 +310,9 @@ export async function generateBudgetProposal(
 ): Promise<BudgetProposal> {
   const temporalContext = buildTemporalContext()
 
-  const systemPrompt = `You are a personal finance expert building a budget for a user of Clear-path, a budgeting app. You have their actual spending data and need to propose a complete budget structure.
+  const systemPrompt = `You are a personal finance expert building a budget for a user of Oversikt, a budgeting app. You have their actual spending data and need to propose a complete budget structure.
 
-Clear-path uses THREE budget tiers:
+Oversikt uses THREE budget tiers:
 
 1. FIXED — Recurring bills with predictable amounts. Same amount every month (or quarter/year). Examples: mortgage, rent, insurance, phone bill, internet, subscriptions, loan payments. These are commitments — the money is spoken for.
 
@@ -328,7 +328,7 @@ RULES:
 - Flexible amounts should be BETWEEN the user's median and average monthly spend. Not the minimum (unrealistic), not the max (no improvement). If spending is above benchmarks, suggest a moderate reduction — not a dramatic cut.
 - Annual items: include anything that's clearly a large irregular expense. Also SUGGEST common annual expenses the user probably has even if not in the data (property tax, car registration, dentist, etc.) — mark these as "suggested" with lower confidence.
 - Do NOT include transfers or credit card payments as budget items.
-- Each item needs a short "reasoning" explaining why you set this amount.
+- Each item needs a SHORT "reasoning" (max 50 characters) explaining the amount.
 - The summary should show projected True Remaining and note if the budget is tight, comfortable, or has room for more savings.
 
 TEMPORAL CONTEXT:
@@ -376,22 +376,27 @@ OUTPUT FORMAT — Return valid JSON:
   }
 }`
 
+  // Cap data to keep prompt size manageable
+  const topFixed = profile.detectedFixed.slice(0, 15)
+  const topVariable = profile.variableByCategory.slice(0, 15)
+  const topAnnual = profile.detectedAnnual.slice(0, 10)
+
   const userPrompt = `Build a complete budget proposal based on this spending profile:
 
 INCOME:
 ${profile.incomeStreams.map((s) => `- ${s.source}: $${s.averageAmount.toFixed(2)} (${s.frequency}, ${s.count} occurrences${s.dayOfMonth ? `, ~day ${s.dayOfMonth}` : ''})`).join('\n')}
 Total monthly income: $${profile.totalMonthlyIncome.toFixed(2)}
 
-DETECTED FIXED EXPENSES (${profile.detectedFixed.length} items):
-${profile.detectedFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency}, day ~${f.dayOfMonth}, ${f.category}, confidence: ${(f.confidence * 100).toFixed(0)}%${f.isAutoPay ? ', autopay likely' : ''})`).join('\n')}
+DETECTED FIXED EXPENSES (${topFixed.length} of ${profile.detectedFixed.length} items):
+${topFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency}, day ~${f.dayOfMonth}, ${f.category}, confidence: ${(f.confidence * 100).toFixed(0)}%${f.isAutoPay ? ', autopay likely' : ''})`).join('\n')}
 
 VARIABLE SPENDING BY CATEGORY:
-${profile.variableByCategory.map((c) => `- ${c.category} (${c.group}): avg $${c.monthlyAverage.toFixed(2)}/mo, median $${c.monthlyMedian.toFixed(2)}, range $${c.min.toFixed(0)}-$${c.max.toFixed(0)}, trend: ${c.trend}, ${c.transactionCount} transactions over ${c.months} months`).join('\n')}
+${topVariable.map((c) => `- ${c.category} (${c.group}): avg $${c.monthlyAverage.toFixed(2)}/mo, median $${c.monthlyMedian.toFixed(2)}, range $${c.min.toFixed(0)}-$${c.max.toFixed(0)}, trend: ${c.trend}, ${c.transactionCount} transactions over ${c.months} months`).join('\n')}
 
 LARGE INFREQUENT CHARGES (potential annual expenses):
 ${
-  profile.detectedAnnual.length > 0
-    ? profile.detectedAnnual
+  topAnnual.length > 0
+    ? topAnnual
         .map(
           (a) =>
             `- ${a.merchant}: $${a.amount.toFixed(2)} on ${a.date.toLocaleDateString()} (${a.category}) — "${a.description}"`
@@ -406,8 +411,8 @@ CURRENT SAVINGS RATE: ${profile.savingsRate}%
 Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Annual). For categories with limited data, use your judgment and mark with lower confidence. Include 2-3 suggested annual expenses even if not in the data — common ones most households have.`
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 12000,
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4000,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   })
