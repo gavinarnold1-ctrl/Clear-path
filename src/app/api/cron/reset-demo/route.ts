@@ -7,6 +7,10 @@ export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 
+  if (process.env.NODE_ENV === 'production' && !cronSecret) {
+    console.error('CRON_SECRET is not set in production')
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  }
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
