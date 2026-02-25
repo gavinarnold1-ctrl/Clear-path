@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
+import { createTransactionSchema, validateBody } from '@/lib/validation'
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
 const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
 
@@ -46,11 +47,10 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId, debtId } = body
-
-  if (!amount || !merchant || !date) {
-    return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
-  }
+  const parsed = validateBody(createTransactionSchema, body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId } = parsed.data
+  const debtId = body.debtId ?? null
 
   // Verify ownership of referenced accountId and categoryId
   if (accountId) {

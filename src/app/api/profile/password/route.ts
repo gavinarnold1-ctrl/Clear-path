@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { hashPassword, verifyPassword } from '@/lib/password'
+import { changePasswordSchema, validateBody } from '@/lib/validation'
 
 // POST change password
 export async function POST(req: NextRequest) {
@@ -9,15 +10,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { currentPassword, newPassword } = body as { currentPassword?: string; newPassword?: string }
-
-  if (!currentPassword || !newPassword) {
-    return NextResponse.json({ error: 'Current and new passwords are required.' }, { status: 400 })
-  }
-
-  if (newPassword.length < 8) {
-    return NextResponse.json({ error: 'New password must be at least 8 characters.' }, { status: 400 })
-  }
+  const parsed = validateBody(changePasswordSchema, body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  const { currentPassword, newPassword } = parsed.data
 
   const user = await db.user.findUnique({
     where: { id: session.userId },

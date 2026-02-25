@@ -19,9 +19,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'File must be a CSV' }, { status: 400 })
     }
 
-    // 5MB limit
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 400 })
+    // R11.12: CSV file size limit (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 })
     }
 
     const text = await file.text()
