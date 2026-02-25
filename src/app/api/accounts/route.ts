@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-
-const VALID_TYPES = new Set([
-  'CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH',
-  'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN',
-])
+import { createAccountSchema, validateBody } from '@/lib/validation'
 
 export async function GET(_req: NextRequest) {
   const session = await getSession()
@@ -13,7 +9,24 @@ export async function GET(_req: NextRequest) {
 
   const accounts = await db.account.findMany({
     where: { userId: session.userId },
-    include: { owner: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      balance: true,
+      startingBalance: true,
+      balanceAsOfDate: true,
+      currency: true,
+      institution: true,
+      isManual: true,
+      createdAt: true,
+      updatedAt: true,
+      plaidAccountId: true,
+      plaidLastSynced: true,
+      ownerId: true,
+      owner: { select: { id: true, name: true } },
+      // R11.5: Never expose plaidAccessToken, plaidItemId, or plaidCursor to the frontend
+    },
     orderBy: { name: 'asc' },
   })
 
@@ -25,10 +38,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, type, balance, currency, ownerId, balanceAsOfDate } = body
-
-  if (!name || !type) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-  if (!VALID_TYPES.has(type)) return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
+  const parsed = validateBody(createAccountSchema, body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  const { name, type, balance, currency, ownerId, balanceAsOfDate } = parsed.data
 
   const duplicate = await db.account.findFirst({
     where: { userId: session.userId, name: { equals: name, mode: 'insensitive' } },

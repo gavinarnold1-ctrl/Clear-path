@@ -20,6 +20,28 @@ function sanitizeForPrompt(value: string): string {
   return value.replace(/[\n\r]/g, ' ').replace(/[\\`]/g, '').slice(0, 200)
 }
 
+/**
+ * AI DATA MINIMIZATION POLICY (R11.7-R11.9)
+ *
+ * This function constructs the prompt sent to the Anthropic API. It ONLY includes:
+ *   ✅ Aggregated spending totals by category (e.g., "Groceries: $211.48")
+ *   ✅ Budget limits and utilization percentages
+ *   ✅ Monthly totals (income, expenses, savings rate)
+ *   ✅ Top merchants by aggregated total (name + spend + count only)
+ *   ✅ Recurring charge summaries (description + amount + frequency)
+ *   ✅ Temporal context (current date, season, holidays)
+ *   ✅ User behavior stats (completion rate, dismiss reasons)
+ *
+ * It NEVER sends:
+ *   ❌ Bank account numbers, routing numbers, or Plaid tokens
+ *   ❌ Email addresses, full names, or user identifiers
+ *   ❌ Transaction IDs or internal database IDs
+ *   ❌ Individual transaction details (dates, descriptions)
+ *   ❌ Raw PII or sensitive financial identifiers
+ *
+ * Anthropic API data is not used for model training per their API ToS.
+ * See: https://www.anthropic.com/policies/privacy
+ */
 export async function generateInsights(ctx: InsightGenerationContext): Promise<AIInsightResponse> {
   const { summary, temporal, velocity, budget, history } = ctx
 

@@ -78,7 +78,7 @@ export async function deleteTransaction(id: string): Promise<void> {
 
   await db.$transaction(async (tx) => {
     // Fetch first so we can reverse the effects
-    const existing = await tx.transaction.findUnique({ where: { id, userId: session.userId } })
+    const existing = await tx.transaction.findFirst({ where: { id, userId: session.userId } })
     if (!existing) return
 
     await tx.transaction.delete({ where: { id } })

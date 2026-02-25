@@ -50,11 +50,11 @@ export async function PATCH(req: NextRequest) {
   const user = await db.user.update({
     where: { id: session.userId },
     data: updates,
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, refreshTokenVersion: true },
   })
 
   // Refresh session with updated info
-  await setSession({ userId: user.id, email: user.email, name: user.name })
+  await setSession({ userId: user.id, email: user.email, name: user.name }, user.refreshTokenVersion)
 
   return NextResponse.json(user)
 }

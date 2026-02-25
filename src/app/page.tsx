@@ -34,6 +34,12 @@ export default function HomePage() {
           </div>
 
           <p className="mt-8 text-xs text-snow/40">No credit card required.</p>
+
+          <p className="mt-4">
+            <Link href="/security" className="text-xs text-snow/30 hover:text-snow/60">
+              How we protect your data
+            </Link>
+          </p>
         </div>
       </div>
 

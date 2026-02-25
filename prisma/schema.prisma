@@ -55,12 +55,13 @@ enum DebtType {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String // hashed — never store plaintext
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  name                String?
+  password            String // hashed — never store plaintext
+  refreshTokenVersion Int      @default(0) // Incremented on refresh token rotation to invalidate old tokens
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   profile           UserProfile?
   accounts          Account[]
@@ -93,7 +94,7 @@ model Account {
   // Plaid fields (only populated for Plaid-connected accounts)
   plaidAccountId    String?   // Plaid's account_id
   plaidItemId       String?   // Plaid's item_id (groups accounts from same bank)
-  plaidAccessToken  String?   // TODO R11.5: encrypt access_token with AES-256-GCM before production
+  plaidAccessToken  String?   // R11.5: Stored encrypted with AES-256-GCM (iv:authTag:ciphertext format)
   plaidCursor       String?   // Cursor for transaction sync pagination
   plaidLastSynced   DateTime? // Last successful sync timestamp
 

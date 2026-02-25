@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { plaidClient, mapPlaidCategory } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
+import { decrypt } from '@/lib/encryption'
 import type { RemovedTransaction } from 'plaid'
 
 export async function POST(request: Request) {
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
 
     for (const [, accounts] of itemGroups) {
       const representative = accounts[0]
-      const accessToken = representative.plaidAccessToken!
+      const accessToken = decrypt(representative.plaidAccessToken!)
       let cursor = representative.plaidCursor ?? ''
       const accountIdMap = new Map(accounts.map(a => [a.plaidAccountId!, a.id]))
 

@@ -13,7 +13,7 @@ export async function POST() {
     )
   }
 
-  await setSession({ userId: user.id, email: user.email, name: user.name })
+  await setSession({ userId: user.id, email: user.email, name: user.name }, user.refreshTokenVersion)
 
   return NextResponse.json({ success: true, redirect: '/dashboard' })
 }
