@@ -41,7 +41,7 @@
 
 **R1.5b**: Manual/CSV accounts use a **baseline balance** model. User enters a starting balance and balance-as-of date; new transactions after that date adjust the running balance. Balance is never computed by summing all historical transactions. The recalculate-from-transactions endpoint has been removed per PRD v2.17.
 
-**R1.14 fix**: Dashboard "Total Balance" now sums only asset accounts (CHECKING, SAVINGS, INVESTMENT, CASH). Liability accounts are excluded. The Accounts page "Net Worth" banner still uses the full net-worth calculation (assets minus liabilities).
+**R1.14 fix**: Dashboard "Cash Available" now sums only CHECKING + SAVINGS accounts. Investment and Cash accounts are excluded from this metric. The Accounts page "Net Worth" banner still uses the full net-worth calculation (assets minus liabilities).
 
 New endpoints added:
 - `POST /api/profile/reset` — deletes all user data while keeping the account intact
@@ -150,7 +150,7 @@ Removed endpoints:
 5. **Transfer exclusion**: All income/expense queries across dashboard, spending, budgets, snapshots, insights, budget-builder, temporal-context now filter by `classification` field instead of `NOT: { category: { type: 'transfer' } }`
 6. **Household members**: Cleaned to exactly 2: "Gavin Arnold" (default), "Caroline". Owner mapping: "Cgrubbs14" → "Caroline"
 7. **Rating labels**: Removed "Excessive/High/Average/Excellent" from SpendingComparison. Kept comparison bars with simple over/under coloring.
-8. **Account balances**: Manual/CSV accounts use baseline balance model (startingBalance + balanceAsOfDate). Dashboard Total Balance = SUM(asset account balances). Accounts page Net Worth = assets minus liabilities. Recalculate endpoint removed per PRD v2.17.
+8. **Account balances**: Manual/CSV accounts use baseline balance model (startingBalance + balanceAsOfDate). Dashboard "Cash Available" = SUM(Checking + Savings balances). Accounts page Net Worth = assets minus liabilities. Recalculate endpoint removed per PRD v2.17.
 9. **API routes**: POST, PATCH for transactions now set `classification` field. CSV import route includes `classification` in bulk inserts.
 
 ### How to Run Reimport
@@ -184,6 +184,16 @@ A repair endpoint `POST /api/transactions/fix-classification` recalculates all e
 Audited all expense calculation paths across the codebase. The dashboard uses `classification: 'expense'` consistently across all queries. The $570 gap ($5,072 vs $4,502) comes from legitimate edge cases — Income-group transactions with negative amounts (e.g., tax withholding) are correctly classified as `'expense'` per the `classifyTransaction()` hierarchy (rule #3: Income group + non-positive amount → expense). No code changes needed.
 
 **Files verified:** `dashboard/page.tsx`, `spending/page.tsx`, `budgets/page.tsx`, `budget-builder.ts`, `insights.ts`, `budget-context.ts`, `temporal-context.ts`, `snapshots.ts`, `category-groups.ts`
+
+### Code Review Fixes (2026-02-25)
+
+| Fix | Description | Files |
+|-----|-------------|-------|
+| FIX 1 | Budget builder switched from `claude-sonnet-4-6` to `claude-haiku-4-5-20251001` for 3-5x faster generation. Insights (`ai.ts`) stays on Sonnet but max_tokens reduced 8000→4000. | `budget-builder.ts`, `ai.ts` |
+| FIX 2 | Budget builder prompt data capped: top 15 fixed expenses, top 15 variable categories, top 10 annual charges. Reasoning field capped at 50 chars. Prevents massive prompts with 4,824+ transactions. | `budget-builder.ts` |
+| FIX 3 | Category group names aligned to 12 standard names matching reimport script: Housing, Utilities, Food, Transport, Insurance, Healthcare, Personal, Entertainment, Financial, Income, Transfers, Other. Old names (Food & Dining, Auto & Transport, Health & Wellness, Shopping, etc.) removed. | `category-groups.ts` |
+| FIX 4 | Dashboard "Total balance" → "Cash Available" (R1.14). Now sums only CHECKING + SAVINGS (was CHECKING + SAVINGS + INVESTMENT + CASH). | `dashboard/page.tsx` |
+| FIX 5 | AI prompts reference "Oversikt" instead of "Clear-path". | `budget-builder.ts`, `ai.ts` |
 
 ### Verification Targets
 
