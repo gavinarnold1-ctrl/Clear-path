@@ -518,9 +518,20 @@ export async function POST(request: Request) {
       importedCount += created.count
     }
 
-    // R1.5b: Do NOT update account balances from CSV import transactions.
-    // CSV-imported account balances are manually entered or $0 by default.
-    // Only Plaid-connected accounts should have real balances from API.
+    // Update account balances from imported transactions.
+    // Sum amounts by accountId and increment each account's balance.
+    const balanceDeltas = new Map<string, number>()
+    for (const tx of toImport) {
+      if (tx.accountId) {
+        balanceDeltas.set(tx.accountId, (balanceDeltas.get(tx.accountId) ?? 0) + tx.amount)
+      }
+    }
+    for (const [acctId, delta] of balanceDeltas) {
+      await db.account.update({
+        where: { id: acctId },
+        data: { balance: { increment: delta } },
+      })
+    }
 
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)
