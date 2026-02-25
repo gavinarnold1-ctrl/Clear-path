@@ -34,8 +34,18 @@
 | R1.11 | Nuke and reimport from source CSV (4,824 transactions)             | 🟢 Done |
 | R1.12 | CSV import "Import into account" dropdown defaults to blank         | 🟢 Done |
 | R1.13 | Category groups mapped: 12 groups (Housing, Utilities, Food, etc.) | 🟢 Done |
-| R1.14 | Transfer exclusion via `classification` field (all pages)           | 🟢 Done |
+| R1.14 | Total Balance = asset accounts only; transfers excluded from totals | 🟢 Done |
 | R1.15 | Classification rules: income/expense/transfer with edge cases       | 🟢 Done |
+
+### Account Balance Behavior Change (2026-02-25)
+
+**R1.5b override**: CSV import now updates account balances by summing imported transaction amounts per account (previously skipped, leaving all at $0). This was a user-requested change — the PRD text says "must NOT compute balance by summing transactions" but the user wanted balances populated from imports.
+
+**R1.14 fix**: Dashboard "Total Balance" now sums only asset accounts (CHECKING, SAVINGS, INVESTMENT, CASH). Liability accounts are excluded. The Accounts page "Net Worth" banner still uses the full net-worth calculation (assets minus liabilities).
+
+New endpoints added:
+- `POST /api/accounts/recalculate` — recomputes all account balances from linked transactions
+- `POST /api/profile/reset` — deletes all user data while keeping the account intact
 
 ---
 
@@ -88,6 +98,7 @@
 - **R6.4a**: BudgetBuilderCTA shows dropdown menu with "Regenerate all", "Add missing", and "Dismiss" when budgets exist.
 - **R7.8**: Monthly Review has month selector dropdown scoped to available snapshots. Clickable data blocks link to filtered views.
 - **R8.5**: Overview "View all" links: Active Budgets → /budgets, Spending by Category → /spending, Recent Transactions → /transactions. All carry `?month=` param.
+- **Settings Data Tools**: Added "Fix Classifications" (recalculate transaction classification), "Recalculate Balances" (recompute account balances from transactions), and "Reset All Data" (nuke all user data, keep account) buttons to Settings page.
 
 ### Additional Features
 
@@ -137,7 +148,7 @@
 5. **Transfer exclusion**: All income/expense queries across dashboard, spending, budgets, snapshots, insights, budget-builder, temporal-context now filter by `classification` field instead of `NOT: { category: { type: 'transfer' } }`
 6. **Household members**: Cleaned to exactly 2: "Gavin Arnold" (default), "Caroline". Owner mapping: "Cgrubbs14" → "Caroline"
 7. **Rating labels**: Removed "Excessive/High/Average/Excellent" from SpendingComparison. Kept comparison bars with simple over/under coloring.
-8. **Account balances**: All accounts start at $0 (manual entry later). Total Balance = SUM(account.balance).
+8. **Account balances**: CSV import updates balances from imported transactions. Dashboard Total Balance = SUM(asset account balances). Accounts page Net Worth = assets minus liabilities. Recalculate endpoint available at `POST /api/accounts/recalculate`.
 9. **API routes**: POST, PATCH for transactions now set `classification` field. CSV import route includes `classification` in bulk inserts.
 
 ### How to Run Reimport

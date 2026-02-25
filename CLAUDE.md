@@ -69,7 +69,7 @@ Clear-path/
 │   │   │   ├── insights/
 │   │   │   │   └── page.tsx             # Redirect to /monthly-review
 │   │   │   ├── settings/
-│   │   │   │   ├── page.tsx             # Settings: profile, members, properties, export, delete
+│   │   │   │   ├── page.tsx             # Settings: profile, members, properties, data tools, export, delete
 │   │   │   │   └── SettingsClient.tsx   # Client component for settings management
 │   │   │   ├── transactions/
 │   │   │   │   ├── page.tsx         # Transaction list with bulk operations
@@ -92,7 +92,10 @@ Clear-path/
 │   │   ├── onboarding/page.tsx  # 6-step onboarding quiz
 │   │   ├── actions/         # Server actions (auth, accounts, transactions, budgets, categories, onboarding)
 │   │   ├── api/
-│   │   │   ├── accounts/route.ts
+│   │   │   ├── accounts/
+│   │   │   │   ├── route.ts             # GET/POST accounts
+│   │   │   │   ├── [id]/route.ts        # PATCH/DELETE single account
+│   │   │   │   └── recalculate/route.ts # POST: recompute balances from transactions
 │   │   │   ├── auth/demo/route.ts       # POST: demo login
 │   │   │   ├── budgets/
 │   │   │   │   ├── route.ts             # GET/POST budgets
@@ -121,7 +124,8 @@ Clear-path/
 │   │   │   ├── profile/
 │   │   │   │   ├── route.ts             # GET/PATCH user profile
 │   │   │   │   ├── password/route.ts    # POST: change password
-│   │   │   │   └── delete/route.ts      # POST: permanently delete account
+│   │   │   │   ├── delete/route.ts      # POST: permanently delete account
+│   │   │   │   └── reset/route.ts       # POST: nuke all user data (keep account)
 │   │   │   └── transactions/
 │   │   │       ├── route.ts         # GET list, POST create
 │   │   │       ├── [id]/route.ts    # GET one, PATCH, DELETE
@@ -333,9 +337,15 @@ This hierarchy is used consistently across all 4 write paths: CSV import, transa
 
 Budget `spent` values are **computed live** from current-month expense transactions grouped by `categoryId`, not read from the stored `budget.spent` field. This prevents drift between the stored value and actual transaction totals. Both the dashboard and budget pages follow this pattern.
 
-### Net Worth Calculation
+### Total Balance vs Net Worth
 
-Net worth subtracts liability account balances. The following account types are treated as liabilities: `CREDIT_CARD`, `MORTGAGE`, `AUTO_LOAN`, `STUDENT_LOAN`. Their balances are subtracted using `Math.abs(balance)`. All other account types (CHECKING, SAVINGS, INVESTMENT, CASH) are summed normally.
+The **dashboard "Total Balance"** sums only asset account balances: `CHECKING`, `SAVINGS`, `INVESTMENT`, `CASH`. Liability accounts (`CREDIT_CARD`, `MORTGAGE`, `AUTO_LOAN`, `STUDENT_LOAN`) are excluded from this total.
+
+The **accounts page "Net worth"** banner uses the full net-worth calculation: asset balances minus liability balances (using `Math.abs(balance)` for liabilities).
+
+### Account Balance Computation
+
+Account balances are a **running total stored in the database**, updated atomically whenever transactions are created, updated, or deleted. CSV import also updates account balances by summing imported transaction amounts per account. A recalculation endpoint (`POST /api/accounts/recalculate`) can recompute all balances from linked transactions if they drift.
 
 ### Duplicate Name Validation
 
@@ -353,6 +363,14 @@ When deleting a household member or property, transactions referencing it are **
 ### Default Member / Property
 
 Each user can have at most one default `HouseholdMember` and one default `Property` (via `isDefault: true`). When setting a new default, the API routes unset any existing default first. Defaults are pre-selected in the transaction form.
+
+### Settings Data Tools
+
+The Settings page includes a "Data Tools" section with three utilities:
+
+- **Fix Classifications**: Calls `POST /api/transactions/fix-classification` to recalculate income/expense/transfer classification for all transactions using the category-group hierarchy. Useful after CSV imports.
+- **Recalculate Balances**: Calls `POST /api/accounts/recalculate` to recompute every account balance from its linked transactions. Useful if balances show $0 after import.
+- **Reset All Data**: Calls `POST /api/profile/reset` to delete all user-scoped data (transactions, accounts, budgets, debts, categories, insights, snapshots, onboarding profile) while keeping the user account intact for a fresh start. Requires confirmation.
 
 ### Components
 
