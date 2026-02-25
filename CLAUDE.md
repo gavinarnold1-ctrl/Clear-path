@@ -94,8 +94,7 @@ Clear-path/
 │   │   ├── api/
 │   │   │   ├── accounts/
 │   │   │   │   ├── route.ts             # GET/POST accounts
-│   │   │   │   ├── [id]/route.ts        # PATCH/DELETE single account
-│   │   │   │   └── recalculate/route.ts # POST: recompute balances from transactions
+│   │   │   │   └── [id]/route.ts        # PATCH/DELETE single account
 │   │   │   ├── auth/demo/route.ts       # POST: demo login
 │   │   │   ├── budgets/
 │   │   │   │   ├── route.ts             # GET/POST budgets
@@ -345,7 +344,7 @@ The **accounts page "Net worth"** banner uses the full net-worth calculation: as
 
 ### Account Balance Computation
 
-Account balances are a **running total stored in the database**, updated atomically whenever transactions are created, updated, or deleted. CSV import also updates account balances by summing imported transaction amounts per account. A recalculation endpoint (`POST /api/accounts/recalculate`) can recompute all balances from linked transactions if they drift.
+Manual/CSV accounts use a **baseline balance** model: the user enters a `startingBalance` and `balanceAsOfDate` (e.g. "my checking has $5,200 as of Feb 25, 2026"). New transactions after that date adjust the running balance. Until the user enters a baseline, balance = $0. Balances are **never** computed by summing all historical transactions (no starting point = meaningless number). Only Plaid-connected accounts get real balances from the API.
 
 ### Duplicate Name Validation
 
@@ -366,10 +365,9 @@ Each user can have at most one default `HouseholdMember` and one default `Proper
 
 ### Settings Data Tools
 
-The Settings page includes a "Data Tools" section with three utilities:
+The Settings page includes a "Data Tools" section with two utilities:
 
 - **Fix Classifications**: Calls `POST /api/transactions/fix-classification` to recalculate income/expense/transfer classification for all transactions using the category-group hierarchy. Useful after CSV imports.
-- **Recalculate Balances**: Calls `POST /api/accounts/recalculate` to recompute every account balance from its linked transactions. Useful if balances show $0 after import.
 - **Reset All Data**: Calls `POST /api/profile/reset` to delete all user-scoped data (transactions, accounts, budgets, debts, categories, insights, snapshots, onboarding profile) while keeping the user account intact for a fresh start. Requires confirmation.
 
 ### Components

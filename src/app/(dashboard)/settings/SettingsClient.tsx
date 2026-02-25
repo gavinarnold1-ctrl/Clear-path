@@ -53,8 +53,6 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   // Data tools state
   const [fixingClassification, setFixingClassification] = useState(false)
   const [fixMsg, setFixMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [recalculating, setRecalculating] = useState(false)
-  const [recalcMsg, setRecalcMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [resetMsg, setResetMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -249,26 +247,6 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       setFixMsg({ type: 'error', text: 'Network error.' })
     } finally {
       setFixingClassification(false)
-    }
-  }
-
-  async function recalculateBalances() {
-    if (recalculating) return
-    setRecalculating(true)
-    setRecalcMsg(null)
-    try {
-      const res = await fetch('/api/accounts/recalculate', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) {
-        setRecalcMsg({ type: 'error', text: data.error ?? 'Failed to recalculate.' })
-        return
-      }
-      setRecalcMsg({ type: 'success', text: data.message })
-      router.refresh()
-    } catch {
-      setRecalcMsg({ type: 'error', text: 'Network error.' })
-    } finally {
-      setRecalculating(false)
     }
   }
 
@@ -551,29 +529,6 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             className="btn-secondary text-sm disabled:opacity-50"
           >
             {fixingClassification ? 'Fixing...' : 'Fix Classifications'}
-          </button>
-        </div>
-
-        <hr className="my-5 border-mist" />
-
-        {/* Recalculate Balances */}
-        <div className="mb-5">
-          <h3 className="mb-1 text-sm font-semibold text-fjord">Recalculate Account Balances</h3>
-          <p className="mb-3 text-sm text-stone">
-            Recomputes every account balance from its linked transactions. Run this after CSV imports
-            if balances show $0.
-          </p>
-          {recalcMsg && (
-            <p className={`mb-2 text-sm ${recalcMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
-              {recalcMsg.text}
-            </p>
-          )}
-          <button
-            onClick={recalculateBalances}
-            disabled={recalculating}
-            className="btn-secondary text-sm disabled:opacity-50"
-          >
-            {recalculating ? 'Recalculating...' : 'Recalculate Balances'}
           </button>
         </div>
 
