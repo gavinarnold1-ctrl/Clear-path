@@ -4,6 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
+interface PaymentRecord {
+  id: string
+  date: string
+  merchant: string
+  amount: number
+}
+
 interface DebtRow {
   id: string
   name: string
@@ -23,6 +30,7 @@ interface DebtRow {
   monthlyInterest: number
   monthlyPrincipal: number
   monthsRemaining: number | null
+  transactions?: PaymentRecord[]
 }
 
 interface PropertyOption {
@@ -291,6 +299,27 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                         }}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* R5.8: Payment history */}
+                {debt.transactions && debt.transactions.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-mist bg-snow p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
+                      Recent Payments
+                    </p>
+                    <ul className="space-y-1">
+                      {debt.transactions.slice(0, 5).map((tx) => (
+                        <li key={tx.id} className="flex items-center justify-between text-sm">
+                          <span className="text-stone">
+                            {new Date(tx.date).toLocaleDateString()} &middot; {tx.merchant}
+                          </span>
+                          <span className="font-mono font-semibold text-fjord">
+                            {formatCurrency(Math.abs(tx.amount))}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

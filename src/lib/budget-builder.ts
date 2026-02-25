@@ -69,12 +69,8 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
       1
   )
 
-  const income = transactions.filter(
-    (t) => t.category?.type === 'income' || (!t.category && t.amount > 0)
-  )
-  const expenses = transactions.filter(
-    (t) => t.category?.type === 'expense' || (!t.category && t.amount < 0)
-  )
+  const income = transactions.filter((t) => t.classification === 'income')
+  const expenses = transactions.filter((t) => t.classification === 'expense')
 
   // ── Income Streams ──
   const incomeByMerchant = new Map<string, { amounts: number[]; dates: Date[] }>()

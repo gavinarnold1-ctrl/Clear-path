@@ -18,7 +18,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const debt = await db.debt.findFirst({
     where: { id, userId: session.userId },
-    include: { property: true, category: true },
+    include: {
+      property: true,
+      category: true,
+      transactions: {
+        select: { id: true, date: true, merchant: true, amount: true },
+        orderBy: { date: 'desc' },
+      },
+    },
   })
   if (!debt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

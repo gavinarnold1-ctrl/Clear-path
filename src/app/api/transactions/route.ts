@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { classifyTransaction } from '@/lib/classification'
-
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
 const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
 
@@ -35,7 +33,7 @@ export async function GET(req: NextRequest) {
       ...(propertyId && { propertyId }),
       ...(classification && { classification }),
     },
-    include: { account: true, category: true, householdMember: true, property: true },
+    include: { account: true, category: true, householdMember: true, property: true, debt: true },
     orderBy: { date: 'desc' },
   })
 
@@ -47,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId } = body
+  const { accountId, categoryId, amount, merchant, date, notes, tags, householdMemberId, propertyId, debtId } = body
 
   if (!amount || !merchant || !date) {
     return NextResponse.json({ error: 'Missing required fields (merchant, amount, date)' }, { status: 400 })
@@ -70,6 +68,7 @@ export async function POST(req: NextRequest) {
   // Correct amount sign based on category type — must match server action behavior.
   // Income = positive, expense = negative, transfer = keep user sign.
   let finalAmount = amount
+  let classification = 'expense'
   if (categoryId) {
     const category = await db.category.findFirst({
       where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
@@ -77,13 +76,29 @@ export async function POST(req: NextRequest) {
     if (category) {
       if (category.type === 'expense') finalAmount = -Math.abs(amount)
       else if (category.type === 'income') finalAmount = Math.abs(amount)
+      // Derive classification from category type + amount
+      if (category.type === 'transfer') classification = 'transfer'
+      else if (category.type === 'income' && finalAmount > 0) classification = 'income'
+      else classification = 'expense'
+    }
+  }
+
+  // R3.2a: If no person tag provided, default to account owner
+  let resolvedMemberId: string | null = householdMemberId ?? null
+  if (!resolvedMemberId && accountId) {
+    const acctWithOwner = await db.account.findFirst({
+      where: { id: accountId, userId: session.userId },
+      select: { ownerId: true },
+    })
+    if (acctWithOwner?.ownerId) {
+      resolvedMemberId = acctWithOwner.ownerId
     }
   }
 
   // Verify ownership of referenced householdMemberId
-  if (householdMemberId) {
+  if (resolvedMemberId) {
     const member = await db.householdMember.findFirst({
-      where: { id: householdMemberId, userId: session.userId },
+      where: { id: resolvedMemberId, userId: session.userId },
     })
     if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
   }
@@ -96,17 +111,12 @@ export async function POST(req: NextRequest) {
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
   }
 
-  // Determine classification (R1.7)
-  let resolvedClassification = body.classification
-  if (!resolvedClassification || !VALID_CLASSIFICATIONS.has(resolvedClassification)) {
-    if (categoryId) {
-      const catForClassify = await db.category.findFirst({
-        where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
-      })
-      resolvedClassification = classifyTransaction(catForClassify?.name ?? null, catForClassify?.type ?? null)
-    } else {
-      resolvedClassification = finalAmount > 0 ? 'income' : 'expense'
-    }
+  // R5.8: Verify ownership of referenced debtId
+  if (debtId) {
+    const debt = await db.debt.findFirst({
+      where: { id: debtId, userId: session.userId },
+    })
+    if (!debt) return NextResponse.json({ error: 'Debt not found' }, { status: 404 })
   }
 
   const transaction = await db.$transaction(async (tx) => {
@@ -116,15 +126,16 @@ export async function POST(req: NextRequest) {
         accountId: accountId ?? null,
         categoryId: categoryId ?? null,
         amount: finalAmount,
-        classification: resolvedClassification,
+        classification,
         merchant,
         date: new Date(date),
         notes: notes ?? null,
         tags: tags ?? null,
-        householdMemberId: householdMemberId ?? null,
+        householdMemberId: resolvedMemberId,
         propertyId: propertyId ?? null,
+        debtId: debtId ?? null,
       },
-      include: { account: true, category: true, householdMember: true, property: true },
+      include: { account: true, category: true, householdMember: true, property: true, debt: true },
     })
 
     // Update account balance
@@ -132,6 +143,14 @@ export async function POST(req: NextRequest) {
       await tx.account.update({
         where: { id: created.accountId },
         data: { balance: { increment: created.amount } },
+      })
+    }
+
+    // R5.8: Debt payments reduce currentBalance (payment is negative amount)
+    if (created.debtId && created.amount < 0) {
+      await tx.debt.update({
+        where: { id: created.debtId },
+        data: { currentBalance: { decrement: Math.abs(created.amount) } },
       })
     }
 

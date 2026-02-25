@@ -11,15 +11,21 @@ export default async function AccountsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [accounts, txCounts] = await Promise.all([
+  const [accounts, txCounts, householdMembers] = await Promise.all([
     db.account.findMany({
       where: { userId: session.userId },
+      include: { owner: { select: { id: true, name: true } } },
       orderBy: { name: 'asc' },
     }),
     db.transaction.groupBy({
       by: ['accountId'],
       where: { userId: session.userId },
       _count: { id: true },
+    }),
+    db.householdMember.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
     }),
   ])
 
@@ -36,6 +42,8 @@ export default async function AccountsPage() {
     balance: acct.balance,
     currency: acct.currency,
     institution: acct.institution,
+    ownerId: acct.ownerId,
+    ownerName: acct.owner?.name ?? null,
     txCount: countMap.get(acct.id) ?? 0,
   }))
 
@@ -59,7 +67,7 @@ export default async function AccountsPage() {
           </Link>
         </div>
       ) : (
-        <AccountManager accounts={serialized} />
+        <AccountManager accounts={serialized} householdMembers={householdMembers} />
       )}
     </div>
   )

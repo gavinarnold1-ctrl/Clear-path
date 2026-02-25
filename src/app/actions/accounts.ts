@@ -20,6 +20,7 @@ export async function createAccount(
   const type = formData.get('type') as string
   const balance = parseFloat((formData.get('balance') as string) ?? '0')
   const currency = (formData.get('currency') as string)?.trim() || 'USD'
+  const ownerId = (formData.get('ownerId') as string)?.trim() || null
 
   if (!name) return { error: 'Account name is required.' }
   if (!type) return { error: 'Account type is required.' }
@@ -37,6 +38,7 @@ export async function createAccount(
       type: type as 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN',
       balance,
       currency,
+      ...(ownerId && { ownerId }),
     },
   })
 

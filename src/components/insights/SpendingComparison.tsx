@@ -6,22 +6,6 @@ interface SpendingComparisonProps {
   months: number
 }
 
-const RATING_COLORS: Record<string, string> = {
-  excellent: 'bg-pine',
-  good: 'bg-lichen',
-  average: 'bg-birch',
-  high: 'bg-ember/70',
-  excessive: 'bg-ember',
-}
-
-const RATING_LABELS: Record<string, string> = {
-  excellent: 'Excellent',
-  good: 'Good',
-  average: 'Average',
-  high: 'High',
-  excessive: 'Excessive',
-}
-
 export default function SpendingComparison({ categories, months }: SpendingComparisonProps) {
   const withBenchmarks = categories.filter((c) => c.benchmark)
 
@@ -48,19 +32,15 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
           const benchmark = c.benchmark!
           const userPct = Math.round((monthlyAvg / maxAmount) * 100)
           const benchmarkPct = Math.round((benchmark.median / maxAmount) * 100)
-          const barColor = RATING_COLORS[benchmark.rating] ?? 'bg-stone'
+          const isOver = monthlyAvg > benchmark.median
 
           return (
             <div key={c.category}>
               <div className="mb-1 flex items-center justify-between text-sm">
                 <span className="font-medium text-fjord">{c.category}</span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-xs font-medium text-snow ${barColor}`}
-                  >
-                    {RATING_LABELS[benchmark.rating] ?? benchmark.rating}
-                  </span>
-                </div>
+                <span className="text-xs text-stone">
+                  {formatCurrency(monthlyAvg)}/mo
+                </span>
               </div>
 
               {/* Your spending bar */}
@@ -68,7 +48,7 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
                 <span className="w-12 text-right text-xs text-stone">You</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
                   <div
-                    className={`h-full rounded-full ${barColor}`}
+                    className={`h-full rounded-full ${isOver ? 'bg-ember' : 'bg-pine'}`}
                     style={{ width: `${userPct}%` }}
                   />
                 </div>
@@ -82,7 +62,7 @@ export default function SpendingComparison({ categories, months }: SpendingCompa
                 <span className="w-12 text-right text-xs text-stone">Median</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-mist">
                   <div
-                    className="h-full rounded-full bg-mist"
+                    className="h-full rounded-full bg-stone/40"
                     style={{ width: `${benchmarkPct}%` }}
                   />
                 </div>

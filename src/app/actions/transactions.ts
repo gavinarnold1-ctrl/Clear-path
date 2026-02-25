@@ -30,8 +30,9 @@ export async function createTransaction(
   if (!merchant) return { error: 'Merchant is required.' }
   if (!date) return { error: 'Date is required.' }
 
-  // Determine sign based on category type
+  // Determine sign and classification based on category type
   let finalAmount = amount
+  let classification = 'expense'
   if (categoryId) {
     const category = await db.category.findUnique({ where: { id: categoryId } })
     if (category) {
@@ -40,7 +41,10 @@ export async function createTransaction(
       } else if (category.type === 'income') {
         finalAmount = Math.abs(amount)
       }
-      // transfer: keep user-provided sign
+      // Derive classification
+      if (category.type === 'transfer') classification = 'transfer'
+      else if (category.type === 'income' && finalAmount > 0) classification = 'income'
+      else classification = 'expense'
     }
   }
 
@@ -49,7 +53,7 @@ export async function createTransaction(
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record
     await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId, amount: finalAmount, merchant, date: txDate, notes, tags },
+      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId, amount: finalAmount, classification, merchant, date: txDate, notes, tags },
     })
 
     // 2. Adjust account balance (amount sign already correct)

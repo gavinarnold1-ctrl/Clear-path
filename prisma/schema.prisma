@@ -90,7 +90,11 @@ model Account {
 
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerId      String?       // R3.2a: Account owner — default person tag for transactions
+  owner        HouseholdMember? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   transactions Transaction[]
+
+  @@index([ownerId])
 }
 
 model Category {
@@ -123,7 +127,7 @@ model Transaction {
   date              DateTime
   merchant          String   // Cleaned merchant name (Monarch "Merchant" column)
   amount            Float    // ALWAYS: negative = money out, positive = money in
-  classification    String   @default("expense") // "expense" | "income" | "transfer" (R1.7)
+  classification    String   @default("expense") // "income" | "expense" | "transfer"
   transactionType   String?  // "debit" or "credit" (from Monarch CSV, optional)
   originalStatement String?  // Raw bank description before cleanup
   originalCategory  String?  // Raw category name from CSV import (preserved for reference)
@@ -145,13 +149,17 @@ model Transaction {
   householdMember     HouseholdMember?  @relation(fields: [householdMemberId], references: [id], onDelete: SetNull)
   propertyId          String?
   property            Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  debtId              String?           // R5.8: Link payment transactions to a debt
+  debt                Debt?             @relation(fields: [debtId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
   @@index([userId, categoryId])
+  @@index([userId, classification])
   @@index([accountId])
   @@index([annualExpenseId])
   @@index([householdMemberId])
   @@index([propertyId])
+  @@index([debtId])
 }
 
 model Budget {
@@ -308,6 +316,7 @@ model HouseholdMember {
   isDefault    Boolean       @default(false)
   createdAt    DateTime      @default(now())
   transactions Transaction[]
+  accounts     Account[]     // R3.2a: Accounts owned by this person
 
   @@index([userId])
 }
@@ -348,6 +357,7 @@ model Debt {
   category        Category? @relation(fields: [categoryId], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  transactions    Transaction[] // R5.8: Payment transactions linked to this debt
 
   @@index([userId])
 }

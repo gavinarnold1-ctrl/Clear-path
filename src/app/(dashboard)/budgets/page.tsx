@@ -26,24 +26,22 @@ export default async function BudgetsPage() {
       include: { category: true, annualExpense: true },
       orderBy: [{ tier: 'asc' }, { amount: 'desc' }],
     }),
-    // Current month's expense transactions — include category for name-based matching
-    // R1.7: Exclude transfer-classified transactions from budget spent
+    // Current month's expense transactions — exclude transfers for budget computation
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startOfMonth, lte: endOfMonth },
+        classification: 'expense',
         amount: { lt: 0 },
-        classification: { not: 'transfer' },
       },
       include: { category: { select: { id: true, name: true } } },
     }),
-    // Current month's income for True Remaining (exclude transfers)
+    // Current month's income for True Remaining (classification=income only)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startOfMonth, lte: endOfMonth },
-        amount: { gt: 0 },
-        classification: { not: 'transfer' },
+        classification: 'income',
       },
       _sum: { amount: true },
     }),

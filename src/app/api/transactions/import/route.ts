@@ -5,8 +5,6 @@ import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 import { inferCategoryGroup } from '@/lib/category-groups'
-import { classifyTransaction } from '@/lib/classification'
-
 /** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
 function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
   const lower = name.toLowerCase()
@@ -408,6 +406,17 @@ export async function POST(request: Request) {
         }
       }
 
+      // R3.2a: If no person tag, use account owner as default
+      if (!resolvedMemberId && resolvedAccountId) {
+        // Find the matched account to check for ownerId
+        for (const acct of accountMap.values()) {
+          if (acct.id === resolvedAccountId && acct.ownerId) {
+            resolvedMemberId = acct.ownerId
+            break
+          }
+        }
+      }
+
       // Match property by name or auto-create (R1.4)
       let resolvedPropertyId: string | null = null
       if (tx.property) {
@@ -458,12 +467,16 @@ export async function POST(request: Request) {
         }
       }
 
-      // Determine classification from matched/created category (R1.7)
-      const resolvedCatForClassification = tx.category ? categoryMap.get(tx.category.toLowerCase()) : null
-      const classification = classifyTransaction(
-        resolvedCatForClassification?.name ?? tx.category ?? null,
-        resolvedCatForClassification?.type ?? null
-      )
+      // Derive classification from resolved category
+      let classification = 'expense'
+      if (categoryId) {
+        const resolvedCat = [...categoryMap.values()].find(c => c.id === categoryId)
+        if (resolvedCat) {
+          if (resolvedCat.type === 'transfer') classification = 'transfer'
+          else if (resolvedCat.type === 'income' && finalAmount > 0) classification = 'income'
+          else classification = 'expense'
+        }
+      }
 
       toImport.push({
         userId: session.userId,
