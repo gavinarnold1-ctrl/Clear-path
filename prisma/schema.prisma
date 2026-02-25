@@ -127,6 +127,7 @@ model Transaction {
   date              DateTime
   merchant          String   // Cleaned merchant name (Monarch "Merchant" column)
   amount            Float    // ALWAYS: negative = money out, positive = money in
+  classification    String   @default("expense") // "income" | "expense" | "transfer"
   transactionType   String?  // "debit" or "credit" (from Monarch CSV, optional)
   originalStatement String?  // Raw bank description before cleanup
   originalCategory  String?  // Raw category name from CSV import (preserved for reference)
@@ -153,6 +154,7 @@ model Transaction {
 
   @@index([userId, date])
   @@index([userId, categoryId])
+  @@index([userId, classification])
   @@index([accountId])
   @@index([annualExpenseId])
   @@index([householdMemberId])

@@ -23,11 +23,11 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     latestScore,
   ] = await Promise.all([
     db.transaction.aggregate({
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { gt: 0 } },
+      where: { userId, date: { gte: startDate, lte: endDate }, classification: 'income' },
       _sum: { amount: true },
     }),
     db.transaction.aggregate({
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 } },
+      where: { userId, date: { gte: startDate, lte: endDate }, classification: 'expense' },
       _sum: { amount: true },
     }),
     db.transaction.count({
@@ -38,7 +38,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       include: { annualExpense: true },
     }),
     db.transaction.findMany({
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 } },
+      where: { userId, date: { gte: startDate, lte: endDate }, classification: 'expense', amount: { lt: 0 } },
       select: { categoryId: true, amount: true },
     }),
     db.debt.findMany({ where: { userId } }),
@@ -52,16 +52,16 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       },
       select: { amount: true },
     }),
-    // Spending by person
+    // Spending by person (exclude transfers)
     db.transaction.groupBy({
       by: ['householdMemberId'],
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, householdMemberId: { not: null } },
+      where: { userId, date: { gte: startDate, lte: endDate }, classification: 'expense', amount: { lt: 0 }, householdMemberId: { not: null } },
       _sum: { amount: true },
     }),
-    // Spending by property
+    // Spending by property (exclude transfers)
     db.transaction.groupBy({
       by: ['propertyId'],
-      where: { userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, propertyId: { not: null } },
+      where: { userId, date: { gte: startDate, lte: endDate }, classification: 'expense', amount: { lt: 0 }, propertyId: { not: null } },
       _sum: { amount: true },
     }),
     db.efficiencyScore.findFirst({

@@ -17,6 +17,7 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:reset": "prisma migrate reset",
+    "db:reimport": "tsx prisma/reimport.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

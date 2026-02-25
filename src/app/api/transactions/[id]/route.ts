@@ -44,15 +44,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
 
-  // Correct amount sign based on category type — must match server action behavior.
+  // Correct amount sign and classification based on category type.
   let finalAmount = body.amount
-  if (finalAmount !== undefined && resolvedCategoryId) {
+  let classification: string | undefined
+  if (resolvedCategoryId) {
     const category = await db.category.findFirst({
       where: { id: resolvedCategoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
     })
     if (category) {
-      if (category.type === 'expense') finalAmount = -Math.abs(finalAmount)
-      else if (category.type === 'income') finalAmount = Math.abs(finalAmount)
+      if (finalAmount !== undefined) {
+        if (category.type === 'expense') finalAmount = -Math.abs(finalAmount)
+        else if (category.type === 'income') finalAmount = Math.abs(finalAmount)
+      }
+      const resolvedAmount = finalAmount ?? existing.amount
+      if (category.type === 'transfer') classification = 'transfer'
+      else if (category.type === 'income' && resolvedAmount > 0) classification = 'income'
+      else classification = 'expense'
     }
   }
 
@@ -77,6 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id },
       data: {
         ...(finalAmount !== undefined && { amount: finalAmount }),
+        ...(classification !== undefined && { classification }),
         ...(body.merchant && { merchant: body.merchant }),
         ...(body.date && { date: new Date(body.date) }),
         ...(body.notes !== undefined && { notes: body.notes }),

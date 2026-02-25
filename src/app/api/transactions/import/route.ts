@@ -265,6 +265,7 @@ export async function POST(request: Request) {
       date: Date
       merchant: string
       amount: number
+      classification: string
       categoryId: string | null
       originalCategory: string | null
       originalStatement: string | null
@@ -461,6 +462,17 @@ export async function POST(request: Request) {
         }
       }
 
+      // Derive classification from resolved category
+      let classification = 'expense'
+      if (categoryId) {
+        const resolvedCat = [...categoryMap.values()].find(c => c.id === categoryId)
+        if (resolvedCat) {
+          if (resolvedCat.type === 'transfer') classification = 'transfer'
+          else if (resolvedCat.type === 'income' && finalAmount > 0) classification = 'income'
+          else classification = 'expense'
+        }
+      }
+
       toImport.push({
         userId: session.userId,
         accountId: resolvedAccountId,
@@ -469,6 +481,7 @@ export async function POST(request: Request) {
         date: txDate,
         merchant: tx.merchant,
         amount: finalAmount,
+        classification,
         categoryId,
         originalCategory: tx.category?.trim() || null,
         originalStatement: tx.originalStatement ?? null,

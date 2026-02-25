@@ -77,11 +77,14 @@ export interface Property {
   createdAt: Date
 }
 
+export type Classification = 'income' | 'expense' | 'transfer'
+
 export interface Transaction {
   id: string
   date: Date
   merchant: string
   amount: number
+  classification: Classification
   transactionType: string | null
   originalStatement: string | null
   originalCategory: string | null

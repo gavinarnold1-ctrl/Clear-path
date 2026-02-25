@@ -42,7 +42,7 @@ export default async function AnnualPlanningPage() {
       where: {
         userId: session.userId,
         date: { gte: startOfMonth, lte: endOfMonth },
-        amount: { gt: 0 },
+        classification: 'income',
       },
       _sum: { amount: true },
     }),
@@ -50,6 +50,7 @@ export default async function AnnualPlanningPage() {
       where: {
         userId: session.userId,
         date: { gte: startOfMonth, lte: endOfMonth },
+        classification: 'expense',
         amount: { lt: 0 },
       },
       select: { categoryId: true, amount: true },

@@ -37,12 +37,13 @@ export default async function SpendingPage({ searchParams }: Props) {
   const prevStart = new Date(year, month - 1, 1)
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
-  // Fetch expense transactions with category, person, and property info
+  // Fetch expense transactions with category, person, and property info (exclude transfers)
   const [expenseTransactions, prevExpenseAgg, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
+        classification: 'expense',
         amount: { lt: 0 },
       },
       include: {
@@ -55,6 +56,7 @@ export default async function SpendingPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
+        classification: 'expense',
         amount: { lt: 0 },
       },
       _sum: { amount: true },

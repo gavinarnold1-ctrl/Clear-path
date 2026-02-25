@@ -85,11 +85,12 @@ export async function getSpendingVelocity(userId: string): Promise<SpendingVeloc
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const dayOfMonth = now.getDate()
 
-  // Current month spending so far
+  // Current month spending so far (exclude transfers)
   const currentAgg = await db.transaction.aggregate({
     where: {
       userId,
       date: { gte: startOfMonth, lte: now },
+      classification: 'expense',
       amount: { lt: 0 },
     },
     _sum: { amount: true },
@@ -100,7 +101,7 @@ export async function getSpendingVelocity(userId: string): Promise<SpendingVeloc
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const projectedMonthTotal = dailyAverage * daysInMonth
 
-  // Last month total
+  // Last month total (exclude transfers)
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
@@ -108,6 +109,7 @@ export async function getSpendingVelocity(userId: string): Promise<SpendingVeloc
     where: {
       userId,
       date: { gte: lastMonthStart, lte: lastMonthEnd },
+      classification: 'expense',
       amount: { lt: 0 },
     },
     _sum: { amount: true },

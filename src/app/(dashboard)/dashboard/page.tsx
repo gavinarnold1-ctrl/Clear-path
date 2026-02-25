@@ -94,43 +94,39 @@ export default async function DashboardPage({ searchParams }: Props) {
     transactionCount,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
-    // R1.14: Exclude transfers from income totals
+    // R1.14: Income = classification "income"
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        amount: { gt: 0 },
-        NOT: { category: { type: 'transfer' } },
+        classification: 'income',
       },
       _sum: { amount: true },
     }),
-    // R1.14: Exclude transfers from expense totals
+    // R1.14: Expenses = classification "expense" (excludes transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
-        amount: { lt: 0 },
-        NOT: { category: { type: 'transfer' } },
+        classification: 'expense',
       },
       _sum: { amount: true },
     }),
-    // Previous month income (excluding transfers)
+    // Previous month income
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
-        amount: { gt: 0 },
-        NOT: { category: { type: 'transfer' } },
+        classification: 'income',
       },
       _sum: { amount: true },
     }),
-    // Previous month expenses (excluding transfers)
+    // Previous month expenses
     db.transaction.aggregate({
       where: {
         userId: session.userId,
         date: { gte: prevStart, lte: prevEnd },
-        amount: { lt: 0 },
-        NOT: { category: { type: 'transfer' } },
+        classification: 'expense',
       },
       _sum: { amount: true },
     }),
@@ -148,24 +144,25 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       include: { category: true, annualExpense: true },
     }),
-    // Current month expense transactions for live budget spent computation
+    // Current month expense transactions for live budget spent computation (exclude transfers)
     db.transaction.findMany({
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
+        classification: 'expense',
         amount: { lt: 0 },
       },
       select: { categoryId: true, amount: true, category: { select: { id: true, name: true } } },
     }),
-    // R1.14: Exclude transfers from spending breakdown
+    // Spending breakdown by category (expenses only, no transfers)
     db.transaction.groupBy({
       by: ['categoryId'],
       where: {
         userId: session.userId,
         date: { gte: startDate, lte: endDate },
+        classification: 'expense',
         amount: { lt: 0 },
         categoryId: { not: null },
-        NOT: { category: { type: 'transfer' } },
       },
       _sum: { amount: true },
       orderBy: { _sum: { amount: 'asc' } },
@@ -176,7 +173,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       where: {
         userId: session.userId,
         date: { gte: chartStart, lte: endDate },
-        NOT: { category: { type: 'transfer' } },
+        classification: { not: 'transfer' },
       },
       select: { date: true, amount: true },
     }),

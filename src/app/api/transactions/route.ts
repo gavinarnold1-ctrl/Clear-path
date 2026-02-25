@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
   // Correct amount sign based on category type — must match server action behavior.
   // Income = positive, expense = negative, transfer = keep user sign.
   let finalAmount = amount
+  let classification = 'expense'
   if (categoryId) {
     const category = await db.category.findFirst({
       where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
@@ -69,6 +70,10 @@ export async function POST(req: NextRequest) {
     if (category) {
       if (category.type === 'expense') finalAmount = -Math.abs(amount)
       else if (category.type === 'income') finalAmount = Math.abs(amount)
+      // Derive classification from category type + amount
+      if (category.type === 'transfer') classification = 'transfer'
+      else if (category.type === 'income' && finalAmount > 0) classification = 'income'
+      else classification = 'expense'
     }
   }
 
@@ -115,6 +120,7 @@ export async function POST(req: NextRequest) {
         accountId: accountId ?? null,
         categoryId: categoryId ?? null,
         amount: finalAmount,
+        classification,
         merchant,
         date: new Date(date),
         notes: notes ?? null,

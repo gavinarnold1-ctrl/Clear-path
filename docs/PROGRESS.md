@@ -24,16 +24,18 @@
 - **R1.1**: Schema has no `spent` field. Budgets page, dashboard, and budget-context all compute spent from current-month transactions grouped by categoryId.
 - **R1.2**: `FixedBudgetSection.tsx` matches strictly by `categoryId` — no merchant name or date matching.
 - **R1.5**: `inferAccountType()` detects Credit Card, Savings, Mortgage, Auto Loan, Student Loan, Investment from account names. AccountForm dropdown has all 8 AccountType enum values. CSV accounts default to $0 balance.
+- **R1.7**: `classification` field added to Transaction model. Classification derived from category group + amount sign at import/create time. All queries now use `classification` for filtering instead of `category.type` relational joins.
 - **R1.8**: Not yet implemented — requires merchant history lookup + Plaid metadata hints.
-- **R1.12**: CSV import "Import into account" dropdown defaults to blank (no pre-selected account).
-- **R1.14**: Dashboard income/expense totals and chart exclude transfer-category transactions. Total Balance uses `account.balance` (not transaction sums).
 
-### Additional Data Integrity (R1.11–R1.15)
+### Data Integrity Rebuild (R1.11–R1.15)
 
-| Req   | Description                                      | Status  |
-|-------|--------------------------------------------------|---------|
-| R1.12 | CSV import dropdown defaults to blank            | 🟢 Done |
-| R1.14 | Exclude transfers from income/expense totals     | 🟢 Done |
+| Req   | Description                                                         | Status  |
+|-------|---------------------------------------------------------------------|---------|
+| R1.11 | Nuke and reimport from source CSV (4,824 transactions)             | 🟢 Done |
+| R1.12 | CSV import "Import into account" dropdown defaults to blank         | 🟢 Done |
+| R1.13 | Category groups mapped: 12 groups (Housing, Utilities, Food, etc.) | 🟢 Done |
+| R1.14 | Transfer exclusion via `classification` field (all pages)           | 🟢 Done |
+| R1.15 | Classification rules: income/expense/transfer with edge cases       | 🟢 Done |
 
 ---
 
@@ -47,10 +49,11 @@
 
 ### Notes
 
-- **R3.2a**: Account-person linking: `ownerId` on Account → HouseholdMember. Account owner is default person tag for transactions created via that account. AccountManager inline edit shows Owner dropdown. CSV import uses account owner when no Person column is mapped.
+- **R3.2a**: Account-person linking: `ownerId` on Account → HouseholdMember.
 - **R5.7**: DebtManager adds new debt to local state immediately after POST.
-- **R5.8**: Transaction-debt linking: `debtId` on Transaction → Debt. Debt payments (negative amount transactions) reduce `currentBalance`. Debt detail API includes payment history. DebtManager shows recent payments per debt.
+- **R5.8**: Transaction-debt linking: `debtId` on Transaction → Debt.
 - **R10.2a**: PATCH handlers for household members and properties have case-insensitive duplicate name checks.
+- **Household Members**: Cleaned up — exactly 2 members: "Gavin Arnold" (default), "Caroline". Owner column: "Cgrubbs14" maps to "Caroline".
 
 ### Additional Features
 
@@ -80,11 +83,11 @@
 
 - **R6.9**: BudgetForm labels annual month as "Planned month" and defaults flexible period to MONTHLY.
 - **R6.10**: MonthlyChart uses `#52B788` (Trail green) for income and `#C4704B` (ember) for expenses.
-- **R7.3a**: SpendingComparison de-emphasized: muted styling, BLS caveat, returns `null` when no benchmarks.
+- **R7.3a**: SpendingComparison: rating labels (Excessive/High/Average/Excellent) removed. Bars use simple over/under coloring. BLS caveat retained.
 - **R7.5a**: InsightCard supports dismiss with 5 reasons and completion with notes. AI prompt includes user history.
 - **R6.4a**: BudgetBuilderCTA shows dropdown menu with "Regenerate all", "Add missing", and "Dismiss" when budgets exist.
-- **R7.8**: Monthly Review has month selector dropdown scoped to available snapshots. Each data block (income, expenses, savings rate, debt) is clickable → filtered transactions/spending. Person and property breakdowns link to spending views.
-- **R8.5**: Overview "View all" links carry `?month=` param for context-aware navigation.
+- **R7.8**: Monthly Review has month selector dropdown scoped to available snapshots. Clickable data blocks link to filtered views.
+- **R8.5**: Overview "View all" links: Active Budgets → /budgets, Spending by Category → /spending, Recent Transactions → /transactions. All carry `?month=` param.
 
 ### Additional Features
 
@@ -93,7 +96,7 @@
 | R6.9  | Budget form: "Planned month", Flexible → Monthly | 🟢 Done |
 | R6.10 | Income vs Expenses: Trail green + ember           | 🟢 Done |
 | R7.5a | Recommendation feedback loop                     | 🟢 Done |
-| R7.3a | De-emphasize Spending vs Benchmark               | 🟢 Done |
+| R7.3a | Remove rating labels from SpendingComparison     | 🟢 Done |
 | R6.4a | AI Budget Builder: regenerate/add-missing/cancel  | 🟢 Done |
 | R7.8  | Monthly Review month selector + clickable blocks  | 🟢 Done |
 | R8.5  | Overview "View all" buttons navigate with context | 🟢 Done |
@@ -123,6 +126,45 @@
 
 ---
 
+## Data Integrity Rebuild (2026-02-25)
+
+### Changes Made
+
+1. **Schema**: Added `classification` field to Transaction model (String, default "expense", indexed)
+2. **Reimport script**: `prisma/reimport.ts` — nukes all user data and reimports from source CSV
+3. **Category groups**: 12 groups mapped (Housing, Utilities, Food, Transport, Insurance, Healthcare, Personal, Entertainment, Financial, Income, Transfers, Other)
+4. **Classification rules**: Derived from category group + amount sign. Transfers always "transfer", Income group + positive → "income", everything else → "expense"
+5. **Transfer exclusion**: All income/expense queries across dashboard, spending, budgets, snapshots, insights, budget-builder, temporal-context now filter by `classification` field instead of `NOT: { category: { type: 'transfer' } }`
+6. **Household members**: Cleaned to exactly 2: "Gavin Arnold" (default), "Caroline". Owner mapping: "Cgrubbs14" → "Caroline"
+7. **Rating labels**: Removed "Excessive/High/Average/Excellent" from SpendingComparison. Kept comparison bars with simple over/under coloring.
+8. **Account balances**: All accounts start at $0 (manual entry later). Total Balance = SUM(account.balance).
+9. **API routes**: POST, PATCH for transactions now set `classification` field. CSV import route includes `classification` in bulk inserts.
+
+### How to Run Reimport
+
+```bash
+# 1. Push schema changes
+npx prisma db push --accept-data-loss
+
+# 2. Run the reimport script
+npm run db:reimport
+```
+
+### Verification Targets
+
+| Metric | Expected |
+|--------|----------|
+| Total transactions | 4,824 |
+| Total accounts | 13 |
+| Category groups | 12 |
+| Household members | 2 (Gavin Arnold, Caroline) |
+| Feb 2026 income (classification=income) | ~$7,284 |
+| Feb 2026 expenses (classification=expense) | ~$4,502 |
+| Jan 2026 Paychecks | $11,407.03 (5 transactions) |
+| Jan 2026 Student Loans | $8,000 (Jan 27, 2026) |
+
+---
+
 ## Test Status
 
 | Phase                        | Tests     | Status |
@@ -133,12 +175,3 @@
 | Phase 4: Plaid               | T4.1–T4.3 | ⬜ |
 | Phase 5: Security/Brand/Ship | T5.0–T5.4 | ⬜ |
 | Final Verification           | All       | ⬜ |
-
-### Latest Test Run (2026-02-24)
-
-```
-T1.5 (csv-person-property-mapping): 29/29 ✅
-T2.3 (debts-page):                  45/45 ✅
-T3.8 (phase3-experience):           34/34 ✅
-Total:                              108/108 ✅
-```

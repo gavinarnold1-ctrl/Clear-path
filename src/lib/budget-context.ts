@@ -25,6 +25,7 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
       where: {
         userId,
         date: { gte: startOfMonth, lte: endOfMonth },
+        classification: 'expense',
         amount: { lt: 0 },
       },
       include: { category: true },

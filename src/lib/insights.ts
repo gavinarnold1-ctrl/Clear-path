@@ -17,6 +17,7 @@ export async function buildTransactionSummary(
     where: {
       userId,
       date: { gte: startDate },
+      classification: { not: 'transfer' },
     },
     include: {
       category: true,
@@ -25,9 +26,9 @@ export async function buildTransactionSummary(
     orderBy: { date: 'desc' },
   })
 
-  // Signed amounts: positive = income, negative = expense
-  const income = transactions.filter((t) => t.amount > 0)
-  const expenses = transactions.filter((t) => t.amount < 0)
+  // Use classification for filtering: income vs expense (transfers already excluded)
+  const income = transactions.filter((t) => t.classification === 'income')
+  const expenses = transactions.filter((t) => t.classification === 'expense')
 
   const totalIncome = income.reduce((sum, t) => sum + t.amount, 0)
   const totalExpenses = expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0)
