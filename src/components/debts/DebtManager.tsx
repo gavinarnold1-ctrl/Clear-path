@@ -68,6 +68,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
   const router = useRouter()
   const [debts, setDebts] = useState(initial)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -96,6 +97,24 @@ export default function DebtManager({ debts: initial, properties, categories }: 
     setFormTermMonths('')
     setFormPropertyId('')
     setFormCategoryId('')
+    setEditingId(null)
+    setError(null)
+  }
+
+  function startEdit(debt: DebtRow) {
+    setEditingId(debt.id)
+    setShowForm(true)
+    setFormName(debt.name)
+    setFormType(debt.type)
+    setFormBalance(String(debt.currentBalance))
+    setFormOriginalBalance(debt.originalBalance != null ? String(debt.originalBalance) : '')
+    setFormRate(String(debt.interestRate * 100))
+    setFormPayment(String(debt.minimumPayment))
+    setFormEscrowAmount(debt.escrowAmount != null ? String(debt.escrowAmount) : '')
+    setFormPaymentDay(debt.paymentDay != null ? String(debt.paymentDay) : '')
+    setFormTermMonths(debt.termMonths != null ? String(debt.termMonths) : '')
+    setFormPropertyId(debt.propertyId ?? '')
+    setFormCategoryId(debt.categoryId ?? '')
     setError(null)
   }
 
@@ -144,6 +163,79 @@ export default function DebtManager({ debts: initial, properties, categories }: 
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create debt')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleUpdate() {
+    if (saving || !editingId) return
+
+    const name = formName.trim()
+    if (!name) { setError('Name is required.'); return }
+    const currentBalance = parseFloat(formBalance)
+    if (isNaN(currentBalance) || currentBalance < 0) { setError('Balance must be a valid number.'); return }
+    const interestRate = parseFloat(formRate) / 100
+    if (isNaN(interestRate) || interestRate < 0) { setError('Interest rate must be a valid percentage.'); return }
+    const minimumPayment = parseFloat(formPayment)
+    if (isNaN(minimumPayment) || minimumPayment < 0) { setError('Payment must be a valid number.'); return }
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/debts/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          type: formType,
+          currentBalance,
+          originalBalance: formOriginalBalance ? parseFloat(formOriginalBalance) : null,
+          interestRate,
+          minimumPayment,
+          escrowAmount: formEscrowAmount ? parseFloat(formEscrowAmount) : null,
+          paymentDay: formPaymentDay ? parseInt(formPaymentDay, 10) : null,
+          termMonths: formTermMonths ? parseInt(formTermMonths, 10) : null,
+          propertyId: formPropertyId || null,
+          categoryId: formCategoryId || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to update debt')
+      }
+      const updated = await res.json()
+      // Recompute P&I fields client-side for immediate display
+      const piPayment = updated.minimumPayment - (updated.escrowAmount ?? 0)
+      const monthlyInterest = updated.currentBalance * (updated.interestRate / 12)
+      const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
+      const monthsRemaining = monthlyPrincipal > 0 ? Math.ceil(updated.currentBalance / monthlyPrincipal) : null
+
+      setDebts(prev => prev.map(d => d.id === editingId ? {
+        ...d,
+        name: updated.name,
+        type: updated.type,
+        currentBalance: updated.currentBalance,
+        originalBalance: updated.originalBalance ?? null,
+        interestRate: updated.interestRate,
+        minimumPayment: updated.minimumPayment,
+        escrowAmount: updated.escrowAmount ?? null,
+        paymentDay: updated.paymentDay ?? null,
+        termMonths: updated.termMonths ?? null,
+        propertyId: updated.propertyId ?? null,
+        categoryId: updated.categoryId ?? null,
+        property: updated.property ? { id: updated.property.id, name: updated.property.name } : null,
+        category: updated.category ? { id: updated.category.id, name: updated.category.name } : null,
+        monthlyInterest: Math.round(monthlyInterest * 100) / 100,
+        monthlyPrincipal: Math.round(monthlyPrincipal * 100) / 100,
+        monthsRemaining,
+      } : d))
+      resetForm()
+      setShowForm(false)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update debt')
     } finally {
       setSaving(false)
     }
@@ -199,12 +291,20 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDelete(debt.id)}
-                    className="text-xs text-stone hover:text-ember"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => startEdit(debt)}
+                      className="text-xs text-stone hover:text-fjord"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(debt.id)}
+                      className="text-xs text-stone hover:text-ember"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -327,7 +427,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
           {/* Add debt button */}
           {!showForm && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => { resetForm(); setShowForm(true) }}
               className="btn-primary mt-4"
             >
               + Add debt
@@ -339,7 +439,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
       {/* Add debt form */}
       {showForm && (
         <div className="card mt-4">
-          <h2 className="mb-4 text-lg font-semibold text-fjord">Add Debt</h2>
+          <h2 className="mb-4 text-lg font-semibold text-fjord">{editingId ? 'Edit Debt' : 'Add Debt'}</h2>
           {error && (
             <p className="mb-4 rounded-lg bg-ember/10 p-3 text-sm text-ember">{error}</p>
           )}
@@ -525,11 +625,11 @@ export default function DebtManager({ debts: initial, properties, categories }: 
 
           <div className="mt-5 flex gap-3">
             <button
-              onClick={handleCreate}
+              onClick={editingId ? handleUpdate : handleCreate}
               disabled={saving}
               className="btn-primary"
             >
-              {saving ? 'Saving...' : 'Add Debt'}
+              {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Debt'}
             </button>
             <button
               onClick={() => { setShowForm(false); resetForm() }}
