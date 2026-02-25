@@ -80,6 +80,23 @@ export default function AccountForm() {
         </p>
       </div>
 
+      {/* Balance as of date */}
+      <div>
+        <label htmlFor="balanceAsOfDate" className="mb-1 block text-sm font-medium text-fjord">
+          Balance as of date
+        </label>
+        <input
+          id="balanceAsOfDate"
+          name="balanceAsOfDate"
+          type="date"
+          className="input"
+        />
+        <p className="mt-1 text-xs text-stone">
+          Optional. If set, only transactions after this date adjust the balance.
+          Useful when importing CSV data that starts mid-history.
+        </p>
+      </div>
+
       {/* Currency */}
       <div>
         <label htmlFor="currency" className="mb-1 block text-sm font-medium text-fjord">

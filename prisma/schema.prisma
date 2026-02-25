@@ -78,15 +78,17 @@ model User {
 }
 
 model Account {
-  id          String      @id @default(cuid())
-  name        String
-  type        AccountType
-  balance     Float       @default(0)
-  currency    String      @default("USD")
-  institution String?     // Bank/provider name (e.g., "Chase", "Fidelity")
-  isManual    Boolean     @default(true) // true = user-created, false = future Plaid-connected
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  name            String
+  type            AccountType
+  balance         Float       @default(0)
+  startingBalance Float       @default(0)  // R1.5b: User-entered baseline balance
+  balanceAsOfDate DateTime?                // R1.5b: Date the baseline was set; transactions after this adjust balance
+  currency        String      @default("USD")
+  institution     String?                  // Bank/provider name (e.g., "Chase", "Fidelity")
+  isManual        Boolean     @default(true) // true = user-created, false = future Plaid-connected
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)

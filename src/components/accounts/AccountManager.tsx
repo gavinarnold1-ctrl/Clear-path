@@ -14,6 +14,8 @@ interface AccountRow {
   name: string
   type: string
   balance: number
+  startingBalance: number
+  balanceAsOfDate: string | null
   currency: string
   institution: string | null
   ownerId: string | null
@@ -52,7 +54,8 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editType, setEditType] = useState('')
-  const [editBalance, setEditBalance] = useState('')
+  const [editStartingBalance, setEditStartingBalance] = useState('')
+  const [editBalanceAsOfDate, setEditBalanceAsOfDate] = useState('')
   const [editInstitution, setEditInstitution] = useState('')
   const [editOwnerId, setEditOwnerId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -69,7 +72,8 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
     setEditingId(acct.id)
     setEditName(acct.name)
     setEditType(acct.type)
-    setEditBalance(String(acct.balance))
+    setEditStartingBalance(String(acct.startingBalance))
+    setEditBalanceAsOfDate(acct.balanceAsOfDate ?? '')
     setEditInstitution(acct.institution ?? '')
     setEditOwnerId(acct.ownerId ?? '')
     setError(null)
@@ -84,14 +88,15 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
     setError(null)
 
     const prev = accounts
-    const balance = parseFloat(editBalance) || 0
+    const startingBalance = parseFloat(editStartingBalance) || 0
     const ownerMatch = householdMembers.find(m => m.id === editOwnerId)
     setAccounts(accts =>
       accts.map(a => a.id === editingId ? {
         ...a,
         name,
         type: editType,
-        balance,
+        startingBalance,
+        balanceAsOfDate: editBalanceAsOfDate || null,
         institution: editInstitution.trim() || null,
         ownerId: editOwnerId || null,
         ownerName: ownerMatch?.name ?? null,
@@ -103,7 +108,14 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
       const res = await fetch(`/api/accounts/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, type: editType, balance: String(balance), institution: editInstitution.trim(), ownerId: editOwnerId || '' }),
+        body: JSON.stringify({
+          name,
+          type: editType,
+          startingBalance: String(startingBalance),
+          balanceAsOfDate: editBalanceAsOfDate || null,
+          institution: editInstitution.trim(),
+          ownerId: editOwnerId || '',
+        }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -223,15 +235,25 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-stone">Balance</label>
+                      <label className="mb-1 block text-xs font-medium text-stone">Starting balance</label>
                       <input
                         type="number"
                         step="0.01"
-                        value={editBalance}
-                        onChange={e => setEditBalance(e.target.value)}
+                        value={editStartingBalance}
+                        onChange={e => setEditStartingBalance(e.target.value)}
                         className="input text-sm"
                         onKeyDown={e => e.key === 'Enter' && saveEdit()}
                       />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-stone">Balance as of date</label>
+                      <input
+                        type="date"
+                        value={editBalanceAsOfDate}
+                        onChange={e => setEditBalanceAsOfDate(e.target.value)}
+                        className="input text-sm"
+                      />
+                      <p className="mt-0.5 text-[10px] text-stone">Transactions after this date adjust balance</p>
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-stone">Institution</label>

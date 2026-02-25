@@ -16,7 +16,7 @@ export async function PATCH(
 
   const { id } = await params
   const body = await req.json()
-  const { name, type, balance, institution, ownerId } = body
+  const { name, type, balance, institution, ownerId, startingBalance, balanceAsOfDate } = body
 
   const existing = await db.account.findFirst({
     where: { id, userId: session.userId },
@@ -39,12 +39,37 @@ export async function PATCH(
     }
   }
 
+  // R1.5b: If baseline fields changed, recompute running balance
+  const baselineChanged = startingBalance !== undefined || balanceAsOfDate !== undefined
+  const newStarting = startingBalance !== undefined ? parseFloat(startingBalance) : existing.startingBalance
+  const newAsOfDate = balanceAsOfDate !== undefined
+    ? (balanceAsOfDate ? new Date(balanceAsOfDate) : null)
+    : existing.balanceAsOfDate
+
+  let computedBalance: number | undefined
+  if (baselineChanged) {
+    const dateFilter = newAsOfDate ? { gte: newAsOfDate } : undefined
+    const agg = await db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        accountId: id,
+        ...(dateFilter && { date: dateFilter }),
+      },
+      _sum: { amount: true },
+    })
+    computedBalance = Math.round((newStarting + (agg._sum.amount ?? 0)) * 100) / 100
+  }
+
   const updated = await db.account.update({
     where: { id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
       ...(type !== undefined && { type }),
-      ...(balance !== undefined && { balance: parseFloat(balance) }),
+      // Direct balance edit only if baseline didn't change (backwards compat)
+      ...(!baselineChanged && balance !== undefined && { balance: parseFloat(balance) }),
+      ...(startingBalance !== undefined && { startingBalance: newStarting }),
+      ...(balanceAsOfDate !== undefined && { balanceAsOfDate: newAsOfDate }),
+      ...(computedBalance !== undefined && { balance: computedBalance }),
       ...(institution !== undefined && { institution: institution || null }),
       ...(ownerId !== undefined && { ownerId: ownerId || null }),
     },

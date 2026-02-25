@@ -81,6 +81,8 @@ describe('createAccount', () => {
         name: 'Checking',
         type: 'CHECKING',
         balance: 1000,
+        startingBalance: 1000,
+        balanceAsOfDate: null,
         currency: 'USD',
       },
     })
