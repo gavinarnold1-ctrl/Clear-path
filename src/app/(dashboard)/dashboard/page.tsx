@@ -239,9 +239,9 @@ export default async function DashboardPage({ searchParams }: Props) {
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 4)
 
-  const ASSET_TYPES = new Set(['CHECKING', 'SAVINGS', 'INVESTMENT', 'CASH'])
-  const totalBalance = accounts.reduce((sum, a) => {
-    if (ASSET_TYPES.has(a.type)) return sum + a.balance
+  const CASH_TYPES = new Set(['CHECKING', 'SAVINGS'])
+  const cashAvailable = accounts.reduce((sum, a) => {
+    if (CASH_TYPES.has(a.type)) return sum + a.balance
     return sum
   }, 0)
   const monthlyExpense = Math.abs(expenseAgg._sum.amount ?? 0)
@@ -366,9 +366,9 @@ export default async function DashboardPage({ searchParams }: Props) {
       {/* Summary stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total balance"
-          value={formatCurrency(totalBalance)}
-          sub={`across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
+          label="Cash Available"
+          value={formatCurrency(cashAvailable)}
+          sub="checking + savings"
         />
         <StatCard
           label={`Income — ${monthLabel}`}

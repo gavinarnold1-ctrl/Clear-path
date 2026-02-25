@@ -7,82 +7,52 @@
  */
 
 const GROUP_KEYWORDS: Record<string, string[]> = {
-  'Food & Dining': [
-    'groceries', 'grocery', 'restaurant', 'dining', 'food', 'coffee',
-    'fast food', 'bars', 'bakery', 'deli', 'takeout', 'delivery',
-    'pizza', 'sushi', 'cafe', 'lunch', 'dinner', 'snack', 'meal',
-  ],
   'Housing': [
     'mortgage', 'rent', 'hoa', 'property tax', 'home', 'housing',
-    'maintenance', 'repair', 'plumber', 'electrician', 'lawn',
-    'garden', 'cleaning', 'furniture', 'appliance', 'renovation',
-  ],
-  'Auto & Transport': [
-    'gas', 'fuel', 'car', 'auto', 'vehicle', 'parking', 'toll',
-    'uber', 'lyft', 'taxi', 'transit', 'bus', 'train', 'subway',
-    'metro', 'oil change', 'mechanic', 'tire', 'car wash',
-    'registration', 'dmv',
+    'improvement', 'repair', 'furniture', 'housewares', 'appliance',
   ],
   'Utilities': [
-    'electric', 'electricity', 'water', 'sewer', 'gas bill',
-    'internet', 'cable', 'phone', 'cell', 'mobile', 'utility',
-    'utilities', 'trash', 'garbage', 'waste', 'heating', 'cooling',
+    'electric', 'gas & electric', 'water', 'garbage', 'internet',
+    'cable', 'phone', 'cell', 'mobile', 'utility',
   ],
-  'Health & Wellness': [
-    'health', 'medical', 'doctor', 'dentist', 'pharmacy', 'prescription',
-    'hospital', 'therapy', 'counseling', 'gym', 'fitness', 'wellness',
-    'vitamin', 'supplement', 'vision', 'optometrist', 'dermatolog',
+  'Food': [
+    'groceries', 'grocery', 'restaurant', 'dining', 'food', 'coffee',
+    'bars', 'bakery', 'takeout', 'delivery',
   ],
-  'Shopping': [
-    'shopping', 'clothing', 'clothes', 'shoes', 'electronics', 'amazon',
-    'target', 'walmart', 'costco', 'retail', 'department store', 'mall',
-    'online shopping', 'apparel', 'accessories',
+  'Transport': [
+    'gas', 'fuel', 'auto', 'car', 'parking', 'toll',
+    'uber', 'lyft', 'taxi', 'transit', 'ride share', 'public transit',
+  ],
+  'Insurance': [
+    'insurance', 'premium', 'usaa', 'geico', 'state farm',
+  ],
+  'Healthcare': [
+    'medical', 'doctor', 'dentist', 'pharmacy', 'hospital',
+    'therapy', 'fitness', 'gym', 'health', 'wellness',
+  ],
+  'Personal': [
+    'clothing', 'personal', 'shopping', 'electronics', 'education',
+    'gifts', 'charity', 'donation', 'beauty', 'haircut',
   ],
   'Entertainment': [
-    'entertainment', 'movie', 'theater', 'concert', 'streaming',
-    'netflix', 'hulu', 'spotify', 'music', 'game', 'gaming',
-    'hobby', 'recreation', 'park', 'museum', 'event', 'ticket',
-  ],
-  'Personal Care': [
-    'personal care', 'haircut', 'salon', 'spa', 'beauty', 'cosmetic',
-    'grooming', 'barber', 'skincare', 'nail',
-  ],
-  'Education': [
-    'education', 'tuition', 'school', 'college', 'university', 'course',
-    'book', 'textbook', 'training', 'class', 'student', 'loan',
+    'entertainment', 'recreation', 'travel', 'vacation', 'hotel',
+    'flight', 'pet', 'vet', 'streaming', 'movie', 'concert',
   ],
   'Financial': [
-    'insurance', 'life insurance', 'bank', 'fee', 'interest', 'finance',
-    'investment', 'saving', 'retirement', '401k', 'ira', 'brokerage',
-    'financial advisor', 'tax', 'accounting', 'atm',
-  ],
-  'Gifts & Donations': [
-    'gift', 'donation', 'charity', 'church', 'tithe', 'nonprofit',
-    'present', 'contribution', 'fundraiser',
-  ],
-  'Travel': [
-    'travel', 'hotel', 'flight', 'airline', 'airbnb', 'vacation',
-    'luggage', 'rental car', 'resort', 'cruise', 'booking',
-  ],
-  'Kids & Family': [
-    'child', 'kid', 'baby', 'daycare', 'childcare', 'school supply',
-    'diaper', 'toy', 'pediatr', 'family',
-  ],
-  'Pets': [
-    'pet', 'vet', 'veterinar', 'dog', 'cat', 'grooming',
-    'pet food', 'animal',
-  ],
-  'Subscriptions': [
-    'subscription', 'membership', 'monthly', 'recurring', 'annual plan',
+    'fee', 'financial', 'legal', 'loan', 'student loan',
+    'bank fee', 'interest', 'atm',
   ],
   'Income': [
-    'income', 'salary', 'wage', 'paycheck', 'deposit', 'dividend',
-    'interest earned', 'bonus', 'refund', 'reimbursement', 'cashback',
-    'rental income', 'freelance', 'side hustle',
+    'income', 'salary', 'paycheck', 'dividend', 'interest earned',
+    'bonus', 'refund', 'reimbursement',
   ],
-  'Transfer': [
-    'transfer', 'credit card payment', 'payment transfer',
-    'internal transfer', 'account transfer', 'zelle', 'venmo', 'paypal',
+  'Transfers': [
+    'transfer', 'credit card payment', 'internal transfer',
+    'zelle', 'venmo', 'paypal',
+  ],
+  'Other': [
+    'miscellaneous', 'uncategorized', 'cash', 'postage', 'shipping',
+    'tax', 'office', 'wedding', 'business',
   ],
 }
 
@@ -115,7 +85,7 @@ export function inferCategoryGroup(categoryName: string, categoryType: string): 
 
   // Fallback based on category type
   if (categoryType === 'income') return 'Income'
-  if (categoryType === 'transfer') return 'Transfer'
+  if (categoryType === 'transfer') return 'Transfers'
 
   return 'Other'
 }

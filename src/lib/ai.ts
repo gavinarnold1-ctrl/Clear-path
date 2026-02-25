@@ -23,7 +23,7 @@ function sanitizeForPrompt(value: string): string {
 export async function generateInsights(ctx: InsightGenerationContext): Promise<AIInsightResponse> {
   const { summary, temporal, velocity, budget, history } = ctx
 
-  const systemPrompt = `You are a personal finance analyst inside a budgeting app called Clear-path. Your job is to analyze a user's spending data and generate specific, actionable recommendations that save them money.
+  const systemPrompt = `You are a personal finance analyst inside a budgeting app called Oversikt. Your job is to analyze a user's spending data and generate specific, actionable recommendations that save them money.
 
 RULES:
 - Every recommendation MUST include a specific dollar amount (monthly or annual savings)
@@ -185,7 +185,7 @@ USER HISTORY:
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
+    max_tokens: 4000,
     messages: [{ role: 'user', content: userPrompt }],
     system: systemPrompt,
   })
