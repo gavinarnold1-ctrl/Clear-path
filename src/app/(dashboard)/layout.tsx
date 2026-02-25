@@ -1,11 +1,9 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { logout } from '@/app/actions/auth'
 import { db } from '@/lib/db'
 import { DEMO_USER_ID } from '@/lib/demo'
-import OnboardingBanner from '@/components/onboarding/OnboardingBanner'
 import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 
@@ -40,21 +38,22 @@ const navGroups: NavGroup[] = [
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
 
-  // Redirect to onboarding if profile doesn't exist (new user, never seen quiz)
-  let showOnboardingBanner = false
-  let onboardingStep = 0
+  // Auto-create profile for new users instead of redirecting to onboarding wizard.
+  // The dashboard shows the GetStarted flow inline when accounts.length === 0.
   const isDemo = session?.userId === DEMO_USER_ID
   if (session) {
     const profile = await db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { onboardingCompleted: true, onboardingStep: true },
+      select: { onboardingCompleted: true },
     })
     if (!profile) {
-      redirect('/onboarding')
-    }
-    if (!profile.onboardingCompleted) {
-      showOnboardingBanner = true
-      onboardingStep = profile.onboardingStep
+      await db.userProfile.create({
+        data: {
+          userId: session.userId,
+          onboardingCompleted: true,
+          onboardingStep: 0,
+        },
+      })
     }
   }
 
@@ -79,7 +78,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             </Link>
           </div>
         )}
-        {showOnboardingBanner && <OnboardingBanner step={onboardingStep} />}
         {children}
       </main>
     </div>
