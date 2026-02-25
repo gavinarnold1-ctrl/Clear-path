@@ -467,15 +467,19 @@ export async function POST(request: Request) {
         }
       }
 
-      // Derive classification from resolved category
-      let classification = 'expense'
-      if (categoryId) {
-        const resolvedCat = [...categoryMap.values()].find(c => c.id === categoryId)
-        if (resolvedCat) {
-          if (resolvedCat.type === 'transfer') classification = 'transfer'
-          else if (resolvedCat.type === 'income' && finalAmount > 0) classification = 'income'
-          else classification = 'expense'
-        }
+      // Derive classification using amount sign as the source of truth
+      // (per CLAUDE.md: positive = income, negative = expense).
+      // Category type is only used to detect transfers.
+      let classification: string
+      const resolvedCat = categoryId
+        ? [...categoryMap.values()].find(c => c.id === categoryId)
+        : null
+      if (resolvedCat?.type === 'transfer') {
+        classification = 'transfer'
+      } else if (finalAmount > 0) {
+        classification = 'income'
+      } else {
+        classification = 'expense'
       }
 
       toImport.push({

@@ -32,20 +32,27 @@ export async function createTransaction(
 
   // Determine sign and classification based on category type
   let finalAmount = amount
-  let classification = 'expense'
+  let categoryType: string | null = null
   if (categoryId) {
     const category = await db.category.findUnique({ where: { id: categoryId } })
     if (category) {
+      categoryType = category.type
       if (category.type === 'expense') {
         finalAmount = -Math.abs(amount)
       } else if (category.type === 'income') {
         finalAmount = Math.abs(amount)
       }
-      // Derive classification
-      if (category.type === 'transfer') classification = 'transfer'
-      else if (category.type === 'income' && finalAmount > 0) classification = 'income'
-      else classification = 'expense'
     }
+  }
+  // Derive classification from amount sign (source of truth).
+  // Category type only used for transfer detection.
+  let classification: string
+  if (categoryType === 'transfer') {
+    classification = 'transfer'
+  } else if (finalAmount > 0) {
+    classification = 'income'
+  } else {
+    classification = 'expense'
   }
 
   const txDate = new Date(date)

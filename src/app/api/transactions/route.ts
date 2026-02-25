@@ -68,19 +68,26 @@ export async function POST(req: NextRequest) {
   // Correct amount sign based on category type — must match server action behavior.
   // Income = positive, expense = negative, transfer = keep user sign.
   let finalAmount = amount
-  let classification = 'expense'
+  let resolvedCategoryType: string | null = null
   if (categoryId) {
     const category = await db.category.findFirst({
       where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
     })
     if (category) {
+      resolvedCategoryType = category.type
       if (category.type === 'expense') finalAmount = -Math.abs(amount)
       else if (category.type === 'income') finalAmount = Math.abs(amount)
-      // Derive classification from category type + amount
-      if (category.type === 'transfer') classification = 'transfer'
-      else if (category.type === 'income' && finalAmount > 0) classification = 'income'
-      else classification = 'expense'
     }
+  }
+  // Derive classification from amount sign (source of truth per CLAUDE.md).
+  // Category type only used for transfer detection.
+  let classification: string
+  if (resolvedCategoryType === 'transfer') {
+    classification = 'transfer'
+  } else if (finalAmount > 0) {
+    classification = 'income'
+  } else {
+    classification = 'expense'
   }
 
   // R3.2a: If no person tag provided, default to account owner
