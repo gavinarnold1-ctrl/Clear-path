@@ -113,6 +113,7 @@ Removed endpoints:
 | R6.4a | AI Budget Builder: regenerate/add-missing/cancel  | 🟢 Done |
 | R7.8  | Monthly Review month selector + clickable blocks  | 🟢 Done |
 | R8.5  | Overview "View all" buttons navigate with context | 🟢 Done |
+| R7.9  | Net Worth on Monthly Review                       | ⬜ TODO |
 
 ---
 
@@ -194,6 +195,7 @@ Audited all expense calculation paths across the codebase. The dashboard uses `c
 | FIX 3 | Category group names aligned to 12 standard names matching reimport script: Housing, Utilities, Food, Transport, Insurance, Healthcare, Personal, Entertainment, Financial, Income, Transfers, Other. Old names (Food & Dining, Auto & Transport, Health & Wellness, Shopping, etc.) removed. | `category-groups.ts` |
 | FIX 4 | Dashboard "Total balance" → "Cash Available" (R1.14). Now sums only CHECKING + SAVINGS (was CHECKING + SAVINGS + INVESTMENT + CASH). | `dashboard/page.tsx` |
 | FIX 5 | AI prompts reference "Oversikt" instead of "Clear-path". | `budget-builder.ts`, `ai.ts` |
+| FIX 6 | Budget builder temporal scoping: income uses last 3 months, fixed/variable detection uses last 6 months, annual detection uses last 12 months. Eliminates stale historical patterns from proposals. Min fixed occurrences raised from 2 to 3. | `budget-builder.ts` |
 
 ### Verification Targets
 
@@ -214,9 +216,9 @@ Audited all expense calculation paths across the codebase. The dashboard uses `c
 
 | Phase                        | Tests     | Status |
 |------------------------------|-----------|--------|
-| Phase 1: Foundation          | T1.1–T1.8 | 🟢 T1.1 ✅, T1.2 ✅, T1.5 ✅ (all source verification pass) |
+| Phase 1: Foundation          | T1.1–T1.17 | 🟢 T1.1 ✅, T1.2 ✅, T1.5 ✅ (all source verification pass) |
 | Phase 2: Data Model          | T2.1–T2.3 | 🟢 T2.3 ✅ (45/45 pass) |
-| Phase 3: Experience          | T3.1–T3.8 | 🟢 T3.8 ✅ (34/34 pass) |
+| Phase 3: Experience          | T3.1–T3.11 | 🟢 T3.8 ✅ (34/34 pass) |
 | Phase 4: Plaid               | T4.1–T4.3 | ⬜ |
 | Phase 5: Security/Brand/Ship | T5.0–T5.4 | ⬜ |
 | Final Verification           | All       | ⬜ |
