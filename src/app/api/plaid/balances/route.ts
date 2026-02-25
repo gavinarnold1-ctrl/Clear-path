@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { plaidClient } from '@/lib/plaid'
+import { decrypt } from '@/lib/encryption'
 
 export async function GET() {
   const session = await getSession()
@@ -28,7 +29,7 @@ export async function GET() {
     const updatedAccounts = []
 
     for (const [, accounts] of itemGroups) {
-      const accessToken = accounts[0].plaidAccessToken!
+      const accessToken = decrypt(accounts[0].plaidAccessToken!)
 
       const balanceResponse = await plaidClient.accountsBalanceGet({
         access_token: accessToken,

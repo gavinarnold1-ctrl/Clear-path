@@ -73,6 +73,13 @@ export async function PATCH(
       ...(institution !== undefined && { institution: institution || null }),
       ...(ownerId !== undefined && { ownerId: ownerId || null }),
     },
+    select: {
+      id: true, name: true, type: true, balance: true, startingBalance: true,
+      balanceAsOfDate: true, currency: true, institution: true, isManual: true,
+      createdAt: true, updatedAt: true, plaidAccountId: true, plaidLastSynced: true,
+      ownerId: true,
+      // R11.5: Never expose plaidAccessToken, plaidItemId, or plaidCursor
+    },
   })
 
   return NextResponse.json(updated)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { plaidClient, mapPlaidCategory } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
+import { decrypt } from '@/lib/encryption'
 import type { RemovedTransaction } from 'plaid'
 
 export async function GET(req: NextRequest) {
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
     for (const [itemId, accounts] of itemGroups) {
       try {
         const representative = accounts[0]
-        const accessToken = representative.plaidAccessToken!
+        const accessToken = decrypt(representative.plaidAccessToken!)
         const userId = representative.userId
         let cursor = representative.plaidCursor ?? ''
         const accountIdMap = new Map(accounts.map(a => [a.plaidAccountId!, a.id]))

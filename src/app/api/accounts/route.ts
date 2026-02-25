@@ -13,7 +13,24 @@ export async function GET(_req: NextRequest) {
 
   const accounts = await db.account.findMany({
     where: { userId: session.userId },
-    include: { owner: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      balance: true,
+      startingBalance: true,
+      balanceAsOfDate: true,
+      currency: true,
+      institution: true,
+      isManual: true,
+      createdAt: true,
+      updatedAt: true,
+      plaidAccountId: true,
+      plaidLastSynced: true,
+      ownerId: true,
+      owner: { select: { id: true, name: true } },
+      // R11.5: Never expose plaidAccessToken, plaidItemId, or plaidCursor to the frontend
+    },
     orderBy: { name: 'asc' },
   })
 

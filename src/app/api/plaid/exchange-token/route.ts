@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { plaidClient, mapPlaidAccountType } from '@/lib/plaid'
+import { encrypt } from '@/lib/encryption'
 
 export async function POST(request: Request) {
   const session = await getSession()
@@ -76,8 +77,7 @@ export async function POST(request: Request) {
           isManual: false,
           plaidAccountId: plaidAccount.account_id,
           plaidItemId: itemId,
-          // TODO R11.5: encrypt access_token with AES-256-GCM before production
-          plaidAccessToken: accessToken,
+          plaidAccessToken: encrypt(accessToken),
           plaidLastSynced: new Date(),
         },
       })
