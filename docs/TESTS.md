@@ -1,9 +1,9 @@
 # Oversikt — Test Specifications
 
-*Paired with `/docs/PRD.md` v2.6*
+*Paired with `/docs/PRD.md` v2.15*
 *This file lives at `/docs/TESTS.md`*
 
------
+---
 
 ## How to use this document
 
@@ -18,11 +18,11 @@ Claude Code runs these in the terminal using the app's existing stack (Prisma, N
 
 **Pass criteria:** Every test in a phase must pass before starting the next phase. If a test fails, fix it within the current phase scope — don't move forward.
 
------
+---
 
 ## Phase 1 Tests: Fix the Foundation
 
-*Run after Steps 1–7 are complete.*
+*Run after Steps 1–10 are complete.*
 
 ### T1.1 Budget.spent computed correctly (Step 1)
 
@@ -121,7 +121,7 @@ Test: Account column values create and link accounts
 Setup: CSV has an Account column with values like "Adv Plus Banking (...6809)",
 "Venture X (...3346)"
 
-Verify:
+Account creation and linking:
   1. Map Account column → Account in dropdown
   2. After import: each unique account value creates an Account record (if new)
   3. After import: every transaction has accountId set (no "—" in Account column)
@@ -130,12 +130,113 @@ Verify:
   5. If Account column NOT mapped AND "Import into account" has a selection:
      all transactions link to that account
   6. Accounts page shows newly created accounts with correct names
+
+Account type detection (R1.5a):
+  7. "Platinum Card (...3008)" → type = Credit Card (not Checking)
+  8. "Venture X (...3346)" → type = Credit Card
+  9. "SAVINGS (...6118)" → type = Savings
+  10. "Rewards Checking (...8503)" → type = Checking
+  11. Unknown names → type = Other (not Checking)
+  12. Type dropdown on edit: Checking, Savings, Credit Card, Investment, Loan, Other
+
+Account balance (R1.5b):
+  13. CSV-imported accounts: balance = $0.00 by default (NOT sum of transactions)
+  14. Rewards Checking does NOT show -$174,425.78
+  15. Platinum Card does NOT show -$446,144.65
+  16. User can manually set balance via Edit on Accounts page
+  17. All balances display 2 decimal places — never raw floats like -446144.6499999997
+  18. Plaid-connected accounts: balance from API (tested in Phase 4)
 ```
 
-### T1.6 Migration — fix existing sign errors (Step 6)
+### T1.6 CSV category matching (Step 6)
 
 ```
-Test: One-time migration corrects historical sign errors
+Test: Imported categories match existing categories and groups
+
+Setup: Ensure existing categories exist (Groceries in Food & Dining,
+Gas in Auto & Transport, Insurance in Financial, etc.)
+Import a CSV with categories matching those names.
+
+Verify:
+  1. After import: "Groceries" transactions use existing Groceries category
+     (not a new "Groceries" under "Imported")
+  2. Spending Breakdown shows proper groups (Food & Dining, Housing, etc.)
+     — NOT a single "Imported" group
+  3. Donut chart shows multiple colored segments by group
+  4. Category matching is case-insensitive ("groceries" matches "Groceries")
+  5. Unmatched categories create new entries assigned to best-fit group
+  6. No "Imported" category group exists after import
+  7. Categories page shows all imported categories in correct groups
+```
+
+### T1.7 Transaction classification (Step 7)
+
+```
+Test: Transfers excluded from spending, reclassifiable
+
+Setup: Import transactions including "Transfer", "Credit Card Payment",
+income categories ("Other Income", "Paychecks"), and expense categories.
+
+Verify classification defaults:
+  1. Transaction model has `classification` field: 'expense' | 'income' | 'transfer'
+  2. Categories named "Transfer", "Credit Card Payment" → classification = transfer
+  3. Income categories → classification = income
+  4. All other categories → classification = expense
+
+Verify spending exclusion:
+  5. Spending Breakdown total does NOT include transfer-classified transactions
+  6. Budget spent calculations exclude transfers
+  7. "92 expense transactions" count excludes transfers
+  8. With transfers excluded, total spending should be ~$3,979
+     (not $26,862 which includes $19K+ in transfers)
+
+Verify reclassification:
+  9. On Transactions page: user can change classification of any transaction
+  10. Reclassify a Zelle transfer as income → it appears in income totals
+  11. Reclassify back to transfer → removed from income totals
+  12. Transfers page/filter: can view all transfer-classified transactions
+
+Verify on Spending page:
+  13. By Category view excludes transfers
+  14. By Person view excludes transfers
+  15. By Property view excludes transfers
+```
+
+### T1.8 Auto-categorization (Step 8)
+
+```
+Test: New transactions auto-categorize by merchant history
+
+Setup: Import transactions, manually categorize "WEBSTER BANK PAYROLL" as
+Paychecks (income). Then import a new CSV or simulate Plaid sync with
+another "WEBSTER BANK PAYROLL" transaction.
+
+Merchant history matching:
+  1. Second "WEBSTER BANK PAYROLL" transaction auto-categorized as Paychecks
+  2. Classification auto-set to income (not transfer, even if it hits a credit card)
+  3. Merchant match is case-insensitive
+  4. If user later recategorizes a merchant, new transactions use the latest category
+
+No match behavior:
+  5. Transaction from never-seen merchant → Uncategorized
+  6. Uncategorized transaction does NOT auto-classify as transfer
+  7. User categorizes it once → future transactions from that merchant auto-match
+
+Never amount-based:
+  8. Two merchants with identical amounts ($3,600) categorize independently
+  9. No "rules" UI for amount-based matching exists
+  10. Same merchant with different amounts still matches (paycheck amount changes)
+
+Plaid metadata (when available):
+  11. Plaid transaction with payroll transaction_code → hint toward Paychecks
+  12. Merchant history takes priority over Plaid hint if both exist
+  13. Plaid hint used only when no merchant history exists
+```
+
+### T1.9 Migration — fix existing data (Step 9)
+
+```
+Test: One-time migration corrects historical sign errors and classifies transactions
 
 Before migration:
   1. Query: SELECT count(*) FROM Transaction t JOIN Category c ON t.categoryId = c.id
@@ -149,11 +250,15 @@ After migration:
   3. Ledyard Bank transaction: amount = +$1,583.33
   4. Dividend Received: amount = +$64.31 (was already correct, unchanged)
   5. Groceries transactions: all still negative
-  6. Overview page totals have changed to reflect corrected signs
-  7. Spending totals still correct (expenses only)
+  6. All "Transfer" category transactions: classification = 'transfer'
+  7. All "Credit Card Payment" transactions: classification = 'transfer'
+  8. All income category transactions: classification = 'income'
+  9. All other transactions: classification = 'expense'
+  10. Overview page totals reflect corrected signs and exclude transfers
+  11. Spending Breakdown total drops from ~$26K to ~$3-5K range
 ```
 
-### T1.7 AI Insights with corrected data (Step 7)
+### T1.10 AI Insights with corrected data (Step 10)
 
 ```
 Test: Insights reflect accurate budget data
@@ -167,7 +272,7 @@ Verify:
   6. Dismiss flow works: dismiss an insight → it doesn't reappear
 ```
 
-### T1.8 Unbudgeted categories surfaced (R6.7)
+### T1.11 Unbudgeted categories surfaced (R6.7)
 
 ```
 Test: Categories with transactions but no budget appear on Budgets page
@@ -181,13 +286,113 @@ Verify:
   3. User can click to create a budget from the unbudgeted entry
   4. Total unbudgeted spending amount shown
   5. This section does NOT include income categories (only expense)
+  6. This section does NOT include transfer-classified transactions
 ```
 
------
+### T1.12 AI Budget Builder regeneration (R6.4a)
 
-*Run after Steps 8–10 are complete.*
+```
+Test: AI Budget Builder works when budgets already exist
 
-### T2.1 Household members (Step 8)
+Setup: Budgets page with existing fixed and flexible budgets
+
+First use (no budgets):
+  1. Click "AI Budget Builder" → generates budget suggestions
+  2. Suggestions appear for review before applying
+
+With existing budgets:
+  3. Click "AI Budget Builder" → does NOT silently do nothing
+  4. Modal/menu offers options: "Regenerate all", "Add missing", or Cancel
+  5. "Regenerate all" → confirmation dialog ("This will replace X existing budgets")
+  6. Confirm → existing budgets replaced with new AI suggestions
+  7. "Add missing" → only creates budgets for categories that have
+     transactions but no budget (fills gaps without touching existing)
+  8. Cancel → no changes, returns to Budgets page
+  9. After regeneration: Budgets page reflects new values immediately
+```
+
+### T1.13 Paycheck sign regression (R1.11)
+
+```
+Test: All income transactions have positive amounts
+
+Setup: Database with existing imported transactions
+
+Audit:
+  1. Query all transactions where classification = 'income'
+  2. ZERO results should have negative amounts
+  3. Query all transactions where category type = 'income' (category.type)
+  4. ZERO results should have negative amounts
+  5. Specifically check January paychecks — all positive
+  6. Migration handles edge cases: transactions with income category
+     but expense classification, or vice versa
+
+Fix verification:
+  7. Run migration → count of flipped records logged
+  8. Re-query: zero negative income transactions
+  9. Budget and spending totals on Overview reflect corrected values
+```
+
+### T1.14 CSV import account default (R1.12)
+
+```
+Test: "Import into account" dropdown defaults to no selection
+
+  1. Navigate to CSV import page
+  2. "Import into account" dropdown shows placeholder ("Select account..." or blank)
+  3. Does NOT pre-select any existing account
+  4. If user does not select account AND Account column not mapped → validation error
+  5. If Account column is mapped → per-row values used, dropdown ignored
+```
+
+### T1.15 Category connection audit (R1.13)
+
+```
+Test: All transactions link to valid categories
+
+  1. Query transactions where categoryId is NULL → should be zero (or only truly uncategorized)
+  2. Query transactions where categoryId points to non-existent category → zero
+  3. No duplicate categories with same name for same user
+  4. Each category belongs to exactly one group
+  5. On CSV re-import: "Groceries" maps to existing Groceries, doesn't create duplicate
+  6. Category page shows correct transaction counts per category
+```
+
+### T1.16 Overview Total Balance (R1.14)
+
+```
+Test: Overview displays accurate financial totals
+
+  1. Total Balance = sum of all account balances (manual entry, not transaction sums)
+  2. Total Income = sum of income-classified transactions for current month (positive)
+  3. Total Expenses = sum of expense-classified transactions for current month (absolute)
+  4. Transfers excluded from both income and expense totals
+  5. True Remaining calculation consistent with Budgets page
+  6. "View all" buttons on Overview navigate to correct target pages
+```
+
+### T1.17 Data integrity audit (R1.15)
+
+```
+Test: Comprehensive data consistency check
+
+Run after R1.11–R1.14 fixes:
+  1. Every transaction has: non-null categoryId, non-null accountId, 
+     non-null classification, amount with correct sign
+  2. No orphaned categoryIds (pointing to deleted categories)
+  3. No duplicate categories per user (same name, case-insensitive)
+  4. Income transactions: positive amounts, classification = 'income'
+  5. Expense transactions: negative amounts, classification = 'expense'
+  6. Transfer transactions: classification = 'transfer', excluded from totals
+  7. Account balances: CSV accounts = manually entered or $0, no transaction sums
+  8. All monetary displays: 2 decimal places, no floating point artifacts
+```
+
+---
+
+*Run after Steps 11–13 are complete.*
+
+### T2.1 Household members (Step 11)
 
 ```
 Test: HouseholdMember CRUD and transaction tagging
@@ -213,9 +418,16 @@ UI:
   12. Transactions page shows "Person" column
   13. "+ Add transaction" form includes Person dropdown
   14. Settings/setup area allows creating household members
+
+Account-person linking (R3.2a):
+  15. Accounts page: each account has optional "Owner" dropdown (household members)
+  16. Set Platinum Card owner → "Gavin" — all Platinum Card transactions default person = Gavin
+  17. Set Venture X owner → "Cgrubbs14" — all Venture X transactions default person = Cgrubbs14
+  18. Per-transaction person tag overrides account-level default
+  19. Changing account owner updates future imports only (not retroactive unless user chooses)
 ```
 
-### T2.2 Property tagging (Step 9)
+### T2.2 Property tagging (Step 12)
 
 ```
 Test: Property CRUD and transaction tagging
@@ -243,7 +455,7 @@ UI:
   14. Settings/setup area allows creating properties
 ```
 
-### T2.3 Debts page (Step 10)
+### T2.3 Debts page (Step 13)
 
 ```
 Test: Debt CRUD and Debts page rendering
@@ -284,17 +496,22 @@ UI:
   19. "+ Add debt" button opens form with all required fields
   20. Mortgage can be linked to a property (dropdown showing user's properties)
 
+Client state (R5.7):
+  21. Add new debt → debt appears in list immediately WITHOUT page refresh
+  22. Edit existing debt → changes reflected immediately
+  23. Delete debt → removed from list immediately
+
 Regression:
-  21. All Phase 1 tests still pass
+  24. All Phase 1 tests still pass
 ```
 
------
+---
 
 ## Phase 3 Tests: Reshape the Experience
 
-*Run after Steps 11–18 are complete.*
+*Run after Steps 14–21 are complete.*
 
-### T3.1 Overview redesign (Step 11)
+### T3.1 Overview redesign (Step 14)
 
 ```
 Test: True Remaining is the hero metric
@@ -314,7 +531,7 @@ Regression:
   9. Month-over-month percentages still calculate
 ```
 
-### T3.2 Navigation restructure (Step 12)
+### T3.2 Navigation restructure (Step 15)
 
 ```
 Test: Nav matches PRD spec
@@ -331,7 +548,7 @@ Verify nav order:
   9. All nav links work and load correct pages
 ```
 
-### T3.3 Settings page (Step 13)
+### T3.3 Settings page (Step 16)
 
 ```
 Test: Settings page consolidates all setup functions
@@ -349,6 +566,8 @@ Household members:
   8. Edit member name → updated everywhere
   9. Delete member → removed, transactions with that member set to null
   10. "Shared" or default member clearly indicated
+  11. Add duplicate name "Caroline" when "Caroline" exists → validation error, not silent duplicate
+  12. Name matching is case-insensitive ("caroline" matches "Caroline")
 
 Properties:
   11. List of existing properties displayed
@@ -356,6 +575,7 @@ Properties:
   13. Edit property → updated everywhere
   14. Delete property → removed, transactions set to null
   15. Default property (Personal) clearly indicated
+  16. Add duplicate name "Nicoll St Duplex" when it exists → validation error, not silent duplicate
 
 Connected accounts:
   16. List of Plaid-connected institutions shown (after Plaid is built)
@@ -372,7 +592,7 @@ Delete account:
   23. Deleted user cannot log in again
 ```
 
-### T3.4 Spending views (Step 14)
+### T3.4 Spending views (Step 17)
 
 ```
 Test: By Person and By Property views work
@@ -390,13 +610,17 @@ By Property:
   7. "Rental" filter shows only rental-tagged transactions
   8. Property totals sum to overall total
 
+Click-through (R3.3a):
+  9. Tap person name on By Person → Transactions filtered by that person + month
+  10. Tap property name on By Property → Transactions filtered by that property + month
+
 Transactions page:
-  9. Property filter dropdown exists above table
-  10. Selecting a property filters the transaction list
-  11. Person column is visible and filterable
+  11. Property filter dropdown exists above table
+  12. Selecting a property filters the transaction list
+  13. Person column is visible and filterable
 ```
 
-### T3.5 Mortgage escrow (Step 15)
+### T3.5 Mortgage escrow (Step 18)
 
 ```
 Test: Escrow field on Debt model and UI
@@ -408,13 +632,16 @@ Add/Edit form:
   2. When debt type = MORTGAGE: "Monthly Escrow (taxes & insurance)" field appears
   3. Field is optional — can be left blank
   4. Non-mortgage debt types: escrow field does not appear
+  5. "Monthly payment" field captures total amount user pays (e.g., $4,400)
 
 Debt card display:
-  5. If escrow is set: payment breakdown bar shows three segments:
-     - Green: Principal ($1,438.54)
-     - Ember: Interest ($2,161.46)
+  6. If escrow is set: P&I = monthly payment minus escrow ($4,400 - $800 = $3,600)
+  7. Payment breakdown bar shows three segments:
+     - Green: Principal (computed from P&I amortization)
+     - Ember: Interest (computed from P&I amortization)
      - Gray: Escrow (e.g., $800)
-  6. Total monthly cost label shows P&I + escrow (e.g., $4,400.00/mo)
+  8. Total monthly cost label shows full payment ($4,400.00/mo)
+  9. Payoff math uses P&I only ($3,600) — escrow doesn't reduce balance
   7. If escrow is null: bar shows only P&I (unchanged from current)
 
 Summary:
@@ -422,7 +649,7 @@ Summary:
   9. Escrow does NOT affect debt balance, payoff progress, or est. remaining
 ```
 
-### T3.6 Category click-through (Step 16)
+### T3.6 Category click-through (Step 19)
 
 ```
 Test: Tap category → filtered transaction list
@@ -447,7 +674,7 @@ Navigation:
   8. Filters are pre-applied on arrival (category dropdown shows correct value)
 ```
 
-### T3.7 Monthly snapshots (Step 17)
+### T3.7 Monthly snapshots (Step 20)
 
 ```
 Test: MonthlySnapshot model and cron
@@ -477,7 +704,7 @@ Cron:
   10. Vercel cron config schedules it for 1st of month at 6am
 ```
 
-### T3.8 Monthly Review trajectory (Step 18)
+### T3.8 Monthly Review trajectory (Step 21)
 
 ```
 Test: "Since you started" displays correctly
@@ -502,15 +729,95 @@ Regression:
   11. Efficiency score still renders
   12. Recommendations still generate
   13. All Phase 1 and Phase 2 tests still pass
+
+Recommendation action loop (R7.5a):
+  14. Mark complete → text field for action notes appears
+  15. Submit → record saved with: recommendation text, user notes, timestamp, projected savings
+  16. Completed recommendations visible in Monthly Review history/completed section
+  17. Next AI-generated review includes completion context in prompt
+  18. AI follows up on whether savings materialized (compares category spend before/after)
+  19. AI does NOT re-suggest completed optimizations
+
+  20. Dismiss → structured reason picker appears (existing UI works)
+  21. Select reason → record saved with: recommendation text, dismiss reason, timestamp
+  22. "Other reason" freetext included in saved record
+  23. Next AI-generated review includes dismiss context in prompt
+  24. AI does NOT re-suggest dismissed items
+  25. AI adapts to user preferences learned from dismiss patterns
+
+De-emphasize benchmarks (R7.3a):
+  26. "Spending vs Benchmark" section removed or moved below fold with caveat
+  27. No "Excessive" / "High" labels based on context-free national medians
 ```
 
------
+### T3.9 Transaction-debt linking (R5.8)
+
+```
+Test: Transactions can be linked to debts
+
+Schema:
+  1. Transaction model has optional debtId field
+  2. Debt model has relation to linked transactions
+
+Linking:
+  3. On transaction edit, debt dropdown shows user's debts
+  4. Link $8,000 payment to "Student Loan" debt
+  5. Linked transaction visible from Debts page → click debt → payment history
+  6. Debt currentBalance reflects linked payments (reduced by payment amounts)
+  7. Unlinking a transaction restores the balance
+
+Classification:
+  8. Debt payments classified as expenses, not transfers
+  9. Debt payments appear in budget/spending if category assigned
+  10. Annual Plan can track debt payment categories
+
+Edge cases:
+  11. Same transaction cannot link to multiple debts
+  12. Deleting a debt unlinks all associated transactions (doesn't delete them)
+```
+
+### T3.10 Monthly Review time-scoping (R7.8)
+
+```
+Test: Monthly Review scoped to specific month with click-through
+
+Month selection:
+  1. Monthly Review defaults to current month
+  2. Month selector allows navigation to any previous month
+  3. All data blocks update when month changes
+  4. AI-generated content reflects selected month's data
+
+Click-through:
+  5. Tap spending category block → Transactions filtered by category + selected month
+  6. Tap debt payment block → Transactions filtered by debt-linked transactions + month
+  7. Tap person breakdown → Transactions filtered by person + month
+  8. Tap property breakdown → Transactions filtered by property + month
+  9. Back navigation returns to Monthly Review at same month
+
+Data accuracy:
+  10. January review shows January transactions only
+  11. $8K student loan payment appears in correct month (Jan or Feb)
+  12. Spending totals match Spending page for same month
+```
+
+### T3.11 Overview navigation (R8.5)
+
+```
+Test: All Overview clickable elements work
+
+  1. "View all" on recent transactions → navigates to Transactions page
+  2. "View all" on budget section → navigates to Budgets page
+  3. All other clickable cards/buttons on Overview navigate correctly
+  4. No dead links or non-functional buttons
+```
+
+---
 
 ## Phase 4 Tests: Bank Connectivity
 
-*Run after Steps 19–21 are complete.*
+*Run after Steps 22–24 are complete.*
 
-### T4.1 Plaid API routes (Step 19)
+### T4.1 Plaid API routes (Step 22)
 
 ```
 Test: Plaid endpoints functional
@@ -539,7 +846,7 @@ Transaction metadata:
   12. Plaid transactions have propertyId = user's default property (or null)
 ```
 
-### T4.2 Plaid Link UI (Step 20)
+### T4.2 Plaid Link UI (Step 23)
 
 ```
 Test: Plaid Link component on Accounts page
@@ -556,7 +863,7 @@ Verify:
   6. Net worth includes both Plaid and manual account balances
 ```
 
-### T4.3 Daily sync cron (Step 21)
+### T4.3 Daily sync cron (Step 24)
 
 ```
 Test: Automated daily sync
@@ -576,13 +883,13 @@ Regression:
   10. All Phase 1, 2, and 3 tests still pass
 ```
 
------
+---
 
 ## Phase 5 Tests: Security, Brand, and Ship
 
-*Run after Steps 22–26 are complete.*
+*Run after Steps 25–29 are complete.*
 
-### T5.0 Security hardening (Step 22)
+### T5.0 Security hardening (Step 25)
 
 ```
 Test: All R11 requirements met
@@ -633,7 +940,7 @@ Security page:
   29. Linked from landing page footer
 ```
 
-### T5.1 Rebrand (Step 23)
+### T5.1 Rebrand (Step 26)
 
 ```
 Test: No traces of "Clear Path" or "ClearPath"
@@ -648,7 +955,7 @@ Verify:
   7. Sidebar still shows "oversikt" wordmark
 ```
 
-### T5.2 Domain (Step 24)
+### T5.2 Domain (Step 27)
 
 ```
 Test: App accessible at new domain
@@ -660,7 +967,7 @@ Verify:
   4. Old URL (clear-path-wheat.vercel.app) redirects or is decommissioned
 ```
 
-### T5.3 Landing page and demo (Step 25)
+### T5.3 Landing page and demo (Step 28)
 
 ```
 Test: Unauthenticated experience works
@@ -686,7 +993,7 @@ Registration:
   14. New account starts empty (no demo data)
 ```
 
-### T5.4 Mobile responsive (Step 26)
+### T5.4 Mobile responsive (Step 29)
 
 ```
 Test: All pages at 375px viewport width
@@ -714,9 +1021,9 @@ Specific checks:
   16. Settings: all sections accessible, forms usable, delete confirmation works
 ```
 
------
+---
 
-## Final Verification (Step 27)
+## Final Verification (Step 30)
 
 *Every test from every phase, run one more time.*
 
@@ -734,17 +1041,17 @@ Additionally verify:
   8. Settings page: all sections render and save correctly
 ```
 
------
+---
 
 ## Test Status Tracker
 
 Update this as phases complete:
 
-|Phase                       |Tests    |Status                          |
-|----------------------------|---------|--------------------------------|
-|Phase 1: Foundation         |T1.1–T1.8|🔴 R1.1, R1.2, R1.3 still failing|
-|Phase 2: Data Model         |T2.1–T2.3|🟢                               |
-|Phase 3: Experience         |T3.1–T3.8|🟡 In progress                   |
-|Phase 4: Plaid              |T4.1–T4.3|⬜                               |
-|Phase 5: Security/Brand/Ship|T5.0–T5.4|⬜                               |
-|Final Verification          |All      |⬜                               |
+| Phase | Tests | Status |
+|-------|-------|--------|
+| Phase 1: Foundation | T1.1–T1.17 | 🔴 T1.13–T1.17 new (data integrity) |
+| Phase 2: Data Model | T2.1–T2.3 | 🟢 |
+| Phase 3: Experience | T3.1–T3.11 | 🔴 T3.9–T3.11 new (debt linking, review, overview) |
+| Phase 4: Plaid | T4.1–T4.3 | ⬜ |
+| Phase 5: Security/Brand/Ship | T5.0–T5.4 | ⬜ |
+| Final Verification | All | ⬜ |

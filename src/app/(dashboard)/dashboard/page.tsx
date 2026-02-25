@@ -112,7 +112,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       _sum: { amount: true },
     }),
-    // Previous month income
+    // Previous month income (exclude transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,
@@ -121,7 +121,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       _sum: { amount: true },
     }),
-    // Previous month expenses
+    // Previous month expenses (exclude transfers)
     db.transaction.aggregate({
       where: {
         userId: session.userId,

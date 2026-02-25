@@ -22,6 +22,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     propertySpending,
     latestScore,
   ] = await Promise.all([
+    // Exclude transfers from income/expense totals in snapshots
     db.transaction.aggregate({
       where: { userId, date: { gte: startDate, lte: endDate }, classification: 'income' },
       _sum: { amount: true },

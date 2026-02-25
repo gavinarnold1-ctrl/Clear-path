@@ -95,6 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.transactionType !== undefined && { transactionType: body.transactionType }),
         ...(body.householdMemberId !== undefined && { householdMemberId: body.householdMemberId }),
         ...(body.propertyId !== undefined && { propertyId: body.propertyId }),
+        ...(body.classification !== undefined && { classification: body.classification }),
       },
       include: { account: true, category: true, householdMember: true, property: true },
     })

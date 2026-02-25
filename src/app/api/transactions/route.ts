@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
+const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
@@ -18,6 +18,11 @@ export async function GET(req: NextRequest) {
 
   const householdMemberId = searchParams.get('householdMemberId') ?? undefined
   const propertyId = searchParams.get('propertyId') ?? undefined
+  const classification = searchParams.get('classification') ?? undefined
+
+  if (classification && !VALID_CLASSIFICATIONS.has(classification)) {
+    return NextResponse.json({ error: 'Invalid classification filter' }, { status: 400 })
+  }
 
   const transactions = await db.transaction.findMany({
     where: {
@@ -26,6 +31,7 @@ export async function GET(req: NextRequest) {
       ...(accountId && { accountId }),
       ...(householdMemberId && { householdMemberId }),
       ...(propertyId && { propertyId }),
+      ...(classification && { classification }),
     },
     include: { account: true, category: true, householdMember: true, property: true, debt: true },
     orderBy: { date: 'desc' },
