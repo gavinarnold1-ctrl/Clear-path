@@ -100,7 +100,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ updated: owned.length })
 }
 
-export async function DELETE(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -139,4 +139,9 @@ export async function DELETE(req: NextRequest) {
   })
 
   return NextResponse.json({ deleted: owned.length })
+}
+
+export async function DELETE(req: NextRequest) {
+  // Delegate to POST handler for backwards compatibility
+  return POST(req)
 }

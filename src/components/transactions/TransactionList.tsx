@@ -339,7 +339,7 @@ export default function TransactionList({ transactions: initial, categories, acc
 
     try {
       const res = await fetch('/api/transactions/bulk', {
-        method: 'DELETE',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionIds: [...selected] }),
       })
