@@ -239,10 +239,10 @@ export default async function DashboardPage({ searchParams }: Props) {
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 4)
 
-  const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
+  const ASSET_TYPES = new Set(['CHECKING', 'SAVINGS', 'INVESTMENT', 'CASH'])
   const totalBalance = accounts.reduce((sum, a) => {
-    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
-    return sum + a.balance
+    if (ASSET_TYPES.has(a.type)) return sum + a.balance
+    return sum
   }, 0)
   const monthlyExpense = Math.abs(expenseAgg._sum.amount ?? 0)
   const monthlyNet = monthlyIncome - monthlyExpense
