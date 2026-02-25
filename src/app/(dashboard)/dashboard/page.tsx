@@ -8,6 +8,7 @@ import ProgressBar from '@/components/ui/ProgressBar'
 import MonthPicker from './MonthPicker'
 import MonthlyChart from '@/components/dashboard/MonthlyChart'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
+import GetStarted from '@/components/onboarding/GetStarted'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -175,7 +176,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         date: { gte: chartStart, lte: endDate },
         classification: { not: 'transfer' },
       },
-      select: { date: true, amount: true },
+      select: { date: true, amount: true, classification: true },
     }),
     // Transaction count for the selected month
     db.transaction.count({
@@ -185,6 +186,11 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
     }),
   ])
+
+  // New users with no accounts: show streamlined "Get Started" flow
+  if (accounts.length === 0) {
+    return <GetStarted />
+  }
 
   // Compute live budget spent from current-month expense transactions.
   // Build two maps: by categoryId (primary) and by category name (fallback).
@@ -264,11 +270,12 @@ export default async function DashboardPage({ searchParams }: Props) {
     const d = new Date(tx.date)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (chartMonths[key]) {
-      if (tx.amount > 0) {
-        chartMonths[key].income += tx.amount
-      } else if (tx.amount < 0) {
+      if (tx.classification === 'income') {
+        chartMonths[key].income += Math.abs(tx.amount)
+      } else if (tx.classification === 'expense') {
         chartMonths[key].expenses += Math.abs(tx.amount)
       }
+      // transfers already excluded by query, but skip them if present
     }
   }
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`

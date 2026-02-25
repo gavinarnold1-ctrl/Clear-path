@@ -136,6 +136,8 @@ Removed endpoints:
 - **R11.5**: Access tokens stored as plaintext in sandbox. `TODO R11.5` comment marks encryption requirement for production (AES-256-GCM). Tokens never returned in API responses to frontend.
 - **R11.6**: Plaid Link handles all bank credentials — Oversikt never sees usernames/passwords.
 - **UI**: "Connect Bank" button on Accounts page opens Plaid Link. Connected accounts show "Connected" badge, institution name, last synced time, and "Sync Now" button. Manual accounts show "Manual" badge with editable balance fields.
+- **R6.10 fix**: Income vs Expenses chart now uses `classification` field instead of amount sign. Refunds no longer inflate income bar.
+- **R8.6**: Streamlined onboarding — new users see "Connect bank / Import CSV / Start manually" instead of 6-question wizard. Plaid Link available from first screen. Dashboard shows GetStarted inline when `accounts.length === 0`.
 
 ---
 
