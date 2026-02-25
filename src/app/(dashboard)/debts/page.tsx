@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
+import { piBreakdown } from '@/lib/engines/amortization'
 import DebtManager from '@/components/debts/DebtManager'
 
 export const metadata: Metadata = { title: 'Debts' }
@@ -43,10 +44,7 @@ export default async function DebtsPage() {
 
   // Serialize for client component
   const serializedDebts = debts.map((d) => {
-    const piPayment = d.minimumPayment - (d.escrowAmount ?? 0)
-    const monthlyInterest = d.currentBalance * (d.interestRate / 12)
-    const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
-    const monthsRemaining = monthlyPrincipal > 0 ? Math.ceil(d.currentBalance / monthlyPrincipal) : null
+    const pi = piBreakdown(d.currentBalance, d.interestRate, d.minimumPayment, d.escrowAmount)
 
     return {
       id: d.id,
@@ -64,9 +62,9 @@ export default async function DebtsPage() {
       categoryId: d.categoryId,
       property: d.property ? { id: d.property.id, name: d.property.name } : null,
       category: d.category ? { id: d.category.id, name: d.category.name } : null,
-      monthlyInterest: Math.round(monthlyInterest * 100) / 100,
-      monthlyPrincipal: Math.round(monthlyPrincipal * 100) / 100,
-      monthsRemaining,
+      monthlyInterest: pi.monthlyInterest,
+      monthlyPrincipal: pi.monthlyPrincipal,
+      monthsRemaining: pi.monthsRemaining,
     }
   })
 

@@ -1,11 +1,6 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // Include the CSV data file in serverless function bundles so /api/reimport can read it
-  outputFileTracingIncludes: {
-    '/api/reimport': ['./docs/Transactions_2026-02-21T21-30-39.csv'],
-  },
-
   // R11.12: Security headers on all responses
   async headers() {
     return [
@@ -17,6 +12,18 @@ const nextConfig: NextConfig = {
           { key: 'X-XSS-Protection', value: '0' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https:",
+              "font-src 'self' https://fonts.gstatic.com",
+              "connect-src 'self' https://*.plaid.com https://cdn.plaid.com https://api.anthropic.com",
+              "frame-src 'self' https://*.plaid.com",
+            ].join('; '),
+          },
         ],
       },
     ]

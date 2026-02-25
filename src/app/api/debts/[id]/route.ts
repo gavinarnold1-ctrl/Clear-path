@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { piBreakdown } from '@/lib/engines/amortization'
 
 const VALID_DEBT_TYPES = new Set([
   'MORTGAGE',
@@ -30,18 +31,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!debt) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const piPayment = debt.minimumPayment - (debt.escrowAmount ?? 0)
-  const monthlyInterest = debt.currentBalance * (debt.interestRate / 12)
-  const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
-  const monthsRemaining =
-    monthlyPrincipal > 0 ? Math.ceil(debt.currentBalance / monthlyPrincipal) : null
+  const pi = piBreakdown(debt.currentBalance, debt.interestRate, debt.minimumPayment, debt.escrowAmount)
 
-  return NextResponse.json({
-    ...debt,
-    monthlyInterest: Math.round(monthlyInterest * 100) / 100,
-    monthlyPrincipal: Math.round(monthlyPrincipal * 100) / 100,
-    monthsRemaining,
-  })
+  return NextResponse.json({ ...debt, ...pi })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
