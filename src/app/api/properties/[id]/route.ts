@@ -68,10 +68,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Null out transactions referencing this property, then delete
+  // Null out transactions referencing this property (scoped to user), then delete
   await db.$transaction([
     db.transaction.updateMany({
-      where: { propertyId: id },
+      where: { propertyId: id, userId: session.userId },
       data: { propertyId: null },
     }),
     db.property.delete({ where: { id } }),

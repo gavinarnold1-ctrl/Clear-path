@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const transaction = await db.transaction.findUnique({
+  const transaction = await db.transaction.findFirst({
     where: { id, userId: session.userId },
     include: { account: true, category: true, householdMember: true, property: true },
   })
@@ -23,8 +23,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
 
-  // Verify ownership before update
-  const existing = await db.transaction.findUnique({ where: { id, userId: session.userId } })
+  // Verify ownership before update (findFirst enforces userId scoping)
+  const existing = await db.transaction.findFirst({ where: { id, userId: session.userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const oldAccountId = existing.accountId
@@ -124,8 +124,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  // userId in where clause ensures ownership
-  const existing = await db.transaction.findUnique({ where: { id, userId: session.userId } })
+  // findFirst enforces userId scoping (findUnique ignores non-unique fields)
+  const existing = await db.transaction.findFirst({ where: { id, userId: session.userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await db.$transaction(async (tx) => {
