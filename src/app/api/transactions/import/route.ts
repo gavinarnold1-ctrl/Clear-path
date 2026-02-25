@@ -520,7 +520,7 @@ export async function POST(request: Request) {
 
     // R1.5b: CSV-imported accounts do NOT compute balance by summing transactions.
     // Balance is manually entered by user via startingBalance + balanceAsOfDate.
-    // Use "Recalculate Balances" in Settings after setting a baseline.
+    // New transactions after the baseline date adjust the running balance.
 
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)

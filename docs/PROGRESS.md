@@ -39,13 +39,15 @@
 
 ### Account Balance Behavior Change (2026-02-25)
 
-**R1.5b override**: CSV import now updates account balances by summing imported transaction amounts per account (previously skipped, leaving all at $0). This was a user-requested change — the PRD text says "must NOT compute balance by summing transactions" but the user wanted balances populated from imports.
+**R1.5b**: Manual/CSV accounts use a **baseline balance** model. User enters a starting balance and balance-as-of date; new transactions after that date adjust the running balance. Balance is never computed by summing all historical transactions. The recalculate-from-transactions endpoint has been removed per PRD v2.17.
 
 **R1.14 fix**: Dashboard "Total Balance" now sums only asset accounts (CHECKING, SAVINGS, INVESTMENT, CASH). Liability accounts are excluded. The Accounts page "Net Worth" banner still uses the full net-worth calculation (assets minus liabilities).
 
 New endpoints added:
-- `POST /api/accounts/recalculate` — recomputes all account balances from linked transactions
 - `POST /api/profile/reset` — deletes all user data while keeping the account intact
+
+Removed endpoints:
+- `POST /api/accounts/recalculate` — removed per PRD v2.17 (balance should never be recomputed from transactions)
 
 ---
 
@@ -98,7 +100,7 @@ New endpoints added:
 - **R6.4a**: BudgetBuilderCTA shows dropdown menu with "Regenerate all", "Add missing", and "Dismiss" when budgets exist.
 - **R7.8**: Monthly Review has month selector dropdown scoped to available snapshots. Clickable data blocks link to filtered views.
 - **R8.5**: Overview "View all" links: Active Budgets → /budgets, Spending by Category → /spending, Recent Transactions → /transactions. All carry `?month=` param.
-- **Settings Data Tools**: Added "Fix Classifications" (recalculate transaction classification), "Recalculate Balances" (recompute account balances from transactions), and "Reset All Data" (nuke all user data, keep account) buttons to Settings page.
+- **Settings Data Tools**: "Fix Classifications" (recalculate transaction classification) and "Reset All Data" (nuke all user data, keep account) buttons. "Recalculate Balances" button removed per PRD v2.17.
 
 ### Additional Features
 
@@ -148,7 +150,7 @@ New endpoints added:
 5. **Transfer exclusion**: All income/expense queries across dashboard, spending, budgets, snapshots, insights, budget-builder, temporal-context now filter by `classification` field instead of `NOT: { category: { type: 'transfer' } }`
 6. **Household members**: Cleaned to exactly 2: "Gavin Arnold" (default), "Caroline". Owner mapping: "Cgrubbs14" → "Caroline"
 7. **Rating labels**: Removed "Excessive/High/Average/Excellent" from SpendingComparison. Kept comparison bars with simple over/under coloring.
-8. **Account balances**: CSV import updates balances from imported transactions. Dashboard Total Balance = SUM(asset account balances). Accounts page Net Worth = assets minus liabilities. Recalculate endpoint available at `POST /api/accounts/recalculate`.
+8. **Account balances**: Manual/CSV accounts use baseline balance model (startingBalance + balanceAsOfDate). Dashboard Total Balance = SUM(asset account balances). Accounts page Net Worth = assets minus liabilities. Recalculate endpoint removed per PRD v2.17.
 9. **API routes**: POST, PATCH for transactions now set `classification` field. CSV import route includes `classification` in bulk inserts.
 
 ### How to Run Reimport
