@@ -82,10 +82,19 @@ Icon (40x40 rounded square) followed by wordmark. 12px gap. Used in navigation b
 |Birch |`#D4C5A9`|Annual/pending states, warm accents  |
 |Ember |`#C4704B`|Warnings: over-budget, missed, alerts|
 
+**Semantic Aliases** (defined in Tailwind config alongside the palette)
+
+|Alias   |Maps to|Hex      |
+|--------|-------|---------|
+|income  |Pine   |`#2D5F3E`|
+|expense |Ember  |`#C4704B`|
+|transfer|Birch  |`#D4C5A9`|
+
 **Semantic Usage**
 
-- Income / positive / paid / on-track -> Pine
-- Expense / negative / overspent / missed -> Ember
+- Income / positive / paid / on-track -> Pine (`income`)
+- Expense / negative / overspent / missed -> Ember (`expense`)
+- Transfer / internal movement -> Birch (`transfer`)
 - Annual / pending / upcoming -> Birch
 - Neutral / informational -> Fjord
 - Disabled / placeholder -> Stone
@@ -280,14 +289,17 @@ All buttons: DM Sans 13px/500, padding 10px 20px, border-radius 8px.
 
 -----
 
-## 6. Tailwind Config Extension (if using Tailwind)
+## 6. Tailwind Config (source of truth: `tailwind.config.ts`)
 
-```javascript
-// tailwind.config.js extend
-module.exports = {
+```typescript
+// tailwind.config.ts — actual values rendering in the app
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Brand palette
         fjord: '#1B3A4B',
         pine: '#2D5F3E',
         midnight: '#0F1F28',
@@ -298,19 +310,26 @@ module.exports = {
         lichen: '#A3B8A0',
         birch: '#D4C5A9',
         ember: '#C4704B',
+        // Semantic aliases
+        income: '#2D5F3E',
+        expense: '#C4704B',
+        transfer: '#D4C5A9',
       },
       fontFamily: {
-        display: ['Fraunces', 'serif'],
-        body: ['DM Sans', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        display: ['var(--font-fraunces)', 'serif'],
+        body: ['var(--font-dm-sans)', 'sans-serif'],
+        mono: ['var(--font-jetbrains)', 'monospace'],
+        sans: ['var(--font-dm-sans)', 'sans-serif'],
       },
       borderRadius: {
         card: '12px',
         button: '8px',
         badge: '5px',
         bar: '3px',
-      }
-    }
-  }
+      },
+    },
+  },
 }
 ```
+
+Font CSS variables (`--font-fraunces`, `--font-dm-sans`, `--font-jetbrains`) are injected by Next.js `next/font` in `src/app/layout.tsx`.
