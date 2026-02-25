@@ -86,9 +86,16 @@ model Account {
   balanceAsOfDate DateTime?                // R1.5b: Date the baseline was set; transactions after this adjust balance
   currency        String      @default("USD")
   institution     String?                  // Bank/provider name (e.g., "Chase", "Fidelity")
-  isManual        Boolean     @default(true) // true = user-created, false = future Plaid-connected
+  isManual        Boolean     @default(true) // true = user-created, false = Plaid-connected
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+
+  // Plaid fields (only populated for Plaid-connected accounts)
+  plaidAccountId    String?   // Plaid's account_id
+  plaidItemId       String?   // Plaid's item_id (groups accounts from same bank)
+  plaidAccessToken  String?   // TODO R11.5: encrypt access_token with AES-256-GCM before production
+  plaidCursor       String?   // Cursor for transaction sync pagination
+  plaidLastSynced   DateTime? // Last successful sync timestamp
 
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -97,6 +104,7 @@ model Account {
   transactions Transaction[]
 
   @@index([ownerId])
+  @@index([plaidItemId])
 }
 
 model Category {

@@ -44,6 +44,8 @@ export default async function AccountsPage() {
     balanceAsOfDate: acct.balanceAsOfDate ? acct.balanceAsOfDate.toISOString().split('T')[0] : null,
     currency: acct.currency,
     institution: acct.institution,
+    isManual: acct.isManual,
+    plaidLastSynced: acct.plaidLastSynced ? acct.plaidLastSynced.toISOString() : null,
     ownerId: acct.ownerId,
     ownerName: acct.owner?.name ?? null,
     txCount: countMap.get(acct.id) ?? 0,
