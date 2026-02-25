@@ -387,6 +387,7 @@ model MonthlySnapshot {
   totalDebt         Float?
   totalDebtPayments Float?
   debtPaidDown      Float?
+  netWorth          Float?
   personBreakdown   String?  // JSON: { [name]: amount }
   propertyBreakdown String?  // JSON: { [name]: amount }
   reviewHeadline    String?

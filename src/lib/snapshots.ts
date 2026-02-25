@@ -21,6 +21,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     personSpending,
     propertySpending,
     latestScore,
+    accounts,
   ] = await Promise.all([
     // Exclude transfers from income/expense totals in snapshots
     db.transaction.aggregate({
@@ -67,6 +68,11 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     }),
     db.efficiencyScore.findFirst({
       where: { userId, period: `${year}-${String(month).padStart(2, '0')}` },
+    }),
+    // Account balances for net worth calculation (R7.9)
+    db.account.findMany({
+      where: { userId },
+      select: { type: true, balance: true },
     }),
   ])
 
@@ -118,6 +124,13 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
   // Debt summary
   const totalDebt = debts.reduce((s, d) => s + d.currentBalance, 0)
   const totalDebtPayments = debts.reduce((s, d) => s + d.minimumPayment, 0)
+
+  // Net worth: assets minus liabilities (R7.9)
+  const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
+  const netWorth = accounts.reduce((sum, a) => {
+    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
+    return sum + a.balance
+  }, 0)
 
   // Person breakdown
   let personBreakdown: string | null = null
@@ -177,6 +190,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       avgDailySpend,
       totalDebt: debts.length > 0 ? totalDebt : null,
       totalDebtPayments: debts.length > 0 ? totalDebtPayments : null,
+      netWorth: accounts.length > 0 ? netWorth : null,
       personBreakdown,
       propertyBreakdown,
       efficiencyScore: latestScore ? Math.round(latestScore.overallScore) : null,
@@ -200,6 +214,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       avgDailySpend,
       totalDebt: debts.length > 0 ? totalDebt : null,
       totalDebtPayments: debts.length > 0 ? totalDebtPayments : null,
+      netWorth: accounts.length > 0 ? netWorth : null,
       personBreakdown,
       propertyBreakdown,
       efficiencyScore: latestScore ? Math.round(latestScore.overallScore) : null,

@@ -69,12 +69,31 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
       1
   )
 
-  const income = transactions.filter((t) => t.classification === 'income')
-  const expenses = transactions.filter((t) => t.classification === 'expense')
+  // ── Temporal cutoffs ──
+  const now = new Date()
+  const threeMonthsAgo = new Date(now)
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+  const sixMonthsAgo = new Date(now)
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const twelveMonthsAgo = new Date(now)
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
 
-  // ── Income Streams ──
+  // Income: last 3 months only
+  const recentIncome = transactions.filter(
+    (t) => t.classification === 'income' && t.date >= threeMonthsAgo
+  )
+  // Fixed/variable expenses: last 6 months only
+  const recentExpenses = transactions.filter(
+    (t) => t.classification === 'expense' && t.date >= sixMonthsAgo
+  )
+  // Annual detection: last 12 months
+  const annualCandidates = transactions.filter(
+    (t) => t.classification === 'expense' && t.date >= twelveMonthsAgo
+  )
+
+  // ── Income Streams (last 3 months) ──
   const incomeByMerchant = new Map<string, { amounts: number[]; dates: Date[] }>()
-  income.forEach((t) => {
+  recentIncome.forEach((t) => {
     const key = t.merchant || 'Unknown'
     const existing = incomeByMerchant.get(key) || { amounts: [], dates: [] }
     existing.amounts.push(Math.abs(t.amount))
@@ -97,15 +116,15 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     if (s.frequency === 'biweekly') return sum + (s.averageAmount * 26) / 12
     if (s.frequency === 'weekly') return sum + (s.averageAmount * 52) / 12
     if (s.frequency === 'monthly') return sum + s.averageAmount
-    return sum + (s.averageAmount * s.count) / monthsOfData
+    return sum + (s.averageAmount * s.count) / 3
   }, 0)
 
-  // ── Fixed Expense Detection ──
+  // ── Fixed Expense Detection (last 6 months, min 3 occurrences) ──
   const expenseByKey = new Map<
     string,
     { amounts: number[]; dates: Date[]; category: string }
   >()
-  expenses.forEach((t) => {
+  recentExpenses.forEach((t) => {
     const merchant = t.merchant || t.originalStatement || 'Unknown'
     const amount = Math.abs(t.amount)
     const roundedAmount = Math.round(amount / 5) * 5
@@ -121,7 +140,7 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
   const detectedFixed: SpendingProfile['detectedFixed'] = []
   expenseByKey.forEach((data, key) => {
     const merchant = key.split('__')[0]
-    if (data.amounts.length < 2) return
+    if (data.amounts.length < 3) return
 
     const avg = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
     const isConsistent = data.amounts.every((a) => Math.abs(a - avg) / avg < 0.1)
@@ -134,7 +153,7 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
       data.dates.reduce((s, d) => s + d.getDate(), 0) / data.dates.length
     )
     const months = [...new Set(data.dates.map((d) => d.getMonth() + 1))]
-    const confidence = Math.min(1, (data.amounts.length / monthsOfData) * (isConsistent ? 1 : 0.5))
+    const confidence = Math.min(1, (data.amounts.length / 6) * (isConsistent ? 1 : 0.5))
 
     detectedFixed.push({
       merchant,
@@ -148,12 +167,12 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     })
   })
 
-  // ── Variable Spending by Category ──
+  // ── Variable Spending by Category (last 6 months) ──
   const expenseByCategory = new Map<
     string,
     { amounts: number[]; dates: Date[]; group: string }
   >()
-  expenses.forEach((t) => {
+  recentExpenses.forEach((t) => {
     const catName = t.category?.name ?? 'Uncategorized'
     const group = t.category?.group ?? 'Other'
     const merchant = t.merchant || t.originalStatement || 'Unknown'
@@ -210,8 +229,8 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     .filter((c) => c.monthlyAverage > 5)
     .sort((a, b) => b.monthlyAverage - a.monthlyAverage)
 
-  // ── Large Infrequent Charges ──
-  const detectedAnnual = expenses
+  // ── Large Infrequent Charges (last 12 months) ──
+  const detectedAnnual = annualCandidates
     .filter((t) => {
       const amount = Math.abs(t.amount)
       const merchant = t.merchant || 'Unknown'
@@ -227,7 +246,7 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     }))
 
   const averageMonthlyExpenses =
-    expenses.reduce((s, t) => s + Math.abs(t.amount), 0) / monthsOfData
+    recentExpenses.reduce((s, t) => s + Math.abs(t.amount), 0) / 6
 
   return {
     incomeStreams,
@@ -329,6 +348,8 @@ RULES:
 - Annual items: include anything that's clearly a large irregular expense. Also SUGGEST common annual expenses the user probably has even if not in the data (property tax, car registration, dentist, etc.) — mark these as "suggested" with lower confidence.
 - Do NOT include transfers or credit card payments as budget items.
 - Each item needs a SHORT "reasoning" (max 50 characters) explaining the amount.
+- ONLY propose budget items for expenses that are ACTIVE — meaning they have transactions in the last 6 months. Do not budget for historical expenses that have stopped. If a recurring charge has not appeared in 3+ months, exclude it or flag it as "possibly inactive."
+- Income should reflect CURRENT monthly income, not historical averages that include one-time windfalls.
 - The summary should show projected True Remaining and note if the budget is tight, comfortable, or has room for more savings.
 
 TEMPORAL CONTEXT:
@@ -405,7 +426,7 @@ ${
     : 'None detected in data (limited history). Suggest common annual expenses.'
 }
 
-DATA COVERAGE: ${profile.monthsOfData} months, ${profile.totalTransactions} transactions
+DATA COVERAGE: Income based on last 3 months. Fixed/variable based on last 6 months. Annual detection based on last 12 months. Total history: ${profile.monthsOfData} months, ${profile.totalTransactions} transactions.
 CURRENT SAVINGS RATE: ${profile.savingsRate}%
 
 Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Annual). For categories with limited data, use your judgment and mark with lower confidence. Include 2-3 suggested annual expenses even if not in the data — common ones most households have.`
