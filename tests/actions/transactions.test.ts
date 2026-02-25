@@ -4,12 +4,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockTxCreate = vi.fn()
 const mockAccountUpdate = vi.fn()
-const mockTxFindUnique = vi.fn()
+const mockTxFindFirst = vi.fn()
 const mockTxDelete = vi.fn()
 const mockCategoryFindUnique = vi.fn()
 
 const mockPrismaTx = {
-  transaction: { create: mockTxCreate, findUnique: mockTxFindUnique, delete: mockTxDelete },
+  transaction: { create: mockTxCreate, findFirst: mockTxFindFirst, delete: mockTxDelete },
   account: { update: mockAccountUpdate },
 }
 
@@ -163,13 +163,13 @@ describe('deleteTransaction', () => {
   })
 
   it('does nothing when transaction is not found (no-op)', async () => {
-    mockTxFindUnique.mockResolvedValue(null)
+    mockTxFindFirst.mockResolvedValue(null)
     await deleteTransaction('tx-ghost')
     expect(mockTxDelete).not.toHaveBeenCalled()
   })
 
   it('reverses account balance for a deleted expense (negative amount)', async () => {
-    mockTxFindUnique.mockResolvedValue({
+    mockTxFindFirst.mockResolvedValue({
       id: 'tx-1', userId: 'u1', amount: -75, accountId: 'acc-1',
       categoryId: null, date: new Date('2026-02-01'),
     })
@@ -184,7 +184,7 @@ describe('deleteTransaction', () => {
   })
 
   it('reverses account balance for a deleted income (positive amount)', async () => {
-    mockTxFindUnique.mockResolvedValue({
+    mockTxFindFirst.mockResolvedValue({
       id: 'tx-2', userId: 'u1', amount: 500, accountId: 'acc-1',
       categoryId: null, date: new Date('2026-02-01'),
     })
@@ -199,7 +199,7 @@ describe('deleteTransaction', () => {
   })
 
   it('does not adjust balance when no accountId', async () => {
-    mockTxFindUnique.mockResolvedValue({
+    mockTxFindFirst.mockResolvedValue({
       id: 'tx-4', userId: 'u1', amount: -50, accountId: null,
       categoryId: null, date: new Date('2026-02-01'),
     })
@@ -210,7 +210,7 @@ describe('deleteTransaction', () => {
   })
 
   it('does not update budget spent on delete (spent is computed on read)', async () => {
-    mockTxFindUnique.mockResolvedValue({
+    mockTxFindFirst.mockResolvedValue({
       id: 'tx-3', userId: 'u1', amount: -50, accountId: 'acc-1',
       categoryId: 'cat-1', date: new Date('2026-02-01'),
     })
