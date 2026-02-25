@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
-import { inferCategoryGroup } from '@/lib/category-groups'
+import { inferCategoryGroup, classifyTransaction } from '@/lib/category-groups'
 /** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
 function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
   const lower = name.toLowerCase()
@@ -467,20 +467,16 @@ export async function POST(request: Request) {
         }
       }
 
-      // Derive classification using amount sign as the source of truth
-      // (per CLAUDE.md: positive = income, negative = expense).
-      // Category type is only used to detect transfers.
-      let classification: string
-      const resolvedCat = categoryId
+      // Derive classification from category group (deterministic hierarchy).
+      // Group is the source of truth: Transfers → transfer, Income → income, else expense.
+      const matchedCat = categoryId
         ? [...categoryMap.values()].find(c => c.id === categoryId)
         : null
-      if (resolvedCat?.type === 'transfer') {
-        classification = 'transfer'
-      } else if (finalAmount > 0) {
-        classification = 'income'
-      } else {
-        classification = 'expense'
-      }
+      const classification = classifyTransaction(
+        (matchedCat as { group?: string } | null)?.group,
+        matchedCat?.type,
+        finalAmount,
+      )
 
       toImport.push({
         userId: session.userId,

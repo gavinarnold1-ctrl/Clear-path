@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { classifyTransaction } from '@/lib/category-groups'
 
 /**
  * POST /api/transactions/fix-classification
- * Repairs classification for all user transactions based on amount sign
- * (the source of truth). Category type is only used for transfer detection.
+ * Repairs classification for all user transactions using the group-based
+ * hierarchy: category group → category type → amount sign.
  */
 export async function POST() {
   const session = await getSession()
@@ -13,23 +14,25 @@ export async function POST() {
 
   const userId = session.userId
 
-  // Load all transactions with their categories
+  // Load all transactions with their category group + type
   const transactions = await db.transaction.findMany({
     where: { userId },
-    select: { id: true, amount: true, classification: true, category: { select: { type: true } } },
+    select: {
+      id: true,
+      amount: true,
+      classification: true,
+      category: { select: { type: true, group: true } },
+    },
   })
 
   let fixed = 0
 
   for (const tx of transactions) {
-    let correct: string
-    if (tx.category?.type === 'transfer') {
-      correct = 'transfer'
-    } else if (tx.amount > 0) {
-      correct = 'income'
-    } else {
-      correct = 'expense'
-    }
+    const correct = classifyTransaction(
+      tx.category?.group,
+      tx.category?.type,
+      tx.amount,
+    )
 
     if (tx.classification !== correct) {
       await db.transaction.update({

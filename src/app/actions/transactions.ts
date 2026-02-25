@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { classifyTransaction } from '@/lib/category-groups'
 
 interface TransactionState {
   error: string | null
@@ -30,13 +31,13 @@ export async function createTransaction(
   if (!merchant) return { error: 'Merchant is required.' }
   if (!date) return { error: 'Date is required.' }
 
-  // Determine sign and classification based on category type
+  // Determine sign and classification based on category group + type
   let finalAmount = amount
-  let categoryType: string | null = null
+  let resolvedCategory: { type: string; group: string | null } | null = null
   if (categoryId) {
     const category = await db.category.findUnique({ where: { id: categoryId } })
     if (category) {
-      categoryType = category.type
+      resolvedCategory = category
       if (category.type === 'expense') {
         finalAmount = -Math.abs(amount)
       } else if (category.type === 'income') {
@@ -44,16 +45,12 @@ export async function createTransaction(
       }
     }
   }
-  // Derive classification from amount sign (source of truth).
-  // Category type only used for transfer detection.
-  let classification: string
-  if (categoryType === 'transfer') {
-    classification = 'transfer'
-  } else if (finalAmount > 0) {
-    classification = 'income'
-  } else {
-    classification = 'expense'
-  }
+  // Derive classification from category group (deterministic hierarchy).
+  const classification = classifyTransaction(
+    resolvedCategory?.group,
+    resolvedCategory?.type,
+    finalAmount,
+  )
 
   const txDate = new Date(date)
 

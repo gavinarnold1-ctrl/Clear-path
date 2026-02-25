@@ -155,6 +155,7 @@ Clear-path/
 │   │   ├── budget-context.ts # Budget context builder for AI prompts
 │   │   ├── budget-engine.ts  # Tiered budget calculations (fixed, flexible, annual, true remaining)
 │   │   ├── budget-utils.ts   # Budget display helpers
+│   │   ├── category-groups.ts # Category group inference + classifyTransaction() helper
 │   │   ├── column-mapping.ts # Smart CSV column name detection for bank imports
 │   │   ├── csv-parser.ts    # CSV parsing, date/amount handling, row transformation
 │   │   ├── db.ts            # Prisma client singleton (hot-reload safe)
@@ -309,11 +310,24 @@ npm run test:coverage  # Coverage report
 
 ### Amount Sign Convention (Critical)
 
-The **amount sign is the single source of truth** for income vs expense:
+The **amount sign** determines income vs expense:
 - **Income**: `amount > 0` (positive)
 - **Expense**: `amount < 0` (negative)
 
 All server actions, API routes, and CSV import endpoints **enforce this convention** by looking up the category type and correcting the sign before writing to the database. Never rely on `category.type` relation filters (e.g. `category: { type: 'expense' }`) for income/expense queries — always use `amount: { gt: 0 }` or `amount: { lt: 0 }`.
+
+### Transaction Classification (Critical)
+
+The `classification` field (`'income'` / `'expense'` / `'transfer'`) is derived from the **category group** via a deterministic hierarchy. The shared helper `classifyTransaction()` in `src/lib/category-groups.ts` implements this:
+
+1. **Category group = "Transfer" or "Transfers"** → `'transfer'`
+2. **Category group = "Income" + positive amount** → `'income'`
+3. **Category group = "Income" + non-positive amount** → `'expense'` (e.g. tax withholding)
+4. **Fallback: category.type = "transfer"** → `'transfer'` (when group is missing)
+5. **Fallback: category.type = "income" + positive amount** → `'income'`
+6. **Everything else** → `'expense'`
+
+This hierarchy is used consistently across all 4 write paths: CSV import, transaction create (POST route), transaction update (PATCH route), and server action. A repair endpoint at `POST /api/transactions/fix-classification` can recalculate classification for all existing transactions.
 
 ### Budget Spent Computation
 

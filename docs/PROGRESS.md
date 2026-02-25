@@ -150,6 +150,22 @@ npx prisma db push --accept-data-loss
 npm run db:reimport
 ```
 
+### Classification Hierarchy (2026-02-25 update)
+
+Classification is now derived via a **shared helper** `classifyTransaction()` in `src/lib/category-groups.ts`, used consistently across all 4 write paths (CSV import, POST route, PATCH route, server action):
+
+1. Category group = "Transfer" / "Transfers" → `'transfer'`
+2. Category group = "Income" + positive amount → `'income'`
+3. Category group = "Income" + non-positive → `'expense'` (e.g. tax withholding)
+4. Fallback: category.type for transfer/income detection
+5. Default → `'expense'`
+
+A repair endpoint `POST /api/transactions/fix-classification` recalculates all existing transactions.
+
+### Escrow Handling (2026-02-25 update)
+
+`minimumPayment` on Debt now represents the **total** monthly payment (including escrow). Escrow is subtracted before computing the P&I split: `piPayment = minimumPayment - escrowAmount`.
+
 ### Verification Targets
 
 | Metric | Expected |
