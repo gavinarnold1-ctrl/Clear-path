@@ -81,14 +81,14 @@ describe('login', () => {
   })
 
   it('sets session and redirects to /dashboard on success', async () => {
-    mockUser.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com', name: 'Alice', password: 'hash' })
+    mockUser.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com', name: 'Alice', password: 'hash', refreshTokenVersion: 0 })
     mockVerifyPassword.mockResolvedValue(true)
     mockSetSession.mockResolvedValue(undefined)
 
     await expect(login({ error: null }, fd({ email: 'a@b.com', password: 'correct' }))).rejects.toThrow(
       'NEXT_REDIRECT:/dashboard'
     )
-    expect(mockSetSession).toHaveBeenCalledWith({ userId: 'u1', email: 'a@b.com', name: 'Alice' })
+    expect(mockSetSession).toHaveBeenCalledWith({ userId: 'u1', email: 'a@b.com', name: 'Alice' }, 0)
   })
 })
 
@@ -115,19 +115,19 @@ describe('register', () => {
 
   it('creates user and redirects to /dashboard on success', async () => {
     mockUser.findUnique.mockResolvedValue(null)
-    mockUser.create.mockResolvedValue({ id: 'new-id', email: 'new@b.com', name: 'Bob' })
+    mockUser.create.mockResolvedValue({ id: 'new-id', email: 'new@b.com', name: 'Bob', refreshTokenVersion: 0 })
     mockSetSession.mockResolvedValue(undefined)
 
     await expect(
       register({ error: null }, fd({ email: 'new@b.com', name: 'Bob', password: 'password123' }))
     ).rejects.toThrow('NEXT_REDIRECT:/onboarding')
     expect(mockUser.create).toHaveBeenCalled()
-    expect(mockSetSession).toHaveBeenCalledWith({ userId: 'new-id', email: 'new@b.com', name: 'Bob' })
+    expect(mockSetSession).toHaveBeenCalledWith({ userId: 'new-id', email: 'new@b.com', name: 'Bob' }, 0)
   })
 
   it('treats blank name as null', async () => {
     mockUser.findUnique.mockResolvedValue(null)
-    mockUser.create.mockResolvedValue({ id: 'x', email: 'x@b.com', name: null })
+    mockUser.create.mockResolvedValue({ id: 'x', email: 'x@b.com', name: null, refreshTokenVersion: 0 })
     mockSetSession.mockResolvedValue(undefined)
 
     await expect(

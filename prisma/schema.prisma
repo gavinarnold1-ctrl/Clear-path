@@ -55,12 +55,13 @@ enum DebtType {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String // hashed — never store plaintext
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  name                String?
+  password            String // hashed — never store plaintext
+  refreshTokenVersion Int      @default(0) // Incremented on refresh token rotation to invalidate old tokens
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   profile           UserProfile?
   accounts          Account[]

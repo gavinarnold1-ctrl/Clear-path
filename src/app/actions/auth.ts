@@ -31,7 +31,7 @@ export async function register(prevState: AuthState, formData: FormData): Promis
     },
   })
 
-  await setSession({ userId: user.id, email: user.email, name: user.name })
+  await setSession({ userId: user.id, email: user.email, name: user.name }, user.refreshTokenVersion)
   redirect('/onboarding')
 }
 
@@ -49,7 +49,7 @@ export async function login(prevState: AuthState, formData: FormData): Promise<A
     return { error: 'Invalid email or password.' }
   }
 
-  await setSession({ userId: user.id, email: user.email, name: user.name })
+  await setSession({ userId: user.id, email: user.email, name: user.name }, user.refreshTokenVersion)
   redirect('/dashboard')
 }
 
