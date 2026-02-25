@@ -204,7 +204,7 @@ Clear-path/
 ```
 User
  ├── UserProfile?       (onboarding state, financial goals, household info)
- ├── Account[]          (checking, savings, credit, mortgage, auto loan, student loan, …)
+ ├── Account[]          (checking, savings, credit, mortgage, auto loan, student loan, … — optional Debt? back-link)
  ├── Category[]         (Groceries, Salary, Rent, … — system defaults + user-created)
  ├── Transaction[]      (positive amount = income, negative = expense)
  ├── Budget[]           (amount limit per category, period + tier via BudgetPeriod / BudgetTier enums)
@@ -234,7 +234,7 @@ Key relationships:
 - An `AnnualExpense` is linked to a `Budget` via `budgetId` (one-to-one) and can have linked `Transaction[]`. Tracks annual costs with `annualAmount`, `dueMonth`/`dueYear`, `monthlySetAside`, `funded`, and `status` ("planned" / "funded" / "spent" / "overspent").
 - A `HouseholdMember` has `name` and `isDefault` (only one default per user). Transactions reference via `householdMemberId` (nullable, SetNull on delete).
 - A `Property` has `name`, `type` (`PropertyType` enum: PERSONAL / RENTAL), and `isDefault`. Transactions reference via `propertyId` (nullable, SetNull on delete). Properties also link to `Debt[]`.
-- A `Debt` tracks a liability with `type` (`DebtType` enum: MORTGAGE / STUDENT_LOAN / AUTO / CREDIT_CARD / PERSONAL_LOAN / OTHER), `currentBalance`, `originalBalance`, `interestRate`, `minimumPayment`, and optional `propertyId`/`categoryId`. Computed fields (`monthlyInterest`, `monthlyPrincipal`, `monthsRemaining`) are calculated on read, not stored.
+- A `Debt` tracks a liability with `type` (`DebtType` enum: MORTGAGE / STUDENT_LOAN / AUTO / CREDIT_CARD / PERSONAL_LOAN / OTHER), `currentBalance`, `originalBalance`, `interestRate`, `minimumPayment`, and optional `propertyId`/`categoryId`/`accountId`. An optional unique `accountId` links a Debt to a Plaid-connected Account (one-to-one). When Plaid syncs loan/credit accounts, a corresponding Debt is auto-created. Balance refresh updates `currentBalance` without overwriting user-edited fields. On account deletion, `accountId` is set to null (preserving the Debt). Computed fields (`monthlyInterest`, `monthlyPrincipal`, `monthsRemaining`) are calculated on read, not stored.
 - An `Insight` stores AI-generated recommendations with priority, savings estimates, action items (JSON), and optional feedback from users.
 - An `EfficiencyScore` tracks monthly financial efficiency (0-100) with spending/savings/debt sub-scores; unique per user+period.
 - Reference database models (TaxRule, SpendingBenchmark, etc.) are NOT user-scoped — they are read-only datasets shipped with the app.

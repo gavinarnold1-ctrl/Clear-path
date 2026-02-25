@@ -53,6 +53,17 @@ export async function POST() {
           },
         })
 
+        // Sync linked Debt balance (update only — don't overwrite user-edited fields)
+        const linkedDebt = await db.debt.findUnique({
+          where: { accountId: ourAccount.id },
+        })
+        if (linkedDebt) {
+          await db.debt.update({
+            where: { id: linkedDebt.id },
+            data: { currentBalance: Math.abs(balance) },
+          })
+        }
+
         updatedAccounts.push({
           id: ourAccount.id,
           name: ourAccount.name,
