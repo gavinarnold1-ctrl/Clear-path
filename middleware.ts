@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifyToken } from '@/lib/jwt'
 
 // Routes that require a valid session
-const PROTECTED = ['/dashboard', '/insights', '/monthly-review', '/transactions', '/budgets', '/accounts', '/categories', '/spending', '/debts', '/settings', '/onboarding']
+const PROTECTED = ['/dashboard', '/insights', '/monthly-review', '/transactions', '/budgets', '/accounts', '/categories', '/spending', '/debts', '/settings', '/onboarding', '/reimport']
 // Routes that logged-in users should not see
 const AUTH_ROUTES = ['/login', '/register']
 

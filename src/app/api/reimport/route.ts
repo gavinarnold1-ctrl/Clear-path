@@ -144,9 +144,20 @@ export async function POST() {
 
   try {
     // ─── Read CSV ──────────────────────────────────────────────────────────
-    const csvPath = path.join(process.cwd(), 'docs/Transactions_2026-02-21T21-30-39.csv')
-    if (!fs.existsSync(csvPath)) {
-      return NextResponse.json({ error: 'CSV file not found', path: csvPath }, { status: 404 })
+    // Try multiple paths — process.cwd() differs between local dev and Vercel serverless
+    const csvName = 'docs/Transactions_2026-02-21T21-30-39.csv'
+    const candidates = [
+      path.join(process.cwd(), csvName),
+      path.resolve(csvName),
+      path.join(__dirname, '..', '..', '..', '..', csvName),
+    ]
+    const csvPath = candidates.find(p => fs.existsSync(p))
+    if (!csvPath) {
+      return NextResponse.json({
+        error: 'CSV file not found',
+        tried: candidates,
+        cwd: process.cwd(),
+      }, { status: 404 })
     }
     const rawCSV = fs.readFileSync(csvPath, 'utf-8')
     const lines = rawCSV.split('\n').filter(l => l.trim())
