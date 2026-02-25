@@ -177,6 +177,12 @@ A repair endpoint `POST /api/transactions/fix-classification` recalculates all e
 
 `minimumPayment` on Debt now represents the **total** monthly payment (including escrow). Escrow is subtracted before computing the P&I split: `piPayment = minimumPayment - escrowAmount`.
 
+### Expense Calculation Review (2026-02-25)
+
+Audited all expense calculation paths across the codebase. The dashboard uses `classification: 'expense'` consistently across all queries. The $570 gap ($5,072 vs $4,502) comes from legitimate edge cases — Income-group transactions with negative amounts (e.g., tax withholding) are correctly classified as `'expense'` per the `classifyTransaction()` hierarchy (rule #3: Income group + non-positive amount → expense). No code changes needed.
+
+**Files verified:** `dashboard/page.tsx`, `spending/page.tsx`, `budgets/page.tsx`, `budget-builder.ts`, `insights.ts`, `budget-context.ts`, `temporal-context.ts`, `snapshots.ts`, `category-groups.ts`
+
 ### Verification Targets
 
 | Metric | Expected |
