@@ -120,11 +120,22 @@ Removed endpoints:
 
 ## Phase 4: Bank Connectivity
 
-| Step | Req         | Description                          | Status  |
-|------|-------------|--------------------------------------|---------|
-| 22   | R2.1, R1.10 | Plaid SDK + API routes, sign flip    | ⬜ TODO |
-| 23   | R2.1        | Plaid Link on Accounts page          | ⬜ TODO |
-| 24   | R2.2–R2.3   | Daily sync cron, balance refresh     | ⬜ TODO |
+| Step | Req         | Description                          | Status  | Tests   |
+|------|-------------|--------------------------------------|---------|---------|
+| 22   | R2.1, R1.10 | Plaid SDK + API routes, sign flip    | 🟢 Done | T4.1    |
+| 23   | R2.1        | Plaid Link on Accounts page          | 🟢 Done | T4.2    |
+| 24   | R2.2–R2.3   | Daily sync cron, balance refresh     | 🟢 Done | T4.3    |
+
+### Notes
+
+- **R2.1**: Plaid SDK (`plaid` + `react-plaid-link`) installed. Four API routes: `create-link-token`, `exchange-token`, `sync`, `balances`. Account model extended with `plaidAccountId`, `plaidItemId`, `plaidAccessToken`, `plaidCursor`, `plaidLastSynced` fields. Index on `plaidItemId`.
+- **R1.10**: Sign flip: `amount = -tx.amount` (Plaid positive = money out, we use negative = money out). Applied in both `/api/plaid/sync` and `/api/cron/sync-plaid`.
+- **R1.8**: Auto-categorization hierarchy: (1) merchant history — match most frequent category for same merchant, (2) Plaid `personal_finance_category.primary` mapped to our 12 category groups, (3) uncategorized fallback.
+- **R2.2**: Daily cron at `GET /api/cron/sync-plaid`, scheduled 6am UTC via `vercel.json`. Syncs all Plaid-connected accounts across all users, then refreshes balances.
+- **R2.3**: Balance refresh: depository accounts use `balances.available`, credit/loan accounts use `balances.current`. Runs after every sync (manual + cron).
+- **R11.5**: Access tokens stored as plaintext in sandbox. `TODO R11.5` comment marks encryption requirement for production (AES-256-GCM). Tokens never returned in API responses to frontend.
+- **R11.6**: Plaid Link handles all bank credentials — Oversikt never sees usernames/passwords.
+- **UI**: "Connect Bank" button on Accounts page opens Plaid Link. Connected accounts show "Connected" badge, institution name, last synced time, and "Sync Now" button. Manual accounts show "Manual" badge with editable balance fields.
 
 ---
 
@@ -220,6 +231,6 @@ Audited all expense calculation paths across the codebase. The dashboard uses `c
 | Phase 1: Foundation          | T1.1–T1.18 | 🟢 T1.1 ✅, T1.2 ✅, T1.5 ✅ (all source verification pass) |
 | Phase 2: Data Model          | T2.1–T2.3 | 🟢 T2.3 ✅ (45/45 pass) |
 | Phase 3: Experience          | T3.1–T3.12 | 🟢 T3.8 ✅ (34/34 pass) |
-| Phase 4: Plaid               | T4.1–T4.3 | ⬜ |
+| Phase 4: Plaid               | T4.1–T4.3 | 🟢 Implementation complete (sandbox testing required) |
 | Phase 5: Security/Brand/Ship | T5.0–T5.4 | ⬜ |
 | Final Verification           | All       | ⬜ |

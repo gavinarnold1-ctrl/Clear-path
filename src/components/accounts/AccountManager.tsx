@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
+import { usePlaidLink } from 'react-plaid-link'
 
 interface HouseholdMemberOption {
   id: string
@@ -18,6 +19,8 @@ interface AccountRow {
   balanceAsOfDate: string | null
   currency: string
   institution: string | null
+  isManual: boolean
+  plaidLastSynced: string | null
   ownerId: string | null
   ownerName: string | null
   txCount: number
@@ -48,6 +51,19 @@ const TYPE_GROUPS: Record<string, string[]> = {
 
 const ALL_TYPES = Object.keys(TYPE_LABELS)
 
+function formatSyncTime(isoString: string): string {
+  const date = new Date(isoString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  if (diffMins < 1) return 'just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays}d ago`
+}
+
 export default function AccountManager({ accounts: initial, householdMembers }: Props) {
   const router = useRouter()
   const [accounts, setAccounts] = useState(initial)
@@ -62,11 +78,104 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
   const [error, setError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AccountRow | null>(null)
 
+  // Plaid Link state
+  const [linkToken, setLinkToken] = useState<string | null>(null)
+  const [plaidLoading, setPlaidLoading] = useState(false)
+  const [plaidMessage, setPlaidMessage] = useState<string | null>(null)
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null)
+
   const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (editingId && nameRef.current) nameRef.current.focus()
   }, [editingId])
+
+  // Fetch link token when Connect Bank is clicked
+  async function fetchLinkToken() {
+    setPlaidLoading(true)
+    setPlaidMessage(null)
+    setError(null)
+    try {
+      const res = await fetch('/api/plaid/create-link-token', { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to create link token')
+      const data = await res.json()
+      setLinkToken(data.link_token)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start bank connection')
+      setPlaidLoading(false)
+    }
+  }
+
+  const onPlaidSuccess = useCallback(async (publicToken: string) => {
+    setPlaidLoading(true)
+    setPlaidMessage('Connecting accounts...')
+    try {
+      const exchangeRes = await fetch('/api/plaid/exchange-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public_token: publicToken }),
+      })
+      if (!exchangeRes.ok) throw new Error('Failed to connect bank')
+      const exchangeData = await exchangeRes.json()
+      const accountCount = exchangeData.accounts?.length ?? 0
+
+      setPlaidMessage('Syncing transactions...')
+      const syncRes = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const syncData = syncRes.ok ? await syncRes.json() : { added: 0 }
+
+      setPlaidMessage(
+        `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''}`
+      )
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect bank')
+    } finally {
+      setPlaidLoading(false)
+      setLinkToken(null)
+    }
+  }, [router])
+
+  const onPlaidExit = useCallback(() => {
+    setPlaidLoading(false)
+    setLinkToken(null)
+  }, [])
+
+  const { open: openPlaidLink, ready: plaidReady } = usePlaidLink({
+    token: linkToken,
+    onSuccess: onPlaidSuccess,
+    onExit: onPlaidExit,
+  })
+
+  // Auto-open Plaid Link when token is ready
+  useEffect(() => {
+    if (linkToken && plaidReady) {
+      openPlaidLink()
+    }
+  }, [linkToken, plaidReady, openPlaidLink])
+
+  async function syncAccount(accountId: string) {
+    setSyncingAccountId(accountId)
+    setError(null)
+    try {
+      const res = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      })
+      if (!res.ok) throw new Error('Sync failed')
+      const data = await res.json()
+      setPlaidMessage(`Synced: +${data.added} added, ${data.modified} modified, ${data.removed} removed`)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sync failed')
+    } finally {
+      setSyncingAccountId(null)
+    }
+  }
 
   function startEdit(acct: AccountRow) {
     setEditingId(acct.id)
@@ -177,6 +286,13 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
         </div>
       )}
 
+      {plaidMessage && (
+        <div className="mb-4 rounded-lg border border-pine/30 bg-pine/10 px-4 py-2 text-sm text-pine">
+          {plaidMessage}
+          <button onClick={() => setPlaidMessage(null)} className="ml-2 font-medium underline">dismiss</button>
+        </div>
+      )}
+
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -204,6 +320,24 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
         <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-midnight' : 'text-expense'}`}>
           {formatCurrency(totalBalance)}
         </p>
+      </div>
+
+      {/* Connect Bank button */}
+      <div className="mb-6">
+        <button
+          onClick={fetchLinkToken}
+          disabled={plaidLoading}
+          className="btn-primary flex items-center gap-2 disabled:opacity-50"
+        >
+          {plaidLoading ? (
+            <>
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-snow border-t-transparent" />
+              Connecting...
+            </>
+          ) : (
+            'Connect Bank'
+          )}
+        </button>
       </div>
 
       {/* Grouped accounts */}
@@ -234,27 +368,31 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-stone">Starting balance</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editStartingBalance}
-                        onChange={e => setEditStartingBalance(e.target.value)}
-                        className="input text-sm"
-                        onKeyDown={e => e.key === 'Enter' && saveEdit()}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-stone">Balance as of date</label>
-                      <input
-                        type="date"
-                        value={editBalanceAsOfDate}
-                        onChange={e => setEditBalanceAsOfDate(e.target.value)}
-                        className="input text-sm"
-                      />
-                      <p className="mt-0.5 text-[10px] text-stone">Transactions after this date adjust balance</p>
-                    </div>
+                    {acct.isManual && (
+                      <>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-stone">Starting balance</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editStartingBalance}
+                            onChange={e => setEditStartingBalance(e.target.value)}
+                            className="input text-sm"
+                            onKeyDown={e => e.key === 'Enter' && saveEdit()}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-stone">Balance as of date</label>
+                          <input
+                            type="date"
+                            value={editBalanceAsOfDate}
+                            onChange={e => setEditBalanceAsOfDate(e.target.value)}
+                            className="input text-sm"
+                          />
+                          <p className="mt-0.5 text-[10px] text-stone">Transactions after this date adjust balance</p>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <label className="mb-1 block text-xs font-medium text-stone">Institution</label>
                       <input
@@ -292,12 +430,26 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
               ) : (
                 <div key={acct.id} className="card flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-fjord">{acct.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-fjord">{acct.name}</p>
+                      {!acct.isManual ? (
+                        <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                          Manual
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-stone">
                       {TYPE_LABELS[acct.type] ?? acct.type}
                       {acct.institution && <span> &middot; {acct.institution}</span>}
                       {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
                       {' '}&middot; {acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
+                      {!acct.isManual && acct.plaidLastSynced && (
+                        <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
@@ -305,6 +457,15 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
                       {formatCurrency(acct.balance, acct.currency)}
                     </p>
                     <div className="flex items-center gap-3">
+                      {!acct.isManual && (
+                        <button
+                          onClick={() => syncAccount(acct.id)}
+                          disabled={syncingAccountId === acct.id}
+                          className="text-xs text-pine hover:text-pine/80 disabled:opacity-50"
+                        >
+                          {syncingAccountId === acct.id ? 'Syncing...' : 'Sync Now'}
+                        </button>
+                      )}
                       <button
                         onClick={() => startEdit(acct)}
                         className="text-xs text-stone hover:text-fjord"

@@ -47,6 +47,9 @@ export interface Account {
   currency: string
   institution: string | null
   isManual: boolean
+  plaidAccountId: string | null
+  plaidItemId: string | null
+  plaidLastSynced: Date | null
   userId: string
 }
 
