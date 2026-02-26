@@ -375,3 +375,17 @@ New `BudgetHealth` component on Budgets page between True Remaining banner and t
 - Pre-existing failures: `t1-1` (1, regex false positive on computed `b.spent`), `insights.test` (5, benchmarks engine extraction), `t2-3` (2, debt engine extraction), `t1-8` (4, UnbudgetedSection rendering duplicates)
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
 - Build: blocked by network (Google Fonts unreachable in sandbox), not a code issue
+
+---
+
+## Stress Test Follow-Up Fixes (2026-02-26)
+
+| Bug | Description | Files Changed |
+|-----|-------------|---------------|
+| 1. Fixed bill matching | Fixed bills were showing wrong paid/unpaid status and inflated amounts because `spent` was the full category sum rather than the specific matched transaction. Changed to per-bill matching: (1) find transactions by categoryId, (2) fallback to merchant name matching, (3) pick the best match by name overlap then closest amount. Each fixed bill now claims a specific transaction, preventing double-counting when multiple bills share a category. `getFixedStatus` in FixedBudgetSection also updated to use per-bill matching and return the matched amount instead of summing all category transactions. | `src/app/(dashboard)/budgets/page.tsx`, `src/components/budgets/FixedBudgetSection.tsx` |
+| 2. Dashboard stale after CSV import | After importing transactions via CSV, the dashboard showed $0 and "No transactions yet" until manual reload because the Next.js Router Cache served stale data. Fixed by: (1) adding `revalidatePath()` calls for `/dashboard`, `/transactions`, `/budgets`, `/spending` in the import API route, (2) adding `router.refresh()` in ImportWizard after successful import to invalidate the client-side cache. | `src/app/api/transactions/import/route.ts`, `src/app/(dashboard)/transactions/import/ImportWizard.tsx` |
+
+### Test Results
+
+- **432 total tests**: 420 passed, 12 failed (all pre-existing, same as before)
+- TypeScript: zero errors (`npx tsc --noEmit` clean)

@@ -170,6 +170,51 @@ export default async function BudgetsPage() {
   // Sort by spend descending
   unbudgetedCategories.sort((x, y) => y.spent - x.spent)
 
+  // For FIXED budgets: compute per-bill spent by matching the best transaction,
+  // not summing the entire category. This prevents inflated amounts when multiple
+  // bills share a category (e.g. auto + health insurance both in "Insurance").
+  const claimedTxIds = new Set<string>()
+  for (const b of fixed) {
+    // Get candidate transactions: by categoryId first, then by name
+    let candidates = b.categoryId
+      ? transactions.filter((tx) => tx.categoryId === b.categoryId && !claimedTxIds.has(tx.id))
+      : []
+
+    // Fallback: name-based matching when no categoryId or no category matches
+    if (candidates.length === 0) {
+      const budgetNameLower = b.name.toLowerCase()
+      candidates = transactions.filter((tx) => {
+        if (claimedTxIds.has(tx.id)) return false
+        const merchant = (tx.merchant ?? '').toLowerCase()
+        return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
+      })
+    }
+
+    if (candidates.length === 0) {
+      b.spent = 0
+      continue
+    }
+
+    // Priority 1: merchant name matches budget name
+    const budgetNameLower = b.name.toLowerCase()
+    let match = candidates.find((tx) => {
+      const merchant = (tx.merchant ?? '').toLowerCase()
+      return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
+    })
+
+    // Priority 2: closest amount to budget
+    if (!match) {
+      match = candidates.reduce((best, tx) =>
+        Math.abs(Math.abs(tx.amount) - b.amount) < Math.abs(Math.abs(best.amount) - b.amount)
+          ? tx
+          : best
+      )
+    }
+
+    b.spent = Math.abs(match.amount)
+    claimedTxIds.add(match.id)
+  }
+
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
   const flexibleBudgeted = flexible.reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = flexible.reduce((sum, item) => sum + item.spent, 0)
