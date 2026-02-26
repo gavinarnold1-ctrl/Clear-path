@@ -5,7 +5,7 @@ import { getOnboardingState } from '@/app/actions/onboarding'
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
 import type { OnboardingAnswers } from '@/types'
 
-export const metadata: Metadata = { title: 'Get Started — Clear-path' }
+export const metadata: Metadata = { title: 'Get Started — oversikt' }
 
 const EMPTY_ANSWERS: OnboardingAnswers = {
   primaryGoal: null,

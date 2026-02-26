@@ -52,7 +52,8 @@ export async function createTransaction(
     finalAmount,
   )
 
-  const txDate = new Date(date)
+  // Append time component to date-only strings so they parse as local time, not UTC midnight
+  const txDate = new Date(date.includes('T') ? date : `${date}T12:00:00`)
 
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record

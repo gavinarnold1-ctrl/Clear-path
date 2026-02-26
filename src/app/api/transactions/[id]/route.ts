@@ -85,7 +85,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(finalAmount !== undefined && { amount: finalAmount }),
         ...(classification !== undefined && { classification }),
         ...(body.merchant && { merchant: body.merchant }),
-        ...(body.date && { date: new Date(body.date) }),
+        ...(body.date && { date: new Date(body.date.includes('T') ? body.date : `${body.date}T12:00:00`) }),
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.tags !== undefined && { tags: body.tags }),
         ...(body.categoryId !== undefined && { categoryId: body.categoryId }),

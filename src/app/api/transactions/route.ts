@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         amount: finalAmount,
         classification,
         merchant,
-        date: new Date(date),
+        date: new Date(date.includes('T') ? date : `${date}T12:00:00`),
         notes: notes ?? null,
         tags: tags ?? null,
         householdMemberId: resolvedMemberId,
