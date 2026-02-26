@@ -92,7 +92,6 @@ export default async function DashboardPage({ searchParams }: Props) {
     budgetExpenses,
     categorySpending,
     chartData,
-    transactionCount,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     // R1.14: Income = classification "income"
@@ -178,13 +177,6 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       select: { date: true, amount: true, classification: true },
     }),
-    // Transaction count for the selected month
-    db.transaction.count({
-      where: {
-        userId: session.userId,
-        date: { gte: startDate, lte: endDate },
-      },
-    }),
   ])
 
   // New users with no accounts: show streamlined "Get Started" flow
@@ -235,11 +227,6 @@ export default async function DashboardPage({ searchParams }: Props) {
   const fixedTotal = fixedBudgets.reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = flexibleBudgets.reduce((sum, b) => sum + b.spent, 0)
   const annualSetAside = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
-
-  // Budget pulse: count on-track vs over-budget for flexible budgets
-  const flexOnTrack = flexibleBudgets.filter((b) => b.spent <= b.amount).length
-  const flexOverBudget = flexibleBudgets.filter((b) => b.spent > b.amount).length
-  const fixedPaid = fixedBudgets.filter((b) => b.spent > 0).length
 
   const activeBudgets = allBudgetsWithSpent
     .sort((a, b) => b.spent - a.spent)
@@ -334,42 +321,6 @@ export default async function DashboardPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Budget Pulse — quick health indicators */}
-      {hasBudgets && (
-        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Fixed Bills</p>
-            <p className="mt-1 font-mono text-xl font-medium text-fjord">
-              {fixedPaid}/{fixedBudgets.length}
-            </p>
-            <p className="mt-0.5 text-xs text-stone">paid this month</p>
-          </div>
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Flexible On Track</p>
-            <p className={`mt-1 font-mono text-xl font-medium ${flexOverBudget > 0 ? 'text-ember' : 'text-pine'}`}>
-              {flexOnTrack}/{flexibleBudgets.length}
-            </p>
-            <p className="mt-0.5 text-xs text-stone">
-              {flexOverBudget > 0 ? `${flexOverBudget} over budget` : 'all within budget'}
-            </p>
-          </div>
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Annual Set-Aside</p>
-            <p className="mt-1 font-mono text-xl font-medium text-fjord">
-              {formatCurrency(annualSetAside)}
-            </p>
-            <p className="mt-0.5 text-xs text-stone">/mo across {annualBudgets.length} items</p>
-          </div>
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Net this Month</p>
-            <p className={`mt-1 font-mono text-xl font-medium ${monthlyNet >= 0 ? 'text-income' : 'text-expense'}`}>
-              {formatCurrency(monthlyNet)}
-            </p>
-            <p className="mt-0.5 text-xs text-stone">{monthlyNet >= 0 ? 'surplus' : 'deficit'}</p>
-          </div>
-        </div>
-      )}
-
       {/* Summary stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -390,9 +341,10 @@ export default async function DashboardPage({ searchParams }: Props) {
           change={expenseChange != null ? { pct: -expenseChange, label: 'vs prev month' } : null}
         />
         <StatCard
-          label={`Transactions — ${monthLabel}`}
-          value={transactionCount.toLocaleString()}
-          sub={`transaction${transactionCount !== 1 ? 's' : ''} this month`}
+          label={`Net — ${monthLabel}`}
+          value={formatCurrency(monthlyNet)}
+          valueClass={monthlyNet >= 0 ? 'text-income' : 'text-expense'}
+          sub={monthlyNet >= 0 ? 'surplus' : 'deficit'}
         />
       </div>
 
