@@ -40,6 +40,7 @@ export interface SpendingProfile {
     amount: number
     date: Date
     description: string
+    isPast: boolean
   }[]
   monthsOfData: number
   totalTransactions: number
@@ -250,6 +251,7 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
       amount: Math.abs(t.amount),
       date: t.date,
       description: t.originalStatement || t.merchant || '',
+      isPast: t.date < now,
     }))
 
   const averageMonthlyExpenses =
@@ -357,6 +359,8 @@ RULES:
 - Each item needs a SHORT "reasoning" (max 50 characters) explaining the amount.
 - ONLY propose budget items for expenses that are ACTIVE — meaning they have transactions in the last 6 months. Do not budget for historical expenses that have stopped. If a recurring charge has not appeared in 3+ months, exclude it or flag it as "possibly inactive."
 - Income should reflect CURRENT monthly income, not historical averages that include one-time windfalls.
+- Large infrequent charges are HISTORICAL DATA showing what the user actually spent. Charges dated in the past are COMPLETED expenses — do NOT assume they will recur unless there's a clear annual pattern (e.g., property tax appearing at the same time each year). One-time life events (weddings, moves, medical procedures) should be noted in the commentary as past events, not budgeted as future expenses.
+- When suggesting annual expenses, base suggestions on RECURRING patterns (same charge appearing ~12 months apart) or common household expenses. Do NOT extrapolate one-time events into future budget items.
 - The summary should show projected True Remaining and note if the budget is tight, comfortable, or has room for more savings.
 
 TEMPORAL CONTEXT:
@@ -429,17 +433,18 @@ ${topFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency},
 VARIABLE SPENDING BY CATEGORY:
 ${topVariable.map((c) => `- ${c.category} (${c.group}): avg $${c.monthlyAverage.toFixed(2)}/mo, median $${c.monthlyMedian.toFixed(2)}, range $${c.min.toFixed(0)}-$${c.max.toFixed(0)}, trend: ${c.trend}, ${c.transactionCount} transactions over ${c.months} months`).join('\n')}
 
-LARGE INFREQUENT CHARGES (potential annual expenses):
+LARGE INFREQUENT CHARGES (historical — these already happened):
 ${
   topAnnual.length > 0
     ? topAnnual
         .map(
           (a) =>
-            `- ${a.merchant}: $${a.amount.toFixed(2)} on ${a.date.toLocaleDateString()} (${a.category}) — "${a.description}"`
+            `- ${a.merchant}: $${a.amount.toFixed(2)} on ${a.date.toLocaleDateString()} [${a.isPast ? 'PAST — completed' : 'UPCOMING'}] (${a.category}) — "${a.description}"`
         )
         .join('\n')
     : 'None detected in data (limited history). Suggest common annual expenses.'
 }
+${topAnnual.length > 0 ? '\nNOTE: The above charges are historical. Only budget for them if they show a clear annual recurrence pattern. One-time events (weddings, moves, large purchases) should NOT be projected forward.' : ''}
 
 DATA COVERAGE: Income based on last 3 months. Fixed/variable based on last 6 months. Annual detection based on last 12 months. Total history: ${profile.monthsOfData} months, ${profile.totalTransactions} transactions.
 CURRENT SAVINGS RATE: ${profile.savingsRate}%
