@@ -112,11 +112,18 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     return { source, frequency, averageAmount: avg, count: data.amounts.length, dayOfMonth }
   })
 
+  // Only count predictable recurring income in the monthly total.
+  // Irregular income is listed separately in the prompt as context.
   const totalMonthlyIncome = incomeStreams.reduce((sum, s) => {
-    if (s.frequency === 'biweekly') return sum + (s.averageAmount * 26) / 12
+    if (s.frequency === 'biweekly') {
+      const annualized = (s.averageAmount * 26) / 12
+      const actualMonthly = (s.averageAmount * s.count) / 3
+      return sum + Math.min(annualized, actualMonthly * 1.1) // 10% tolerance for 3-paycheck months
+    }
     if (s.frequency === 'weekly') return sum + (s.averageAmount * 52) / 12
     if (s.frequency === 'monthly') return sum + s.averageAmount
-    return sum + (s.averageAmount * s.count) / 3
+    // Irregular income: do NOT add to monthly total
+    return sum
   }, 0)
 
   // ── Fixed Expense Detection (last 6 months, min 3 occurrences) ──
@@ -402,11 +409,19 @@ OUTPUT FORMAT — Return ONLY valid JSON with no markdown, no commentary, no tex
   const topVariable = profile.variableByCategory.slice(0, 15)
   const topAnnual = profile.detectedAnnual.slice(0, 10)
 
+  const regularIncome = profile.incomeStreams.filter(s => ['monthly', 'biweekly', 'weekly'].includes(s.frequency))
+  const irregularIncome = profile.incomeStreams.filter(s => !['monthly', 'biweekly', 'weekly'].includes(s.frequency))
+
   const userPrompt = `Build a complete budget proposal based on this spending profile:
 
-INCOME:
-${profile.incomeStreams.map((s) => `- ${s.source}: $${s.averageAmount.toFixed(2)} (${s.frequency}, ${s.count} occurrences${s.dayOfMonth ? `, ~day ${s.dayOfMonth}` : ''})`).join('\n')}
-Total monthly income: $${profile.totalMonthlyIncome.toFixed(2)}
+REGULAR INCOME:
+${regularIncome.map((s) => `- ${s.source}: $${s.averageAmount.toFixed(2)} (${s.frequency}, ${s.count} occurrences${s.dayOfMonth ? `, ~day ${s.dayOfMonth}` : ''})`).join('\n') || 'None detected'}
+Total predictable monthly income: $${profile.totalMonthlyIncome.toFixed(2)}
+
+IRREGULAR/ONE-TIME INCOME (last 3 months):
+${irregularIncome.length > 0
+    ? irregularIncome.map(s => `- ${s.source}: $${s.averageAmount.toFixed(2)} × ${s.count} (${s.frequency} — do NOT include in base budget)`).join('\n')
+    : 'None detected'}
 
 DETECTED FIXED EXPENSES (${topFixed.length} of ${profile.detectedFixed.length} items):
 ${topFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency}, day ~${f.dayOfMonth}, ${f.category}, confidence: ${(f.confidence * 100).toFixed(0)}%${f.isAutoPay ? ', autopay likely' : ''})`).join('\n')}
