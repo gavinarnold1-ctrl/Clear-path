@@ -62,46 +62,71 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Load existing budgets for deduplication (match by name + tier)
+    const existingBudgets = await db.budget.findMany({
+      where: { userId: session!.userId },
+      include: { annualExpense: true },
+    })
+    const existingByKey = new Map(
+      existingBudgets.map((b) => [`${b.name.toLowerCase()}::${b.tier}`, b])
+    )
+
     const results = await db.$transaction(async (tx) => {
       const created = { fixed: 0, flexible: 0, annual: 0 }
 
       // ── Fixed budgets ──
       for (const item of proposal.fixed) {
         const categoryId = findCategoryId(item.category, 'expense')
+        const key = `${item.name.toLowerCase()}::FIXED`
+        const existing = existingByKey.get(key)
 
-        await tx.budget.create({
-          data: {
-            userId: session!.userId,
-            name: item.name,
-            amount: item.amount,
-
-            period: 'MONTHLY',
-            tier: 'FIXED',
-            startDate: startOfMonth,
-            categoryId,
-            isAutoPay: item.isAutoPay,
-            dueDay: item.dueDay,
-          },
-        })
+        if (existing) {
+          await tx.budget.update({
+            where: { id: existing.id },
+            data: { amount: item.amount, categoryId, isAutoPay: item.isAutoPay, dueDay: item.dueDay },
+          })
+        } else {
+          await tx.budget.create({
+            data: {
+              userId: session!.userId,
+              name: item.name,
+              amount: item.amount,
+              period: 'MONTHLY',
+              tier: 'FIXED',
+              startDate: startOfMonth,
+              categoryId,
+              isAutoPay: item.isAutoPay,
+              dueDay: item.dueDay,
+            },
+          })
+        }
         created.fixed++
       }
 
       // ── Flexible budgets ──
       for (const item of proposal.flexible) {
         const categoryId = findCategoryId(item.category, 'expense')
+        const key = `${item.name.toLowerCase()}::FLEXIBLE`
+        const existing = existingByKey.get(key)
 
-        await tx.budget.create({
-          data: {
-            userId: session!.userId,
-            name: item.name,
-            amount: item.amount,
-
-            period: 'MONTHLY',
-            tier: 'FLEXIBLE',
-            startDate: startOfMonth,
-            categoryId,
-          },
-        })
+        if (existing) {
+          await tx.budget.update({
+            where: { id: existing.id },
+            data: { amount: item.amount, categoryId },
+          })
+        } else {
+          await tx.budget.create({
+            data: {
+              userId: session!.userId,
+              name: item.name,
+              amount: item.amount,
+              period: 'MONTHLY',
+              tier: 'FLEXIBLE',
+              startDate: startOfMonth,
+              categoryId,
+            },
+          })
+        }
         created.flexible++
       }
 
@@ -124,33 +149,63 @@ export async function POST(req: NextRequest) {
         )
         const monthlySetAside = Math.ceil((item.annualAmount / monthsLeft) * 100) / 100
 
-        const budget = await tx.budget.create({
-          data: {
-            userId: session!.userId,
-            name: item.name,
-            amount: monthlySetAside,
+        const key = `${item.name.toLowerCase()}::ANNUAL`
+        const existing = existingByKey.get(key)
 
-            period: 'MONTHLY',
-            tier: 'ANNUAL',
-            startDate: startOfMonth,
-            categoryId,
-          },
-        })
+        if (existing) {
+          await tx.budget.update({
+            where: { id: existing.id },
+            data: { amount: monthlySetAside, categoryId },
+          })
+          if (existing.annualExpense) {
+            await tx.annualExpense.update({
+              where: { id: existing.annualExpense.id },
+              data: { annualAmount: item.annualAmount, dueMonth, dueYear, monthlySetAside, isRecurring: item.isRecurring ?? false },
+            })
+          } else {
+            await tx.annualExpense.create({
+              data: {
+                budgetId: existing.id,
+                userId: session!.userId,
+                name: item.name,
+                annualAmount: item.annualAmount,
+                dueMonth,
+                dueYear,
+                isRecurring: item.isRecurring ?? false,
+                monthlySetAside,
+                funded: 0,
+                status: 'planned',
+              },
+            })
+          }
+        } else {
+          const budget = await tx.budget.create({
+            data: {
+              userId: session!.userId,
+              name: item.name,
+              amount: monthlySetAside,
+              period: 'MONTHLY',
+              tier: 'ANNUAL',
+              startDate: startOfMonth,
+              categoryId,
+            },
+          })
 
-        await tx.annualExpense.create({
-          data: {
-            budgetId: budget.id,
-            userId: session!.userId,
-            name: item.name,
-            annualAmount: item.annualAmount,
-            dueMonth,
-            dueYear,
-            isRecurring: item.isRecurring ?? false,
-            monthlySetAside,
-            funded: 0,
-            status: 'planned',
-          },
-        })
+          await tx.annualExpense.create({
+            data: {
+              budgetId: budget.id,
+              userId: session!.userId,
+              name: item.name,
+              annualAmount: item.annualAmount,
+              dueMonth,
+              dueYear,
+              isRecurring: item.isRecurring ?? false,
+              monthlySetAside,
+              funded: 0,
+              status: 'planned',
+            },
+          })
+        }
         created.annual++
       }
 

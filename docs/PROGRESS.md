@@ -355,3 +355,23 @@ New `BudgetHealth` component on Budgets page between True Remaining banner and t
 | CSP header | Content-Security-Policy added to next.config.ts (self + Plaid + Anthropic + Google Fonts) |
 | Personal CSV removed | `outputFileTracingIncludes` removed, `/api/reimport` returns 410 Gone |
 | Brand docs | `brand-architecture.md` updated with semantic aliases (income/expense/transfer) and actual Tailwind config |
+
+---
+
+## UAT Bug Fixes (2026-02-26)
+
+| Bug | Description | Files Changed |
+|-----|-------------|---------------|
+| 1. Income category groups | Added missing keywords (freelance, contract, wages, investment income, rental income, interest, pension, social security, annuity, royalty, commission) to Income group in `GROUP_KEYWORDS`. Moved ambiguous 'interest' from Financial to Income; Financial now uses 'interest charge'. Ensures `inferCategoryGroup()` assigns Income group for CSV-imported income categories. | `src/lib/category-groups.ts` |
+| 2. Amount validation message | Added visible helper text below amount input: "Enter a positive amount (minimum $0.01). The sign is set automatically by category." Keeps existing `min="0.01"` constraint. | `src/components/forms/TransactionForm.tsx` |
+| 3. UTC date shift | Fixed date-only strings (e.g. "2025-01-15") being parsed as UTC midnight, shifting dates backward in western timezones. All 4 write paths now append `T12:00:00` to date-only strings before creating Date objects. | `src/app/actions/transactions.ts`, `src/app/api/transactions/route.ts`, `src/app/api/transactions/[id]/route.ts`, `src/app/api/transactions/import/route.ts` |
+| 4. Onboarding page title | Changed `title: 'Get Started — Clear-path'` to `title: 'Get Started — oversikt'` in onboarding page metadata. | `src/app/onboarding/page.tsx` |
+| 5. Chart ghost bars | Filtered zero-data months (income=0 AND expenses=0) from chart data before passing to MonthlyChart. Current month is always kept even if empty. Also fixed income bar color from `#52B788` to Pine `#2D5F3E` per brand system. | `src/app/(dashboard)/dashboard/page.tsx`, `src/components/dashboard/MonthlyChart.tsx` |
+| 6. Annual expense duplication | Budget apply route now checks for existing budgets by name+tier before creating. If a match exists, updates amount/category instead of creating a duplicate. For annual budgets, also updates the linked AnnualExpense record. | `src/app/api/budgets/apply/route.ts` |
+
+### Test Results
+
+- **432 total tests**: 420 passed, 12 failed (all pre-existing)
+- Pre-existing failures: `t1-1` (1, regex false positive on computed `b.spent`), `insights.test` (5, benchmarks engine extraction), `t2-3` (2, debt engine extraction), `t1-8` (4, UnbudgetedSection rendering duplicates)
+- TypeScript: zero errors (`npx tsc --noEmit` clean)
+- Build: blocked by network (Google Fonts unreachable in sandbox), not a code issue

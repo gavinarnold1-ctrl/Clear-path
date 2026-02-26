@@ -280,7 +280,7 @@ export async function POST(request: Request) {
     }[] = []
 
     for (const tx of transactionsToProcess) {
-      const txDate = new Date(tx.date)
+      const txDate = new Date(tx.date.includes('T') ? tx.date : `${tx.date}T12:00:00`)
       if (isNaN(txDate.getTime())) {
         parseErrors.push({ row: 0, message: `Invalid date: ${tx.date}` })
         continue

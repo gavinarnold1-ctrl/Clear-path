@@ -38,7 +38,7 @@ export default function MonthlyChart({ data }: Props) {
               ]}
             />
             <Legend />
-            <Bar dataKey="income" fill="#52B788" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="income" fill="#2D5F3E" radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell
                   key={`income-${index}`}

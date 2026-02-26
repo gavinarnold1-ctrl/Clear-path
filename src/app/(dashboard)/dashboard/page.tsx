@@ -266,16 +266,18 @@ export default async function DashboardPage({ searchParams }: Props) {
     }
   }
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const chartSeries = Object.entries(chartMonths).map(([key, vals]) => {
-    const [, m] = key.split('-')
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    return {
-      label: monthNames[parseInt(m, 10) - 1],
-      income: Math.round(vals.income * 100) / 100,
-      expenses: Math.round(vals.expenses * 100) / 100,
-      isCurrent: key === currentMonthKey,
-    }
-  })
+  const chartSeries = Object.entries(chartMonths)
+    .map(([key, vals]) => {
+      const [, m] = key.split('-')
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      return {
+        label: monthNames[parseInt(m, 10) - 1],
+        income: Math.round(vals.income * 100) / 100,
+        expenses: Math.round(vals.expenses * 100) / 100,
+        isCurrent: key === currentMonthKey,
+      }
+    })
+    .filter((entry) => entry.income > 0 || entry.expenses > 0 || entry.isCurrent)
 
   // Resolve category names for spending breakdown
   const catIds = categorySpending.map((g) => g.categoryId).filter((id): id is string => id !== null)

@@ -40,11 +40,13 @@ const GROUP_KEYWORDS: Record<string, string[]> = {
   ],
   'Financial': [
     'fee', 'financial', 'legal', 'loan', 'student loan',
-    'bank fee', 'interest', 'atm',
+    'bank fee', 'interest charge', 'atm',
   ],
   'Income': [
     'income', 'salary', 'paycheck', 'dividend', 'interest earned',
-    'bonus', 'refund', 'reimbursement',
+    'bonus', 'refund', 'reimbursement', 'freelance', 'contract',
+    'wages', 'investment income', 'rental income', 'interest',
+    'pension', 'social security', 'annuity', 'royalty', 'commission',
   ],
   'Transfers': [
     'transfer', 'credit card payment', 'internal transfer',

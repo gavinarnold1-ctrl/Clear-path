@@ -71,6 +71,7 @@ export default function TransactionForm({ accounts, categories, householdMembers
             required
           />
         </div>
+        <p className="mt-1 text-xs text-stone">Enter a positive amount (minimum $0.01). The sign is set automatically by category.</p>
       </div>
 
       {/* Merchant */}
