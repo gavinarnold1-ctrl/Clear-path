@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
+import BudgetHealth from '@/components/budgets/BudgetHealth'
 import FixedBudgetSection from '@/components/budgets/FixedBudgetSection'
 import FlexibleBudgetSection from '@/components/budgets/FlexibleBudgetSection'
 import AnnualBudgetSection from '@/components/budgets/AnnualBudgetSection'
@@ -20,7 +21,11 @@ export default async function BudgetsPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const [budgets, transactions, incomeAgg] = await Promise.all([
+  // Prior 3 complete months for expected income calculation
+  const prev1Start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  const prev1End = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+
+  const [budgets, transactions, incomeAgg, priorIncomeAgg] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true },
@@ -41,6 +46,15 @@ export default async function BudgetsPage() {
       where: {
         userId: session.userId,
         date: { gte: startOfMonth, lte: endOfMonth },
+        classification: 'income',
+      },
+      _sum: { amount: true },
+    }),
+    // Prior 3 complete months income for expected income estimate
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: prev1Start, lte: prev1End },
         classification: 'income',
       },
       _sum: { amount: true },
@@ -157,10 +171,20 @@ export default async function BudgetsPage() {
   unbudgetedCategories.sort((x, y) => y.spent - x.spent)
 
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
+  const flexibleBudgeted = flexible.reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = flexible.reduce((sum, item) => sum + item.spent, 0)
   const annualSetAside = annual.reduce((sum, b) => {
     return sum + (b.annualExpense?.monthlySetAside ?? 0)
   }, 0)
+
+  // Budget Health metrics
+  const expectedIncome = (priorIncomeAgg._sum.amount ?? 0) / 3
+  const actualExpenses = transactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+  const expectedExpenses = fixedTotal + flexibleBudgeted + annualSetAside
+  const fixedPaid = fixed.filter((b) => b.spent > 0).length
+  const flexOnTrack = flexible.filter((b) => b.spent <= b.amount).length
+  const flexOverBudget = flexible.filter((b) => b.spent > b.amount).length
+  const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
 
   return (
     <div>
@@ -183,6 +207,19 @@ export default async function BudgetsPage() {
             fixedTotal={fixedTotal}
             flexibleSpent={flexibleSpent}
             annualSetAside={annualSetAside}
+          />
+
+          <BudgetHealth
+            expectedIncome={expectedIncome}
+            actualIncome={income}
+            expectedExpenses={expectedExpenses}
+            actualExpenses={actualExpenses}
+            fixedPaid={fixedPaid}
+            fixedTotal={fixed.length}
+            flexOnTrack={flexOnTrack}
+            flexTotal={flexible.length}
+            flexOverBudget={flexOverBudget}
+            monthLabel={monthLabel}
           />
 
           <FixedBudgetSection budgets={fixed} transactions={transactions} />

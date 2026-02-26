@@ -141,7 +141,7 @@ Clear-path/
 │   │   ├── annual/          # AnnualExpenseCard, AutoFundBanner, FundExpenseModal, LinkTransactionModal, etc.
 │   │   ├── brand/           # OversiktMobile (brand showcase component)
 │   │   ├── budget-builder/  # AI budget proposal UI (BudgetBuilderCTA, BudgetProposal, ProposalSections)
-│   │   ├── budgets/         # Tiered budget sections (Fixed, Flexible, Annual) + TrueRemainingBanner
+│   │   ├── budgets/         # Tiered budget sections (Fixed, Flexible, Annual) + TrueRemainingBanner + BudgetHealth
 │   │   ├── categories/      # CategoryManager (inline edit/delete)
 │   │   ├── dashboard/       # MonthlyChart, SpendingBreakdown
 │   │   ├── debts/           # DebtManager (debt cards with P&I breakdown, add/delete)
@@ -153,7 +153,7 @@ Clear-path/
 │   │   └── ui/              # BudgetCard, FixedBudgetCard, AnnualBudgetCard, ProgressBar, TierSummaryHeader
 │   ├── lib/
 │   │   ├── ai.ts            # Anthropic SDK client + prompt builder for insights
-│   │   ├── benchmarks.ts    # BLS spending benchmark data + efficiency rating
+│   │   ├── benchmarks.ts    # Re-export shim → engines/benchmarks.ts
 │   │   ├── budget-builder.ts # AI budget proposal generation
 │   │   ├── budget-context.ts # Budget context builder for AI prompts
 │   │   ├── budget-engine.ts  # Tiered budget calculations (fixed, flexible, annual, true remaining)
@@ -171,7 +171,12 @@ Clear-path/
 │   │   ├── session.ts       # Cookie-based session management
 │   │   ├── snapshots.ts     # MonthlySnapshot computation + storage
 │   │   ├── temporal-context.ts # Time-aware context for AI prompts
-│   │   └── utils.ts         # formatCurrency, formatDate, budgetProgress, cn
+│   │   ├── utils.ts         # formatCurrency, formatDate, budgetProgress, cn
+│   │   └── engines/         # Pure logic modules — no DB, no auth, no framework imports
+│   │       ├── index.ts     # Barrel: amortization, tax, benchmarks namespaces
+│   │       ├── amortization.ts # P&I breakdown, amortization schedule, extra payment impact
+│   │       ├── tax.ts       # Deduction calculations, phase-outs, SALT, mortgage interest, QBI
+│   │       └── benchmarks.ts # BLS comparisons, income quintiles, efficiency scoring
 │   └── types/
 │       ├── index.ts         # Shared TypeScript types mirroring the Prisma schema
 │       └── insights.ts      # Insight, EfficiencyScore, benchmark, and AI response types

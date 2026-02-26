@@ -303,3 +303,55 @@ Audited all expense calculation paths across the codebase. The dashboard uses `c
 | Phase 4: Plaid               | T4.1–T4.3 | 🟢 Implementation complete (sandbox testing required) |
 | Phase 5: Security/Brand/Ship | T5.0–T5.4 | 🟢 Security (T5.0) ✅, Brand/Ship pending |
 | Final Verification           | All       | 🟢 Step 30 ✅ (423/432 pass, 9 pre-existing) |
+
+---
+
+## Engine Extraction & UI Cleanup (2026-02-26)
+
+### Architecture: Engine Extraction
+
+Standalone pure-logic modules created in `src/lib/engines/`:
+
+| Engine | Description | Exports |
+|--------|-------------|---------|
+| `amortization.ts` | Debt math: P&I breakdown, full amortization schedule, extra payment impact, payment splitting | `monthlyPayment()`, `amortizationSchedule()`, `payoffWithExtra()`, `extraPaymentImpact()`, `splitPayment()`, `piBreakdown()` |
+| `tax.ts` | Tax deduction calculations with phase-outs, SALT, mortgage interest, student loan, QBI, bracket tax | `isRuleApplicable()`, `calculateDeduction()`, `allocateRentalExpense()`, `qbiDeduction()`, `calculateBracketTax()`, `saltDeduction()`, `mortgageInterestDeduction()`, `studentLoanInterestDeduction()` |
+| `benchmarks.ts` | BLS Consumer Expenditure comparisons, income quintiles, efficiency scoring | `compareSpending()`, `efficiencyScore()`, `incomeQuintile()`, `getBenchmark()`, `getEfficiencyRating()` |
+| `index.ts` | Barrel export: `amortization`, `tax`, `benchmarks` namespaces | |
+
+Debt routes (`/api/debts/route.ts`, `/api/debts/[id]/route.ts`) and debts page now import `piBreakdown()` from amortization engine. `src/lib/benchmarks.ts` is a re-export shim to `engines/benchmarks.ts`.
+
+### UI: Overview Page Simplified
+
+- Removed Budget Pulse row (Fixed Bills, Flexible On Track, Annual Set-Aside, Net this Month)
+- Replaced Transactions count stat card with Net this Month (green/ember)
+- Overview now: True Remaining banner + 4 stat cards (Cash Available, Income, Expenses, Net)
+
+### UI: Budget Health Section
+
+New `BudgetHealth` component on Budgets page between True Remaining banner and tier sections:
+- Expected vs Actual Income (3-month rolling average vs current month)
+- Expected vs Actual Expenses (total budgeted vs actual spend)
+- Horizontal comparison bars with ember overflow when over budget
+- Fixed Bills paid/total and Flexible On Track counts (moved from Overview)
+
+### AI Budget Builder Fixes
+
+| Fix | Description |
+|-----|-------------|
+| Income: exclude irregular | One-time consulting/tax refunds no longer added to `totalMonthlyIncome`. Listed separately in prompt as context. |
+| Income: cap biweekly | Biweekly income capped at actual monthly average × 1.1 to prevent 3-paycheck month over-counting. |
+| Income: prompt separation | REGULAR INCOME vs IRREGULAR/ONE-TIME INCOME sections in user prompt. |
+| Historical charges | `isPast` flag on detectedAnnual entries. Prompt labels each as [PAST — completed] or [UPCOMING]. |
+| Event hallucination | System prompt rules: past events (weddings, moves) should not be budgeted unless they show annual recurrence. |
+| Income inflation guardrail | System prompt rule: budget must balance against predictable income only. Irregular income is commentary only. |
+
+### Code Review Fixes
+
+| Fix | Description |
+|-----|-------------|
+| Dead code removal | Deleted orphaned `classification.ts` and `api-rate-limit.ts` (zero imports) |
+| Cron auth fail-closed | All 3 cron routes return 500 if CRON_SECRET unset in production |
+| CSP header | Content-Security-Policy added to next.config.ts (self + Plaid + Anthropic + Google Fonts) |
+| Personal CSV removed | `outputFileTracingIncludes` removed, `/api/reimport` returns 410 Gone |
+| Brand docs | `brand-architecture.md` updated with semantic aliases (income/expense/transfer) and actual Tailwind config |

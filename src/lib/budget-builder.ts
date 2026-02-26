@@ -40,6 +40,7 @@ export interface SpendingProfile {
     amount: number
     date: Date
     description: string
+    isPast: boolean
   }[]
   monthsOfData: number
   totalTransactions: number
@@ -112,11 +113,18 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     return { source, frequency, averageAmount: avg, count: data.amounts.length, dayOfMonth }
   })
 
+  // Only count predictable recurring income in the monthly total.
+  // Irregular income is listed separately in the prompt as context.
   const totalMonthlyIncome = incomeStreams.reduce((sum, s) => {
-    if (s.frequency === 'biweekly') return sum + (s.averageAmount * 26) / 12
+    if (s.frequency === 'biweekly') {
+      const annualized = (s.averageAmount * 26) / 12
+      const actualMonthly = (s.averageAmount * s.count) / 3
+      return sum + Math.min(annualized, actualMonthly * 1.1) // 10% tolerance for 3-paycheck months
+    }
     if (s.frequency === 'weekly') return sum + (s.averageAmount * 52) / 12
     if (s.frequency === 'monthly') return sum + s.averageAmount
-    return sum + (s.averageAmount * s.count) / 3
+    // Irregular income: do NOT add to monthly total
+    return sum
   }, 0)
 
   // ── Fixed Expense Detection (last 6 months, min 3 occurrences) ──
@@ -243,6 +251,7 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
       amount: Math.abs(t.amount),
       date: t.date,
       description: t.originalStatement || t.merchant || '',
+      isPast: t.date < now,
     }))
 
   const averageMonthlyExpenses =
@@ -350,6 +359,9 @@ RULES:
 - Each item needs a SHORT "reasoning" (max 50 characters) explaining the amount.
 - ONLY propose budget items for expenses that are ACTIVE — meaning they have transactions in the last 6 months. Do not budget for historical expenses that have stopped. If a recurring charge has not appeared in 3+ months, exclude it or flag it as "possibly inactive."
 - Income should reflect CURRENT monthly income, not historical averages that include one-time windfalls.
+- Large infrequent charges are HISTORICAL DATA showing what the user actually spent. Charges dated in the past are COMPLETED expenses — do NOT assume they will recur unless there's a clear annual pattern (e.g., property tax appearing at the same time each year). One-time life events (weddings, moves, medical procedures) should be noted in the commentary as past events, not budgeted as future expenses.
+- When suggesting annual expenses, base suggestions on RECURRING patterns (same charge appearing ~12 months apart) or common household expenses. Do NOT extrapolate one-time events into future budget items.
+- The "Total predictable monthly income" figure provided is ONLY from predictable recurring sources (paychecks, regular salary). Do NOT inflate this number. If irregular income is listed separately, mention it in commentary as a bonus but do NOT add it to the base income for budget math. The budget must balance against predictable income only.
 - The summary should show projected True Remaining and note if the budget is tight, comfortable, or has room for more savings.
 
 TEMPORAL CONTEXT:
@@ -402,11 +414,19 @@ OUTPUT FORMAT — Return ONLY valid JSON with no markdown, no commentary, no tex
   const topVariable = profile.variableByCategory.slice(0, 15)
   const topAnnual = profile.detectedAnnual.slice(0, 10)
 
+  const regularIncome = profile.incomeStreams.filter(s => ['monthly', 'biweekly', 'weekly'].includes(s.frequency))
+  const irregularIncome = profile.incomeStreams.filter(s => !['monthly', 'biweekly', 'weekly'].includes(s.frequency))
+
   const userPrompt = `Build a complete budget proposal based on this spending profile:
 
-INCOME:
-${profile.incomeStreams.map((s) => `- ${s.source}: $${s.averageAmount.toFixed(2)} (${s.frequency}, ${s.count} occurrences${s.dayOfMonth ? `, ~day ${s.dayOfMonth}` : ''})`).join('\n')}
-Total monthly income: $${profile.totalMonthlyIncome.toFixed(2)}
+REGULAR INCOME:
+${regularIncome.map((s) => `- ${s.source}: $${s.averageAmount.toFixed(2)} (${s.frequency}, ${s.count} occurrences${s.dayOfMonth ? `, ~day ${s.dayOfMonth}` : ''})`).join('\n') || 'None detected'}
+Total predictable monthly income: $${profile.totalMonthlyIncome.toFixed(2)}
+
+IRREGULAR/ONE-TIME INCOME (last 3 months):
+${irregularIncome.length > 0
+    ? irregularIncome.map(s => `- ${s.source}: $${s.averageAmount.toFixed(2)} × ${s.count} (${s.frequency} — do NOT include in base budget)`).join('\n')
+    : 'None detected'}
 
 DETECTED FIXED EXPENSES (${topFixed.length} of ${profile.detectedFixed.length} items):
 ${topFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency}, day ~${f.dayOfMonth}, ${f.category}, confidence: ${(f.confidence * 100).toFixed(0)}%${f.isAutoPay ? ', autopay likely' : ''})`).join('\n')}
@@ -414,17 +434,18 @@ ${topFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency},
 VARIABLE SPENDING BY CATEGORY:
 ${topVariable.map((c) => `- ${c.category} (${c.group}): avg $${c.monthlyAverage.toFixed(2)}/mo, median $${c.monthlyMedian.toFixed(2)}, range $${c.min.toFixed(0)}-$${c.max.toFixed(0)}, trend: ${c.trend}, ${c.transactionCount} transactions over ${c.months} months`).join('\n')}
 
-LARGE INFREQUENT CHARGES (potential annual expenses):
+LARGE INFREQUENT CHARGES (historical — these already happened):
 ${
   topAnnual.length > 0
     ? topAnnual
         .map(
           (a) =>
-            `- ${a.merchant}: $${a.amount.toFixed(2)} on ${a.date.toLocaleDateString()} (${a.category}) — "${a.description}"`
+            `- ${a.merchant}: $${a.amount.toFixed(2)} on ${a.date.toLocaleDateString()} [${a.isPast ? 'PAST — completed' : 'UPCOMING'}] (${a.category}) — "${a.description}"`
         )
         .join('\n')
     : 'None detected in data (limited history). Suggest common annual expenses.'
 }
+${topAnnual.length > 0 ? '\nNOTE: The above charges are historical. Only budget for them if they show a clear annual recurrence pattern. One-time events (weddings, moves, large purchases) should NOT be projected forward.' : ''}
 
 DATA COVERAGE: Income based on last 3 months. Fixed/variable based on last 6 months. Annual detection based on last 12 months. Total history: ${profile.monthsOfData} months, ${profile.totalTransactions} transactions.
 CURRENT SAVINGS RATE: ${profile.savingsRate}%
