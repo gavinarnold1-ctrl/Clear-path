@@ -361,6 +361,7 @@ RULES:
 - Income should reflect CURRENT monthly income, not historical averages that include one-time windfalls.
 - Large infrequent charges are HISTORICAL DATA showing what the user actually spent. Charges dated in the past are COMPLETED expenses — do NOT assume they will recur unless there's a clear annual pattern (e.g., property tax appearing at the same time each year). One-time life events (weddings, moves, medical procedures) should be noted in the commentary as past events, not budgeted as future expenses.
 - When suggesting annual expenses, base suggestions on RECURRING patterns (same charge appearing ~12 months apart) or common household expenses. Do NOT extrapolate one-time events into future budget items.
+- The "Total predictable monthly income" figure provided is ONLY from predictable recurring sources (paychecks, regular salary). Do NOT inflate this number. If irregular income is listed separately, mention it in commentary as a bonus but do NOT add it to the base income for budget math. The budget must balance against predictable income only.
 - The summary should show projected True Remaining and note if the budget is tight, comfortable, or has room for more savings.
 
 TEMPORAL CONTEXT:
