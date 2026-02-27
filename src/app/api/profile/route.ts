@@ -23,7 +23,19 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, email } = body as { name?: string; email?: string }
+  const { name, email, expectedMonthlyIncome } = body as { name?: string; email?: string; expectedMonthlyIncome?: number | null }
+
+  // Handle expectedMonthlyIncome update via UserProfile
+  if (expectedMonthlyIncome !== undefined) {
+    await db.userProfile.upsert({
+      where: { userId: session.userId },
+      create: { userId: session.userId, expectedMonthlyIncome: expectedMonthlyIncome },
+      update: { expectedMonthlyIncome: expectedMonthlyIncome },
+    })
+    if (name === undefined && email === undefined) {
+      return NextResponse.json({ success: true })
+    }
+  }
 
   const updates: { name?: string | null; email?: string } = {}
 

@@ -38,9 +38,11 @@ export async function POST() {
     db.householdMember.deleteMany({ where: { userId } }),
     // 11. Properties
     db.property.deleteMany({ where: { userId } }),
-    // 12. User-created categories (keep system defaults where userId is null)
+    // 12. User category mappings (learned merchant → category)
+    db.userCategoryMapping.deleteMany({ where: { userId } }),
+    // 13. User-created categories (keep system defaults where userId is null)
     db.category.deleteMany({ where: { userId } }),
-    // 13. Reset onboarding profile
+    // 14. Reset onboarding profile
     db.userProfile.deleteMany({ where: { userId } }),
   ])
 

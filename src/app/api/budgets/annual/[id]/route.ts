@@ -222,6 +222,14 @@ export async function PATCH(
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
       }
 
+      // Prevent double-counting: reject if transaction is already claimed by another annual expense
+      if (transaction.annualExpenseId && transaction.annualExpenseId !== id) {
+        return NextResponse.json(
+          { error: 'Transaction is already assigned to another annual expense' },
+          { status: 409 }
+        )
+      }
+
       const txAmount = Math.abs(transaction.amount)
 
       const updated = await db.$transaction(async (tx) => {

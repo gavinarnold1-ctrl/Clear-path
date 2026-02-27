@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import ProgressBar from '@/components/ui/ProgressBar'
 import { formatCurrency, budgetProgress } from '@/lib/utils'
 import { formatMonthName, monthsUntilDue, calculateMonthlySetAside } from '@/lib/budget-engine'
@@ -14,6 +15,7 @@ interface AnnualExpense {
 
 interface Props {
   name: string
+  categoryId: string | null
   category: { name: string; icon: string | null } | null
   annualExpense: AnnualExpense
 }
@@ -37,13 +39,22 @@ const ALERT_STYLES = {
   ok: 'text-stone',
 }
 
-export default function AnnualBudgetRow({ name, category, annualExpense: ae }: Props) {
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+export default function AnnualBudgetRow({ name, categoryId, category, annualExpense: ae }: Props) {
   const pct = budgetProgress(ae.funded, ae.annualAmount)
   const monthlyNeeded = calculateMonthlySetAside(ae.annualAmount, ae.funded, ae.dueMonth, ae.dueYear)
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
 
-  return (
-    <div className="rounded-lg px-3 py-3 hover:bg-snow">
+  const href = categoryId
+    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
+    : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
+
+  const content = (
+    <>
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {category?.icon && <span className="text-sm">{category.icon}</span>}
@@ -68,6 +79,10 @@ export default function AnnualBudgetRow({ name, category, annualExpense: ae }: P
         </span>
         <span className={ALERT_STYLES[alert.level]}>{alert.message}</span>
       </div>
-    </div>
+    </>
+  )
+
+  return (
+    <Link href={href} className="block rounded-lg px-3 py-3 hover:bg-snow">{content}</Link>
   )
 }

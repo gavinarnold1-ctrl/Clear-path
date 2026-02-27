@@ -231,6 +231,13 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
         const data = await res.json()
         throw new Error(data.error ?? 'Save failed')
       }
+      // Update local state with server-computed values (especially balance)
+      const updated = await res.json()
+      if (updated.balance !== undefined) {
+        setAccounts(accts =>
+          accts.map(a => a.id === editingId ? { ...a, balance: updated.balance } : a)
+        )
+      }
       router.refresh()
     } catch (err) {
       setAccounts(prev)

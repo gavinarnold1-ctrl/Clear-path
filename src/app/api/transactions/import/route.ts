@@ -25,6 +25,18 @@ function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' 
   return 'CHECKING'
 }
 
+/** Compute word overlap ratio between two merchant names for fuzzy matching */
+function merchantWordOverlap(a: string, b: string): number {
+  const wordsA = new Set(a.split(/[\s\-_/]+/).filter(w => w.length > 1))
+  const wordsB = new Set(b.split(/[\s\-_/]+/).filter(w => w.length > 1))
+  if (wordsA.size === 0 || wordsB.size === 0) return 0
+  let overlap = 0
+  for (const w of wordsA) {
+    if (wordsB.has(w)) overlap++
+  }
+  return overlap / Math.max(wordsA.size, wordsB.size)
+}
+
 /** Keywords in CSV category names that indicate income */
 const INCOME_CAT_KEYWORDS =
   /\b(income|salary|wages?|paycheck|deposit|refund|reimbursement|dividend|interest earned|bonus|gift received|cashback)\b/i
@@ -163,6 +175,15 @@ export async function POST(request: Request) {
     })
     const propertyMap = new Map(userProperties.map((p) => [p.name.toLowerCase(), p]))
 
+    // Smart Category Learning: Load user's explicit category mappings (highest priority)
+    const userMappings = await db.userCategoryMapping.findMany({
+      where: { userId: session.userId },
+    })
+    const exactMappingMap = new Map<string, { categoryId: string; confidence: number; mappingId: string }>()
+    for (const m of userMappings) {
+      exactMappingMap.set(m.merchantName, { categoryId: m.categoryId, confidence: m.confidence, mappingId: m.id })
+    }
+
     // R1.8: Build merchant→categoryId lookup from user's existing categorized transactions.
     // For each merchant, find the most frequently used category.
     const merchantCatRows = await db.transaction.groupBy({
@@ -260,6 +281,9 @@ export async function POST(request: Request) {
       })
     }
 
+    // Track mapping IDs that were used for auto-categorization (to increment timesApplied)
+    const mappingIdsToIncrement: string[] = []
+
     // Check for duplicates and prepare import data
     let duplicateCount = 0
     const toImport: {
@@ -342,7 +366,30 @@ export async function POST(request: Request) {
         }
       }
 
-      // R1.8: Auto-categorize by merchant history when CSV had no category
+      // Smart Category Learning: User mappings take highest priority for merchant-based auto-categorization.
+      // Check user's explicit mappings first (exact match, confidence >= 1.0 → auto-apply silently).
+      if (!categoryId && tx.merchant) {
+        const merchantKey = tx.merchant.toLowerCase().trim()
+        const mapping = exactMappingMap.get(merchantKey)
+        if (mapping && mapping.confidence >= 1.0) {
+          categoryId = mapping.categoryId
+          // Track that this mapping was used (fire-and-forget)
+          mappingIdsToIncrement.push(mapping.mappingId)
+        } else {
+          // Fuzzy match: check for similar merchants (word overlap > 0.7)
+          if (!mapping) {
+            for (const [mappedMerchant, mappedData] of exactMappingMap) {
+              if (merchantWordOverlap(merchantKey, mappedMerchant) > 0.7) {
+                categoryId = mappedData.categoryId
+                mappingIdsToIncrement.push(mappedData.mappingId)
+                break
+              }
+            }
+          }
+        }
+      }
+
+      // R1.8: Fallback to merchant history when CSV had no category and no mapping matched
       if (!categoryId && tx.merchant) {
         const merchantKey = tx.merchant.toLowerCase()
         const histCatId = merchantCategoryMap.get(merchantKey)
@@ -522,6 +569,22 @@ export async function POST(request: Request) {
     // R1.5b: CSV-imported accounts do NOT compute balance by summing transactions.
     // Balance is manually entered by user via startingBalance + balanceAsOfDate.
     // New transactions after the baseline date adjust the running balance.
+
+    // Increment timesApplied for any smart category mappings used during import
+    if (mappingIdsToIncrement.length > 0) {
+      const uniqueIds = [...new Set(mappingIdsToIncrement)]
+      try {
+        for (const mappingId of uniqueIds) {
+          const count = mappingIdsToIncrement.filter(id => id === mappingId).length
+          await db.userCategoryMapping.update({
+            where: { id: mappingId },
+            data: { timesApplied: { increment: count } },
+          })
+        }
+      } catch {
+        // Non-critical — don't fail the import
+      }
+    }
 
     // Reconcile any previously-imported transactions whose category didn't match budgets
     await reconcileBudgetCategories(session.userId)

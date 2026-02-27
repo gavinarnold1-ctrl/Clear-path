@@ -117,6 +117,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return updated
   })
 
+  // Smart category learning: when a user changes a transaction's category,
+  // save the merchant→category mapping so future imports auto-categorize.
+  if (body.categoryId && body.categoryId !== existing.categoryId && transaction.merchant) {
+    const normalizedMerchant = transaction.merchant.toLowerCase().trim()
+    if (normalizedMerchant) {
+      try {
+        await db.userCategoryMapping.upsert({
+          where: { userId_merchantName: { userId: session.userId, merchantName: normalizedMerchant } },
+          create: {
+            userId: session.userId,
+            merchantName: normalizedMerchant,
+            categoryId: body.categoryId,
+            confidence: 1.0,
+            timesApplied: 0,
+          },
+          update: {
+            categoryId: body.categoryId,
+            confidence: 1.0,
+            updatedAt: new Date(),
+          },
+        })
+      } catch {
+        // Non-critical — don't fail the transaction update if mapping save fails
+      }
+    }
+  }
+
   revalidatePath('/dashboard')
   revalidatePath('/transactions')
   revalidatePath('/budgets')

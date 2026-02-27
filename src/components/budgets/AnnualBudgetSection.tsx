@@ -13,6 +13,7 @@ interface AnnualExpense {
 interface AnnualBudget {
   id: string
   name: string
+  categoryId: string | null
   category: { name: string; icon: string | null } | null
   annualExpense: AnnualExpense | null
 }
@@ -37,6 +38,7 @@ export default function AnnualBudgetSection({ budgets }: Props) {
           <AnnualBudgetRow
             key={budget.id}
             name={budget.name}
+            categoryId={budget.categoryId}
             category={budget.category}
             annualExpense={budget.annualExpense!}
           />

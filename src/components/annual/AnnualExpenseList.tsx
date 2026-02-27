@@ -21,6 +21,7 @@ interface AnnualExpenseData {
   computedStatus: string
   budget: {
     id: string
+    categoryId: string | null
     category: { name: string; icon: string | null } | null
   }
 }

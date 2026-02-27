@@ -50,6 +50,18 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [propSaving, setPropSaving] = useState(false)
   const [propMsg, setPropMsg] = useState<string | null>(null)
 
+  // Learned categories state
+  interface CategoryMapping {
+    id: string
+    merchantName: string
+    confidence: number
+    timesApplied: number
+    category: { id: string; name: string; type: string; group: string }
+  }
+  const [mappings, setMappings] = useState<CategoryMapping[]>([])
+  const [mappingsLoaded, setMappingsLoaded] = useState(false)
+  const [mappingsLoading, setMappingsLoading] = useState(false)
+
   // Data tools state
   const [fixingClassification, setFixingClassification] = useState(false)
   const [fixMsg, setFixMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -226,6 +238,36 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       }
     } catch {
       setPropMsg('Network error.')
+    }
+  }
+
+  // ─── Learned Categories ─────────────────────────────────────────────────
+  async function loadMappings() {
+    if (mappingsLoading) return
+    setMappingsLoading(true)
+    try {
+      const res = await fetch('/api/category-mappings')
+      if (res.ok) {
+        const data = await res.json()
+        setMappings(data)
+        setMappingsLoaded(true)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setMappingsLoading(false)
+    }
+  }
+
+  async function deleteMapping(id: string) {
+    setMappings(prev => prev.filter(m => m.id !== id))
+    try {
+      const res = await fetch(`/api/category-mappings/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        loadMappings() // revert on failure
+      }
+    } catch {
+      loadMappings()
     }
   }
 
@@ -505,6 +547,49 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         <a href="/api/transactions/export" download className="btn-secondary inline-block text-sm">
           Download Transactions CSV
         </a>
+      </section>
+
+      {/* Smart Category Learning */}
+      <section className="card">
+        <h2 className="mb-2 text-base font-semibold text-fjord">Learned Categories</h2>
+        <p className="mb-3 text-sm text-stone">
+          When you reclassify a transaction, the app learns and auto-categorizes future transactions
+          from the same merchant. Mappings shown below.
+        </p>
+        {!mappingsLoaded ? (
+          <button
+            onClick={loadMappings}
+            disabled={mappingsLoading}
+            className="btn-secondary text-sm"
+          >
+            {mappingsLoading ? 'Loading...' : 'Show Learned Mappings'}
+          </button>
+        ) : mappings.length === 0 ? (
+          <p className="text-sm text-stone">No learned mappings yet. Reclassify a transaction to start learning.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {mappings.map(m => (
+              <div key={m.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-fjord">{m.merchantName}</span>
+                  <span className="mx-2 text-xs text-stone">&rarr;</span>
+                  <span className="text-sm text-fjord">{m.category.name}</span>
+                  {m.timesApplied > 0 && (
+                    <span className="ml-2 text-[10px] text-stone">
+                      applied {m.timesApplied} time{m.timesApplied !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => deleteMapping(m.id)}
+                  className="ml-2 shrink-0 text-xs text-stone hover:text-ember"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Data Tools */}
