@@ -363,10 +363,15 @@ model UserCategoryMapping {
   category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   confidence   Float    @default(1.0) // 1.0 = explicit user reclassification
   timesApplied Int      @default(0)   // Incremented each time the mapping is auto-applied
+  // Multi-signal matching fields
+  direction    String?  // "credit" or "debit" — null means match both
+  amountMin    Float?   // Minimum amount range — null means no floor
+  amountMax    Float?   // Maximum amount range — null means no ceiling
+  descKeywords String?  // Comma-separated keywords from description — null means ignore
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@unique([userId, merchantName])
+  @@unique([userId, merchantName, direction, categoryId])
   @@index([userId])
 }
 

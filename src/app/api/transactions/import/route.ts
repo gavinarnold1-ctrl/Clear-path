@@ -175,13 +175,16 @@ export async function POST(request: Request) {
     })
     const propertyMap = new Map(userProperties.map((p) => [p.name.toLowerCase(), p]))
 
-    // Smart Category Learning: Load user's explicit category mappings (highest priority)
+    // Smart Category Learning v2: Load user's explicit category mappings with multi-signal context
     const userMappings = await db.userCategoryMapping.findMany({
       where: { userId: session.userId },
     })
-    const exactMappingMap = new Map<string, { categoryId: string; confidence: number; mappingId: string }>()
+    // Group mappings by merchant name for multi-signal matching
+    const merchantMappings = new Map<string, typeof userMappings>()
     for (const m of userMappings) {
-      exactMappingMap.set(m.merchantName, { categoryId: m.categoryId, confidence: m.confidence, mappingId: m.id })
+      const arr = merchantMappings.get(m.merchantName) ?? []
+      arr.push(m)
+      merchantMappings.set(m.merchantName, arr)
     }
 
     // R1.8: Build merchant→categoryId lookup from user's existing categorized transactions.
@@ -366,24 +369,58 @@ export async function POST(request: Request) {
         }
       }
 
-      // Smart Category Learning: User mappings take highest priority for merchant-based auto-categorization.
-      // Check user's explicit mappings first (exact match, confidence >= 1.0 → auto-apply silently).
+      // Smart Category Learning v2: Multi-signal matching.
+      // Check user's explicit mappings first. Direction + amount range narrow the match.
       if (!categoryId && tx.merchant) {
         const merchantKey = tx.merchant.toLowerCase().trim()
-        const mapping = exactMappingMap.get(merchantKey)
-        if (mapping && mapping.confidence >= 1.0) {
-          categoryId = mapping.categoryId
-          // Track that this mapping was used (fire-and-forget)
-          mappingIdsToIncrement.push(mapping.mappingId)
+        const txDirection = tx.amount > 0 ? 'credit' : 'debit'
+        const txAbsAmount = Math.abs(tx.amount)
+
+        // Score each candidate mapping for this merchant
+        const mappings = merchantMappings.get(merchantKey)
+        if (mappings && mappings.length > 0) {
+          let bestMapping: (typeof mappings)[0] | null = null
+          let bestScore = 0
+
+          for (const m of mappings) {
+            let score = 0.7 // Base: merchant name exact match
+
+            // Direction signal
+            if (m.direction) {
+              if (m.direction === txDirection) score += 0.15
+              else score -= 0.5 // Direction mismatch is a strong negative signal
+            }
+
+            // Amount range signal
+            if (m.amountMin != null && m.amountMax != null) {
+              if (txAbsAmount >= m.amountMin && txAbsAmount <= m.amountMax) score += 0.15
+              else score -= 0.2
+            }
+
+            if (score > bestScore) {
+              bestScore = score
+              bestMapping = m
+            }
+          }
+
+          // Only auto-apply if confidence threshold met
+          if (bestMapping && bestScore >= 0.7) {
+            categoryId = bestMapping.categoryId
+            mappingIdsToIncrement.push(bestMapping.id)
+          }
         } else {
           // Fuzzy match: check for similar merchants (word overlap > 0.7)
-          if (!mapping) {
-            for (const [mappedMerchant, mappedData] of exactMappingMap) {
-              if (merchantWordOverlap(merchantKey, mappedMerchant) > 0.7) {
-                categoryId = mappedData.categoryId
-                mappingIdsToIncrement.push(mappedData.mappingId)
-                break
+          for (const [mappedMerchant, mappedList] of merchantMappings) {
+            if (merchantWordOverlap(merchantKey, mappedMerchant) > 0.7) {
+              // Use first mapping that matches direction, or first if no direction
+              const dirMatch = mappedList.find(m => !m.direction || m.direction === txDirection)
+              const fallback = mappedList[0]
+              const selected = dirMatch ?? fallback
+              if (selected && selected.confidence >= 0.7) {
+                categoryId = selected.categoryId
+                mappingIdsToIncrement.push(selected.id)
               }
+              break
             }
           }
         }

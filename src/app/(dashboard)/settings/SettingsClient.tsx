@@ -56,6 +56,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     merchantName: string
     confidence: number
     timesApplied: number
+    direction: string | null
+    amountMin: number | null
+    amountMax: number | null
     category: { id: string; name: string; type: string; group: string }
   }
   const [mappings, setMappings] = useState<CategoryMapping[]>([])
@@ -568,26 +571,36 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           <p className="text-sm text-stone">No learned mappings yet. Reclassify a transaction to start learning.</p>
         ) : (
           <div className="space-y-1.5">
-            {mappings.map(m => (
-              <div key={m.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
-                <div className="min-w-0">
-                  <span className="text-sm font-medium text-fjord">{m.merchantName}</span>
-                  <span className="mx-2 text-xs text-stone">&rarr;</span>
-                  <span className="text-sm text-fjord">{m.category.name}</span>
-                  {m.timesApplied > 0 && (
-                    <span className="ml-2 text-[10px] text-stone">
-                      applied {m.timesApplied} time{m.timesApplied !== 1 ? 's' : ''}
-                    </span>
-                  )}
+            {mappings.map(m => {
+              const context: string[] = []
+              if (m.direction) context.push(m.direction)
+              if (m.amountMin != null && m.amountMax != null) {
+                context.push(`$${m.amountMin.toFixed(0)}-$${m.amountMax.toFixed(0)}`)
+              }
+              return (
+                <div key={m.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-fjord">{m.merchantName}</span>
+                    {context.length > 0 && (
+                      <span className="ml-1 text-[10px] text-stone">({context.join(', ')})</span>
+                    )}
+                    <span className="mx-2 text-xs text-stone">&rarr;</span>
+                    <span className="text-sm text-fjord">{m.category.name}</span>
+                    {m.timesApplied > 0 && (
+                      <span className="ml-2 text-[10px] text-stone">
+                        applied {m.timesApplied} time{m.timesApplied !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteMapping(m.id)}
+                    className="ml-2 shrink-0 text-xs text-stone hover:text-ember"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button
-                  onClick={() => deleteMapping(m.id)}
-                  className="ml-2 shrink-0 text-xs text-stone hover:text-ember"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>

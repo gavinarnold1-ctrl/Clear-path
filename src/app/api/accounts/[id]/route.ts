@@ -49,7 +49,8 @@ export async function PATCH(
 
   let computedBalance: number | undefined
   if (baselineChanged) {
-    const dateFilter = newAsOfDate ? { gte: newAsOfDate } : undefined
+    // Use `gt` (not `gte`) — transactions ON the balance date are already accounted for in the known balance
+    const dateFilter = newAsOfDate ? { gt: newAsOfDate } : undefined
     const agg = await db.transaction.aggregate({
       where: {
         userId: session.userId,

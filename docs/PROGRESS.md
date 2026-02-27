@@ -450,3 +450,30 @@ Added `classification` filter support to the transactions page. Clicking the Inc
 - **Zero new failures** introduced
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
 - Build: blocked by network (Google Fonts unreachable in sandbox), not a code issue
+
+---
+
+## UAT Round 3 Fixes (2026-02-27)
+
+### Fixes
+
+| Fix | Description | Files Changed |
+|-----|-------------|---------------|
+| 1. Annual click-through wrong category mapping | Fixed "Home & Property Maintenance" navigating to "Auto Maintenance" transactions. Root cause: fuzzy budget reconciliation matched on substring "Maintenance". Fix: (a) AnnualBudgetRow and AnnualExpenseCard only use categoryId when category name exactly matches budget name, otherwise fall back to name-based search. (b) Fuzzy reconciliation on budgets page skips ANNUAL tier budgets entirely. | `AnnualBudgetRow.tsx`, `AnnualExpenseCard.tsx`, `budgets/page.tsx` |
+| 2. Annual plan tracking bar + category-agnostic architecture | Progress bar now reflects linked transactions (not just `funded` amount). Annual plan page includes `transactions` in query, computes `linkedSpent` from linked transaction amounts. AnnualExpenseCard shows separate "Spent" bar (from linked transactions) and "Funded" bar. Spending is tracked by linked records, not by category. | `budgets/annual/page.tsx`, `AnnualExpenseCard.tsx`, `AnnualExpenseList.tsx` |
+| 3. Flexible budget UX improvements | (a) Moved "Unallocated Flexible" from top to bottom of section. (b) Added rollup summary at top: "Flexible Budget: $X of $Y" with progress bar showing total flexible spent vs total flexible budget. (c) Empty catch-all rows (Miscellaneous, Uncategorized, Other, Everything Else, Personal with $0 spent) are hidden. | `FlexibleBudgetSection.tsx`, `budgets/page.tsx` |
+| 4. Account balance calculation bug | Changed date filter from `gte` to `gt` in account PATCH route. Transactions ON the balanceAsOfDate were being double-counted (the known balance already includes them). Now only transactions AFTER that date affect the computed balance. | `api/accounts/[id]/route.ts` |
+| 5. Refund detection fix | Added payment/transfer merchant exclusion list (30+ patterns including banks, card companies, ACH, Venmo, PayPal, etc.). Credit card payments, bank transfers, and loan payments are never flagged as refunds. Also relaxed amount matching from exact to 20% tolerance for legitimate refunds. | `src/lib/refund-detection.ts` |
+| 6. Smart category learning v2 — multi-signal matching | Added `direction`, `amountMin`, `amountMax`, `descKeywords` fields to UserCategoryMapping schema. Changed unique constraint to `[userId, merchantName, direction, categoryId]` to support multiple mappings per merchant. Learning captures direction (credit/debit) and amount range (±25%). Import matching uses multi-signal scoring: merchant name (0.7) + direction match (+0.15) + amount range (+0.15). Direction mismatch = strong negative (-0.5). Settings UI shows direction and amount range context. | `schema.prisma`, `api/transactions/[id]/route.ts`, `api/transactions/import/route.ts`, `SettingsClient.tsx` |
+| 7. Expected income intelligence | Dashboard shows surplus insight card when actual income exceeds expected monthly income. Displays surplus amount and actionable suggestions (pay down debt, save, top up sinking fund, invest). Expected income label in BudgetHealth updated to "Expected (salary/wages)" for clarity. UserProfile query added to dashboard page. | `dashboard/page.tsx`, `BudgetHealth.tsx` |
+
+### Brief
+
+Requirements documented in `docs/briefs/uat-round3-fixes.md`.
+
+### Test Results
+
+- **432 total tests**: 419 passed, 13 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
+- **Zero new failures** introduced
+- TypeScript: zero errors (`npx tsc --noEmit` clean)

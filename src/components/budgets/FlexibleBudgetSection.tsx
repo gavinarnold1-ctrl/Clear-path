@@ -17,7 +17,11 @@ interface Props {
   budgets: FlexibleBudget[]
   unallocatedAmount?: number
   unallocatedSpent?: number
+  totalFlexibleBudget?: number
+  totalFlexibleSpent?: number
 }
+
+const CATCHALL_NAMES = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else', 'personal'])
 
 function getDailyAllowance(amount: number, spent: number): { daily: number; daysLeft: number } {
   const now = new Date()
@@ -29,10 +33,22 @@ function getDailyAllowance(amount: number, spent: number): { daily: number; days
   return { daily, daysLeft }
 }
 
-export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent }: Props) {
-  if (budgets.length === 0 && (unallocatedAmount === undefined || unallocatedAmount <= 0)) return null
+export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent }: Props) {
+  // Filter out empty catch-all rows ($0 spent)
+  const visibleBudgets = budgets.filter((b) => {
+    if (CATCHALL_NAMES.has(b.name.toLowerCase()) && b.spent === 0) return false
+    return true
+  })
 
   const showUnallocated = unallocatedAmount !== undefined && unallocatedAmount > 0
+
+  if (visibleBudgets.length === 0 && !showUnallocated) return null
+
+  // Rollup totals: use props if provided, otherwise compute from visible budgets
+  const rollupBudget = totalFlexibleBudget ?? visibleBudgets.reduce((sum, b) => sum + b.amount, 0) + (showUnallocated ? unallocatedAmount : 0)
+  const rollupSpent = totalFlexibleSpent ?? visibleBudgets.reduce((sum, b) => sum + b.spent, 0) + (showUnallocated ? (unallocatedSpent ?? 0) : 0)
+  const rollupPct = budgetProgress(rollupSpent, rollupBudget)
+  const rollupColor = rollupPct >= 100 ? 'text-ember' : rollupPct >= 90 ? 'text-ember' : rollupPct >= 75 ? 'text-birch' : 'text-fjord'
 
   return (
     <section className="mb-8">
@@ -41,6 +57,46 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
         <p className="text-sm text-stone">Variable spending you control — track against a monthly limit</p>
       </div>
       <div className="card divide-y divide-mist">
+        {/* Rollup summary at top */}
+        {rollupBudget > 0 && (
+          <div className="rounded-lg bg-frost/30 px-3 py-3">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-sm font-semibold text-fjord">Flexible Budget</span>
+              <span className="text-sm text-stone">
+                <span className={rollupColor}>{formatCurrency(rollupSpent)}</span>
+                {' of '}
+                {formatCurrency(rollupBudget)}
+              </span>
+            </div>
+            <ProgressBar value={rollupPct} />
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <span className="text-stone">
+                {rollupSpent <= rollupBudget
+                  ? `${formatCurrency(rollupBudget - rollupSpent)} remaining`
+                  : ''
+                }
+                {rollupSpent > rollupBudget && (
+                  <span className="font-semibold text-ember">{formatCurrency(rollupSpent - rollupBudget)} over budget</span>
+                )}
+              </span>
+              <span className={`font-semibold ${rollupColor}`}>{rollupPct}%</span>
+            </div>
+          </div>
+        )}
+
+        {/* Named budgets (sorted) */}
+        {visibleBudgets.map((budget) => (
+          <FlexibleBudgetRow
+            key={budget.id}
+            name={budget.name}
+            amount={budget.amount}
+            spent={budget.spent}
+            categoryId={budget.categoryId}
+            category={budget.category}
+          />
+        ))}
+
+        {/* Unallocated flexible at bottom */}
         {showUnallocated && (() => {
           const spent = unallocatedSpent ?? 0
           const pct = budgetProgress(spent, unallocatedAmount)
@@ -81,16 +137,6 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
             </div>
           )
         })()}
-        {budgets.map((budget) => (
-          <FlexibleBudgetRow
-            key={budget.id}
-            name={budget.name}
-            amount={budget.amount}
-            spent={budget.spent}
-            categoryId={budget.categoryId}
-            category={budget.category}
-          />
-        ))}
       </div>
     </section>
   )
