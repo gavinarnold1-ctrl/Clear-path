@@ -56,19 +56,20 @@ export default async function AnnualPlanningPage() {
         classification: 'expense',
         amount: { lt: 0 },
       },
-      select: { categoryId: true, amount: true },
+      select: { categoryId: true, amount: true, annualExpenseId: true },
     }),
   ])
 
   // Compute True Remaining (mirrors budgets page TrueRemainingBanner logic)
   const income = incomeAgg._sum.amount ?? 0
 
-  const spentByCategory = new Map<string, number>()
+  // Build flexible-specific spent map that excludes annual-plan-linked transactions
+  const flexSpentByCategory = new Map<string, number>()
   for (const tx of monthExpenses) {
-    if (tx.categoryId) {
-      spentByCategory.set(
+    if (tx.categoryId && !tx.annualExpenseId) {
+      flexSpentByCategory.set(
         tx.categoryId,
-        (spentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
+        (flexSpentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
       )
     }
   }
@@ -78,7 +79,7 @@ export default async function AnnualPlanningPage() {
     .reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = allBudgets
     .filter((b) => b.tier === 'FLEXIBLE')
-    .reduce((sum, b) => sum + (b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0), 0)
+    .reduce((sum, b) => sum + (b.categoryId ? (flexSpentByCategory.get(b.categoryId) ?? 0) : 0), 0)
   const annualSetAside = allBudgets
     .filter((b) => b.tier === 'ANNUAL')
     .reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
