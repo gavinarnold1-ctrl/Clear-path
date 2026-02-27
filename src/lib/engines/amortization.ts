@@ -161,10 +161,21 @@ export function piBreakdown(
   monthsRemaining: number | null
 } {
   const piPayment = minimumPayment - (escrowAmount ?? 0)
-  const monthlyInterest = currentBalance * (annualRate / 12)
+  const monthlyRate = annualRate / 12
+  const monthlyInterest = currentBalance * monthlyRate
   const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
-  const monthsRemaining =
-    monthlyPrincipal > 0 ? Math.ceil(currentBalance / monthlyPrincipal) : null
+
+  // Use amortization formula for months remaining (not linear division).
+  // n = -ln(1 - balance * r / P) / ln(1 + r), where P = piPayment, r = monthly rate
+  let monthsRemaining: number | null = null
+  if (monthlyPrincipal > 0 && piPayment > monthlyInterest && annualRate > 0) {
+    const fraction = 1 - (currentBalance * monthlyRate) / piPayment
+    if (fraction > 0) {
+      monthsRemaining = Math.ceil(-Math.log(fraction) / Math.log(1 + monthlyRate))
+    }
+  } else if (monthlyPrincipal > 0 && annualRate === 0) {
+    monthsRemaining = Math.ceil(currentBalance / piPayment)
+  }
 
   return {
     piPayment,

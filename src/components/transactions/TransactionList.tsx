@@ -56,18 +56,24 @@ interface Props {
   initialMonth?: string
   initialPersonId?: string
   initialPropertyId?: string
+  initialAccountId?: string
+  initialSearch?: string
+  refundedTxIds?: string[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '' }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', refundedTxIds = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const refundedSet = new Set(refundedTxIds)
 
   // Filter state (R4.4: property filter, R6.8: category + month filters, R3.3a: person filter)
   const [filterPropertyId, setFilterPropertyId] = useState<string>(initialPropertyId)
   const [filterPersonId, setFilterPersonId] = useState<string>(initialPersonId)
   const [filterCategoryId, setFilterCategoryId] = useState<string>(initialCategoryId)
   const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
+  const [filterAccountId, setFilterAccountId] = useState<string>(initialAccountId)
+  const [searchText, setSearchText] = useState<string>(initialSearch)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -124,6 +130,16 @@ export default function TransactionList({ transactions: initial, categories, acc
       const txDate = new Date(tx.date)
       const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`
       if (txMonth !== filterMonth) return false
+    }
+    // Account filter
+    if (filterAccountId) {
+      if (filterAccountId === '__none__' ? tx.accountId !== null : tx.accountId !== filterAccountId) return false
+    }
+    // Search text filter (merchant, category name, notes)
+    if (searchText) {
+      const q = searchText.toLowerCase()
+      const haystack = [tx.merchant, tx.category?.name, tx.account?.name, tx.notes].filter(Boolean).join(' ').toLowerCase()
+      if (!haystack.includes(q)) return false
     }
     return true
   })
@@ -422,6 +438,19 @@ export default function TransactionList({ transactions: initial, categories, acc
             ))}
           </select>
         )}
+        {accounts.length > 0 && (
+          <select
+            value={filterAccountId}
+            onChange={(e) => setFilterAccountId(e.target.value)}
+            className="input text-sm"
+          >
+            <option value="">All Accounts</option>
+            <option value="__none__">No Account</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        )}
         {properties.length > 0 && (
           <select
             value={filterPropertyId}
@@ -435,9 +464,15 @@ export default function TransactionList({ transactions: initial, categories, acc
             ))}
           </select>
         )}
-        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth) && (
+        {searchText && (
+          <div className="flex items-center gap-1 rounded-full bg-brand-100 px-3 py-1 text-xs font-medium text-midnight">
+            Search: &quot;{searchText}&quot;
+            <button onClick={() => setSearchText('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
+          </div>
+        )}
+        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText) && (
           <button
-            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth('') }}
+            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText('') }}
             className="text-xs text-stone hover:text-fjord"
           >
             Clear all
@@ -605,7 +640,14 @@ export default function TransactionList({ transactions: initial, categories, acc
                     />
                   </td>
                   <td className="px-4 py-3 text-stone">{formatDate(new Date(tx.date))}</td>
-                  <td className="px-4 py-3 font-medium text-fjord">{tx.merchant}</td>
+                  <td className="px-4 py-3 font-medium text-fjord">
+                    {tx.merchant}
+                    {refundedSet.has(tx.id) && (
+                      <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-birch">
+                        Refunded
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-stone">{tx.account?.name ?? '—'}</td>
                   {householdMembers.length > 0 && (
@@ -614,7 +656,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                   {properties.length > 0 && (
                     <td className="px-4 py-3 text-stone">{tx.property?.name ?? '—'}</td>
                   )}
-                  <td className={`px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
+                  <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {tx.amount < 0 ? '−' : '+'}
                     {formatCurrency(Math.abs(tx.amount))}
                   </td>
@@ -636,7 +678,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth)
+          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText)
             ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
             : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>
@@ -805,7 +847,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     <span className="text-stone">{formatDate(new Date(tx.date))}</span>
                     <span className="font-medium text-fjord">{tx.merchant}</span>
                   </div>
-                  <span className={`font-mono text-sm ${tx.amount < 0 ? 'text-expense' : 'text-income'}`}>
+                  <span className={`whitespace-nowrap font-mono text-sm ${tx.amount < 0 ? 'text-expense' : 'text-income'}`}>
                     {tx.amount < 0 ? '−' : '+'}
                     {formatCurrency(Math.abs(tx.amount))}
                   </span>

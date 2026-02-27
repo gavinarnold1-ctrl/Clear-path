@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import type { BudgetProposal } from '@/lib/budget-builder'
@@ -212,6 +213,8 @@ export async function POST(req: NextRequest) {
       return created
     })
 
+    revalidatePath('/budgets')
+    revalidatePath('/dashboard')
     return NextResponse.json({
       message: 'Budget applied successfully',
       created: results,

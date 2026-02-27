@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
@@ -82,6 +83,8 @@ export async function PATCH(
     },
   })
 
+  revalidatePath('/accounts')
+  revalidatePath('/dashboard')
   return NextResponse.json(updated)
 }
 
@@ -110,5 +113,7 @@ export async function DELETE(
     db.account.delete({ where: { id } }),
   ])
 
+  revalidatePath('/accounts')
+  revalidatePath('/dashboard')
   return NextResponse.json({ ok: true })
 }

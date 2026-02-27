@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
@@ -103,6 +104,10 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  revalidatePath('/budgets')
+  revalidatePath('/spending')
   return NextResponse.json({ updated: owned.length })
 }
 
@@ -152,6 +157,10 @@ export async function POST(req: NextRequest) {
     }
   }, { timeout: 30000 })
 
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  revalidatePath('/budgets')
+  revalidatePath('/spending')
   return NextResponse.json({ deleted: owned.length })
 }
 

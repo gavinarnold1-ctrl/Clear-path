@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import MonthPicker from '../dashboard/MonthPicker'
 import SpendingViews from './SpendingViews'
+import { findRefundPairs } from '@/lib/refund-detection'
 
 export const metadata: Metadata = { title: 'Spending Breakdown' }
 
@@ -38,7 +39,7 @@ export default async function SpendingPage({ searchParams }: Props) {
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
   // Fetch expense transactions with category, person, and property info (exclude transfers)
-  const [expenseTransactions, prevExpenseAgg, householdMembers, properties] = await Promise.all([
+  const [allExpenseTransactions, refundCandidates, prevExpenseAgg, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId: session.userId,
@@ -51,6 +52,15 @@ export default async function SpendingPage({ searchParams }: Props) {
         householdMember: { select: { id: true, name: true } },
         property: { select: { id: true, name: true, type: true } },
       },
+    }),
+    // Potential refunds: positive-amount transactions in same period
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: startDate, lte: endDate },
+        amount: { gt: 0 },
+      },
+      select: { id: true, merchant: true, amount: true, date: true },
     }),
     db.transaction.aggregate({
       where: {
@@ -72,6 +82,14 @@ export default async function SpendingPage({ searchParams }: Props) {
       orderBy: { name: 'asc' },
     }),
   ])
+
+  // Detect refund pairs and exclude refunded expenses from spending
+  const allForPairing = [
+    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
+    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
+  ]
+  const refundPairIds = findRefundPairs(allForPairing)
+  const expenseTransactions = allExpenseTransactions.filter((tx) => !refundPairIds.has(tx.id))
 
   // Filter to only categorized transactions for the category view
   const categorizedTx = expenseTransactions.filter((tx) => tx.categoryId !== null)

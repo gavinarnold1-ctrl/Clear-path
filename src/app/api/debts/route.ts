@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { piBreakdown } from '@/lib/engines/amortization'
@@ -140,5 +141,6 @@ export async function POST(req: NextRequest) {
   // R5.7: Return computed fields so the client can render immediately
   const pi = piBreakdown(debt.currentBalance, debt.interestRate, debt.minimumPayment, debt.escrowAmount)
 
+  revalidatePath('/debts')
   return NextResponse.json({ ...debt, ...pi }, { status: 201 })
 }
