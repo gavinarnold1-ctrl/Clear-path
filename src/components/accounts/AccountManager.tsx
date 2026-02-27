@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { usePlaidLink } from 'react-plaid-link'
 
@@ -429,7 +430,7 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
                 </div>
               ) : (
                 <div key={acct.id} className="card flex items-center justify-between">
-                  <div>
+                  <Link href={`/transactions?accountId=${acct.id}`} className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-fjord">{acct.name}</p>
                       {!acct.isManual ? (
@@ -451,7 +452,7 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
                         <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>
                       )}
                     </p>
-                  </div>
+                  </Link>
                   <div className="flex items-center gap-4">
                     <p className={`text-xl font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
                       {formatCurrency(acct.balance, acct.currency)}

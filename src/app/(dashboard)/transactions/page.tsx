@@ -4,11 +4,12 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import TransactionList from '@/components/transactions/TransactionList'
+import { findRefundPairs } from '@/lib/refund-detection'
 
 export const metadata: Metadata = { title: 'Transactions' }
 
 interface PageProps {
-  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string }>
+  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string }>
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps) {
@@ -20,6 +21,8 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const initialMonth = params.month ?? ''
   const initialPersonId = params.personId ?? ''
   const initialPropertyId = params.propertyId ?? ''
+  const initialAccountId = params.accountId ?? ''
+  const initialSearch = params.search ?? ''
 
   const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
@@ -51,6 +54,11 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
       select: { id: true, name: true, type: true, isDefault: true },
     }),
   ])
+
+  // Detect refund pairs for badge display
+  const refundPairIds = findRefundPairs(
+    transactions.map(tx => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() }))
+  )
 
   // Serialize dates for the client component
   const serialized = transactions.map(tx => ({
@@ -102,6 +110,9 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           initialMonth={initialMonth}
           initialPersonId={initialPersonId}
           initialPropertyId={initialPropertyId}
+          initialAccountId={initialAccountId}
+          initialSearch={initialSearch}
+          refundedTxIds={[...refundPairIds]}
         />
       )}
     </div>

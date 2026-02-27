@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
@@ -161,5 +162,9 @@ export async function POST(req: NextRequest) {
     return created
   })
 
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  revalidatePath('/budgets')
+  revalidatePath('/spending')
   return NextResponse.json(transaction, { status: 201 })
 }

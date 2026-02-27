@@ -458,7 +458,7 @@ export default async function DashboardPage({ searchParams }: Props) {
                     {tx.category ? ` · ${tx.category.name}` : ''}
                   </p>
                 </div>
-                <span className={`ml-4 shrink-0 text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
+                <span className={`ml-4 shrink-0 whitespace-nowrap text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                   {tx.amount < 0 ? '−' : '+'}
                   {formatCurrency(Math.abs(tx.amount))}
                 </span>

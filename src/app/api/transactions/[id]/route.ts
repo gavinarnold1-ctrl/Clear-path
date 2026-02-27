@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
@@ -116,6 +117,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return updated
   })
 
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  revalidatePath('/budgets')
+  revalidatePath('/spending')
   return NextResponse.json(transaction)
 }
 
@@ -140,5 +145,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }
   })
 
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  revalidatePath('/budgets')
+  revalidatePath('/spending')
   return new NextResponse(null, { status: 204 })
 }

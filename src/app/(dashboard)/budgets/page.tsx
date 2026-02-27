@@ -10,6 +10,7 @@ import FlexibleBudgetSection from '@/components/budgets/FlexibleBudgetSection'
 import AnnualBudgetSection from '@/components/budgets/AnnualBudgetSection'
 import BudgetBuilderFlow from '@/components/budget-builder/BudgetBuilderFlow'
 import UnbudgetedSection from '@/components/budgets/UnbudgetedSection'
+import { findRefundPairs } from '@/lib/refund-detection'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
@@ -25,7 +26,7 @@ export default async function BudgetsPage() {
   const prev1Start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
   const prev1End = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-  const [budgets, transactions, incomeAgg, priorIncomeAgg] = await Promise.all([
+  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true },
@@ -40,6 +41,15 @@ export default async function BudgetsPage() {
         amount: { lt: 0 },
       },
       include: { category: { select: { id: true, name: true } } },
+    }),
+    // Potential refunds: positive-amount transactions in same period for refund pairing
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: startOfMonth, lte: endOfMonth },
+        amount: { gt: 0 },
+      },
+      select: { id: true, merchant: true, amount: true, date: true },
     }),
     // Current month's income for True Remaining (classification=income only)
     db.transaction.aggregate({
@@ -60,6 +70,14 @@ export default async function BudgetsPage() {
       _sum: { amount: true },
     }),
   ])
+
+  // Detect refund pairs and exclude refunded expenses from budget computation
+  const allForPairing = [
+    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
+    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
+  ]
+  const refundPairIds = findRefundPairs(allForPairing)
+  const transactions = allExpenseTransactions.filter((tx) => !refundPairIds.has(tx.id))
 
   const income = incomeAgg._sum.amount ?? 0
 
@@ -150,11 +168,46 @@ export default async function BudgetsPage() {
   const flexible = budgetsWithSpent.filter((b) => b.tier === 'FLEXIBLE')
   const annual = budgetsWithSpent.filter((b) => b.tier === 'ANNUAL')
 
-  // R6.7: Compute unbudgeted categories — expense categories with spending but no budget
+  // R6.7: Compute unbudgeted categories — expense categories with spending but no budget.
+  // Match by categoryId (primary), then by exact name, then by fuzzy word overlap.
   const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId).filter(Boolean))
+  // Also build a set of budgeted category names (lowercase) for fallback matching
+  const budgetedCategoryNames = new Set<string>()
+  for (const b of budgets) {
+    if (b.category?.name) budgetedCategoryNames.add(b.category.name.toLowerCase())
+    budgetedCategoryNames.add(b.name.toLowerCase())
+  }
+  // Build fuzzy word sets from budget names for word-overlap matching
+  const budgetWordSets = budgets.map((b) => {
+    const words = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
+    const catWords = b.category?.name?.toLowerCase().split(/[\s&,]+/).filter((w: string) => w.length > 2) ?? []
+    return new Set([...words, ...catWords])
+  })
+
+  function isCategoryBudgeted(categoryId: string, categoryName: string): boolean {
+    // Primary: exact categoryId match
+    if (budgetedCategoryIds.has(categoryId)) return true
+    // Exact name match (budget name or budget's category name)
+    if (budgetedCategoryNames.has(categoryName.toLowerCase())) return true
+    // Fuzzy: word-overlap match (e.g., "Travel & Vacation" ↔ "Vacation & Travel")
+    const catWords = categoryName.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
+    if (catWords.length === 0) return false
+    for (const wordSet of budgetWordSets) {
+      if (wordSet.size === 0) continue
+      const overlap = catWords.filter((w) => {
+        for (const bw of wordSet) {
+          if (bw.includes(w) || w.includes(bw)) return true
+        }
+        return false
+      }).length
+      if (overlap > 0 && overlap >= Math.min(catWords.length, wordSet.size) * 0.5) return true
+    }
+    return false
+  }
+
   const unbudgetedCategories: { categoryId: string; categoryName: string; spent: number }[] = []
   for (const tx of transactions) {
-    if (tx.categoryId && !budgetedCategoryIds.has(tx.categoryId) && tx.category) {
+    if (tx.categoryId && tx.category && !isCategoryBudgeted(tx.categoryId, tx.category.name)) {
       const existing = unbudgetedCategories.find((u) => u.categoryId === tx.categoryId)
       if (existing) {
         existing.spent += Math.abs(tx.amount)
@@ -213,6 +266,44 @@ export default async function BudgetsPage() {
 
     b.spent = Math.abs(match.amount)
     claimedTxIds.add(match.id)
+  }
+
+  // Bug 3: Catch-all flexible budgets (Miscellaneous, Uncategorized, Other) absorb
+  // expense transactions not claimed by any specific budget.
+  const CATCHALL_NAMES = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else'])
+  const catchAllBudgets = flexible.filter((b) => CATCHALL_NAMES.has(b.name.toLowerCase()))
+  if (catchAllBudgets.length > 0) {
+    // Collect all categoryIds claimed by non-catch-all budgets
+    const claimedCategoryIds = new Set<string>()
+    for (const b of budgetsWithSpent) {
+      if (!CATCHALL_NAMES.has(b.name.toLowerCase()) && b.categoryId) {
+        claimedCategoryIds.add(b.categoryId)
+      }
+    }
+    // Also claim categories matched by name/fuzzy in non-catch-all budgets
+    for (const b of budgetsWithSpent) {
+      if (CATCHALL_NAMES.has(b.name.toLowerCase())) continue
+      const bNameKey = b.name.toLowerCase()
+      const matchedId = categoryNameToId.get(bNameKey)
+      if (matchedId) claimedCategoryIds.add(matchedId)
+      if (b.category?.name) {
+        const catId = categoryNameToId.get(b.category.name.toLowerCase())
+        if (catId) claimedCategoryIds.add(catId)
+      }
+    }
+
+    // Sum unclaimed expense spending
+    let unclaimedSpend = 0
+    for (const tx of transactions) {
+      if (tx.categoryId && !claimedCategoryIds.has(tx.categoryId) && !claimedTxIds.has(tx.id)) {
+        unclaimedSpend += Math.abs(tx.amount)
+      }
+    }
+
+    // Distribute to first catch-all budget (typically there's only one)
+    if (unclaimedSpend > 0) {
+      catchAllBudgets[0].spent = (catchAllBudgets[0].spent || 0) + unclaimedSpend
+    }
   }
 
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)

@@ -38,7 +38,7 @@ export default function FlexibleBudgetRow({ name, amount, spent, categoryId, cat
 
   const href = categoryId
     ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
-    : null
+    : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
 
   const content = (
     <>
@@ -71,11 +71,7 @@ export default function FlexibleBudgetRow({ name, amount, spent, categoryId, cat
     </>
   )
 
-  const className = "block rounded-lg px-3 py-3 hover:bg-snow"
-
-  return href ? (
-    <Link href={href} className={className}>{content}</Link>
-  ) : (
-    <div className={className}>{content}</div>
+  return (
+    <Link href={href} className="block rounded-lg px-3 py-3 hover:bg-snow">{content}</Link>
   )
 }

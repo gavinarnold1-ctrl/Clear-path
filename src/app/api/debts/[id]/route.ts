@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { piBreakdown } from '@/lib/engines/amortization'
@@ -96,6 +97,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     include: { property: true, category: true },
   })
 
+  revalidatePath('/debts')
   return NextResponse.json(updated)
 }
 
@@ -111,5 +113,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   await db.debt.delete({ where: { id } })
 
+  revalidatePath('/debts')
   return new NextResponse(null, { status: 204 })
 }

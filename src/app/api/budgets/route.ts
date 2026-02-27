@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
@@ -57,5 +58,7 @@ export async function POST(req: NextRequest) {
     include: { category: true, annualExpense: true },
   })
 
+  revalidatePath('/budgets')
+  revalidatePath('/dashboard')
   return NextResponse.json(budget, { status: 201 })
 }

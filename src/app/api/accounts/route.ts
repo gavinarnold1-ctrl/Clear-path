@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { createAccountSchema, validateBody } from '@/lib/validation'
@@ -72,5 +73,7 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  revalidatePath('/accounts')
+  revalidatePath('/dashboard')
   return NextResponse.json(account, { status: 201 })
 }

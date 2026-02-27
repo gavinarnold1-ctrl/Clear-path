@@ -287,7 +287,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
                             <td className="px-4 py-3 text-stone">{row[dateIdx]}</td>
                             <td className="px-4 py-3 font-medium text-fjord">{row[merchantIdx]}</td>
                             <td className="px-4 py-3 text-stone">{row[categoryIdx] || '—'}</td>
-                            <td className={`px-4 py-3 text-right font-semibold ${amt < 0 ? 'text-expense' : 'text-income'}`}>
+                            <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${amt < 0 ? 'text-expense' : 'text-income'}`}>
                               {amt < 0 ? '−' : '+'}${Math.abs(amt).toFixed(2)}
                             </td>
                           </tr>
