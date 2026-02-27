@@ -411,3 +411,42 @@ New `BudgetHealth` component on Budgets page between True Remaining banner and t
 - Pre-existing failures: `t1-1` (1, regex false positive on computed `b.spent`), `insights.test` (5, benchmarks engine extraction), `t2-3` (3, debt engine amortization formula change), `t1-8` (4, UnbudgetedSection rendering duplicates)
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
 - Build: blocked by network (Google Fonts unreachable in sandbox), not a code issue
+
+---
+
+## UAT Round 2 Follow-Up (2026-02-27)
+
+### Fixes
+
+| Fix | Description | Files Changed |
+|-----|-------------|---------------|
+| 1. Annual budget click-through | Annual budget rows on Budgets page and Annual Plan page are now clickable, linking to filtered transactions by categoryId or search. Income section in BudgetHealth also clickable. | `AnnualBudgetRow.tsx`, `AnnualBudgetSection.tsx`, `BudgetHealth.tsx`, `AnnualExpenseCard.tsx`, `AnnualExpenseList.tsx` |
+| 2+7. Unallocated flexible budget | Added "Unallocated Flexible" row at top of Flexible section showing the catch-all pool — total flexible budget minus named budgets. Displays progress bar, daily allowance, and over-budget warning. Named flexible budgets shown separately below. | `FlexibleBudgetSection.tsx`, `budgets/page.tsx` |
+| 3. Editable income figure | Users can now set expected monthly income on the Budgets page. Added `expectedMonthlyIncome` field to UserProfile. Inline edit button next to "Expected" income amount — saves via PATCH /api/profile. Falls back to 3-month average if not set. | `schema.prisma`, `BudgetHealth.tsx`, `budgets/page.tsx`, `api/profile/route.ts` |
+| 4. Account save refresh | After editing an account, local state now updates from the API response (including server-computed balance) before calling `router.refresh()`. Previously the optimistic update didn't include the recomputed balance. | `AccountManager.tsx` |
+| 5. Annual plan duplicate prevention | Transactions already assigned to another annual expense are excluded from the LinkTransactionModal list. Server-side validation in PATCH `/api/budgets/annual/[id]` returns 409 if transaction is already claimed. | `LinkTransactionModal.tsx`, `api/budgets/annual/[id]/route.ts` |
+
+### New Feature: Smart Category Learning
+
+When a user reclassifies a transaction, the app learns and auto-categorizes future transactions from the same merchant.
+
+| Component | Description | Files |
+|-----------|-------------|-------|
+| Data model | `UserCategoryMapping` model: userId, merchantName (normalized lowercase), categoryId, confidence (float), timesApplied (int). Unique on [userId, merchantName]. | `schema.prisma` |
+| Learn on reclassify | Transaction PATCH route upserts a mapping when categoryId changes. Confidence set to 1.0 for explicit user changes. No prompt, no friction — the app just learns. | `api/transactions/[id]/route.ts` |
+| Apply on import | CSV import checks user mappings first (highest priority). Exact match (confidence >= 1.0) → auto-apply silently. Fuzzy match (word overlap > 0.7) → auto-apply. Increments `timesApplied` counter. Falls back to merchant history and default classifier. | `api/transactions/import/route.ts` |
+| Settings UI | "Learned Categories" section in Settings shows all mappings as "merchant → category" with times-applied counter and Remove button. Lazy-loaded on click. | `SettingsClient.tsx` |
+| API | `GET /api/category-mappings` — list all user mappings. `DELETE /api/category-mappings/[id]` — delete a mapping (future imports fall back to default classifier). | `api/category-mappings/route.ts`, `api/category-mappings/[id]/route.ts` |
+| Data cleanup | UserCategoryMapping included in profile reset (POST /api/profile/reset). | `api/profile/reset/route.ts` |
+
+### Additional: Income click-through + classification filter
+
+Added `classification` filter support to the transactions page. Clicking the Income bar in BudgetHealth navigates to `/transactions?classification=income&month=YYYY-MM`, showing only income transactions. TransactionList now supports `initialClassification` prop with filter badge and clear button.
+
+### Test Results
+
+- **432 total tests**: 419 passed, 13 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
+- **Zero new failures** introduced
+- TypeScript: zero errors (`npx tsc --noEmit` clean)
+- Build: blocked by network (Google Fonts unreachable in sandbox), not a code issue

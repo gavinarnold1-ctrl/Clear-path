@@ -26,7 +26,7 @@ export default async function BudgetsPage() {
   const prev1Start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
   const prev1End = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg] = await Promise.all([
+  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true },
@@ -68,6 +68,11 @@ export default async function BudgetsPage() {
         classification: 'income',
       },
       _sum: { amount: true },
+    }),
+    // User profile for expected income setting
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { expectedMonthlyIncome: true },
     }),
   ])
 
@@ -306,6 +311,14 @@ export default async function BudgetsPage() {
     }
   }
 
+  // Compute unallocated flexible budget: total unbudgeted spending that isn't claimed
+  // by any specific budget (fixed, flexible, or annual). The unallocated pool is implicit —
+  // it's the leftover spending that no named budget covers.
+  const CATCHALL_NAMES_CHECK = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else'])
+  const namedFlexible = flexible.filter((b) => !CATCHALL_NAMES_CHECK.has(b.name.toLowerCase()))
+  const namedFlexibleTotal = namedFlexible.reduce((sum, b) => sum + b.amount, 0)
+  const totalUnbudgetedSpend = unbudgetedCategories.reduce((sum, c) => sum + c.spent, 0)
+
   const fixedTotal = fixed.reduce((sum, b) => sum + b.amount, 0)
   const flexibleBudgeted = flexible.reduce((sum, b) => sum + b.amount, 0)
   const flexibleSpent = flexible.reduce((sum, item) => sum + item.spent, 0)
@@ -314,7 +327,8 @@ export default async function BudgetsPage() {
   }, 0)
 
   // Budget Health metrics
-  const expectedIncome = (priorIncomeAgg._sum.amount ?? 0) / 3
+  const autoExpectedIncome = (priorIncomeAgg._sum.amount ?? 0) / 3
+  const expectedIncome = userProfile?.expectedMonthlyIncome ?? autoExpectedIncome
   const actualExpenses = transactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
   const expectedExpenses = fixedTotal + flexibleBudgeted + annualSetAside
   const fixedPaid = fixed.filter((b) => b.spent > 0).length
@@ -359,7 +373,11 @@ export default async function BudgetsPage() {
           />
 
           <FixedBudgetSection budgets={fixed} transactions={transactions} />
-          <FlexibleBudgetSection budgets={flexible} />
+          <FlexibleBudgetSection
+            budgets={namedFlexible}
+            unallocatedAmount={flexibleBudgeted - namedFlexibleTotal > 0 ? flexibleBudgeted - namedFlexibleTotal : totalUnbudgetedSpend > 0 ? totalUnbudgetedSpend : undefined}
+            unallocatedSpent={catchAllBudgets.length > 0 ? catchAllBudgets[0].spent : totalUnbudgetedSpend}
+          />
           <AnnualBudgetSection budgets={annual} />
           <UnbudgetedSection categories={unbudgetedCategories} />
           {annual.length > 0 && (

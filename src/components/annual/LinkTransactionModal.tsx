@@ -9,6 +9,7 @@ interface Transaction {
   merchant: string
   amount: number
   category?: { name: string } | null
+  annualExpenseId?: string | null
 }
 
 interface Props {
@@ -37,7 +38,9 @@ export default function LinkTransactionModal({
     fetch('/api/transactions?limit=100&sort=date&order=desc')
       .then((res) => res.json())
       .then((data) => {
-        setTransactions(Array.isArray(data) ? data : data.transactions ?? [])
+        const txs: Transaction[] = Array.isArray(data) ? data : data.transactions ?? []
+        // Exclude transactions already claimed by another annual expense
+        setTransactions(txs.filter((tx) => !tx.annualExpenseId || tx.annualExpenseId === expenseId))
       })
       .catch(() => setTransactions([]))
       .finally(() => setLoading(false))

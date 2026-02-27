@@ -76,6 +76,7 @@ model User {
   properties        Property[]
   debts             Debt[]
   monthlySnapshots  MonthlySnapshot[]
+  categoryMappings  UserCategoryMapping[]
 }
 
 model Account {
@@ -125,9 +126,10 @@ model Category {
 
   userId       String?       // null = system default, set = user custom
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  budgets      Budget[]
-  debts        Debt[]
+  transactions     Transaction[]
+  budgets          Budget[]
+  debts            Debt[]
+  categoryMappings UserCategoryMapping[]
 
   @@unique([userId, type, group, name])
   @@index([type])
@@ -313,6 +315,9 @@ model UserProfile {
   // Q6: Category Setup
   categoryMode          String?   // "recommended" | "custom" | "import_match"
 
+  // Budget settings
+  expectedMonthlyIncome Float?    // User-set expected monthly income for budgets page
+
   // In-progress answers not yet materialized into records (JSON)
   pendingSetup          String?   // JSON: { partnerName?, accounts[], properties[] }
 
@@ -344,6 +349,24 @@ model Property {
   transactions Transaction[]
   debts        Debt[]
 
+  @@index([userId])
+}
+
+// ─── Smart Category Learning ─────────────────────────────────────────────────
+
+model UserCategoryMapping {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchantName String   // Normalized: lowercase, trimmed
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  confidence   Float    @default(1.0) // 1.0 = explicit user reclassification
+  timesApplied Int      @default(0)   // Incremented each time the mapping is auto-applied
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, merchantName])
   @@index([userId])
 }
 

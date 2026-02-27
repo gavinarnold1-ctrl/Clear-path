@@ -44,6 +44,7 @@ interface TransactionRow {
   account: { id: string; name: string } | null
   householdMember: { id: string; name: string } | null
   property: { id: string; name: string } | null
+  classification?: string
 }
 
 interface Props {
@@ -58,10 +59,11 @@ interface Props {
   initialPropertyId?: string
   initialAccountId?: string
   initialSearch?: string
+  initialClassification?: string
   refundedTxIds?: string[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', refundedTxIds = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -74,6 +76,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
   const [filterAccountId, setFilterAccountId] = useState<string>(initialAccountId)
   const [searchText, setSearchText] = useState<string>(initialSearch)
+  const [filterClassification, setFilterClassification] = useState<string>(initialClassification)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -134,6 +137,10 @@ export default function TransactionList({ transactions: initial, categories, acc
     // Account filter
     if (filterAccountId) {
       if (filterAccountId === '__none__' ? tx.accountId !== null : tx.accountId !== filterAccountId) return false
+    }
+    // Classification filter (income/expense/transfer)
+    if (filterClassification) {
+      if (tx.classification !== filterClassification) return false
     }
     // Search text filter (merchant, category name, notes)
     if (searchText) {
@@ -470,9 +477,15 @@ export default function TransactionList({ transactions: initial, categories, acc
             <button onClick={() => setSearchText('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
           </div>
         )}
-        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText) && (
+        {filterClassification && (
+          <div className="rounded-badge bg-frost px-2 py-0.5 text-xs text-fjord">
+            {filterClassification}
+            <button onClick={() => setFilterClassification('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
+          </div>
+        )}
+        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification) && (
           <button
-            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText('') }}
+            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification('') }}
             className="text-xs text-stone hover:text-fjord"
           >
             Clear all
@@ -678,7 +691,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText)
+          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification)
             ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
             : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>
