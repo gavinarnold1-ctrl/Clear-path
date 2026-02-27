@@ -119,16 +119,12 @@ export default function AnnualExpenseCard({ expense, affordableMonthly }: Props)
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-semibold text-fjord">
               {icon && <span className="text-lg">{icon}</span>}
-              {expense.budget.categoryId ? (
-                <Link
-                  href={`/transactions?categoryId=${expense.budget.categoryId}`}
-                  className={`hover:text-midnight hover:underline ${isCompleted ? 'line-through' : ''}`}
-                >
-                  {expense.name}
-                </Link>
-              ) : (
-                <span className={isCompleted ? 'line-through' : ''}>{expense.name}</span>
-              )}
+              <Link
+                href={`/transactions?annualExpenseId=${expense.id}&annualExpenseName=${encodeURIComponent(expense.name)}`}
+                className={`hover:text-midnight hover:underline ${isCompleted ? 'line-through' : ''}`}
+              >
+                {expense.name}
+              </Link>
               {expense.isRecurring && (
                 <span className="rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
                   yearly

@@ -77,36 +77,48 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
   if (budgets.length === 0) return null
 
   const total = budgets.reduce((sum, b) => sum + b.amount, 0)
+  const paidCount = budgets.filter((b) => {
+    const { status } = getFixedStatus(b, transactions)
+    return status === 'paid'
+  }).length
 
   return (
     <section className="mb-8">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold text-fjord">
-          Fixed{' '}
-          <span className="text-sm font-normal text-stone">
-            ({formatCurrency(total)}/mo)
+      <details className="group">
+        <summary className="mb-3 flex cursor-pointer list-none items-baseline justify-between [&::-webkit-details-marker]:hidden">
+          <h2 className="text-lg font-semibold text-fjord">
+            Fixed{' '}
+            <span className="text-sm font-normal text-stone">
+              ({formatCurrency(total)}/mo &middot; {paidCount}/{budgets.length} paid)
+            </span>
+          </h2>
+          <span className="text-xs text-stone group-open:hidden">
+            Show details &darr;
           </span>
-        </h2>
-      </div>
-      <div className="card divide-y divide-mist">
-        {budgets.map((budget) => {
-          const { status, matchedAmount } = getFixedStatus(budget, transactions)
-          return (
-            <FixedBudgetRow
-              key={budget.id}
-              name={budget.name}
-              amount={budget.amount}
-              spent={matchedAmount}
-              dueDay={budget.dueDay}
-              isAutoPay={budget.isAutoPay}
-              varianceLimit={budget.varianceLimit}
-              categoryId={budget.categoryId}
-              category={budget.category}
-              status={status}
-            />
-          )
-        })}
-      </div>
+          <span className="hidden text-xs text-stone group-open:inline">
+            Hide &uarr;
+          </span>
+        </summary>
+        <div className="card divide-y divide-mist">
+          {budgets.map((budget) => {
+            const { status, matchedAmount } = getFixedStatus(budget, transactions)
+            return (
+              <FixedBudgetRow
+                key={budget.id}
+                name={budget.name}
+                amount={budget.amount}
+                spent={matchedAmount}
+                dueDay={budget.dueDay}
+                isAutoPay={budget.isAutoPay}
+                varianceLimit={budget.varianceLimit}
+                categoryId={budget.categoryId}
+                category={budget.category}
+                status={status}
+              />
+            )
+          })}
+        </div>
+      </details>
     </section>
   )
 }

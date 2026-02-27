@@ -63,12 +63,12 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
   const rollupPace = getPaceInfo(rollupBudget, rollupSpent)
 
   return (
-    <section className="mb-8">
+    <section className="mb-8 rounded-card border-l-4 border-l-pine bg-frost/40 p-4">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold text-fjord">Flexible</h2>
+        <h2 className="font-display text-lg font-semibold text-fjord">Flexible Spending</h2>
         <p className="text-sm text-stone">Variable spending you control — track against a monthly limit</p>
       </div>
-      <div className="card divide-y divide-mist">
+      <div className="divide-y divide-mist rounded-card border border-mist bg-snow">
         {/* Rollup summary at top */}
         {rollupBudget > 0 && (
           <div className="rounded-lg bg-frost/30 px-3 py-3">

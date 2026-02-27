@@ -9,7 +9,7 @@ import { findRefundPairs } from '@/lib/refund-detection'
 export const metadata: Metadata = { title: 'Transactions' }
 
 interface PageProps {
-  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string }>
+  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string }>
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps) {
@@ -24,6 +24,8 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const initialAccountId = params.accountId ?? ''
   const initialSearch = params.search ?? ''
   const initialClassification = params.classification ?? ''
+  const initialAnnualExpenseId = params.annualExpenseId ?? ''
+  const initialAnnualExpenseName = params.annualExpenseName ?? ''
 
   const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
@@ -77,6 +79,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     householdMember: tx.householdMember ? { id: tx.householdMember.id, name: tx.householdMember.name } : null,
     property: tx.property ? { id: tx.property.id, name: tx.property.name } : null,
     classification: tx.classification,
+    annualExpenseId: tx.annualExpenseId,
   }))
 
   return (
@@ -115,6 +118,8 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           initialAccountId={initialAccountId}
           initialSearch={initialSearch}
           initialClassification={initialClassification}
+          initialAnnualExpenseId={initialAnnualExpenseId}
+          initialAnnualExpenseName={initialAnnualExpenseName}
           refundedTxIds={[...refundPairIds]}
         />
       )}

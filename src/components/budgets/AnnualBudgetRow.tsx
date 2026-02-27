@@ -4,6 +4,7 @@ import { formatCurrency, budgetProgress } from '@/lib/utils'
 import { formatMonthName, monthsUntilDue, calculateMonthlySetAside } from '@/lib/budget-engine'
 
 interface AnnualExpense {
+  id: string
   annualAmount: number
   dueMonth: number
   dueYear: number
@@ -39,21 +40,15 @@ const ALERT_STYLES = {
   ok: 'text-stone',
 }
 
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
 export default function AnnualBudgetRow({ name, categoryId, category, annualExpense: ae }: Props) {
   const pct = budgetProgress(ae.funded, ae.annualAmount)
   const monthlyNeeded = calculateMonthlySetAside(ae.annualAmount, ae.funded, ae.dueMonth, ae.dueYear)
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
 
-  // Direct ID pass-through: use the budget's categoryId directly for navigation.
-  // No name validation, no fuzzy matching — trust the stored categoryId.
-  const href = categoryId
-    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
-    : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
+  // Navigate to transactions linked to this specific annual plan item.
+  // Uses annualExpenseId filter — NOT category filter — because a single plan
+  // can contain transactions from multiple categories.
+  const href = `/transactions?annualExpenseId=${ae.id}&annualExpenseName=${encodeURIComponent(name)}`
 
   const content = (
     <>

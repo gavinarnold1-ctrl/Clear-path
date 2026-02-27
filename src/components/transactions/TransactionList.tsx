@@ -45,6 +45,7 @@ interface TransactionRow {
   householdMember: { id: string; name: string } | null
   property: { id: string; name: string } | null
   classification?: string
+  annualExpenseId?: string | null
 }
 
 interface Props {
@@ -60,10 +61,12 @@ interface Props {
   initialAccountId?: string
   initialSearch?: string
   initialClassification?: string
+  initialAnnualExpenseId?: string
+  initialAnnualExpenseName?: string
   refundedTxIds?: string[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', refundedTxIds = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -77,6 +80,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [filterAccountId, setFilterAccountId] = useState<string>(initialAccountId)
   const [searchText, setSearchText] = useState<string>(initialSearch)
   const [filterClassification, setFilterClassification] = useState<string>(initialClassification)
+  const [filterAnnualExpenseId, setFilterAnnualExpenseId] = useState<string>(initialAnnualExpenseId)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -137,6 +141,10 @@ export default function TransactionList({ transactions: initial, categories, acc
     // Account filter
     if (filterAccountId) {
       if (filterAccountId === '__none__' ? tx.accountId !== null : tx.accountId !== filterAccountId) return false
+    }
+    // Annual expense filter (linked plan item)
+    if (filterAnnualExpenseId) {
+      if (tx.annualExpenseId !== filterAnnualExpenseId) return false
     }
     // Classification filter (income/expense/transfer)
     if (filterClassification) {
@@ -398,6 +406,19 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   return (
     <div className="relative pb-16">
+      {/* Annual plan context header */}
+      {filterAnnualExpenseId && (
+        <div className="mb-4 rounded-card border border-pine/20 bg-pine/5 px-4 py-3">
+          <h2 className="font-display text-lg font-semibold text-fjord">
+            {initialAnnualExpenseName || 'Annual Plan'}
+          </h2>
+          <p className="text-sm text-stone">
+            {filteredTransactions.length === 0
+              ? 'No transactions linked to this plan yet. Use the annual planning page to link transactions.'
+              : `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} linked to this annual plan`}
+          </p>
+        </div>
+      )}
       {/* Filter bar (R4.4 + R6.8) */}
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <label className="text-sm font-medium text-stone">Filter:</label>
@@ -483,9 +504,15 @@ export default function TransactionList({ transactions: initial, categories, acc
             <button onClick={() => setFilterClassification('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
           </div>
         )}
-        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification) && (
+        {filterAnnualExpenseId && (
+          <div className="flex items-center gap-1 rounded-full bg-pine/10 border border-pine/30 px-3 py-1 text-xs font-medium text-pine">
+            Annual Plan: {initialAnnualExpenseName || 'Linked'}
+            <button onClick={() => setFilterAnnualExpenseId('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
+          </div>
+        )}
+        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId) && (
           <button
-            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification('') }}
+            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId('') }}
             className="text-xs text-stone hover:text-fjord"
           >
             Clear all
@@ -691,7 +718,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification)
+          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId)
             ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
             : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>
