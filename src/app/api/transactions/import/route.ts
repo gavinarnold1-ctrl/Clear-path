@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
@@ -536,6 +537,12 @@ export async function POST(request: Request) {
     } catch {
       // Non-critical — don't fail the import if snapshot creation fails
     }
+
+    // Invalidate cached pages so dashboard/transactions show fresh data
+    revalidatePath('/dashboard')
+    revalidatePath('/transactions')
+    revalidatePath('/budgets')
+    revalidatePath('/spending')
 
     return NextResponse.json({
       imported: importedCount,

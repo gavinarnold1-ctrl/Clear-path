@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import CsvUploader from '@/components/import/CsvUploader'
 import ColumnMapper from '@/components/import/ColumnMapper'
 import ImportPreview from '@/components/import/ImportPreview'
@@ -32,6 +33,7 @@ interface ImportResult {
 }
 
 export default function ImportWizard({ accounts }: { accounts: Account[] }) {
+  const router = useRouter()
   const [step, setStep] = useState<Step>('upload')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -158,6 +160,8 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
       const data = await res.json()
       setImportResult(data)
       setStep('done')
+      // Invalidate client-side Router Cache so dashboard/transactions show fresh data
+      router.refresh()
     } catch {
       setError('Network error. Please try again.')
     } finally {
