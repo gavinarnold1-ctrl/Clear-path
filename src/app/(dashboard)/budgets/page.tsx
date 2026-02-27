@@ -49,7 +49,7 @@ export default async function BudgetsPage() {
         date: { gte: startOfMonth, lte: endOfMonth },
         amount: { gt: 0 },
       },
-      select: { id: true, merchant: true, amount: true, date: true },
+      select: { id: true, merchant: true, amount: true, date: true, accountId: true },
     }),
     // Current month's income for True Remaining (classification=income only)
     db.transaction.aggregate({
@@ -78,8 +78,8 @@ export default async function BudgetsPage() {
 
   // Detect refund pairs and exclude refunded expenses from budget computation
   const allForPairing = [
-    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
-    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
+    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId })),
+    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId })),
   ]
   const refundPairIds = findRefundPairs(allForPairing)
   const transactions = allExpenseTransactions.filter((tx) => !refundPairIds.has(tx.id))
@@ -122,8 +122,10 @@ export default async function BudgetsPage() {
     // Primary: match by categoryId
     let spent = b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0
 
-    // Fallback: if no categoryId or no spent found, try matching by category/budget name
-    if (spent === 0 && !b.categoryId) {
+    // Fallback: if no categoryId or no spent found, try matching by category/budget name.
+    // SKIP all reconciliation for ANNUAL tier — annual budgets get their categoryId
+    // at creation time and should never be auto-reconciled.
+    if (spent === 0 && !b.categoryId && b.tier !== 'ANNUAL') {
       // Try budget's category name (if somehow category relation exists without categoryId — unlikely but safe)
       const catName = b.category?.name?.toLowerCase()
       if (catName && spentByCategoryName.has(catName)) {
@@ -142,8 +144,8 @@ export default async function BudgetsPage() {
       }
       // Fuzzy: try partial match (budget "Dining Out" → category "Restaurants & Bars" won't match,
       // but "Mortgage Payment" → "Mortgage" will).
-      // SKIP fuzzy for ANNUAL tier — it causes wrong category links (e.g., "Home & Property Maintenance" → "Auto Maintenance").
-      if (spent === 0 && b.tier !== 'ANNUAL') {
+      // ANNUAL tier already excluded by outer condition.
+      if (spent === 0) {
         const budgetWords = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
         for (const [catName, catSpent] of spentByCategoryName) {
           const catWords = catName.split(/[\s&,]+/).filter((w) => w.length > 2)

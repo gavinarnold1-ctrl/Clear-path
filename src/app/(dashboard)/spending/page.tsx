@@ -60,7 +60,7 @@ export default async function SpendingPage({ searchParams }: Props) {
         date: { gte: startDate, lte: endDate },
         amount: { gt: 0 },
       },
-      select: { id: true, merchant: true, amount: true, date: true },
+      select: { id: true, merchant: true, amount: true, date: true, accountId: true },
     }),
     db.transaction.aggregate({
       where: {
@@ -85,8 +85,8 @@ export default async function SpendingPage({ searchParams }: Props) {
 
   // Detect refund pairs and exclude refunded expenses from spending
   const allForPairing = [
-    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
-    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString() })),
+    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId })),
+    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId })),
   ]
   const refundPairIds = findRefundPairs(allForPairing)
   const expenseTransactions = allExpenseTransactions.filter((tx) => !refundPairIds.has(tx.id))

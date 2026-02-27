@@ -1,10 +1,10 @@
 /**
  * Refund detection — identifies expense/refund pairs by matching:
- * - Same merchant (case-insensitive)
- * - Amount within 20% tolerance
+ * - Same account (both transactions on the same account)
+ * - Exact amount match (no tolerance — V1 simplicity)
  * - Opposite signs (expense < 0, refund > 0)
  * - Within 30 days of each other
- * - Merchant is NOT a financial institution / payment processor
+ * - Refund is NOT a payment/transfer merchant
  *
  * Returns a Set of transaction IDs that are part of a refund pair
  * (both the original expense and the refund).
@@ -15,6 +15,7 @@ interface RefundCandidate {
   merchant: string
   amount: number
   date: string | Date
+  accountId?: string | null
 }
 
 /**
@@ -69,11 +70,9 @@ const KNOWN_BANK_NAMES = [
 
 function isPaymentOrTransferMerchant(merchant: string): boolean {
   const lower = merchant.toLowerCase().trim()
-  // Check patterns
   for (const pattern of PAYMENT_MERCHANT_PATTERNS) {
     if (lower.includes(pattern)) return true
   }
-  // Check known bank/financial institution names
   for (const bank of KNOWN_BANK_NAMES) {
     if (lower.includes(bank)) return true
   }
@@ -83,35 +82,39 @@ function isPaymentOrTransferMerchant(merchant: string): boolean {
 /**
  * Given a list of ALL transactions (both positive and negative),
  * find refund pairs and return the IDs of both sides.
+ *
+ * Algorithm: same account + exact amount + opposite direction + within 30 days.
+ * Merchant matching is NOT required — refunds often show a different merchant name
+ * (e.g., "REFUND FROM STORE" vs "STORE #1234").
  */
 export function findRefundPairs(transactions: RefundCandidate[]): Set<string> {
   const paired = new Set<string>()
   const WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
-  const AMOUNT_TOLERANCE = 0.20 // 20% tolerance
 
-  // Split into expenses (negative) and potential refunds (positive)
+  // Split into expenses (negative) and potential refunds (positive, not payment/transfer)
   const expenses = transactions.filter((tx) => tx.amount < 0)
   const refunds = transactions.filter((tx) => tx.amount > 0 && !isPaymentOrTransferMerchant(tx.merchant))
 
-  // Index refunds by merchant for lookup
-  const refundByMerchant = new Map<string, RefundCandidate[]>()
+  // Index refunds by accountId + absolute amount for fast lookup
+  const refundIndex = new Map<string, RefundCandidate[]>()
   for (const r of refunds) {
-    const key = r.merchant.toLowerCase().trim()
-    const arr = refundByMerchant.get(key) ?? []
+    if (!r.accountId) continue // Skip transactions without account — can't match
+    const key = `${r.accountId}:${Math.abs(r.amount).toFixed(2)}`
+    const arr = refundIndex.get(key) ?? []
     arr.push(r)
-    refundByMerchant.set(key, arr)
+    refundIndex.set(key, arr)
   }
 
   // Track which refund IDs have already been paired
   const usedRefundIds = new Set<string>()
 
   for (const exp of expenses) {
-    const merchantKey = exp.merchant.toLowerCase().trim()
-    const candidates = refundByMerchant.get(merchantKey)
+    if (!exp.accountId) continue // Skip transactions without account
+    const key = `${exp.accountId}:${Math.abs(exp.amount).toFixed(2)}`
+    const candidates = refundIndex.get(key)
     if (!candidates) continue
 
     const expDate = new Date(exp.date).getTime()
-    const expAmount = Math.abs(exp.amount)
 
     // Find the closest refund within the 30-day window that hasn't been used
     let bestMatch: RefundCandidate | null = null
@@ -119,11 +122,6 @@ export function findRefundPairs(transactions: RefundCandidate[]): Set<string> {
 
     for (const c of candidates) {
       if (usedRefundIds.has(c.id)) continue
-
-      // Amount must be within 20% tolerance
-      const refundAmount = Math.abs(c.amount)
-      const amountDiff = Math.abs(refundAmount - expAmount) / expAmount
-      if (amountDiff > AMOUNT_TOLERANCE) continue
 
       const dist = Math.abs(new Date(c.date).getTime() - expDate)
       if (dist <= WINDOW_MS && dist < bestDist) {
