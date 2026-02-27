@@ -140,7 +140,7 @@ export default function BudgetHealth({
     <div className="mt-1 flex items-center gap-1.5">
       {editing ? (
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <span className="text-xs text-stone">Expected: $</span>
+          <span className="text-xs text-stone">Expected (salary/wages): $</span>
           <input
             type="number"
             step="1"

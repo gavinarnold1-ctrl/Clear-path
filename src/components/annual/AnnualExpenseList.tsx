@@ -19,6 +19,7 @@ interface AnnualExpenseData {
   monthsRemaining: number
   currentSetAside: number
   computedStatus: string
+  linkedSpent?: number
   budget: {
     id: string
     categoryId: string | null

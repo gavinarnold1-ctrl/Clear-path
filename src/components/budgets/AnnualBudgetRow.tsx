@@ -49,7 +49,10 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
   const monthlyNeeded = calculateMonthlySetAside(ae.annualAmount, ae.funded, ae.dueMonth, ae.dueYear)
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
 
-  const href = categoryId
+  // Only use categoryId if the category name exactly matches the budget name.
+  // Fuzzy reconciliation can assign wrong categoryIds (e.g., "Auto Maintenance" for "Home & Property Maintenance").
+  const categoryNameMatches = category?.name != null && category.name.toLowerCase() === name.toLowerCase()
+  const href = categoryId && categoryNameMatches
     ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
     : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
 

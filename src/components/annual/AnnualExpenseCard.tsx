@@ -26,6 +26,7 @@ interface AnnualExpenseData {
   monthsRemaining: number
   currentSetAside: number
   computedStatus: string
+  linkedSpent?: number
   budget: {
     id: string
     categoryId: string | null
@@ -118,7 +119,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly }: Props)
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-semibold text-fjord">
               {icon && <span className="text-lg">{icon}</span>}
-              {expense.budget.categoryId ? (
+              {expense.budget.categoryId && expense.budget.category?.name?.toLowerCase() === expense.name.toLowerCase() ? (
                 <Link
                   href={`/transactions?categoryId=${expense.budget.categoryId}`}
                   className={`hover:text-midnight hover:underline ${isCompleted ? 'line-through' : ''}`}
@@ -146,15 +147,43 @@ export default function AnnualExpenseCard({ expense, affordableMonthly }: Props)
           </span>
         </div>
 
-        {/* Progress */}
+        {/* Progress — driven by linked transactions (category-agnostic) */}
         <div className="mt-3">
-          <ProgressBar value={pct} />
-          <div className="mt-1 flex justify-between text-sm">
-            <span className="text-stone">
-              {formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}
-            </span>
-            <span className="font-medium text-stone">{pct}%</span>
-          </div>
+          {expense.linkedSpent !== undefined && expense.linkedSpent > 0 ? (
+            <>
+              {/* Spending progress: linked transactions vs planned amount */}
+              <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-stone">Spent</div>
+              <ProgressBar value={budgetProgress(expense.linkedSpent, expense.annualAmount)} />
+              <div className="mt-1 flex justify-between text-sm">
+                <span className="text-stone">
+                  {formatCurrency(expense.linkedSpent)} / {formatCurrency(expense.annualAmount)}
+                </span>
+                <span className="font-medium text-stone">{budgetProgress(expense.linkedSpent, expense.annualAmount)}%</span>
+              </div>
+              {/* Funding progress (secondary) */}
+              {expense.funded > 0 && expense.funded !== expense.linkedSpent && (
+                <div className="mt-2">
+                  <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-stone">Funded</div>
+                  <ProgressBar value={pct} />
+                  <div className="mt-0.5 flex justify-between text-xs text-stone">
+                    <span>{formatCurrency(expense.funded)} funded</span>
+                    <span>{pct}%</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Funding progress only when no linked transactions */}
+              <ProgressBar value={pct} />
+              <div className="mt-1 flex justify-between text-sm">
+                <span className="text-stone">
+                  {formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}
+                </span>
+                <span className="font-medium text-stone">{pct}%</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Details */}

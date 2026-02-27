@@ -117,24 +117,55 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return updated
   })
 
-  // Smart category learning: when a user changes a transaction's category,
-  // save the merchant→category mapping so future imports auto-categorize.
+  // Smart category learning v2: when a user changes a transaction's category,
+  // save the merchant→category mapping with multi-signal context so future imports auto-categorize.
   if (body.categoryId && body.categoryId !== existing.categoryId && transaction.merchant) {
     const normalizedMerchant = transaction.merchant.toLowerCase().trim()
     if (normalizedMerchant) {
       try {
+        // Capture direction and amount range for multi-signal matching
+        const txAmount = Math.abs(transaction.amount)
+        const direction = transaction.amount > 0 ? 'credit' : 'debit'
+        const amountMin = Math.round(txAmount * 0.75 * 100) / 100 // 25% below
+        const amountMax = Math.round(txAmount * 1.25 * 100) / 100 // 25% above
+        // Extract keywords from original statement or notes
+        const descParts = [transaction.originalStatement, transaction.notes].filter(Boolean)
+        const descKeywords = descParts.length > 0
+          ? descParts
+              .join(' ')
+              .toLowerCase()
+              .split(/[\s,;|]+/)
+              .filter((w: string) => w.length > 2)
+              .slice(0, 5)
+              .join(',')
+          : null
+
         await db.userCategoryMapping.upsert({
-          where: { userId_merchantName: { userId: session.userId, merchantName: normalizedMerchant } },
+          where: {
+            userId_merchantName_direction_categoryId: {
+              userId: session.userId,
+              merchantName: normalizedMerchant,
+              direction,
+              categoryId: body.categoryId,
+            },
+          },
           create: {
             userId: session.userId,
             merchantName: normalizedMerchant,
             categoryId: body.categoryId,
             confidence: 1.0,
             timesApplied: 0,
+            direction,
+            amountMin,
+            amountMax,
+            descKeywords: descKeywords || null,
           },
           update: {
             categoryId: body.categoryId,
             confidence: 1.0,
+            amountMin,
+            amountMax,
+            descKeywords: descKeywords || undefined,
             updatedAt: new Date(),
           },
         })

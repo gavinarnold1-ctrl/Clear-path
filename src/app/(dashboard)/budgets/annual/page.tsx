@@ -23,7 +23,10 @@ export default async function AnnualPlanningPage() {
   const [expenses, categories, allBudgets, incomeAgg, monthExpenses] = await Promise.all([
     db.annualExpense.findMany({
       where: { userId: session.userId },
-      include: { budget: { include: { category: true } } },
+      include: {
+        budget: { include: { category: true } },
+        transactions: { select: { id: true, amount: true } },
+      },
       orderBy: [{ dueYear: 'asc' }, { dueMonth: 'asc' }],
     }),
     db.category.findMany({
@@ -103,6 +106,9 @@ export default async function AnnualPlanningPage() {
       }
     }
 
+    // Compute total spent from linked transactions (category-agnostic tracking)
+    const linkedSpent = exp.transactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+
     return {
       ...exp,
       // Serialize dates for client components
@@ -110,6 +116,7 @@ export default async function AnnualPlanningPage() {
       monthsRemaining,
       currentSetAside,
       computedStatus,
+      linkedSpent,
     }
   })
 

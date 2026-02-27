@@ -141,8 +141,9 @@ export default async function BudgetsPage() {
         }
       }
       // Fuzzy: try partial match (budget "Dining Out" → category "Restaurants & Bars" won't match,
-      // but "Mortgage Payment" → "Mortgage" will)
-      if (spent === 0) {
+      // but "Mortgage Payment" → "Mortgage" will).
+      // SKIP fuzzy for ANNUAL tier — it causes wrong category links (e.g., "Home & Property Maintenance" → "Auto Maintenance").
+      if (spent === 0 && b.tier !== 'ANNUAL') {
         const budgetWords = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
         for (const [catName, catSpent] of spentByCategoryName) {
           const catWords = catName.split(/[\s&,]+/).filter((w) => w.length > 2)
@@ -377,6 +378,8 @@ export default async function BudgetsPage() {
             budgets={namedFlexible}
             unallocatedAmount={flexibleBudgeted - namedFlexibleTotal > 0 ? flexibleBudgeted - namedFlexibleTotal : totalUnbudgetedSpend > 0 ? totalUnbudgetedSpend : undefined}
             unallocatedSpent={catchAllBudgets.length > 0 ? catchAllBudgets[0].spent : totalUnbudgetedSpend}
+            totalFlexibleBudget={flexibleBudgeted}
+            totalFlexibleSpent={flexibleSpent}
           />
           <AnnualBudgetSection budgets={annual} />
           <UnbudgetedSection categories={unbudgetedCategories} />

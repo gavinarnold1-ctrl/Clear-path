@@ -92,6 +92,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     budgetExpenses,
     categorySpending,
     chartData,
+    userProfile,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     // R1.14: Income = classification "income"
@@ -176,6 +177,11 @@ export default async function DashboardPage({ searchParams }: Props) {
         classification: { not: 'transfer' },
       },
       select: { date: true, amount: true, classification: true },
+    }),
+    // User profile for expected income intelligence
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { expectedMonthlyIncome: true },
     }),
   ])
 
@@ -349,6 +355,34 @@ export default async function DashboardPage({ searchParams }: Props) {
           sub={monthlyNet >= 0 ? 'surplus' : 'deficit'}
         />
       </div>
+
+      {/* Income surplus insight */}
+      {(() => {
+        const expectedIncome = userProfile?.expectedMonthlyIncome
+        if (!expectedIncome || expectedIncome <= 0 || monthlyIncome <= expectedIncome) return null
+        const surplus = monthlyIncome - expectedIncome
+        return (
+          <div className="mb-8 rounded-xl border border-pine/30 bg-pine/5 p-5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-lg">&#x1f4b0;</span>
+              <div>
+                <p className="text-sm font-semibold text-pine">
+                  You received {formatCurrency(surplus)} more than expected this month
+                </p>
+                <p className="mt-1 text-sm text-stone">
+                  Your actual income of {formatCurrency(monthlyIncome)} exceeded your expected monthly income of {formatCurrency(expectedIncome)}.
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-stone">
+                  <li>&bull; Pay down high-interest debt to save on interest</li>
+                  <li>&bull; Add to your emergency fund or savings</li>
+                  <li>&bull; Top up an annual sinking fund ahead of schedule</li>
+                  <li>&bull; Invest for long-term growth</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Budget overview + Spending by category */}
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
