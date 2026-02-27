@@ -33,6 +33,17 @@ function getDailyAllowance(amount: number, spent: number): { daily: number; days
   return { daily, daysLeft }
 }
 
+function getPaceInfo(amount: number, spent: number): { paceMarkerPct: number; diff: number; ahead: boolean } {
+  const now = new Date()
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const today = now.getDate()
+  const dailyPace = amount / daysInMonth
+  const expectedSpend = dailyPace * today
+  const paceMarkerPct = amount > 0 ? Math.round((expectedSpend / amount) * 100) : 0
+  const diff = expectedSpend - spent
+  return { paceMarkerPct, diff, ahead: diff > 0 }
+}
+
 export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent }: Props) {
   // Filter out empty catch-all rows ($0 spent)
   const visibleBudgets = budgets.filter((b) => {
@@ -49,6 +60,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
   const rollupSpent = totalFlexibleSpent ?? visibleBudgets.reduce((sum, b) => sum + b.spent, 0) + (showUnallocated ? (unallocatedSpent ?? 0) : 0)
   const rollupPct = budgetProgress(rollupSpent, rollupBudget)
   const rollupColor = rollupPct >= 100 ? 'text-ember' : rollupPct >= 90 ? 'text-ember' : rollupPct >= 75 ? 'text-birch' : 'text-fjord'
+  const rollupPace = getPaceInfo(rollupBudget, rollupSpent)
 
   return (
     <section className="mb-8">
@@ -68,7 +80,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                 {formatCurrency(rollupBudget)}
               </span>
             </div>
-            <ProgressBar value={rollupPct} />
+            <ProgressBar value={rollupPct} paceMarker={rollupPace.paceMarkerPct} />
             <div className="mt-1 flex items-center justify-between text-xs">
               <span className="text-stone">
                 {rollupSpent <= rollupBudget
@@ -77,6 +89,14 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                 }
                 {rollupSpent > rollupBudget && (
                   <span className="font-semibold text-ember">{formatCurrency(rollupSpent - rollupBudget)} over budget</span>
+                )}
+                {rollupSpent <= rollupBudget && (
+                  <>
+                    {' · '}
+                    <span className={rollupPace.ahead ? 'text-pine' : 'text-ember'}>
+                      {formatCurrency(Math.abs(rollupPace.diff))} {rollupPace.ahead ? 'ahead' : 'behind'}
+                    </span>
+                  </>
                 )}
               </span>
               <span className={`font-semibold ${rollupColor}`}>{rollupPct}%</span>
@@ -103,6 +123,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
           const remaining = unallocatedAmount - spent
           const isOver = spent > unallocatedAmount
           const { daily, daysLeft } = getDailyAllowance(unallocatedAmount, spent)
+          const unallocPace = getPaceInfo(unallocatedAmount, spent)
           const pctColor =
             pct >= 100 ? 'text-ember' : pct >= 90 ? 'text-ember' : pct >= 75 ? 'text-birch' : 'text-fjord'
 
@@ -120,7 +141,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                 </span>
               </div>
 
-              <ProgressBar value={pct} />
+              <ProgressBar value={pct} paceMarker={unallocPace.paceMarkerPct} />
 
               <div className="mt-1 flex items-center justify-between text-xs">
                 {isOver ? (
@@ -130,6 +151,10 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                 ) : (
                   <span className="text-stone">
                     {formatCurrency(daily)}/day remaining ({daysLeft} day{daysLeft !== 1 ? 's' : ''} left)
+                    {' · '}
+                    <span className={unallocPace.ahead ? 'text-pine' : 'text-ember'}>
+                      {formatCurrency(Math.abs(unallocPace.diff))} {unallocPace.ahead ? 'ahead' : 'behind'}
+                    </span>
                   </span>
                 )}
                 <span className={`font-semibold ${pctColor}`}>{pct}%</span>

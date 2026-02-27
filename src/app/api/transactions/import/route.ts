@@ -329,48 +329,25 @@ export async function POST(request: Request) {
         }
       }
 
-      // Match category by name — exact first, then partial, then auto-create
+      // Category resolution order:
+      // 1. Exact CSV category match (user's own categories or system defaults)
+      // 2. Smart learning (UserCategoryMapping) — user's explicit reclassifications take priority over fuzzy
+      // 3. Fuzzy CSV category match (partial name overlap)
+      // 4. Merchant history (most-frequent category for this merchant)
+      // 5. Auto-create category from CSV name
       let categoryId: string | null = null
+
+      // Step 1: Exact CSV category match
       if (tx.category && tx.category.trim() !== '') {
         const catKey = tx.category.toLowerCase()
-        let matched = categoryMap.get(catKey) ?? null
-
-        // Fallback: partial/fuzzy match, prioritizing budget-linked categories + type alignment
-        if (!matched) {
-          matched = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds, tx.amount)
-          if (matched) {
-            categoryMap.set(catKey, matched)
-          }
-        }
-
-        if (matched) {
-          categoryId = matched.id
-        } else {
-          // Infer category type from transactionType (most reliable), then category name keywords, then amount sign
-          const isTransfer = tx.transactionType === 'transfer' ||
-            TRANSFER_CAT_KEYWORDS.test(catKey)
-          const isCredit = tx.transactionType === 'credit'
-          const nameHasIncomeSignal = INCOME_CAT_KEYWORDS.test(catKey) && !EXPENSE_CAT_KEYWORDS.test(catKey)
-          const catType = isTransfer ? 'transfer' : (isCredit || nameHasIncomeSignal || tx.amount > 0) ? 'income' : 'expense'
-
-          // Auto-create category with best-fit group (R1.6 — never use "Imported")
-          const bestGroup = inferCategoryGroup(tx.category.trim(), catType)
-          const newCat = await db.category.create({
-            data: {
-              userId: session.userId,
-              name: tx.category.trim(),
-              type: catType,
-              group: bestGroup,
-              isDefault: false,
-            },
-          })
-          categoryId = newCat.id
-          categoryMap.set(catKey, newCat)
+        const exactMatch = categoryMap.get(catKey) ?? null
+        if (exactMatch) {
+          categoryId = exactMatch.id
         }
       }
 
-      // Smart Category Learning v2: Multi-signal matching.
-      // Check user's explicit mappings first. Direction + amount range narrow the match.
+      // Step 2: Smart Category Learning — user's explicit merchant→category mappings.
+      // These represent conscious user decisions and override CSV's default categories.
       if (!categoryId && tx.merchant) {
         const merchantKey = tx.merchant.toLowerCase().trim()
         const txDirection = tx.amount > 0 ? 'credit' : 'debit'
@@ -412,7 +389,6 @@ export async function POST(request: Request) {
           // Fuzzy match: check for similar merchants (word overlap > 0.7)
           for (const [mappedMerchant, mappedList] of merchantMappings) {
             if (merchantWordOverlap(merchantKey, mappedMerchant) > 0.7) {
-              // Use first mapping that matches direction, or first if no direction
               const dirMatch = mappedList.find(m => !m.direction || m.direction === txDirection)
               const fallback = mappedList[0]
               const selected = dirMatch ?? fallback
@@ -426,13 +402,46 @@ export async function POST(request: Request) {
         }
       }
 
-      // R1.8: Fallback to merchant history when CSV had no category and no mapping matched
+      // Step 3: Fuzzy CSV category match (partial name overlap, budget-linked priority)
+      if (!categoryId && tx.category && tx.category.trim() !== '') {
+        const catKey = tx.category.toLowerCase()
+        const fuzzyMatch = findPartialCategoryMatch(catKey, categoryMap, budgetCategoryIds, tx.amount)
+        if (fuzzyMatch) {
+          categoryId = fuzzyMatch.id
+          categoryMap.set(catKey, fuzzyMatch)
+        }
+      }
+
+      // Step 4: Merchant history — most frequently used category for this merchant
       if (!categoryId && tx.merchant) {
         const merchantKey = tx.merchant.toLowerCase()
         const histCatId = merchantCategoryMap.get(merchantKey)
         if (histCatId) {
           categoryId = histCatId
         }
+      }
+
+      // Step 5: Auto-create category from CSV name if nothing else matched
+      if (!categoryId && tx.category && tx.category.trim() !== '') {
+        const catKey = tx.category.toLowerCase()
+        const isTransfer = tx.transactionType === 'transfer' ||
+          TRANSFER_CAT_KEYWORDS.test(catKey)
+        const isCredit = tx.transactionType === 'credit'
+        const nameHasIncomeSignal = INCOME_CAT_KEYWORDS.test(catKey) && !EXPENSE_CAT_KEYWORDS.test(catKey)
+        const catType = isTransfer ? 'transfer' : (isCredit || nameHasIncomeSignal || tx.amount > 0) ? 'income' : 'expense'
+
+        const bestGroup = inferCategoryGroup(tx.category.trim(), catType)
+        const newCat = await db.category.create({
+          data: {
+            userId: session.userId,
+            name: tx.category.trim(),
+            type: catType,
+            group: bestGroup,
+            isDefault: false,
+          },
+        })
+        categoryId = newCat.id
+        categoryMap.set(catKey, newCat)
       }
 
       // Match account by name (Monarch) or use provided accountId

@@ -35,16 +35,18 @@ export default function LinkTransactionModal({
   useEffect(() => {
     if (!isOpen) return
     setLoading(true)
-    fetch('/api/transactions?limit=100&sort=date&order=desc')
+    setSearch('')
+    fetch('/api/transactions')
       .then((res) => res.json())
       .then((data) => {
         const txs: Transaction[] = Array.isArray(data) ? data : data.transactions ?? []
-        // Exclude transactions already claimed by another annual expense
+        // Exclude transactions already linked to ANY annual expense (except this one).
+        // annualExpenseId is a scalar field on Transaction — null when unlinked.
         setTransactions(txs.filter((tx) => !tx.annualExpenseId || tx.annualExpenseId === expenseId))
       })
       .catch(() => setTransactions([]))
       .finally(() => setLoading(false))
-  }, [isOpen])
+  }, [isOpen, expenseId])
 
   if (!isOpen) return null
 

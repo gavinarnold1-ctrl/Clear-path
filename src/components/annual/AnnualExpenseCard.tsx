@@ -119,7 +119,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly }: Props)
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-semibold text-fjord">
               {icon && <span className="text-lg">{icon}</span>}
-              {expense.budget.categoryId && expense.budget.category?.name?.toLowerCase() === expense.name.toLowerCase() ? (
+              {expense.budget.categoryId ? (
                 <Link
                   href={`/transactions?categoryId=${expense.budget.categoryId}`}
                   className={`hover:text-midnight hover:underline ${isCompleted ? 'line-through' : ''}`}
@@ -147,43 +147,45 @@ export default function AnnualExpenseCard({ expense, affordableMonthly }: Props)
           </span>
         </div>
 
-        {/* Progress — driven by linked transactions (category-agnostic) */}
+        {/* Progress — dual bars: Funded (pine) + Spent (ember/birch) */}
         <div className="mt-3">
-          {expense.linkedSpent !== undefined && expense.linkedSpent > 0 ? (
-            <>
-              {/* Spending progress: linked transactions vs planned amount */}
-              <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-stone">Spent</div>
-              <ProgressBar value={budgetProgress(expense.linkedSpent, expense.annualAmount)} />
-              <div className="mt-1 flex justify-between text-sm">
-                <span className="text-stone">
-                  {formatCurrency(expense.linkedSpent)} / {formatCurrency(expense.annualAmount)}
-                </span>
-                <span className="font-medium text-stone">{budgetProgress(expense.linkedSpent, expense.annualAmount)}%</span>
-              </div>
-              {/* Funding progress (secondary) */}
-              {expense.funded > 0 && expense.funded !== expense.linkedSpent && (
-                <div className="mt-2">
-                  <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-stone">Funded</div>
-                  <ProgressBar value={pct} />
-                  <div className="mt-0.5 flex justify-between text-xs text-stone">
-                    <span>{formatCurrency(expense.funded)} funded</span>
-                    <span>{pct}%</span>
-                  </div>
+          {/* Funded bar (primary — manual set-asides) */}
+          <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
+            <span>Funded</span>
+            <span>{formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}</span>
+          </div>
+          <ProgressBar value={pct} />
+          <div className="mt-0.5 flex justify-between text-xs text-stone">
+            <span>{formatCurrency(Math.max(0, expense.annualAmount - expense.funded))} remaining</span>
+            <span className="font-medium">{pct}%</span>
+          </div>
+
+          {/* Spent bar (from linked transactions — separate from funded) */}
+          {expense.linkedSpent !== undefined && expense.linkedSpent > 0 && (() => {
+            const spentPct = budgetProgress(expense.linkedSpent, expense.annualAmount)
+            const spentOverFunded = expense.linkedSpent > expense.funded
+            return (
+              <div className="mt-2">
+                <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
+                  <span>Spent</span>
+                  <span className={spentOverFunded ? 'text-ember' : ''}>
+                    {formatCurrency(expense.linkedSpent)}
+                  </span>
                 </div>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Funding progress only when no linked transactions */}
-              <ProgressBar value={pct} />
-              <div className="mt-1 flex justify-between text-sm">
-                <span className="text-stone">
-                  {formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}
-                </span>
-                <span className="font-medium text-stone">{pct}%</span>
+                <div className="h-1.5 w-full overflow-hidden rounded-bar bg-mist">
+                  <div
+                    className={`h-full rounded-bar transition-all duration-300 ${spentOverFunded ? 'bg-ember' : 'bg-birch'}`}
+                    style={{ width: `${Math.min(spentPct, 100)}%` }}
+                  />
+                </div>
+                {spentOverFunded && (
+                  <p className="mt-1 text-xs font-medium text-ember">
+                    Spent {formatCurrency(expense.linkedSpent - expense.funded)} more than funded
+                  </p>
+                )}
               </div>
-            </>
-          )}
+            )
+          })()}
         </div>
 
         {/* Details */}

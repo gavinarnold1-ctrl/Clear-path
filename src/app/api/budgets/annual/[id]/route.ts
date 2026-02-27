@@ -230,44 +230,16 @@ export async function PATCH(
         )
       }
 
-      const txAmount = Math.abs(transaction.amount)
+      // Link transaction to annual expense — does NOT change funded amount.
+      // Spent = linked transactions (computed from DB). Funded = manual set-asides only.
+      await db.transaction.update({
+        where: { id: transactionId },
+        data: { annualExpenseId: id },
+      })
 
-      const updated = await db.$transaction(async (tx) => {
-        // Link transaction to annual expense
-        await tx.transaction.update({
-          where: { id: transactionId },
-          data: { annualExpenseId: id },
-        })
-
-        // Increase funded amount by the transaction amount
-        const newFunded = expense.funded + txAmount
-        const remaining = Math.max(0, expense.annualAmount - newFunded)
-
-        const now = new Date()
-        const targetDate = new Date(expense.dueYear, expense.dueMonth - 1, 1)
-        const monthsRemaining = Math.max(
-          1,
-          (targetDate.getFullYear() - now.getFullYear()) * 12 +
-            (targetDate.getMonth() - now.getMonth())
-        )
-        const newSetAside = remaining > 0 ? Math.ceil((remaining / monthsRemaining) * 100) / 100 : 0
-
-        const ae = await tx.annualExpense.update({
-          where: { id },
-          data: {
-            funded: newFunded,
-            monthlySetAside: newSetAside,
-            status: newFunded >= expense.annualAmount ? 'funded' : expense.status,
-          },
-          include: { budget: { include: { category: true } } },
-        })
-
-        await tx.budget.update({
-          where: { id: expense.budgetId },
-          data: { amount: newSetAside },
-        })
-
-        return ae
+      const updated = await db.annualExpense.findFirst({
+        where: { id },
+        include: { budget: { include: { category: true } } },
       })
 
       return NextResponse.json(updated)
@@ -286,42 +258,16 @@ export async function PATCH(
         return NextResponse.json({ error: 'Transaction not found or not linked' }, { status: 404 })
       }
 
-      const txAmt = Math.abs(unlinkTx.amount)
+      // Unlink transaction — does NOT change funded amount.
+      // Spent = linked transactions (computed from DB). Funded = manual set-asides only.
+      await db.transaction.update({
+        where: { id: unlinkTxId },
+        data: { annualExpenseId: null },
+      })
 
-      const updated = await db.$transaction(async (tx) => {
-        await tx.transaction.update({
-          where: { id: unlinkTxId },
-          data: { annualExpenseId: null },
-        })
-
-        const newFunded = Math.max(0, expense.funded - txAmt)
-        const remaining = Math.max(0, expense.annualAmount - newFunded)
-
-        const now = new Date()
-        const targetDate = new Date(expense.dueYear, expense.dueMonth - 1, 1)
-        const monthsRemaining = Math.max(
-          1,
-          (targetDate.getFullYear() - now.getFullYear()) * 12 +
-            (targetDate.getMonth() - now.getMonth())
-        )
-        const newSetAside = remaining > 0 ? Math.ceil((remaining / monthsRemaining) * 100) / 100 : 0
-
-        const ae = await tx.annualExpense.update({
-          where: { id },
-          data: {
-            funded: newFunded,
-            monthlySetAside: newSetAside,
-            status: newFunded >= expense.annualAmount ? 'funded' : 'planned',
-          },
-          include: { budget: { include: { category: true } } },
-        })
-
-        await tx.budget.update({
-          where: { id: expense.budgetId },
-          data: { amount: newSetAside },
-        })
-
-        return ae
+      const updated = await db.annualExpense.findFirst({
+        where: { id },
+        include: { budget: { include: { category: true } } },
       })
 
       return NextResponse.json(updated)
