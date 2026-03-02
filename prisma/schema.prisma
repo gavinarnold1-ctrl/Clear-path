@@ -380,11 +380,12 @@ model Property {
   splitPct     Decimal?      @db.Decimal(5, 2)  // Default allocation % within the group (0.00-100.00)
 
   // Existing relationships
-  transactions     Transaction[]
-  debts            Debt[]
-  accountLinks     AccountPropertyLink[]
-  splitAllocations SplitRule[]
-  categoryMappings UserCategoryMapping[]
+  transactions      Transaction[]
+  debts             Debt[]
+  accountLinks      AccountPropertyLink[]
+  splitAllocations  SplitRule[]
+  transactionSplits TransactionSplit[] @relation("TransactionSplitProperty")
+  categoryMappings  UserCategoryMapping[]
 
   @@index([userId])
   @@index([groupId])
@@ -445,6 +446,7 @@ model TransactionSplit {
   transactionId String
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   propertyId    String
+  property      Property @relation("TransactionSplitProperty", fields: [propertyId], references: [id], onDelete: Cascade)
   amount        Float    // Allocated portion of the parent transaction
   createdAt     DateTime @default(now())
 

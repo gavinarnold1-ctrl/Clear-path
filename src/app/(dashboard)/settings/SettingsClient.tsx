@@ -54,13 +54,28 @@ interface PropertyGroupData {
   matchRules: MatchRule[]
 }
 
+interface AccountOption {
+  id: string
+  name: string
+  type: string
+}
+
+interface AccountPropertyLinkData {
+  id: string
+  accountId: string
+  propertyId: string
+  account: { id: string; name: string }
+  property: { id: string; name: string; type: string }
+}
+
 interface Props {
   user: { name: string; email: string; createdAt: string }
   initialMembers: Member[]
   initialProperties: Property[]
+  initialAccounts?: AccountOption[]
 }
 
-export default function SettingsClient({ user, initialMembers, initialProperties }: Props) {
+export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [] }: Props) {
   const router = useRouter()
 
   // Profile state
@@ -120,6 +135,15 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   // Backfill
   const [backfillGroupId, setBackfillGroupId] = useState<string | null>(null)
   const [backfillMsg, setBackfillMsg] = useState<{ groupId: string; type: 'success' | 'error'; text: string } | null>(null)
+
+  // Account-Property Links state
+  const [acctPropLinks, setAcctPropLinks] = useState<AccountPropertyLinkData[]>([])
+  const [acctPropLinksLoaded, setAcctPropLinksLoaded] = useState(false)
+  const [acctPropLinksLoading, setAcctPropLinksLoading] = useState(false)
+  const [newLinkAccountId, setNewLinkAccountId] = useState('')
+  const [newLinkPropertyId, setNewLinkPropertyId] = useState('')
+  const [linkSaving, setLinkSaving] = useState(false)
+  const [linkMsg, setLinkMsg] = useState<string | null>(null)
 
   // Learned categories state
   interface CategoryMapping {
@@ -555,6 +579,61 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       setBackfillMsg({ groupId, type: 'error', text: 'Network error.' })
     } finally {
       setBackfillGroupId(null)
+    }
+  }
+
+  // ─── Account-Property Links ───────────────────────────────────────────
+  async function loadAcctPropLinks() {
+    if (acctPropLinksLoading) return
+    setAcctPropLinksLoading(true)
+    try {
+      const res = await fetch('/api/account-property-links')
+      if (res.ok) {
+        const data = await res.json()
+        setAcctPropLinks(data)
+        setAcctPropLinksLoaded(true)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAcctPropLinksLoading(false)
+    }
+  }
+
+  async function createAcctPropLink() {
+    if (!newLinkAccountId || !newLinkPropertyId || linkSaving) return
+    setLinkSaving(true)
+    setLinkMsg(null)
+    try {
+      const res = await fetch('/api/account-property-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: newLinkAccountId, propertyId: newLinkPropertyId }),
+      })
+      if (res.ok) {
+        const link = await res.json()
+        setAcctPropLinks(prev => [...prev, link])
+        setNewLinkAccountId('')
+        setNewLinkPropertyId('')
+      } else {
+        const data = await res.json()
+        setLinkMsg(data.error || 'Failed to create link')
+      }
+    } catch {
+      setLinkMsg('Failed to create link')
+    } finally {
+      setLinkSaving(false)
+    }
+  }
+
+  async function deleteAcctPropLink(linkId: string) {
+    try {
+      const res = await fetch(`/api/account-property-links?id=${linkId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setAcctPropLinks(prev => prev.filter(l => l.id !== linkId))
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -1370,6 +1449,90 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           </div>
         )}
       </section>
+
+      {/* Account-Property Links */}
+      {initialAccounts.length > 0 && properties.length > 0 && (
+        <section className="card">
+          <h2 className="mb-4 text-base font-semibold text-fjord">Account-Property Links</h2>
+          <p className="mb-4 text-sm text-stone">
+            Link accounts to properties so transactions from that account are automatically attributed to the linked property.
+          </p>
+
+          {!acctPropLinksLoaded ? (
+            <button
+              onClick={loadAcctPropLinks}
+              disabled={acctPropLinksLoading}
+              className="btn-secondary text-sm disabled:opacity-50"
+            >
+              {acctPropLinksLoading ? 'Loading...' : 'Load Account-Property Links'}
+            </button>
+          ) : (
+            <>
+              {/* Existing links */}
+              {acctPropLinks.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  {acctPropLinks.map(link => (
+                    <div key={link.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
+                      <div>
+                        <span className="text-sm font-medium text-fjord">{link.account.name}</span>
+                        <span className="mx-2 text-xs text-stone">&rarr;</span>
+                        <span className="text-sm text-fjord">{link.property.name}</span>
+                        <span className="ml-1 text-[10px] text-stone">({link.property.type})</span>
+                      </div>
+                      <button
+                        onClick={() => deleteAcctPropLink(link.id)}
+                        className="ml-2 shrink-0 text-xs text-stone hover:text-ember"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new link */}
+              {linkMsg && (
+                <p className="mb-2 text-sm text-ember">{linkMsg}</p>
+              )}
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone">Account</label>
+                  <select
+                    value={newLinkAccountId}
+                    onChange={(e) => setNewLinkAccountId(e.target.value)}
+                    className="input text-sm"
+                  >
+                    <option value="">Select account</option>
+                    {initialAccounts.map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone">Property</label>
+                  <select
+                    value={newLinkPropertyId}
+                    onChange={(e) => setNewLinkPropertyId(e.target.value)}
+                    className="input text-sm"
+                  >
+                    <option value="">Select property</option>
+                    {properties.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={createAcctPropLink}
+                  disabled={linkSaving || !newLinkAccountId || !newLinkPropertyId}
+                  className="btn-primary text-sm disabled:opacity-50"
+                >
+                  {linkSaving ? 'Linking...' : 'Link'}
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {/* Data Tools */}
       <section className="card">

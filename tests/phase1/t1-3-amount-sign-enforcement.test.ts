@@ -45,6 +45,10 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
+vi.mock('@/lib/apply-splits', () => ({
+  applyPropertyAttribution: vi.fn(),
+}))
+
 import { createTransaction } from '@/app/actions/transactions'
 import { getSession } from '@/lib/session'
 
@@ -70,6 +74,7 @@ describe('T1.3 — Server action: amount sign enforcement', () => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
     mockCategoryFindUnique.mockResolvedValue(null)
+    mockTxCreate.mockResolvedValue({ id: 'tx-new' })
   })
 
   it('stores expense amount as negative when category.type = expense', async () => {

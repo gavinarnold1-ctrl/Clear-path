@@ -140,6 +140,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               .join(',')
           : null
 
+        // Include property signal in category mapping
+        const resolvedPropertyId = body.propertyId !== undefined ? body.propertyId : transaction.propertyId
+
         await db.userCategoryMapping.upsert({
           where: {
             userId_merchantName_direction_categoryId: {
@@ -159,6 +162,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             amountMin,
             amountMax,
             descKeywords: descKeywords || null,
+            propertyId: resolvedPropertyId || null,
           },
           update: {
             categoryId: body.categoryId,
@@ -166,11 +170,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             amountMin,
             amountMax,
             descKeywords: descKeywords || undefined,
+            propertyId: resolvedPropertyId || undefined,
             updatedAt: new Date(),
           },
         })
       } catch {
         // Non-critical — don't fail the transaction update if mapping save fails
+      }
+    }
+  }
+
+  // Smart property learning: when a user changes a transaction's property (without category change),
+  // update any existing mapping with the property signal.
+  if (body.propertyId && body.propertyId !== existing.propertyId && transaction.merchant && transaction.categoryId) {
+    const normalizedMerchant = transaction.merchant.toLowerCase().trim()
+    if (normalizedMerchant) {
+      try {
+        const direction = transaction.amount > 0 ? 'credit' : 'debit'
+        // Update existing mappings for this merchant+category to include the property
+        await db.userCategoryMapping.updateMany({
+          where: {
+            userId: session.userId,
+            merchantName: normalizedMerchant,
+            direction,
+            categoryId: transaction.categoryId,
+          },
+          data: {
+            propertyId: body.propertyId,
+            updatedAt: new Date(),
+          },
+        })
+      } catch {
+        // Non-critical
       }
     }
   }
