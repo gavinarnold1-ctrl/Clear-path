@@ -357,7 +357,7 @@ model Property {
   type         PropertyType  @default(PERSONAL)
   isDefault    Boolean       @default(false)
   createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  updatedAt    DateTime      @default(now()) @updatedAt
 
   // Address fields
   address      String?
@@ -400,7 +400,7 @@ model PropertyGroup {
   name        String
   description String?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime @default(now()) @updatedAt
 
   properties  Property[]
   splitRules  SplitRule[]
@@ -418,7 +418,7 @@ model SplitRule {
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   allocationPct   Decimal  @db.Decimal(5, 2)  // 0.00-100.00 — all rules in a group must sum to 100
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @default(now()) @updatedAt
 
   @@unique([propertyGroupId, propertyId])
   @@index([propertyGroupId])
@@ -435,7 +435,7 @@ model SplitMatchRule {
   allocations     Json          // Array<{ propertyId: string; percentage: number }>
   isActive        Boolean       @default(true)
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  updatedAt       DateTime      @default(now()) @updatedAt
 
   @@unique([propertyGroupId, name])
   @@index([propertyGroupId])

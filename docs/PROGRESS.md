@@ -453,6 +453,50 @@ Added `classification` filter support to the transactions page. Clicking the Inc
 
 ---
 
+## Reference Database Seeding — BLS 2024 & Tax 2025-2026 (2026-03-02)
+
+### BLS Consumer Expenditure Survey 2024
+
+Created `prisma/seed-bls-2024.ts` with spending benchmark data from the BLS Consumer Expenditure Survey 2024, sourced via FRED (Federal Reserve Economic Data).
+
+| Component | Description | Files |
+|-----------|-------------|-------|
+| Seed file | 36 spending benchmarks (18 per income bracket: $100K-$150K and $150K-$200K), 18 crosswalk entries mapping BLS categories to app categories | `prisma/seed-bls-2024.ts` (new) |
+| Seeder integration | `seedBls2024(db)` called in main seed pipeline. Deletes surveyYear=2024 data then recreates. Crosswalk entries added only if not already present. | `prisma/seed.ts` |
+| Hardcoded fallbacks | Updated `BENCHMARKS` object from 2023 to 2024 values using $100K-$150K bracket means. Key changes: Groceries 475→593, Dining 310→399, Transportation 580→1335, Entertainment 245→344, Health 340→596 | `src/lib/engines/benchmarks.ts` |
+| Test updates | Updated median assertions (475→593) and efficiency rating test values to match new Entertainment benchmark thresholds (p25=180, median=344, p75=560) | `tests/lib/benchmarks.test.ts`, `tests/lib/insights.test.ts` |
+
+### Federal Tax Rules 2025-2026 (OBBBA)
+
+Created `prisma/seed-tax-2025-2026.ts` with comprehensive federal tax rules reflecting the One Big Beautiful Bill Act (OBBBA, signed July 4, 2025).
+
+| Component | Description | Files |
+|-----------|-------------|-------|
+| Seed file | 42 tax rules, 57+ thresholds, 30 deduction category mappings, 12 tax calendar entries | `prisma/seed-tax-2025-2026.ts` (new) |
+| Rules covered | Income brackets (single, MFJ, HoH), standard deductions ($15,750/$31,500), SALT ($40K cap with phase-out), mortgage interest, child tax credit ($2,200), Schedule E rental (9 types), Schedule C business (8 types incl QBI) | |
+| 2026 rules | Auto-generated via spread+override from 2025 rules. Cap rises 1%/year ($40,400 for 2026). | |
+| Seeder integration | `seedTax2025_2026(db)` called in main seed pipeline. Uses upsert by ruleCode for safe updates. | `prisma/seed.ts` |
+| SALT engine update | `saltDeduction()` rewritten: $10K cap → $40K OBBBA cap with MAGI phase-out ($500K-$600K). Added optional `magi` and `taxYear` params (backward-compatible). Cap halved for MFS. 1% annual increase for 2026+. | `src/lib/engines/tax.ts` |
+
+### Schema Fix: Property updatedAt
+
+Fixed `prisma db push` error: "Added required column `updatedAt` to Property table without a default value (3 existing rows)."
+
+| Fix | Description | Files |
+|-----|-------------|-------|
+| Property | Added `@default(now())` alongside `@updatedAt` so existing rows get a default value | `prisma/schema.prisma` |
+| PropertyGroup, SplitRule, SplitMatchRule | Same fix applied preventatively to other new models | `prisma/schema.prisma` |
+
+### Test Results
+
+- **456 total tests**: 443 passed, 13 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
+- **Zero new failures** introduced
+- TypeScript: zero errors (`npx tsc --noEmit` clean)
+- Build: Prisma generate succeeds; `db push` blocked by network (Neon unreachable in sandbox), not a code issue
+
+---
+
 ## UAT Round 3 Fixes (2026-02-27)
 
 ### Fixes
