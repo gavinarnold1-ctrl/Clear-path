@@ -624,3 +624,87 @@ Enhanced `snapshots.ts` property breakdown from simple expense totals to rich st
 - **12 new depreciation/tax tests**: all pass
 - **Zero new failures** introduced
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Goal-Driven Budget System (2026-03-02)
+
+> **Spec:** `docs/briefs/goal-driven-budget-system.md` (if saved) or inline spec from session
+> **Priority:** V1 — Core DNA
+> **Depends on:** Existing Budget/Insight/UserProfile models, BLS benchmarks seed data
+
+### Problem
+
+Onboarding asks 6 questions, stores answers, does nothing with them. `UserProfile.primaryGoal` sits unused. Budget creation is entirely manual. AI insights have no direction — they don't know what the user is trying to accomplish.
+
+### Vision
+
+**Goal → Budget Template → Budgets → True Remaining**
+
+The user's goal drives AI to generate a personalized starter budget set using real transaction data + BLS benchmarks. The goal persists as the optimization target for insights, monthly review, and True Remaining.
+
+### Implementation Steps
+
+| Step | Description | Status | Effort |
+|------|-------------|--------|--------|
+| 1 | **Schema + Quiz Redesign** — Add `incomeRange`, `goalSetAt`, `previousGoals` to UserProfile. Rewrite OnboardingWizard from 6 steps to 3 (Goal → Household → Income Range). Update `saveOnboardingStep` and `completeOnboarding`. | ⬜ TODO | S |
+| 2 | **AI Budget Builder API** — New `/api/budgets/ai-builder` endpoint. Build context from transactions + benchmarks + goal. Claude prompt for budget proposals. Accept endpoint for batch creation. | ⬜ TODO | M |
+| 3 | **Goal Threading — Insights** — Add `goalContext` to insight context builder. Update system prompt in `ai.ts` with goal-aware instructions. | ⬜ TODO | S |
+| 4 | **Goal Threading — True Remaining + Monthly Review** — Add goal subtext to True Remaining. Add goal metrics to monthly review generation. | ⬜ TODO | S |
+| 5 | **Goal Change Flow** — Settings UI for goal change. Goal history archiving. "Refresh suggestions" flow. AI-prompted goal shift detection. | ⬜ TODO | S |
+
+### Three-Question Onboarding (replaces 6-step wizard)
+
+| Step | Question | Stored on | Used by |
+|------|----------|-----------|---------|
+| 1 | What's your primary financial goal? | `UserProfile.primaryGoal` + `goalSetAt` | AI budget builder, insights, monthly review, True Remaining |
+| 2 | Who are you budgeting for? | `UserProfile.householdType` | BLS benchmark selection, budget scaling |
+| 3 | What's your household income? | `UserProfile.incomeRange` (new) | BLS bracket matching, savings targets |
+
+After step 3 → Connect accounts (Plaid) → transactions land → "Build My Budget" with AI
+
+### Goal Archetypes
+
+| Goal Key | Display Name | Optimization Target |
+|----------|-------------|-------------------|
+| `save_more` | Save More | Maximize True Remaining surplus; target savings rate % |
+| `spend_smarter` | Spend Smarter | Optimize category spend vs BLS benchmarks |
+| `pay_off_debt` | Pay Off Debt | Maximize debt payment above minimums |
+| `gain_visibility` | Gain Visibility | Categorization coverage, insight frequency |
+| `build_wealth` | Build Wealth | Balance savings + debt payoff + investment |
+
+### Schema Changes
+
+| Field | Change |
+|-------|--------|
+| `incomeRange` | **Add** — String?, drives BLS bracket matching |
+| `goalSetAt` | **Add** — DateTime?, tracks when goal was set |
+| `previousGoals` | **Add** — Json?, array of `{goal, setAt, changedAt}` for history |
+| `primaryGoal` | **Existing** — wire to AI, insights, monthly review, True Remaining |
+| `householdType` | **Existing** — wire to BLS bracket selection |
+| `expectedMonthlyIncome` | **Existing** — pre-fill from incomeRange midpoint |
+| `onboardingStep` | **Existing** — change range from 0-6 to 0-3 |
+
+### New API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/budgets/ai-builder` | AI budget builder — goal + transactions + benchmarks → `BudgetProposal` |
+| POST | `/api/budgets/ai-builder/accept` | Batch-create budgets from accepted proposal |
+| PATCH | `/api/profile/goal` | Update primary goal — archives old, triggers re-suggestion |
+| GET | `/api/profile/goal-context` | Returns goal + progress metrics for UI |
+
+### Removed Onboarding Questions (inferred instead)
+
+| Removed | Resolution |
+|---------|------------|
+| Financial accounts (step 2) | Plaid creates real accounts |
+| Rental property (step 3) | Inferred from Plaid (mortgage count > 1) or rental income transactions |
+| Debt situation (step 4) | Inferred from connected accounts (credit card balances, loan accounts) |
+| Category setup mode (step 5) | AI budget builder creates categories + budgets together |
+
+### Migration Path
+
+- Existing users: no forced re-onboarding. If `primaryGoal` is set, it starts being used immediately. Soft prompt for `incomeRange`.
+- New users: 3-step quiz → Plaid → AI builder flow.
+- Schema migration: all new fields nullable (non-breaking).
