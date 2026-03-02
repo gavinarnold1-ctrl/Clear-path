@@ -5,23 +5,19 @@ import { useRouter } from 'next/navigation'
 import { saveOnboardingStep, completeOnboarding, skipOnboarding } from '@/app/actions/onboarding'
 import type {
   OnboardingAnswers,
-  OnboardingAccountEntry,
-  OnboardingPropertyEntry,
   PrimaryGoal,
   HouseholdType,
-  DebtLevel,
-  CategoryMode,
-  AccountType,
+  IncomeRange,
 } from '@/types'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const GOAL_OPTIONS: { key: PrimaryGoal; label: string }[] = [
-  { key: 'debt_payoff', label: 'Pay off debt faster' },
-  { key: 'emergency_savings', label: 'Build emergency savings' },
-  { key: 'major_purchase', label: 'Save for a major purchase' },
-  { key: 'invest', label: 'Invest & grow wealth' },
-  { key: 'organize', label: 'Just get organized' },
+const GOAL_OPTIONS: { key: PrimaryGoal; label: string; description: string }[] = [
+  { key: 'save_more', label: 'Save More', description: 'Build your savings cushion' },
+  { key: 'spend_smarter', label: 'Spend Smarter', description: 'Get more value from every dollar' },
+  { key: 'pay_off_debt', label: 'Pay Off Debt', description: 'Accelerate your path to debt-free' },
+  { key: 'gain_visibility', label: 'Gain Visibility', description: 'Finally see where your money goes' },
+  { key: 'build_wealth', label: 'Build Wealth', description: 'Grow your net worth over time' },
 ]
 
 const HOUSEHOLD_OPTIONS: { key: HouseholdType; label: string }[] = [
@@ -31,30 +27,16 @@ const HOUSEHOLD_OPTIONS: { key: HouseholdType; label: string }[] = [
   { key: 'family', label: 'Family with dependents' },
 ]
 
-const ACCOUNT_TYPE_CHIPS: { key: AccountType; label: string; placeholder: string }[] = [
-  { key: 'CHECKING', label: 'Checking', placeholder: 'e.g., Chase Checking' },
-  { key: 'SAVINGS', label: 'Savings', placeholder: 'e.g., Ally Savings' },
-  { key: 'CREDIT_CARD', label: 'Credit Card', placeholder: 'e.g., Chase Sapphire' },
-  { key: 'MORTGAGE', label: 'Mortgage', placeholder: 'e.g., Wells Fargo Mortgage' },
-  { key: 'AUTO_LOAN', label: 'Auto Loan', placeholder: 'e.g., Auto Loan' },
-  { key: 'STUDENT_LOAN', label: 'Student Loan', placeholder: 'e.g., Federal Student Loan' },
-  { key: 'INVESTMENT', label: 'Investment', placeholder: 'e.g., Fidelity 401k' },
+const INCOME_OPTIONS: { key: IncomeRange; label: string }[] = [
+  { key: 'under_50k', label: 'Under $50K' },
+  { key: '50k_100k', label: '$50K \u2013 $100K' },
+  { key: '100k_150k', label: '$100K \u2013 $150K' },
+  { key: '150k_200k', label: '$150K \u2013 $200K' },
+  { key: '200k_300k', label: '$200K \u2013 $300K' },
+  { key: 'over_300k', label: 'Over $300K' },
 ]
 
-const DEBT_OPTIONS: { key: DebtLevel; label: string }[] = [
-  { key: 'minimal', label: 'Debt-free (or just a mortgage)' },
-  { key: 'credit_cards', label: 'Some credit card balances' },
-  { key: 'student_loans', label: 'Student loans' },
-  { key: 'multiple', label: 'Multiple debts I\'m managing' },
-]
-
-const CATEGORY_OPTIONS: { key: CategoryMode; label: string; desc: string }[] = [
-  { key: 'recommended', label: 'Use recommended categories', desc: 'Pre-built set of common spending categories' },
-  { key: 'custom', label: 'Start from scratch', desc: 'Build your own categories as you go' },
-  { key: 'import_match', label: 'I\'m importing from Monarch or Mint', desc: 'Categories auto-created from your CSV export' },
-]
-
-const TOTAL_STEPS = 6
+const TOTAL_STEPS = 3
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
@@ -69,26 +51,13 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Q1
+  // Q1: Goal
   const [primaryGoal, setPrimaryGoal] = useState<PrimaryGoal | null>(initialAnswers.primaryGoal)
-  // Q2
+  // Q2: Household
   const [householdType, setHouseholdType] = useState<HouseholdType | null>(initialAnswers.householdType)
   const [partnerName, setPartnerName] = useState(initialAnswers.partnerName ?? '')
-  // Q3
-  const [accounts, setAccounts] = useState<OnboardingAccountEntry[]>(
-    initialAnswers.accounts.length > 0 ? initialAnswers.accounts : []
-  )
-  // Q4
-  const [hasRental, setHasRental] = useState<boolean | null>(
-    initialAnswers.hasRentalProperty ? true : initialStep > 3 ? false : null
-  )
-  const [properties, setProperties] = useState<OnboardingPropertyEntry[]>(
-    initialAnswers.properties.length > 0 ? initialAnswers.properties : []
-  )
-  // Q5
-  const [debtLevel, setDebtLevel] = useState<DebtLevel | null>(initialAnswers.debtLevel)
-  // Q6
-  const [categoryMode, setCategoryMode] = useState<CategoryMode | null>(initialAnswers.categoryMode)
+  // Q3: Income Range
+  const [incomeRange, setIncomeRange] = useState<IncomeRange | null>(initialAnswers.incomeRange)
 
   const showPartnerInput = householdType && householdType !== 'single'
 
@@ -96,25 +65,19 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
     switch (step) {
       case 0: return primaryGoal !== null
       case 1: return householdType !== null && (!showPartnerInput || partnerName.trim().length > 0)
-      case 2: return accounts.length > 0 && accounts.every((a) => a.name.trim().length > 0)
-      case 3: return hasRental !== null
-      case 4: return debtLevel !== null
-      case 5: return categoryMode !== null
+      case 2: return incomeRange !== null
       default: return false
     }
-  }, [step, primaryGoal, householdType, showPartnerInput, partnerName, accounts, hasRental, debtLevel, categoryMode])
+  }, [step, primaryGoal, householdType, showPartnerInput, partnerName, incomeRange])
 
   const currentAnswers = useCallback((): Partial<OnboardingAnswers> => {
     switch (step) {
       case 0: return { primaryGoal }
       case 1: return { householdType, partnerName: partnerName.trim() || null }
-      case 2: return { accounts }
-      case 3: return { hasRentalProperty: hasRental ?? false, properties }
-      case 4: return { debtLevel }
-      case 5: return { categoryMode }
+      case 2: return { incomeRange }
       default: return {}
     }
-  }, [step, primaryGoal, householdType, partnerName, accounts, hasRental, properties, debtLevel, categoryMode])
+  }, [step, primaryGoal, householdType, partnerName, incomeRange])
 
   async function handleNext() {
     if (!canProceed()) return
@@ -141,23 +104,14 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
         primaryGoal,
         householdType,
         partnerName: partnerName.trim() || null,
-        accounts,
-        hasRentalProperty: hasRental ?? false,
-        rentalCount: properties.length,
-        properties,
-        debtLevel,
-        categoryMode,
+        incomeRange,
       }
       const result = await completeOnboarding(allAnswers)
       if (result.error) {
         alert(result.error)
         return
       }
-      if (result.categoryMode === 'import_match') {
-        router.push('/transactions/import')
-      } else {
-        router.push('/dashboard')
-      }
+      router.push('/dashboard')
     } finally {
       setSubmitting(false)
     }
@@ -166,43 +120,6 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
   async function handleSkip() {
     await skipOnboarding()
   }
-
-  // ─── Account management (Q3) ──────────────────────────────────────────────
-
-  function addAccount(type: AccountType) {
-    const chip = ACCOUNT_TYPE_CHIPS.find((c) => c.key === type)
-    setAccounts([...accounts, { name: '', type }])
-    // Auto-focus happens via key-based rendering
-    void chip // satisfy lint
-  }
-
-  function updateAccountName(index: number, name: string) {
-    const updated = [...accounts]
-    updated[index] = { ...updated[index], name }
-    setAccounts(updated)
-  }
-
-  function removeAccount(index: number) {
-    setAccounts(accounts.filter((_, i) => i !== index))
-  }
-
-  // ─── Property management (Q4) ─────────────────────────────────────────────
-
-  function addProperty() {
-    setProperties([...properties, { name: '' }])
-  }
-
-  function updatePropertyName(index: number, name: string) {
-    const updated = [...properties]
-    updated[index] = { name }
-    setProperties(updated)
-  }
-
-  function removeProperty(index: number) {
-    setProperties(properties.filter((_, i) => i !== index))
-  }
-
-  // ─── Step content renderers ───────────────────────────────────────────────
 
   const isLastStep = step === TOTAL_STEPS - 1
 
@@ -222,7 +139,7 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-mist">
           <div
-            className="h-full rounded-full bg-frost0 transition-all duration-300"
+            className="h-full rounded-full bg-fjord transition-all duration-300"
             style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
           />
         </div>
@@ -243,32 +160,7 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
           />
         )}
         {step === 2 && (
-          <StepAccounts
-            accounts={accounts}
-            onAdd={addAccount}
-            onUpdateName={updateAccountName}
-            onRemove={removeAccount}
-          />
-        )}
-        {step === 3 && (
-          <StepRental
-            hasRental={hasRental}
-            onHasRentalChange={(val) => {
-              setHasRental(val)
-              if (val && properties.length === 0) addProperty()
-              if (!val) setProperties([])
-            }}
-            properties={properties}
-            onAddProperty={addProperty}
-            onUpdatePropertyName={updatePropertyName}
-            onRemoveProperty={removeProperty}
-          />
-        )}
-        {step === 4 && (
-          <StepDebt value={debtLevel} onChange={setDebtLevel} />
-        )}
-        {step === 5 && (
-          <StepCategories value={categoryMode} onChange={setCategoryMode} />
+          <StepIncome value={incomeRange} onChange={setIncomeRange} />
         )}
       </div>
 
@@ -310,24 +202,28 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
 function StepGoal({ value, onChange }: { value: PrimaryGoal | null; onChange: (v: PrimaryGoal) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">What&apos;s your #1 financial priority right now?</h2>
-      <p className="mb-6 text-sm text-stone">This helps us tailor your experience.</p>
+      <h2 className="mb-1 text-xl font-bold text-fjord">What matters most for your money right now?</h2>
+      <p className="mb-6 text-sm text-stone">
+        This drives everything &mdash; your budget suggestions, insights, and progress tracking.
+      </p>
       <div className="space-y-2">
         {GOAL_OPTIONS.map((opt) => (
           <button
             key={opt.key}
             type="button"
             onClick={() => onChange(opt.key)}
-            className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
+            className={`w-full rounded-card border px-4 py-4 text-left transition ${
               value === opt.key
-                ? 'border-fjord bg-frost text-midnight'
-                : 'border-mist text-fjord hover:border-mist hover:bg-snow'
+                ? 'border-pine bg-frost text-midnight'
+                : 'border-mist text-fjord hover:border-lichen hover:bg-snow'
             }`}
           >
-            {opt.label}
+            <span className="block text-sm font-semibold">{opt.label}</span>
+            <span className="block text-xs text-stone mt-0.5">{opt.description}</span>
           </button>
         ))}
       </div>
+      <p className="mt-4 text-xs text-stone">You can always change this later.</p>
     </div>
   )
 }
@@ -347,7 +243,7 @@ function StepHousehold({
 }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">Who&apos;s part of your financial household?</h2>
+      <h2 className="mb-1 text-xl font-bold text-fjord">Who are you budgeting for?</h2>
       <p className="mb-6 text-sm text-stone">Helps us set up the right tracking features.</p>
       <div className="space-y-2">
         {HOUSEHOLD_OPTIONS.map((opt) => (
@@ -355,10 +251,10 @@ function StepHousehold({
             key={opt.key}
             type="button"
             onClick={() => onChange(opt.key)}
-            className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
+            className={`w-full rounded-card border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-fjord bg-frost text-midnight'
-                : 'border-mist text-fjord hover:border-mist hover:bg-snow'
+                ? 'border-pine bg-frost text-midnight'
+                : 'border-mist text-fjord hover:border-lichen hover:bg-snow'
             }`}
           >
             {opt.label}
@@ -385,209 +281,26 @@ function StepHousehold({
   )
 }
 
-function StepAccounts({
-  accounts,
-  onAdd,
-  onUpdateName,
-  onRemove,
-}: {
-  accounts: OnboardingAccountEntry[]
-  onAdd: (type: AccountType) => void
-  onUpdateName: (index: number, name: string) => void
-  onRemove: (index: number) => void
-}) {
+function StepIncome({ value, onChange }: { value: IncomeRange | null; onChange: (v: IncomeRange) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">What financial accounts do you use?</h2>
+      <h2 className="mb-1 text-xl font-bold text-fjord">What&apos;s your household&apos;s approximate income?</h2>
       <p className="mb-6 text-sm text-stone">
-        We&apos;ll set these up so your imports match automatically.
-      </p>
-
-      {/* Chips */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {ACCOUNT_TYPE_CHIPS.map((chip) => (
-          <button
-            key={chip.key}
-            type="button"
-            onClick={() => onAdd(chip.key)}
-            className="rounded-full border border-mist px-3 py-1.5 text-sm font-medium text-stone hover:border-fjord/30 hover:bg-frost hover:text-midnight transition"
-          >
-            + {chip.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Added accounts */}
-      {accounts.length > 0 && (
-        <div className="space-y-2">
-          {accounts.map((acct, i) => {
-            const chip = ACCOUNT_TYPE_CHIPS.find((c) => c.key === acct.type)
-            return (
-              <div key={`${acct.type}-${i}`} className="flex items-center gap-2">
-                <span className="shrink-0 rounded bg-mist px-2 py-1 text-xs font-medium text-stone">
-                  {chip?.label ?? acct.type}
-                </span>
-                <input
-                  type="text"
-                  value={acct.name}
-                  onChange={(e) => onUpdateName(i, e.target.value)}
-                  placeholder={chip?.placeholder ?? 'Account name'}
-                  className="input flex-1"
-                  autoFocus={i === accounts.length - 1 && acct.name === ''}
-                />
-                <button
-                  type="button"
-                  onClick={() => onRemove(i)}
-                  className="shrink-0 text-stone hover:text-ember"
-                  aria-label="Remove account"
-                >
-                  &times;
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {accounts.length === 0 && (
-        <p className="text-sm text-stone">Tap a chip above to add an account. At least one is required.</p>
-      )}
-    </div>
-  )
-}
-
-function StepRental({
-  hasRental,
-  onHasRentalChange,
-  properties,
-  onAddProperty,
-  onUpdatePropertyName,
-  onRemoveProperty,
-}: {
-  hasRental: boolean | null
-  onHasRentalChange: (v: boolean) => void
-  properties: OnboardingPropertyEntry[]
-  onAddProperty: () => void
-  onUpdatePropertyName: (index: number, name: string) => void
-  onRemoveProperty: (index: number) => void
-}) {
-  return (
-    <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">Do you own rental or investment property?</h2>
-      <p className="mb-6 text-sm text-stone">
-        We&apos;ll set up tax-relevant categories for property expenses.
+        This helps us personalize your benchmarks. We never store your exact salary.
       </p>
       <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => onHasRentalChange(false)}
-          className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
-            hasRental === false
-              ? 'border-fjord bg-frost text-midnight'
-              : 'border-mist text-fjord hover:border-mist hover:bg-snow'
-          }`}
-        >
-          No
-        </button>
-        <button
-          type="button"
-          onClick={() => onHasRentalChange(true)}
-          className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
-            hasRental === true
-              ? 'border-fjord bg-frost text-midnight'
-              : 'border-mist text-fjord hover:border-mist hover:bg-snow'
-          }`}
-        >
-          Yes
-        </button>
-      </div>
-
-      {hasRental && (
-        <div className="mt-4 space-y-2">
-          <p className="mb-2 text-sm font-medium text-fjord">Give each property a nickname:</p>
-          {properties.map((prop, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={prop.name}
-                onChange={(e) => onUpdatePropertyName(i, e.target.value)}
-                placeholder="e.g., Nicoll St Duplex"
-                className="input flex-1"
-                autoFocus={i === properties.length - 1 && prop.name === ''}
-              />
-              {properties.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveProperty(i)}
-                  className="shrink-0 text-stone hover:text-ember"
-                  aria-label="Remove property"
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={onAddProperty}
-            className="text-sm text-fjord hover:text-midnight"
-          >
-            + Add another property
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function StepDebt({ value, onChange }: { value: DebtLevel | null; onChange: (v: DebtLevel) => void }) {
-  return (
-    <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">What&apos;s your current debt situation?</h2>
-      <p className="mb-6 text-sm text-stone">
-        No need for details now — you can enter specifics later in the Debt module.
-      </p>
-      <div className="space-y-2">
-        {DEBT_OPTIONS.map((opt) => (
+        {INCOME_OPTIONS.map((opt) => (
           <button
             key={opt.key}
             type="button"
             onClick={() => onChange(opt.key)}
-            className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
+            className={`w-full rounded-card border px-4 py-3 text-left text-sm font-medium transition ${
               value === opt.key
-                ? 'border-fjord bg-frost text-midnight'
-                : 'border-mist text-fjord hover:border-mist hover:bg-snow'
+                ? 'border-pine bg-frost text-midnight'
+                : 'border-mist text-fjord hover:border-lichen hover:bg-snow'
             }`}
           >
             {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function StepCategories({ value, onChange }: { value: CategoryMode | null; onChange: (v: CategoryMode) => void }) {
-  return (
-    <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">How would you like to organize your spending categories?</h2>
-      <p className="mb-6 text-sm text-stone">You can always add or change categories later.</p>
-      <div className="space-y-2">
-        {CATEGORY_OPTIONS.map((opt) => (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => onChange(opt.key)}
-            className={`w-full rounded-lg border px-4 py-3 text-left transition ${
-              value === opt.key
-                ? 'border-fjord bg-frost'
-                : 'border-mist hover:border-mist hover:bg-snow'
-            }`}
-          >
-            <span className={`block text-sm font-medium ${value === opt.key ? 'text-midnight' : 'text-fjord'}`}>
-              {opt.label}
-            </span>
-            <span className="block text-xs text-stone">{opt.desc}</span>
           </button>
         ))}
       </div>

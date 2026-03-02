@@ -6,8 +6,18 @@ import { getSession } from '@/lib/session'
 import type {
   OnboardingAnswers,
   OnboardingPendingSetup,
-  AccountType,
 } from '@/types'
+
+// ─── Income range midpoints ─────────────────────────────────────────────────
+
+const INCOME_MIDPOINTS: Record<string, number> = {
+  under_50k: 3333,
+  '50k_100k': 6250,
+  '100k_150k': 10417,
+  '150k_200k': 14583,
+  '200k_300k': 20833,
+  over_300k: 30000,
+}
 
 // ─── Save progress on each step (for skip/resume) ─────────────────────────────
 
@@ -18,20 +28,20 @@ export async function saveOnboardingStep(step: number, data: Partial<OnboardingA
   const profile = await db.userProfile.findUnique({ where: { userId: session.userId } })
   if (!profile) return { error: 'Profile not found' }
 
-  // Build the partial update — only update fields relevant to the current step
   const update: Record<string, unknown> = {
     onboardingStep: Math.max(profile.onboardingStep, step),
   }
 
-  // Persist simple scalar answers directly
-  if (data.primaryGoal !== undefined) update.primaryGoal = data.primaryGoal
+  // Persist scalar answers directly
+  if (data.primaryGoal !== undefined) {
+    update.primaryGoal = data.primaryGoal
+    update.goalSetAt = new Date()
+  }
   if (data.householdType !== undefined) update.householdType = data.householdType
-  if (data.hasRentalProperty !== undefined) update.hasRentalProperty = data.hasRentalProperty
-  if (data.debtLevel !== undefined) update.debtLevel = data.debtLevel
-  if (data.categoryMode !== undefined) update.categoryMode = data.categoryMode
+  if (data.incomeRange !== undefined) update.incomeRange = data.incomeRange
 
-  // Complex data (accounts, properties, partner name) goes into pendingSetup JSON
-  let existing: OnboardingPendingSetup = { accounts: [], properties: [] }
+  // Partner name goes into pendingSetup JSON
+  let existing: OnboardingPendingSetup = {}
   if (profile.pendingSetup) {
     try {
       existing = JSON.parse(profile.pendingSetup)
@@ -41,8 +51,6 @@ export async function saveOnboardingStep(step: number, data: Partial<OnboardingA
   }
 
   if (data.partnerName !== undefined) existing.partnerName = data.partnerName || undefined
-  if (data.accounts !== undefined) existing.accounts = data.accounts
-  if (data.properties !== undefined) existing.properties = data.properties
 
   update.pendingSetup = JSON.stringify(existing)
 
@@ -56,34 +64,6 @@ export async function saveOnboardingStep(step: number, data: Partial<OnboardingA
 
 // ─── Complete onboarding (materialize all entities in a transaction) ────────
 
-const RECOMMENDED_CATEGORIES: { name: string; group: string; type: string; isTaxRelevant?: boolean }[] = [
-  { name: 'Groceries', group: 'Essentials', type: 'expense' },
-  { name: 'Gas', group: 'Essentials', type: 'expense' },
-  { name: 'Electric', group: 'Essentials', type: 'expense' },
-  { name: 'Cell Phone', group: 'Essentials', type: 'expense' },
-  { name: 'Internet', group: 'Essentials', type: 'expense' },
-  { name: 'Mortgage', group: 'Living', type: 'expense', isTaxRelevant: true },
-  { name: 'Home Improvement', group: 'Living', type: 'expense' },
-  { name: 'Car Insurance', group: 'Living', type: 'expense' },
-  { name: 'Restaurants', group: 'Lifestyle', type: 'expense' },
-  { name: 'Drinks', group: 'Lifestyle', type: 'expense' },
-  { name: 'Entertainment', group: 'Lifestyle', type: 'expense' },
-  { name: 'Travel', group: 'Lifestyle', type: 'expense' },
-  { name: 'Sports & Fitness', group: 'Lifestyle', type: 'expense' },
-  { name: 'Personal Care', group: 'Lifestyle', type: 'expense' },
-  { name: 'Subscriptions', group: 'Recurring', type: 'expense' },
-  { name: 'Medical', group: 'Health', type: 'expense' },
-  { name: 'Pets', group: 'Other', type: 'expense' },
-  { name: 'Undecided', group: 'Other', type: 'expense' },
-]
-
-const RENTAL_CATEGORIES: { name: string; group: string; scheduleE: string }[] = [
-  { name: 'Rental Property', group: 'Property', scheduleE: 'Other' },
-  { name: 'Rental Repairs', group: 'Property', scheduleE: 'Repairs' },
-  { name: 'Rental Insurance', group: 'Property', scheduleE: 'Insurance' },
-  { name: 'Rental Utilities', group: 'Property', scheduleE: 'Utilities' },
-]
-
 export async function completeOnboarding(answers: OnboardingAnswers) {
   const session = await getSession()
   if (!session) return { error: 'Unauthorized' }
@@ -91,22 +71,28 @@ export async function completeOnboarding(answers: OnboardingAnswers) {
   try {
     await db.$transaction(async (tx) => {
       // 1. Update profile with all quiz answers
+      const profileUpdate: Record<string, unknown> = {
+        primaryGoal: answers.primaryGoal,
+        goalSetAt: new Date(),
+        householdType: answers.householdType,
+        incomeRange: answers.incomeRange,
+        onboardingCompleted: true,
+        onboardingCompletedAt: new Date(),
+        onboardingStep: 3,
+        pendingSetup: null,
+      }
+
+      // Pre-fill expectedMonthlyIncome from income range midpoint
+      if (answers.incomeRange && INCOME_MIDPOINTS[answers.incomeRange]) {
+        profileUpdate.expectedMonthlyIncome = INCOME_MIDPOINTS[answers.incomeRange]
+      }
+
       await tx.userProfile.update({
         where: { userId: session.userId },
-        data: {
-          primaryGoal: answers.primaryGoal,
-          householdType: answers.householdType,
-          hasRentalProperty: answers.hasRentalProperty,
-          debtLevel: answers.debtLevel,
-          categoryMode: answers.categoryMode,
-          onboardingCompleted: true,
-          onboardingCompletedAt: new Date(),
-          onboardingStep: 6,
-          pendingSetup: null, // clear pending data
-        },
+        data: profileUpdate,
       })
 
-      // 2. Create household members (Q2)
+      // 2. Create household member if partner name provided
       if (answers.partnerName?.trim()) {
         await tx.householdMember.create({
           data: {
@@ -115,109 +101,9 @@ export async function completeOnboarding(answers: OnboardingAnswers) {
           },
         })
       }
-
-      // 3. Create accounts (Q3)
-      const validAccountTypes: AccountType[] = [
-        'CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH',
-        'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN',
-      ]
-      for (const account of answers.accounts) {
-        if (!account.name.trim()) continue
-        if (!validAccountTypes.includes(account.type as AccountType)) continue
-        await tx.account.create({
-          data: {
-            userId: session.userId,
-            name: account.name.trim(),
-            type: account.type as AccountType,
-            isManual: true,
-          },
-        })
-      }
-
-      // 4. Create properties + rental categories (Q4)
-      if (answers.hasRentalProperty) {
-        for (const property of answers.properties) {
-          if (!property.name.trim()) continue
-          await tx.property.create({
-            data: {
-              userId: session.userId,
-              name: property.name.trim(),
-              type: 'RENTAL',
-            },
-          })
-        }
-
-        // Create rental-specific categories
-        for (const cat of RENTAL_CATEGORIES) {
-          const exists = await tx.category.findFirst({
-            where: {
-              userId: session.userId,
-              name: cat.name,
-              group: cat.group,
-            },
-          })
-          if (!exists) {
-            await tx.category.create({
-              data: {
-                userId: session.userId,
-                name: cat.name,
-                type: 'expense',
-                group: cat.group,
-                isTaxRelevant: true,
-                scheduleECategory: cat.scheduleE,
-                isDefault: false,
-              },
-            })
-          }
-        }
-      }
-
-      // 5. Create categories based on Q6 selection
-      if (answers.categoryMode === 'recommended') {
-        for (const cat of RECOMMENDED_CATEGORIES) {
-          const exists = await tx.category.findFirst({
-            where: {
-              userId: session.userId,
-              name: cat.name,
-              group: cat.group,
-            },
-          })
-          if (!exists) {
-            await tx.category.create({
-              data: {
-                userId: session.userId,
-                name: cat.name,
-                type: cat.type,
-                group: cat.group,
-                isTaxRelevant: cat.isTaxRelevant ?? false,
-                isDefault: false,
-              },
-            })
-          }
-        }
-      } else if (answers.categoryMode === 'custom') {
-        const exists = await tx.category.findFirst({
-          where: {
-            userId: session.userId,
-            name: 'Uncategorized',
-          },
-        })
-        if (!exists) {
-          await tx.category.create({
-            data: {
-              userId: session.userId,
-              name: 'Uncategorized',
-              type: 'expense',
-              group: 'Other',
-              isDefault: false,
-            },
-          })
-        }
-      }
-      // 'import_match' → no categories created now; CSV import auto-creates them
     })
 
-    return { success: true, categoryMode: answers.categoryMode }
+    return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to complete onboarding'
     return { error: message }
@@ -254,7 +140,7 @@ export async function getOnboardingState() {
 
   const pending: OnboardingPendingSetup = profile.pendingSetup
     ? JSON.parse(profile.pendingSetup)
-    : { accounts: [], properties: [] }
+    : {}
 
   return {
     step: profile.onboardingStep,
@@ -263,12 +149,7 @@ export async function getOnboardingState() {
       primaryGoal: profile.primaryGoal,
       householdType: profile.householdType,
       partnerName: pending.partnerName ?? null,
-      accounts: pending.accounts ?? [],
-      hasRentalProperty: profile.hasRentalProperty,
-      rentalCount: (pending.properties ?? []).length,
-      properties: pending.properties ?? [],
-      debtLevel: profile.debtLevel,
-      categoryMode: profile.categoryMode,
+      incomeRange: profile.incomeRange ?? null,
     } as OnboardingAnswers,
   }
 }

@@ -524,6 +524,154 @@ Requirements documented in `docs/briefs/uat-round3-fixes.md`.
 
 ---
 
+## Entity System — Steps 1-3 (2026-03-02)
+
+### Step 1: Data Model + Migration + CRUD ✅
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 1A | PropertyType enum expansion | 🟢 Done | `prisma/schema.prisma` |
+| 1B | TaxSchedule enum | 🟢 Done | `prisma/schema.prisma` |
+| 1C | Property model expansion | 🟢 Done | `prisma/schema.prisma` |
+| 1D | New models (PropertyGroup, SplitRule, TransactionSplit, AccountPropertyLink) | 🟢 Done | `prisma/schema.prisma` |
+| 1E | Property CRUD API update | 🟢 Done | `src/app/api/properties/route.ts`, `src/app/api/properties/[id]/route.ts` |
+| 1F | PropertyGroup CRUD API | 🟢 Done | `src/app/api/property-groups/route.ts`, `src/app/api/property-groups/[id]/route.ts` |
+| 1G | SplitRule CRUD API | 🟢 Done | `src/app/api/split-rules/route.ts` |
+| 1H | Settings UI update | 🟢 Done | `src/app/(dashboard)/settings/SettingsClient.tsx` |
+
+#### 1A–1B: Enum Expansions
+
+- `PropertyType` expanded: PERSONAL, RENTAL, **BUSINESS** (new)
+- `TaxSchedule` enum added: SCHEDULE_A, SCHEDULE_E, SCHEDULE_C
+
+#### 1C: Property Model Expansion
+
+| Field group | Fields added |
+|-------------|-------------|
+| Address | `address`, `city`, `state`, `zipCode` |
+| Tax | `taxSchedule` (TaxSchedule enum, auto-set from property type) |
+| Depreciation | `purchasePrice`, `purchaseDate`, `buildingValuePct`, `priorDepreciation` |
+| Group membership | `groupId` (FK → PropertyGroup), `splitPct` |
+| Timestamps | `updatedAt` |
+
+#### 1D: New Models
+
+| Model | Purpose | Key fields |
+|-------|---------|------------|
+| `PropertyGroup` | Groups properties for split allocation | `userId`, `name`, `description`, `properties[]`, `splitRules[]`, `matchRules[]` |
+| `SplitRule` | Default allocation per property within a group | `propertyGroupId`, `propertyId`, `allocationPct` (Decimal 5,2); unique on `[propertyGroupId, propertyId]` |
+| `TransactionSplit` | Per-property allocation of a transaction | `transactionId`, `propertyId`, `amount`; unique on `[transactionId, propertyId]` |
+| `AccountPropertyLink` | Links accounts to properties for auto-attribution | `accountId`, `propertyId`; compound unique on `[accountId, propertyId]` |
+
+New relations added: `Transaction.splits`, `Account.propertyLinks`, `User.propertyGroups`, `UserCategoryMapping.propertyId`.
+
+#### 1E–1G: API Routes
+
+- **Property CRUD**: Updated to support all new fields (address, tax, depreciation, group). Auto-sets `taxSchedule` from property type (PERSONAL → SCHEDULE_A, RENTAL → SCHEDULE_E, BUSINESS → SCHEDULE_C).
+- **PropertyGroup CRUD**: GET/POST list, GET/PATCH/DELETE individual. Includes nested properties and split rules.
+- **SplitRule CRUD**: Validates allocation percentages sum to 100 across a group.
+
+#### 1H: Settings UI
+
+- Renamed section to "Properties & Entities"
+- Added BUSINESS property type option
+- Expandable detail form with address and depreciation fields
+- Tax schedule display (auto-mapped from type)
+
+---
+
+### Step 2: Groups, Splits Engine, Auto-Allocation ✅
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 2A | SplitMatchRule model | 🟢 Done | `prisma/schema.prisma` |
+| 2B | Split engine | 🟢 Done | `src/lib/engines/split.ts` |
+| 2C | SplitMatchRule CRUD API | 🟢 Done | `src/app/api/split-match-rules/route.ts`, `src/app/api/split-match-rules/[id]/route.ts` |
+| 2D | Backfill API | 🟢 Done | `src/app/api/property-groups/[id]/backfill/route.ts` |
+| 2E | Property Groups Settings UI | 🟢 Done | `src/app/(dashboard)/settings/SettingsClient.tsx` |
+| 2F | Split engine tests | 🟢 Done | `tests/lib/split-engine.test.ts` |
+
+#### 2A: SplitMatchRule Model
+
+New model for pattern-based transaction matching: `name`, `matchField` (merchant/category/description), `matchPattern`, `allocations` (JSON array of `{propertyId, percentage}`), `isActive`. Unique constraint on `[propertyGroupId, name]`.
+
+#### 2B: Split Engine (`src/lib/engines/split.ts`)
+
+Pure-logic module (no DB, no auth) with three core functions:
+
+| Function | Purpose |
+|----------|---------|
+| `matchSplitRule` | Case-insensitive partial matching by merchant, category, or description |
+| `applySplit` | Penny-perfect allocation with largest-absorbs-remainder rounding |
+| `batchMatchAndSplit` | Process multiple transactions against all rules in one pass |
+
+#### 2C: SplitMatchRule CRUD
+
+- GET/POST `/api/split-match-rules` — list and create match rules with validation (allocations sum to 100, properties belong to group, unique name)
+- GET/PATCH/DELETE `/api/split-match-rules/[id]` — individual rule CRUD with ownership verification via `propertyGroup.userId`
+
+#### 2D: Backfill API
+
+POST `/api/property-groups/[id]/backfill` — runs match rules against all unsplit transactions, creates TransactionSplit records. Idempotent (skips transactions already split).
+
+#### 2E: Property Groups Settings UI
+
+- Lazy-loading property groups section
+- Create/delete groups with expandable cards
+- Member properties with editable split percentages and live "Total: X%" indicator (red when not 100%)
+- Add/remove properties from groups via dropdown
+- Split Rule Editor: create rules with name, match field/pattern, per-property allocation overrides
+- Toggle active/inactive and delete rules
+- "Backfill Historical Transactions" button with result display
+
+#### 2F: Split Engine Tests (23 new)
+
+`tests/lib/split-engine.test.ts` — 23 unit tests covering:
+- Rule matching (merchant, category, description, case-insensitive, no-match)
+- Split allocation (even splits, uneven with remainder, single property 100%, rounding)
+- Batch processing (multiple transactions × multiple rules, no-match passthrough, edge cases)
+
+---
+
+### Step 3: Transaction UI + Smart Learning ✅
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 3A | Transaction list split sub-rows | 🟢 Done | `src/components/transactions/TransactionList.tsx` |
+| 3B | Transaction form split toggle | 🟢 Done | `src/components/forms/TransactionForm.tsx` |
+| 3C | Auto-apply property attribution | 🟢 Done | `src/lib/apply-splits.ts` (new), `src/app/api/transactions/route.ts`, `src/app/actions/transactions.ts`, `src/app/api/transactions/import/route.ts` |
+| 3D | Smart property learning | 🟢 Done | `src/app/api/transactions/[id]/route.ts`, `src/app/api/transactions/import/route.ts` |
+| 3E | Account-property linking | 🟢 Done | `src/app/api/account-property-links/route.ts` (new), `src/app/(dashboard)/settings/SettingsClient.tsx` |
+
+#### 3A: Transaction List Split Sub-Rows
+
+Transaction list shows split badge on split transactions. Expandable row reveals per-property allocation amounts.
+
+#### 3B: Transaction Form Split Toggle
+
+When a transaction's property belongs to a group, the form shows a split toggle. Enabling it displays editable per-property percentages pre-filled from group split rules.
+
+#### 3C: Auto-Apply Property Attribution (`src/lib/apply-splits.ts`)
+
+`applyPropertyAttribution()` helper integrated into all three transaction write paths:
+- POST `/api/transactions/route.ts` (single create)
+- Server action `src/app/actions/transactions.ts`
+- CSV import `src/app/api/transactions/import/route.ts`
+
+Attribution priority: account-property link → smart learning (UserCategoryMapping) → match rules → default property.
+
+#### 3D: Smart Property Learning
+
+When a user sets or changes a transaction's property, the `propertyId` is saved to `UserCategoryMapping`. During CSV import, learned property associations are auto-applied based on category + merchant patterns.
+
+#### 3E: Account-Property Linking
+
+- New API route `/api/account-property-links` (GET/POST/DELETE)
+- Settings UI section for linking accounts to properties (e.g., "Chase Mortgage → 123 Main St")
+- Transactions from linked accounts automatically inherit the property attribution
+
+---
+
 ## Entity System — Steps 4-5 (2026-03-02)
 
 ### Step 4: Depreciation + Tax Engine Extensions
@@ -647,8 +795,39 @@ The user's goal drives AI to generate a personalized starter budget set using re
 
 | Step | Description | Status | Effort |
 |------|-------------|--------|--------|
-| 1 | **Schema + Quiz Redesign** — Add `incomeRange`, `goalSetAt`, `previousGoals` to UserProfile. Rewrite OnboardingWizard from 6 steps to 3 (Goal → Household → Income Range). Update `saveOnboardingStep` and `completeOnboarding`. | ⬜ TODO | S |
+| 1 | **Schema + Quiz Redesign** — Add `incomeRange`, `goalSetAt`, `previousGoals` to UserProfile. Rewrite OnboardingWizard from 6 steps to 3 (Goal → Household → Income Range). Update `saveOnboardingStep` and `completeOnboarding`. | ✅ Done | S |
 | 2 | **AI Budget Builder API** — New `/api/budgets/ai-builder` endpoint. Build context from transactions + benchmarks + goal. Claude prompt for budget proposals. Accept endpoint for batch creation. | ⬜ TODO | M |
+
+### Step 1 — Schema + Quiz Redesign (2026-03-02)
+
+**Types** (`src/types/index.ts`):
+- `PrimaryGoal` replaced: `debt_payoff`/`emergency_savings`/`major_purchase`/`invest`/`organize` → `save_more`/`spend_smarter`/`pay_off_debt`/`gain_visibility`/`build_wealth`
+- Added `IncomeRange` type with 6 brackets
+- Simplified `OnboardingAnswers` to 4 fields (primaryGoal, householdType, partnerName, incomeRange)
+- Removed `OnboardingAccountEntry`, `OnboardingPropertyEntry` interfaces
+
+**Schema** (`prisma/schema.prisma` — UserProfile):
+- Added: `incomeRange` (String?), `goalSetAt` (DateTime?), `previousGoals` (Json?)
+- Legacy fields kept: `hasRentalProperty`, `debtLevel`, `categoryMode` (no longer set during onboarding)
+- `onboardingStep` range changed from 0-6 to 0-3
+
+**OnboardingWizard** (`src/components/onboarding/OnboardingWizard.tsx`):
+- Rewritten from 597 → 246 lines, 6 steps → 3 steps
+- Step 1: Goal selection (5 goal cards with name + description)
+- Step 2: Household type (same options as before, partner name field when applicable)
+- Step 3: Income range (6 brackets, pre-fills `expectedMonthlyIncome` from midpoint)
+
+**Onboarding Actions** (`src/app/actions/onboarding.ts`):
+- `saveOnboardingStep`: only persists goal/household/incomeRange + partnerName in pendingSetup
+- `completeOnboarding`: sets `goalSetAt`, pre-fills `expectedMonthlyIncome`, removes category seeding and account/property creation
+- `getOnboardingState`: returns simplified 4-field answers
+
+**Other Updates**:
+- `OnboardingBanner.tsx`: step messages updated for 3-step flow
+- `seed-demo.ts`: `organize` → `gain_visibility`, step 6 → 3, added `incomeRange`/`goalSetAt`
+- `prisma/migrate-goals.ts`: migration script mapping old → new goal values for existing users
+
+**Tests**: 455/468 passing (13 pre-existing, 0 new failures). TypeScript: zero errors.
 | 3 | **Goal Threading — Insights** — Add `goalContext` to insight context builder. Update system prompt in `ai.ts` with goal-aware instructions. | ⬜ TODO | S |
 | 4 | **Goal Threading — True Remaining + Monthly Review** — Add goal subtext to True Remaining. Add goal metrics to monthly review generation. | ⬜ TODO | S |
 | 5 | **Goal Change Flow** — Settings UI for goal change. Goal history archiving. "Refresh suggestions" flow. AI-prompted goal shift detection. | ⬜ TODO | S |
