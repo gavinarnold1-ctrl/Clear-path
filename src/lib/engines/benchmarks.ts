@@ -31,93 +31,93 @@ export interface OverallComparison {
   incomeQuintile: number
 }
 
-// Based on BLS Consumer Expenditure Survey 2023
-// Adjusted for single/dual income households
-// These are MONTHLY figures
+// Based on BLS Consumer Expenditure Survey 2024 ($100K–$150K income bracket)
+// Retrieved from FRED, December 2025 release
+// These are MONTHLY figures; p25/p75 estimated from spread ratios
 export const BENCHMARKS: Record<string, SpendingBenchmark> = {
   'Food & Groceries': {
     category: 'Food & Groceries',
-    monthlyMedian: 475,
-    p25: 340,
-    p75: 650,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 593,
+    p25: 425,
+    p75: 810,
+    source: 'BLS CE Survey 2024',
   },
   'Dining & Restaurants': {
     category: 'Dining & Restaurants',
-    monthlyMedian: 310,
-    p25: 180,
-    p75: 480,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 399,
+    p25: 230,
+    p75: 620,
+    source: 'BLS CE Survey 2024',
   },
   Transportation: {
     category: 'Transportation',
-    monthlyMedian: 580,
-    p25: 380,
-    p75: 820,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 1335,
+    p25: 880,
+    p75: 1885,
+    source: 'BLS CE Survey 2024',
   },
   Entertainment: {
     category: 'Entertainment',
-    monthlyMedian: 245,
-    p25: 130,
-    p75: 400,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 344,
+    p25: 180,
+    p75: 560,
+    source: 'BLS CE Survey 2024',
   },
   Subscriptions: {
     category: 'Subscriptions',
-    monthlyMedian: 85,
-    p25: 45,
-    p75: 150,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 90,
+    p25: 48,
+    p75: 160,
+    source: 'BLS CE Survey 2024',
   },
   Shopping: {
     category: 'Shopping',
-    monthlyMedian: 200,
-    p25: 100,
-    p75: 350,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 210,
+    p25: 105,
+    p75: 370,
+    source: 'BLS CE Survey 2024',
   },
   Utilities: {
     category: 'Utilities',
-    monthlyMedian: 370,
-    p25: 260,
-    p75: 500,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 390,
+    p25: 275,
+    p75: 530,
+    source: 'BLS CE Survey 2024',
   },
   'Personal Care': {
     category: 'Personal Care',
-    monthlyMedian: 65,
-    p25: 35,
-    p75: 120,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 90,
+    p25: 48,
+    p75: 165,
+    source: 'BLS CE Survey 2024',
   },
   'Health & Medical': {
     category: 'Health & Medical',
-    monthlyMedian: 340,
-    p25: 180,
-    p75: 550,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 596,
+    p25: 315,
+    p75: 965,
+    source: 'BLS CE Survey 2024',
   },
   Insurance: {
     category: 'Insurance',
-    monthlyMedian: 290,
-    p25: 195,
-    p75: 420,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 935,
+    p25: 625,
+    p75: 1355,
+    source: 'BLS CE Survey 2024',
   },
   Groceries: {
     category: 'Groceries',
-    monthlyMedian: 475,
-    p25: 340,
-    p75: 650,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 593,
+    p25: 425,
+    p75: 810,
+    source: 'BLS CE Survey 2024',
   },
   Rent: {
     category: 'Rent',
-    monthlyMedian: 1400,
-    p25: 950,
-    p75: 2000,
-    source: 'BLS CE Survey 2023',
+    monthlyMedian: 1475,
+    p25: 1000,
+    p75: 2100,
+    source: 'BLS CE Survey 2024',
   },
 }
 
@@ -145,7 +145,7 @@ export function getEfficiencyRating(actual: number, benchmark: SpendingBenchmark
   return 'excessive'
 }
 
-// BLS income quintile thresholds (2023 annual household income)
+// BLS income quintile thresholds (2024 annual household income)
 const INCOME_QUINTILE_THRESHOLDS = [30000, 55000, 90000, 150000]
 
 /** Determine income quintile from annual income (1=lowest, 5=highest) */

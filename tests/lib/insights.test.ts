@@ -170,7 +170,7 @@ describe('buildTransactionSummary', () => {
     const groceries = summary.categoryBreakdown.find((c) => c.category === 'Groceries')
     expect(groceries).toBeDefined()
     expect(groceries!.benchmark).toBeDefined()
-    expect(groceries!.benchmark!.median).toBe(475)
+    expect(groceries!.benchmark!.median).toBe(593)
   })
 
   it('returns empty arrays when no transactions exist', async () => {
