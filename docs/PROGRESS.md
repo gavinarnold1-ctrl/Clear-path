@@ -453,6 +453,50 @@ Added `classification` filter support to the transactions page. Clicking the Inc
 
 ---
 
+## Reference Database Seeding — BLS 2024 & Tax 2025-2026 (2026-03-02)
+
+### BLS Consumer Expenditure Survey 2024
+
+Created `prisma/seed-bls-2024.ts` with spending benchmark data from the BLS Consumer Expenditure Survey 2024, sourced via FRED (Federal Reserve Economic Data).
+
+| Component | Description | Files |
+|-----------|-------------|-------|
+| Seed file | 36 spending benchmarks (18 per income bracket: $100K-$150K and $150K-$200K), 18 crosswalk entries mapping BLS categories to app categories | `prisma/seed-bls-2024.ts` (new) |
+| Seeder integration | `seedBls2024(db)` called in main seed pipeline. Deletes surveyYear=2024 data then recreates. Crosswalk entries added only if not already present. | `prisma/seed.ts` |
+| Hardcoded fallbacks | Updated `BENCHMARKS` object from 2023 to 2024 values using $100K-$150K bracket means. Key changes: Groceries 475→593, Dining 310→399, Transportation 580→1335, Entertainment 245→344, Health 340→596 | `src/lib/engines/benchmarks.ts` |
+| Test updates | Updated median assertions (475→593) and efficiency rating test values to match new Entertainment benchmark thresholds (p25=180, median=344, p75=560) | `tests/lib/benchmarks.test.ts`, `tests/lib/insights.test.ts` |
+
+### Federal Tax Rules 2025-2026 (OBBBA)
+
+Created `prisma/seed-tax-2025-2026.ts` with comprehensive federal tax rules reflecting the One Big Beautiful Bill Act (OBBBA, signed July 4, 2025).
+
+| Component | Description | Files |
+|-----------|-------------|-------|
+| Seed file | 42 tax rules, 57+ thresholds, 30 deduction category mappings, 12 tax calendar entries | `prisma/seed-tax-2025-2026.ts` (new) |
+| Rules covered | Income brackets (single, MFJ, HoH), standard deductions ($15,750/$31,500), SALT ($40K cap with phase-out), mortgage interest, child tax credit ($2,200), Schedule E rental (9 types), Schedule C business (8 types incl QBI) | |
+| 2026 rules | Auto-generated via spread+override from 2025 rules. Cap rises 1%/year ($40,400 for 2026). | |
+| Seeder integration | `seedTax2025_2026(db)` called in main seed pipeline. Uses upsert by ruleCode for safe updates. | `prisma/seed.ts` |
+| SALT engine update | `saltDeduction()` rewritten: $10K cap → $40K OBBBA cap with MAGI phase-out ($500K-$600K). Added optional `magi` and `taxYear` params (backward-compatible). Cap halved for MFS. 1% annual increase for 2026+. | `src/lib/engines/tax.ts` |
+
+### Schema Fix: Property updatedAt
+
+Fixed `prisma db push` error: "Added required column `updatedAt` to Property table without a default value (3 existing rows)."
+
+| Fix | Description | Files |
+|-----|-------------|-------|
+| Property | Added `@default(now())` alongside `@updatedAt` so existing rows get a default value | `prisma/schema.prisma` |
+| PropertyGroup, SplitRule, SplitMatchRule | Same fix applied preventatively to other new models | `prisma/schema.prisma` |
+
+### Test Results
+
+- **456 total tests**: 443 passed, 13 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
+- **Zero new failures** introduced
+- TypeScript: zero errors (`npx tsc --noEmit` clean)
+- Build: Prisma generate succeeds; `db push` blocked by network (Neon unreachable in sandbox), not a code issue
+
+---
+
 ## UAT Round 3 Fixes (2026-02-27)
 
 ### Fixes
@@ -477,3 +521,190 @@ Requirements documented in `docs/briefs/uat-round3-fixes.md`.
 - Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
 - **Zero new failures** introduced
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Entity System — Steps 4-5 (2026-03-02)
+
+### Step 4: Depreciation + Tax Engine Extensions
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 4A | Depreciation Calculator | 🟢 Done | `src/lib/engines/tax.ts` |
+| 4B | Depreciation UI Helper | 🟢 Done | `src/app/(dashboard)/settings/SettingsClient.tsx` |
+| 4C | Schedule C Tax Support | 🟢 Done | `src/lib/engines/tax.ts`, `prisma/seed-tax-2025-2026.ts` |
+| 4D | Tax Summary Generator | 🟢 Done | `src/lib/engines/tax.ts` |
+
+#### 4A: Depreciation Calculator
+
+Added `calculateDepreciation()` to tax engine — IRS 27.5-year straight-line depreciation for residential rental property with mid-month convention.
+
+| Feature | Description |
+|---------|-------------|
+| Mid-month convention | First month prorated at 0.5 months per IRS rules |
+| Cap at building value | `totalDepreciation` never exceeds `purchasePrice × buildingValuePct` |
+| Prior depreciation | Subtracts user-entered prior depreciation from remaining basis |
+| Fully depreciated handling | When `depreciableMonths >= 330` (27.5 × 12), returns `buildingValue` directly to avoid floating-point drift |
+
+New interfaces: `DepreciationInput`, `DepreciationResult`
+
+#### 4B: Depreciation UI Helper
+
+Enhanced RENTAL property form in Settings with:
+- Building value % helper text ("Check county property assessment for land vs building split")
+- Prior depreciation helper text ("Enter total claimed before importing to oversikt")
+- Live depreciation preview grid: building value, annual/monthly depreciation, remaining basis, years remaining
+
+#### 4C: Schedule C Tax Support
+
+`TaxRuleInput.propertyType` extended to include `'business'`. Schedule C rules (8 expense types + QBI deduction) already seeded in `prisma/seed-tax-2025-2026.ts`.
+
+#### 4D: Tax Summary Generator
+
+Added `generateTaxSummary()` — aggregates TransactionSplit records and direct property attributions into Schedule A/E/C buckets.
+
+| Feature | Description |
+|---------|-------------|
+| Schedule routing | PERSONAL → SCHEDULE_A, RENTAL → SCHEDULE_E, BUSINESS → SCHEDULE_C |
+| Split + direct | Processes both split allocations and direct property-tagged transactions |
+| Depreciation included | Automatically calculates and includes depreciation for rental properties |
+| Per-schedule totals | Returns per-schedule entries with category, amount, property, and grand total |
+
+New interface: `TaxSummary`
+
+#### Tests (12 new)
+
+Created `tests/lib/tax-depreciation.test.ts`:
+- 7 depreciation tests: standard case, prior depreciation, cap at building value, first-year proration, 0% building, same-month purchase, annual cap
+- 5 tax summary tests: Schedule E aggregation, Schedule C aggregation, Schedule A deductions, mixed splits+direct, empty data
+- All 12 pass
+
+### Step 5: Entity Dashboard + Tax Report + AI Integration
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 5A | Properties Dashboard Page | 🟢 Done | `src/app/(dashboard)/properties/page.tsx` (new) |
+| 5B | Tax Report View | 🟢 Done | `src/app/(dashboard)/properties/PropertiesClient.tsx` (new) |
+| 5C | AI Monthly Review Integration | 🟢 Done | `src/lib/entity-summary.ts` (new), `src/lib/ai.ts`, `src/lib/insights.ts` |
+| 5D | Monthly Snapshot Integration | 🟢 Done | `src/lib/snapshots.ts` |
+| 5E | Navigation Update | 🟢 Done | `src/app/(dashboard)/layout.tsx`, `middleware.ts` |
+
+#### 5A: Properties Dashboard Page
+
+New server component at `/properties` — fetches properties, direct transactions, split allocations for current month. Computes per-property income, expenses, depreciation, and net income. Shows "Add in Settings" card when no properties exist.
+
+#### 5B: Tax Report View
+
+New client component `PropertiesClient.tsx` with two tabs:
+- **Dashboard**: Entity cards (frost bg) showing income (pine), expenses (ember), depreciation (stone), net income per property. Summary row with total rental net, business net, and depreciation.
+- **Tax Report**: Schedule E, C, A sections with expense category tables. CSV export for CPA handoff (Schedule / Property / Category / Amount / Period columns).
+
+#### 5C: AI Monthly Review Integration
+
+Created `src/lib/entity-summary.ts` with `getEntitySummary(userId, year, month)` — queries properties, transactions, splits and returns a formatted string for the AI prompt. Added `entitySummary?: string` to `InsightGenerationContext` and `PROPERTY/BUSINESS SUMMARY:` section to the AI prompt. Integrated into `generateAndStoreInsights()` pipeline.
+
+#### 5D: Monthly Snapshot Integration
+
+Enhanced `snapshots.ts` property breakdown from simple expense totals to rich structure:
+- Per-property: income, expenses, depreciation, netIncome, splitTransactions, directTransactions
+- Totals: totalRentalNet, totalBusinessNet, totalDepreciation
+- Imported `calculateDepreciation` from tax engine for rental property depreciation
+
+#### 5E: Navigation Update
+
+- Converted static `navGroups` to `buildNavGroups(showProperties: boolean)` function
+- Properties nav item shown when: 2+ properties OR any BUSINESS type property
+- Added `/properties` to middleware PROTECTED routes array
+- Updated `src/types/index.ts`: `PropertyType` includes `'BUSINESS'`, added address/tax/depreciation fields
+
+### Test Results
+
+- **468 total tests**: 455 passed, 13 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
+- **12 new depreciation/tax tests**: all pass
+- **Zero new failures** introduced
+- TypeScript: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Goal-Driven Budget System (2026-03-02)
+
+> **Spec:** `docs/briefs/goal-driven-budget-system.md` (if saved) or inline spec from session
+> **Priority:** V1 — Core DNA
+> **Depends on:** Existing Budget/Insight/UserProfile models, BLS benchmarks seed data
+
+### Problem
+
+Onboarding asks 6 questions, stores answers, does nothing with them. `UserProfile.primaryGoal` sits unused. Budget creation is entirely manual. AI insights have no direction — they don't know what the user is trying to accomplish.
+
+### Vision
+
+**Goal → Budget Template → Budgets → True Remaining**
+
+The user's goal drives AI to generate a personalized starter budget set using real transaction data + BLS benchmarks. The goal persists as the optimization target for insights, monthly review, and True Remaining.
+
+### Implementation Steps
+
+| Step | Description | Status | Effort |
+|------|-------------|--------|--------|
+| 1 | **Schema + Quiz Redesign** — Add `incomeRange`, `goalSetAt`, `previousGoals` to UserProfile. Rewrite OnboardingWizard from 6 steps to 3 (Goal → Household → Income Range). Update `saveOnboardingStep` and `completeOnboarding`. | ⬜ TODO | S |
+| 2 | **AI Budget Builder API** — New `/api/budgets/ai-builder` endpoint. Build context from transactions + benchmarks + goal. Claude prompt for budget proposals. Accept endpoint for batch creation. | ⬜ TODO | M |
+| 3 | **Goal Threading — Insights** — Add `goalContext` to insight context builder. Update system prompt in `ai.ts` with goal-aware instructions. | ⬜ TODO | S |
+| 4 | **Goal Threading — True Remaining + Monthly Review** — Add goal subtext to True Remaining. Add goal metrics to monthly review generation. | ⬜ TODO | S |
+| 5 | **Goal Change Flow** — Settings UI for goal change. Goal history archiving. "Refresh suggestions" flow. AI-prompted goal shift detection. | ⬜ TODO | S |
+
+### Three-Question Onboarding (replaces 6-step wizard)
+
+| Step | Question | Stored on | Used by |
+|------|----------|-----------|---------|
+| 1 | What's your primary financial goal? | `UserProfile.primaryGoal` + `goalSetAt` | AI budget builder, insights, monthly review, True Remaining |
+| 2 | Who are you budgeting for? | `UserProfile.householdType` | BLS benchmark selection, budget scaling |
+| 3 | What's your household income? | `UserProfile.incomeRange` (new) | BLS bracket matching, savings targets |
+
+After step 3 → Connect accounts (Plaid) → transactions land → "Build My Budget" with AI
+
+### Goal Archetypes
+
+| Goal Key | Display Name | Optimization Target |
+|----------|-------------|-------------------|
+| `save_more` | Save More | Maximize True Remaining surplus; target savings rate % |
+| `spend_smarter` | Spend Smarter | Optimize category spend vs BLS benchmarks |
+| `pay_off_debt` | Pay Off Debt | Maximize debt payment above minimums |
+| `gain_visibility` | Gain Visibility | Categorization coverage, insight frequency |
+| `build_wealth` | Build Wealth | Balance savings + debt payoff + investment |
+
+### Schema Changes
+
+| Field | Change |
+|-------|--------|
+| `incomeRange` | **Add** — String?, drives BLS bracket matching |
+| `goalSetAt` | **Add** — DateTime?, tracks when goal was set |
+| `previousGoals` | **Add** — Json?, array of `{goal, setAt, changedAt}` for history |
+| `primaryGoal` | **Existing** — wire to AI, insights, monthly review, True Remaining |
+| `householdType` | **Existing** — wire to BLS bracket selection |
+| `expectedMonthlyIncome` | **Existing** — pre-fill from incomeRange midpoint |
+| `onboardingStep` | **Existing** — change range from 0-6 to 0-3 |
+
+### New API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/budgets/ai-builder` | AI budget builder — goal + transactions + benchmarks → `BudgetProposal` |
+| POST | `/api/budgets/ai-builder/accept` | Batch-create budgets from accepted proposal |
+| PATCH | `/api/profile/goal` | Update primary goal — archives old, triggers re-suggestion |
+| GET | `/api/profile/goal-context` | Returns goal + progress metrics for UI |
+
+### Removed Onboarding Questions (inferred instead)
+
+| Removed | Resolution |
+|---------|------------|
+| Financial accounts (step 2) | Plaid creates real accounts |
+| Rental property (step 3) | Inferred from Plaid (mortgage count > 1) or rental income transactions |
+| Debt situation (step 4) | Inferred from connected accounts (credit card balances, loan accounts) |
+| Category setup mode (step 5) | AI budget builder creates categories + budgets together |
+
+### Migration Path
+
+- Existing users: no forced re-onboarding. If `primaryGoal` is set, it starts being used immediately. Soft prompt for `incomeRange`.
+- New users: 3-step quiz → Plaid → AI builder flow.
+- Schema migration: all new fields nullable (non-breaking).

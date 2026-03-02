@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import type { TaxSchedule } from '@prisma/client'
 
-const VALID_TYPES = new Set(['PERSONAL', 'RENTAL'])
+const VALID_TYPES = new Set<string>(['PERSONAL', 'RENTAL', 'BUSINESS'])
+
+const TAX_SCHEDULE_MAP: Record<string, TaxSchedule> = {
+  PERSONAL: 'SCHEDULE_A',
+  RENTAL: 'SCHEDULE_E',
+  BUSINESS: 'SCHEDULE_C',
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -15,10 +22,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
-  const { name, type, isDefault } = body
+  const {
+    name, type, isDefault,
+    address, city, state, zipCode,
+    taxSchedule,
+    purchasePrice, purchaseDate, buildingValuePct, priorDepreciation,
+    groupId, splitPct,
+  } = body
 
   if (type !== undefined && !VALID_TYPES.has(type)) {
-    return NextResponse.json({ error: 'Type must be PERSONAL or RENTAL' }, { status: 400 })
+    return NextResponse.json({ error: 'Type must be PERSONAL, RENTAL, or BUSINESS' }, { status: 400 })
   }
 
   // R10.2a: Duplicate name prevention on rename (case-insensitive)
@@ -38,6 +51,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // Validate groupId belongs to the user
+  if (groupId !== undefined && groupId !== null) {
+    const group = await db.propertyGroup.findFirst({
+      where: { id: groupId, userId: session.userId },
+    })
+    if (!group) {
+      return NextResponse.json({ error: 'Property group not found' }, { status: 404 })
+    }
+  }
+
   // If setting as default, unset any existing default
   if (isDefault && !existing.isDefault) {
     await db.property.updateMany({
@@ -46,13 +69,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     })
   }
 
+  // Auto-update taxSchedule when type changes (unless explicitly overridden)
+  let resolvedTaxSchedule: TaxSchedule | null | undefined = undefined
+  if (taxSchedule !== undefined) {
+    resolvedTaxSchedule = taxSchedule
+  } else if (type !== undefined) {
+    resolvedTaxSchedule = TAX_SCHEDULE_MAP[type as string] ?? null
+  }
+
   const updated = await db.property.update({
     where: { id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
       ...(type !== undefined && { type }),
       ...(isDefault !== undefined && { isDefault }),
+      // Address fields
+      ...(address !== undefined && { address: address?.trim() || null }),
+      ...(city !== undefined && { city: city?.trim() || null }),
+      ...(state !== undefined && { state: state?.trim() || null }),
+      ...(zipCode !== undefined && { zipCode: zipCode?.trim() || null }),
+      // Tax schedule
+      ...(resolvedTaxSchedule !== undefined && { taxSchedule: resolvedTaxSchedule }),
+      // Depreciation fields
+      ...(purchasePrice !== undefined && { purchasePrice }),
+      ...(purchaseDate !== undefined && { purchaseDate: purchaseDate ? new Date(purchaseDate) : null }),
+      ...(buildingValuePct !== undefined && { buildingValuePct }),
+      ...(priorDepreciation !== undefined && { priorDepreciation }),
+      // Group membership
+      ...(groupId !== undefined && { groupId: groupId || null }),
+      ...(splitPct !== undefined && { splitPct }),
     },
+    include: { group: { select: { id: true, name: true } } },
   })
 
   return NextResponse.json(updated)
@@ -68,10 +115,23 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Null out transactions referencing this property (scoped to user), then delete
+  // Null out transactions referencing this property, delete splits and account links, then delete
   await db.$transaction([
     db.transaction.updateMany({
       where: { propertyId: id, userId: session.userId },
+      data: { propertyId: null },
+    }),
+    db.transactionSplit.deleteMany({
+      where: { propertyId: id },
+    }),
+    db.accountPropertyLink.deleteMany({
+      where: { propertyId: id },
+    }),
+    db.splitRule.deleteMany({
+      where: { propertyId: id },
+    }),
+    db.userCategoryMapping.updateMany({
+      where: { propertyId: id },
       data: { propertyId: null },
     }),
     db.property.delete({ where: { id } }),

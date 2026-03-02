@@ -131,7 +131,7 @@ describe('T2.2 — API: properties route source', () => {
     // Type validation
     expect(code).toMatch(/PERSONAL/)
     expect(code).toMatch(/RENTAL/)
-    expect(code).toMatch(/Type must be PERSONAL or RENTAL/)
+    expect(code).toMatch(/Type must be PERSONAL, RENTAL, or BUSINESS/)
   })
 
   it('POST /api/properties handles isDefault (unsets existing default)', () => {
@@ -160,7 +160,7 @@ describe('T2.2 — API: properties/[id] route source', () => {
     const code = fs.readFileSync(routePath, 'utf-8')
 
     expect(code).toMatch(/VALID_TYPES/)
-    expect(code).toMatch(/Type must be PERSONAL or RENTAL/)
+    expect(code).toMatch(/Type must be PERSONAL, RENTAL, or BUSINESS/)
   })
 
   it('DELETE nulls out transactions then deletes property', () => {
@@ -335,7 +335,7 @@ describe('T2.2 — API behavior: POST /api/properties', () => {
     const data = await res.json()
 
     expect(res.status).toBe(400)
-    expect(data.error).toMatch(/Type must be PERSONAL or RENTAL/)
+    expect(data.error).toMatch(/Type must be PERSONAL, RENTAL, or BUSINESS/)
   })
 
   it('unsets existing default when creating with isDefault=true', async () => {

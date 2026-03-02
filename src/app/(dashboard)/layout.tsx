@@ -7,33 +7,32 @@ import { DEMO_USER_ID } from '@/lib/demo'
 import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 
-const navGroups: NavGroup[] = [
-  {
-    label: null,
-    items: [
-      { href: '/dashboard', label: 'Overview' },
-      { href: '/budgets', label: 'Budgets' },
-      { href: '/spending', label: 'Spending' },
-      { href: '/budgets/annual', label: 'Annual Plan' },
-      { href: '/debts', label: 'Debts' },
-      { href: '/transactions', label: 'Transactions' },
-    ],
-  },
-  {
-    label: 'Periodic',
-    items: [
-      { href: '/monthly-review', label: 'Monthly Review' },
-    ],
-  },
-  {
-    label: 'Setup',
-    items: [
-      { href: '/settings', label: 'Settings' },
-      { href: '/accounts', label: 'Accounts' },
-      { href: '/categories', label: 'Categories' },
-    ],
-  },
-]
+function buildNavGroups(showProperties: boolean): NavGroup[] {
+  const mainItems = [
+    { href: '/dashboard', label: 'Overview' },
+    { href: '/budgets', label: 'Budgets' },
+    { href: '/spending', label: 'Spending' },
+    { href: '/budgets/annual', label: 'Annual Plan' },
+    { href: '/debts', label: 'Debts' },
+    { href: '/transactions', label: 'Transactions' },
+  ]
+  if (showProperties) {
+    mainItems.push({ href: '/properties', label: 'Properties' })
+  }
+
+  return [
+    { label: null, items: mainItems },
+    { label: 'Periodic', items: [{ href: '/monthly-review', label: 'Monthly Review' }] },
+    {
+      label: 'Setup',
+      items: [
+        { href: '/settings', label: 'Settings' },
+        { href: '/accounts', label: 'Accounts' },
+        { href: '/categories', label: 'Categories' },
+      ],
+    },
+  ]
+}
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
@@ -56,6 +55,22 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       })
     }
   }
+
+  // Show Properties nav if user has 2+ properties or any BUSINESS entities
+  let showProperties = false
+  if (session) {
+    const propertyCount = await db.property.count({ where: { userId: session.userId } })
+    if (propertyCount >= 2) {
+      showProperties = true
+    } else {
+      const businessCount = await db.property.count({
+        where: { userId: session.userId, type: 'BUSINESS' },
+      })
+      showProperties = businessCount > 0
+    }
+  }
+
+  const navGroups = buildNavGroups(showProperties)
 
   return (
     <div className="flex min-h-screen">

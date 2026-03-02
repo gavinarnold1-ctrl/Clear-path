@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
+import { applyPropertyAttribution } from '@/lib/apply-splits'
 
 interface TransactionState {
   error: string | null
@@ -26,6 +27,7 @@ export async function createTransaction(
   const propertyId = (formData.get('propertyId') as string) || null
   const notes = (formData.get('notes') as string)?.trim() || null
   const tags = (formData.get('tags') as string)?.trim() || null
+  const splitAllocationsRaw = (formData.get('splitAllocations') as string) || null
 
   if (isNaN(amount) || amount === 0) return { error: 'Amount must be a non-zero number.' }
   if (!merchant) return { error: 'Merchant is required.' }
@@ -55,15 +57,53 @@ export async function createTransaction(
   // Append time component to date-only strings so they parse as local time, not UTC midnight
   const txDate = new Date(date.includes('T') ? date : `${date}T12:00:00`)
 
+  // Parse split allocations if provided
+  let parsedSplitAllocations: Array<{ propertyId: string; percentage: number }> | null = null
+  if (splitAllocationsRaw) {
+    try {
+      const parsed = JSON.parse(splitAllocationsRaw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsedSplitAllocations = parsed
+      }
+    } catch {
+      // Ignore invalid JSON — just skip splits
+    }
+  }
+
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record
-    await tx.transaction.create({
+    const created = await tx.transaction.create({
       data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId, amount: finalAmount, classification, merchant, date: txDate, notes, tags },
     })
 
     // 2. Adjust account balance (amount sign already correct)
     if (accountId) {
       await tx.account.update({ where: { id: accountId }, data: { balance: { increment: finalAmount } } })
+    }
+
+    // 3. Create split records if split allocations were provided
+    if (parsedSplitAllocations && parsedSplitAllocations.length > 0) {
+      const splitData = parsedSplitAllocations
+        .filter(a => a.percentage > 0)
+        .map(a => ({
+          transactionId: created.id,
+          propertyId: a.propertyId,
+          amount: Math.round(finalAmount * a.percentage / 100 * 100) / 100,
+        }))
+      if (splitData.length > 0) {
+        await tx.transactionSplit.createMany({ data: splitData })
+      }
+    } else {
+      // 4. Auto-apply property attribution if no manual splits provided
+      await applyPropertyAttribution(
+        created.id,
+        propertyId,
+        finalAmount,
+        merchant,
+        resolvedCategory?.group,
+        null,
+        tx
+      )
     }
   })
 

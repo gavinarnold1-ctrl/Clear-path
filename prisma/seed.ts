@@ -5,6 +5,8 @@
 import { PrismaClient, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
 import { seedTaxRules } from './seed-tax-rules'
 import { seedBenchmarks } from './seed-benchmarks'
+import { seedBls2024 } from './seed-bls-2024'
+import { seedTax2025_2026 } from './seed-tax-2025-2026'
 
 const db = new PrismaClient()
 
@@ -297,6 +299,8 @@ async function main() {
   console.log('Seeding reference databases...')
   await seedTaxRules(db)
   await seedBenchmarks(db)
+  await seedBls2024(db)
+  await seedTax2025_2026(db)
 
   console.log('Seed complete. Demo user: demo@oversikt.app')
 }

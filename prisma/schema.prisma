@@ -41,6 +41,13 @@ enum BudgetTier {
 enum PropertyType {
   PERSONAL
   RENTAL
+  BUSINESS
+}
+
+enum TaxSchedule {
+  SCHEDULE_A
+  SCHEDULE_E
+  SCHEDULE_C
 }
 
 enum DebtType {
@@ -75,6 +82,7 @@ model User {
   annualExpenses    AnnualExpense[]
   householdMembers  HouseholdMember[]
   properties        Property[]
+  propertyGroups    PropertyGroup[]
   debts             Debt[]
   monthlySnapshots  MonthlySnapshot[]
   categoryMappings  UserCategoryMapping[]
@@ -104,8 +112,9 @@ model Account {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   ownerId      String?       // R3.2a: Account owner — default person tag for transactions
   owner        HouseholdMember? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  transactions Transaction[]
-  debt         Debt?         // One-to-one: auto-populated debt for loan/credit accounts
+  transactions  Transaction[]
+  debt          Debt?         // One-to-one: auto-populated debt for loan/credit accounts
+  propertyLinks AccountPropertyLink[]
 
   @@index([ownerId])
   @@index([plaidItemId])
@@ -166,6 +175,7 @@ model Transaction {
   property            Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   debtId              String?           // R5.8: Link payment transactions to a debt
   debt                Debt?             @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  splits              TransactionSplit[]
 
   @@index([userId, date])
   @@index([userId, categoryId])
@@ -347,10 +357,115 @@ model Property {
   type         PropertyType  @default(PERSONAL)
   isDefault    Boolean       @default(false)
   createdAt    DateTime      @default(now())
-  transactions Transaction[]
-  debts        Debt[]
+  updatedAt    DateTime      @default(now()) @updatedAt
+
+  // Address fields
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+
+  // Tax schedule (auto-set based on type: PERSONAL→SCHEDULE_A, RENTAL→SCHEDULE_E, BUSINESS→SCHEDULE_C)
+  taxSchedule  TaxSchedule?
+
+  // Depreciation tracking (primarily for RENTAL properties)
+  purchasePrice      Decimal?  @db.Decimal(12, 2)
+  purchaseDate       DateTime?
+  buildingValuePct   Decimal?  @db.Decimal(5, 2)  // e.g. 80.00 means 80% of purchase price is building
+  priorDepreciation  Decimal?  @db.Decimal(12, 2)
+
+  // Property group membership
+  groupId      String?
+  group        PropertyGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  splitPct     Decimal?      @db.Decimal(5, 2)  // Default allocation % within the group (0.00-100.00)
+
+  // Existing relationships
+  transactions      Transaction[]
+  debts             Debt[]
+  accountLinks      AccountPropertyLink[]
+  splitAllocations  SplitRule[]
+  transactionSplits TransactionSplit[] @relation("TransactionSplitProperty")
+  categoryMappings  UserCategoryMapping[]
 
   @@index([userId])
+  @@index([groupId])
+}
+
+// ─── Property Groups & Transaction Splits ────────────────────────────────────
+
+model PropertyGroup {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  properties  Property[]
+  splitRules  SplitRule[]
+  matchRules  SplitMatchRule[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model SplitRule {
+  id              String   @id @default(cuid())
+  propertyGroupId String
+  propertyGroup   PropertyGroup @relation(fields: [propertyGroupId], references: [id], onDelete: Cascade)
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  allocationPct   Decimal  @db.Decimal(5, 2)  // 0.00-100.00 — all rules in a group must sum to 100
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  @@unique([propertyGroupId, propertyId])
+  @@index([propertyGroupId])
+  @@index([propertyId])
+}
+
+model SplitMatchRule {
+  id              String        @id @default(cuid())
+  propertyGroupId String
+  propertyGroup   PropertyGroup @relation(fields: [propertyGroupId], references: [id], onDelete: Cascade)
+  name            String
+  matchField      String        // "merchant" | "category" | "description"
+  matchPattern    String
+  allocations     Json          // Array<{ propertyId: string; percentage: number }>
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  @@unique([propertyGroupId, name])
+  @@index([propertyGroupId])
+}
+
+model TransactionSplit {
+  id            String   @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  propertyId    String
+  property      Property @relation("TransactionSplitProperty", fields: [propertyId], references: [id], onDelete: Cascade)
+  amount        Float    // Allocated portion of the parent transaction
+  createdAt     DateTime @default(now())
+
+  @@unique([transactionId, propertyId])
+  @@index([transactionId])
+  @@index([propertyId])
+}
+
+model AccountPropertyLink {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([accountId, propertyId])
+  @@index([accountId])
+  @@index([propertyId])
 }
 
 // ─── Smart Category Learning ─────────────────────────────────────────────────
@@ -369,11 +484,14 @@ model UserCategoryMapping {
   amountMin    Float?   // Minimum amount range — null means no floor
   amountMax    Float?   // Maximum amount range — null means no ceiling
   descKeywords String?  // Comma-separated keywords from description — null means ignore
+  propertyId   String?  // Optional: scope mapping to a specific property
+  property     Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@unique([userId, merchantName, direction, categoryId])
   @@index([userId])
+  @@index([propertyId])
 }
 
 // ─── Debts ──────────────────────────────────────────────────────────────────

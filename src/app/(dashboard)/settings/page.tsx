@@ -10,7 +10,7 @@ export default async function SettingsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [user, householdMembers, properties] = await Promise.all([
+  const [user, householdMembers, properties, accounts] = await Promise.all([
     db.user.findUnique({
       where: { id: session.userId },
       select: { id: true, name: true, email: true, createdAt: true },
@@ -25,6 +25,11 @@ export default async function SettingsPage() {
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
       select: { id: true, name: true, type: true, isDefault: true },
     }),
+    db.account.findMany({
+      where: { userId: session.userId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, type: true },
+    }),
   ])
 
   if (!user) redirect('/login')
@@ -36,6 +41,7 @@ export default async function SettingsPage() {
         user={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
         initialMembers={householdMembers}
         initialProperties={properties}
+        initialAccounts={accounts}
       />
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
@@ -30,6 +30,13 @@ interface PropertyOption {
   isDefault: boolean
 }
 
+interface SplitRow {
+  id: string
+  propertyId: string
+  amount: number
+  property: { id: string; name: string; taxSchedule: string | null } | null
+}
+
 interface TransactionRow {
   id: string
   date: string
@@ -46,6 +53,7 @@ interface TransactionRow {
   property: { id: string; name: string } | null
   classification?: string
   annualExpenseId?: string | null
+  splits?: SplitRow[]
 }
 
 interface Props {
@@ -110,6 +118,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   // Bulk delete confirmation state
   const [showBulkDelete, setShowBulkDelete] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+
+  // Split sub-row expansion state
+  const [expandedSplitId, setExpandedSplitId] = useState<string | null>(null)
 
   const merchantRef = useRef<HTMLInputElement>(null)
 
@@ -666,8 +677,8 @@ export default function TransactionList({ transactions: initial, categories, acc
                   </td>
                 </tr>
               ) : (
+                <React.Fragment key={tx.id}>
                 <tr
-                  key={tx.id}
                   className={`cursor-pointer hover:bg-snow ${selected.has(tx.id) ? 'bg-fjord/5' : ''}`}
                   onClick={() => startEdit(tx)}
                 >
@@ -686,6 +697,15 @@ export default function TransactionList({ transactions: initial, categories, acc
                       <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-birch">
                         Refunded
                       </span>
+                    )}
+                    {tx.splits && tx.splits.length > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setExpandedSplitId(expandedSplitId === tx.id ? null : tx.id) }}
+                        className="ml-1.5 rounded-badge bg-pine/10 border border-pine/30 px-1.5 py-0.5 text-[10px] font-medium text-pine hover:bg-pine/20"
+                        title="View split allocations"
+                      >
+                        Split {tx.splits.length}
+                      </button>
                     )}
                   </td>
                   <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
@@ -710,6 +730,34 @@ export default function TransactionList({ transactions: initial, categories, acc
                     </button>
                   </td>
                 </tr>
+                {/* Split sub-rows */}
+                {expandedSplitId === tx.id && tx.splits && tx.splits.length > 0 && (
+                  tx.splits.map((split) => {
+                    const pct = tx.amount !== 0 ? Math.abs((split.amount / tx.amount) * 100) : 0
+                    const isTaxDeductible = split.property?.taxSchedule === 'SCHEDULE_E' || split.property?.taxSchedule === 'SCHEDULE_C'
+                    return (
+                      <tr key={split.id} className="bg-frost/50 border-t border-mist/50">
+                        <td className="px-3 py-2" />
+                        <td className="px-4 py-2" />
+                        <td className="px-4 py-2 pl-8 text-xs text-stone" colSpan={2 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)}>
+                          <span className="font-medium text-fjord">{split.property?.name ?? 'Unknown'}</span>
+                          <span className="ml-2 text-stone">{pct.toFixed(1)}%</span>
+                          {isTaxDeductible && (
+                            <span className="ml-1.5 rounded-badge bg-pine/10 border border-pine/30 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                              Tax
+                            </span>
+                          )}
+                        </td>
+                        <td className={`whitespace-nowrap px-4 py-2 text-right text-xs font-medium ${split.amount < 0 ? 'text-expense' : split.amount > 0 ? 'text-income' : 'text-transfer'}`}>
+                          {split.amount < 0 ? '−' : '+'}
+                          {formatCurrency(Math.abs(split.amount))}
+                        </td>
+                        <td className="px-4 py-2" />
+                      </tr>
+                    )
+                  })
+                )}
+                </React.Fragment>
               )
             )}
           </tbody>

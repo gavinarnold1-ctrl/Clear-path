@@ -10,7 +10,7 @@ export default async function NewTransactionPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [accounts, categories, householdMembers, properties] = await Promise.all([
+  const [accounts, categories, householdMembers, properties, propertyGroups] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId }, orderBy: { name: 'asc' } }),
     db.category.findMany({
       where: { OR: [{ userId: session.userId }, { userId: null, isDefault: true }], isActive: true },
@@ -24,7 +24,13 @@ export default async function NewTransactionPage() {
     db.property.findMany({
       where: { userId: session.userId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-      select: { id: true, name: true, isDefault: true },
+      select: { id: true, name: true, isDefault: true, groupId: true, splitPct: true, taxSchedule: true },
+    }),
+    db.propertyGroup.findMany({
+      where: { userId: session.userId },
+      include: {
+        properties: { select: { id: true, name: true, splitPct: true, taxSchedule: true } },
+      },
     }),
   ])
 
@@ -36,7 +42,24 @@ export default async function NewTransactionPage() {
           accounts={accounts}
           categories={categories}
           householdMembers={householdMembers}
-          properties={properties}
+          properties={properties.map(p => ({
+            id: p.id,
+            name: p.name,
+            isDefault: p.isDefault,
+            groupId: p.groupId,
+            splitPct: p.splitPct ? Number(p.splitPct) : null,
+            taxSchedule: p.taxSchedule,
+          }))}
+          propertyGroups={propertyGroups.map(g => ({
+            id: g.id,
+            name: g.name,
+            properties: g.properties.map(p => ({
+              id: p.id,
+              name: p.name,
+              splitPct: p.splitPct ? Number(p.splitPct) : null,
+              taxSchedule: p.taxSchedule,
+            })),
+          }))}
         />
       </div>
     </div>

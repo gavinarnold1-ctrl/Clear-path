@@ -6,6 +6,7 @@ import { parseCSV, transformRows } from '@/lib/csv-parser'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 import { inferCategoryGroup, classifyTransaction } from '@/lib/category-groups'
+import { applyPropertyAttribution } from '@/lib/apply-splits'
 /** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
 function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
   const lower = name.toLowerCase()
@@ -175,6 +176,12 @@ export async function POST(request: Request) {
     })
     const propertyMap = new Map(userProperties.map((p) => [p.name.toLowerCase(), p]))
 
+    // Load account-property links for auto-property resolution
+    const acctPropLinks = await db.accountPropertyLink.findMany({
+      where: { account: { userId: session.userId } },
+    })
+    const acctPropertyMap = new Map(acctPropLinks.map(l => [l.accountId, l.propertyId]))
+
     // Smart Category Learning v2: Load user's explicit category mappings with multi-signal context
     const userMappings = await db.userCategoryMapping.findMany({
       where: { userId: session.userId },
@@ -336,6 +343,7 @@ export async function POST(request: Request) {
       // 4. Merchant history (most-frequent category for this merchant)
       // 5. Auto-create category from CSV name
       let categoryId: string | null = null
+      let learnedPropertyId: string | null = null
 
       // Step 1: Exact CSV category match
       if (tx.category && tx.category.trim() !== '') {
@@ -384,6 +392,10 @@ export async function POST(request: Request) {
           if (bestMapping && bestScore >= 0.7) {
             categoryId = bestMapping.categoryId
             mappingIdsToIncrement.push(bestMapping.id)
+            // Smart property learning: auto-apply property from mapping
+            if (bestMapping.propertyId) {
+              learnedPropertyId = bestMapping.propertyId
+            }
           }
         } else {
           // Fuzzy match: check for similar merchants (word overlap > 0.7)
@@ -395,6 +407,9 @@ export async function POST(request: Request) {
               if (selected && selected.confidence >= 0.7) {
                 categoryId = selected.categoryId
                 mappingIdsToIncrement.push(selected.id)
+                if (selected.propertyId) {
+                  learnedPropertyId = selected.propertyId
+                }
               }
               break
             }
@@ -533,6 +548,19 @@ export async function POST(request: Request) {
         }
       }
 
+      // Apply learned property from smart learning if CSV didn't specify one
+      if (!resolvedPropertyId && learnedPropertyId) {
+        resolvedPropertyId = learnedPropertyId
+      }
+
+      // Apply property from account-property link if still not set
+      if (!resolvedPropertyId && resolvedAccountId) {
+        const linkedPropertyId = acctPropertyMap.get(resolvedAccountId)
+        if (linkedPropertyId) {
+          resolvedPropertyId = linkedPropertyId
+        }
+      }
+
       // Normalize amount sign. Priority:
       //   1. transactionType ('credit'/'debit') — most reliable (Monarch CSV)
       //   2. CSV category name keywords ("income", "salary", etc.) — explicit user label
@@ -630,6 +658,33 @@ export async function POST(request: Request) {
       } catch {
         // Non-critical — don't fail the import
       }
+    }
+
+    // Auto-apply property attribution splits for imported transactions with a property
+    try {
+      const importedWithProperty = await db.transaction.findMany({
+        where: {
+          userId: session.userId,
+          propertyId: { not: null },
+          importSource: 'csv',
+          splits: { none: {} },
+        },
+        select: { id: true, propertyId: true, amount: true, merchant: true, originalStatement: true, category: { select: { name: true } } },
+        take: 1000,
+        orderBy: { createdAt: 'desc' },
+      })
+      for (const tx of importedWithProperty) {
+        await applyPropertyAttribution(
+          tx.id,
+          tx.propertyId,
+          tx.amount,
+          tx.merchant,
+          tx.category?.name,
+          tx.originalStatement
+        )
+      }
+    } catch {
+      // Non-critical — don't fail the import if split auto-apply fails
     }
 
     // Reconcile any previously-imported transactions whose category didn't match budgets

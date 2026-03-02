@@ -34,6 +34,10 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
+vi.mock('@/lib/apply-splits', () => ({
+  applyPropertyAttribution: vi.fn(),
+}))
+
 import { createTransaction, deleteTransaction } from '@/app/actions/transactions'
 import { getSession } from '@/lib/session'
 
@@ -61,6 +65,7 @@ describe('createTransaction', () => {
     vi.clearAllMocks()
     mockGetSession.mockResolvedValue({ userId: 'u1', email: 'a@b.com', name: null })
     mockCategoryFindUnique.mockResolvedValue(null)
+    mockTxCreate.mockResolvedValue({ id: 'tx-new' })
   })
 
   it('redirects to /login when no session', async () => {

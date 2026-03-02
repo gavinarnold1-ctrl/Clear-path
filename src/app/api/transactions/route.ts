@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
+import { applyPropertyAttribution } from '@/lib/apply-splits'
 import { createTransactionSchema, validateBody } from '@/lib/validation'
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
 const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
@@ -108,10 +109,22 @@ export async function POST(req: NextRequest) {
     if (!member) return NextResponse.json({ error: 'Household member not found' }, { status: 404 })
   }
 
+  // Auto-resolve property from account-property link if not explicitly set
+  let resolvedPropertyId = propertyId ?? null
+  if (!resolvedPropertyId && accountId) {
+    const link = await db.accountPropertyLink.findFirst({
+      where: { accountId },
+      select: { propertyId: true },
+    })
+    if (link) {
+      resolvedPropertyId = link.propertyId
+    }
+  }
+
   // Verify ownership of referenced propertyId
-  if (propertyId) {
+  if (resolvedPropertyId) {
     const property = await db.property.findFirst({
-      where: { id: propertyId, userId: session.userId },
+      where: { id: resolvedPropertyId, userId: session.userId },
     })
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
   }
@@ -137,7 +150,7 @@ export async function POST(req: NextRequest) {
         notes: notes ?? null,
         tags: tags ?? null,
         householdMemberId: resolvedMemberId,
-        propertyId: propertyId ?? null,
+        propertyId: resolvedPropertyId,
         debtId: debtId ?? null,
       },
       include: { account: true, category: true, householdMember: true, property: true, debt: true },
@@ -158,6 +171,17 @@ export async function POST(req: NextRequest) {
         data: { currentBalance: { decrement: Math.abs(created.amount) } },
       })
     }
+
+    // Auto-apply property attribution splits
+    await applyPropertyAttribution(
+      created.id,
+      created.propertyId,
+      created.amount,
+      created.merchant,
+      created.category?.name,
+      null,
+      tx
+    )
 
     return created
   })

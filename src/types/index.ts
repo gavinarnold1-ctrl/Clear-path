@@ -16,7 +16,7 @@ export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUST
 
 export type BudgetTier = 'FIXED' | 'FLEXIBLE' | 'ANNUAL'
 
-export type PropertyType = 'PERSONAL' | 'RENTAL'
+export type PropertyType = 'PERSONAL' | 'RENTAL' | 'BUSINESS'
 
 export type TransactionClassification = 'expense' | 'income' | 'transfer'
 
@@ -81,6 +81,15 @@ export interface Property {
   name: string
   type: PropertyType
   isDefault: boolean
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zipCode?: string | null
+  taxSchedule?: string | null
+  purchasePrice?: number | null
+  purchaseDate?: Date | null
+  buildingValuePct?: number | null
+  priorDepreciation?: number | null
   createdAt: Date
 }
 

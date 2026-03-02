@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { calculateDepreciation } from '@/lib/engines/tax'
 
 /**
  * Compute and store a MonthlySnapshot for a given user and month.
@@ -150,22 +151,103 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     personBreakdown = JSON.stringify(breakdown)
   }
 
-  // Property breakdown
+  // Enhanced property breakdown with income, expenses, depreciation, net
   let propertyBreakdown: string | null = null
-  if (propertySpending.length > 0) {
-    const propIds = propertySpending.map((p) => p.propertyId).filter((id): id is string => id !== null)
-    const props = await db.property.findMany({
-      where: { id: { in: propIds } },
-      select: { id: true, name: true },
+  const userProperties = await db.property.findMany({
+    where: { userId },
+    select: {
+      id: true, name: true, type: true,
+      purchasePrice: true, purchaseDate: true,
+      buildingValuePct: true, priorDepreciation: true,
+    },
+  })
+
+  if (userProperties.length > 0) {
+    // Get all property transactions this month (income + expenses)
+    const propertyTransactions = await db.transaction.findMany({
+      where: {
+        userId,
+        date: { gte: startDate, lte: endDate },
+        propertyId: { not: null },
+      },
+      select: { propertyId: true, amount: true, classification: true },
     })
-    const nameMap = new Map(props.map((p) => [p.id, p.name]))
-    const breakdown: Record<string, number> = {}
-    for (const p of propertySpending) {
-      if (p.propertyId) {
-        breakdown[nameMap.get(p.propertyId) ?? 'Unknown'] = Math.abs(p._sum.amount ?? 0)
+
+    // Get split allocations this month
+    const splitAllocations = await db.transactionSplit.findMany({
+      where: {
+        transaction: { userId, date: { gte: startDate, lte: endDate } },
+      },
+      select: {
+        propertyId: true, amount: true,
+        transaction: { select: { classification: true } },
+      },
+    })
+
+    const propEntries: Array<{
+      id: string; name: string; type: string
+      income: number; expenses: number; depreciation: number; netIncome: number
+      splitTransactions: number; directTransactions: number
+    }> = []
+
+    for (const prop of userProperties) {
+      const directTxs = propertyTransactions.filter((t) => t.propertyId === prop.id)
+      const propSplits = splitAllocations.filter((s) => s.propertyId === prop.id)
+
+      let income = 0
+      let expenses = 0
+      for (const tx of directTxs) {
+        if (tx.classification === 'income' || tx.amount > 0) income += Math.abs(tx.amount)
+        else expenses += Math.abs(tx.amount)
       }
+      for (const s of propSplits) {
+        if (s.transaction.classification === 'income' || s.amount > 0) income += Math.abs(s.amount)
+        else expenses += Math.abs(s.amount)
+      }
+
+      if (income === 0 && expenses === 0 && prop.type === 'PERSONAL') continue
+
+      let depreciation = 0
+      if (prop.type === 'RENTAL' && prop.purchasePrice && prop.purchaseDate) {
+        const depResult = calculateDepreciation({
+          purchasePrice: Number(prop.purchasePrice),
+          purchaseDate: prop.purchaseDate,
+          buildingValuePct: Number(prop.buildingValuePct ?? 80),
+          priorDepreciation: Number(prop.priorDepreciation ?? 0),
+          asOfDate: endDate,
+        })
+        depreciation = depResult.monthlyDepreciation
+      }
+
+      propEntries.push({
+        id: prop.id,
+        name: prop.name,
+        type: prop.type,
+        income: Math.round(income * 100) / 100,
+        expenses: Math.round(expenses * 100) / 100,
+        depreciation: Math.round(depreciation * 100) / 100,
+        netIncome: Math.round((income - expenses - depreciation) * 100) / 100,
+        splitTransactions: propSplits.length,
+        directTransactions: directTxs.length,
+      })
     }
-    propertyBreakdown = JSON.stringify(breakdown)
+
+    if (propEntries.length > 0) {
+      const totalRentalNet = propEntries
+        .filter((p) => p.type === 'RENTAL')
+        .reduce((s, p) => s + p.netIncome, 0)
+      const totalBusinessNet = propEntries
+        .filter((p) => p.type === 'BUSINESS')
+        .reduce((s, p) => s + p.netIncome, 0)
+      const totalDepr = propEntries.reduce((s, p) => s + p.depreciation, 0)
+
+      propertyBreakdown = JSON.stringify({
+        properties: propEntries,
+        totalRentalNet: Math.round(totalRentalNet * 100) / 100,
+        totalBusinessNet: Math.round(totalBusinessNet * 100) / 100,
+        totalDepreciation: Math.round(totalDepr * 100) / 100,
+      })
+    }
   }
 
   const snapshotMonth = new Date(year, month - 1, 1)

@@ -30,7 +30,16 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
     db.transaction.findMany({
       where: { userId: session.userId },
-      include: { account: true, category: true, householdMember: true, property: true },
+      include: {
+        account: true,
+        category: true,
+        householdMember: true,
+        property: true,
+        splits: {
+          include: { property: { select: { id: true, name: true, taxSchedule: true } } },
+          orderBy: { amount: 'desc' },
+        },
+      },
       orderBy: { date: 'desc' },
     }),
     db.category.findMany({
@@ -80,6 +89,12 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     property: tx.property ? { id: tx.property.id, name: tx.property.name } : null,
     classification: tx.classification,
     annualExpenseId: tx.annualExpenseId,
+    splits: tx.splits.map(s => ({
+      id: s.id,
+      propertyId: s.propertyId,
+      amount: s.amount,
+      property: s.property ? { id: s.property.id, name: s.property.name, taxSchedule: s.property.taxSchedule } : null,
+    })),
   }))
 
   return (

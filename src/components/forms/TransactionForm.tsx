@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useActionState } from 'react'
 import Link from 'next/link'
 import { createTransaction } from '@/app/actions/transactions'
@@ -22,6 +23,15 @@ interface PropertyOption {
   id: string
   name: string
   isDefault: boolean
+  groupId?: string | null
+  splitPct?: number | null
+  taxSchedule?: string | null
+}
+
+interface PropertyGroupOption {
+  id: string
+  name: string
+  properties: Array<{ id: string; name: string; splitPct: number | null; taxSchedule: string | null }>
 }
 
 interface Props {
@@ -29,12 +39,13 @@ interface Props {
   categories: CategoryOption[]
   householdMembers?: HouseholdMemberOption[]
   properties?: PropertyOption[]
+  propertyGroups?: PropertyGroupOption[]
 }
 
 const initialState = { error: null }
 const today = new Date().toISOString().split('T')[0]
 
-export default function TransactionForm({ accounts, categories, householdMembers = [], properties = [] }: Props) {
+export default function TransactionForm({ accounts, categories, householdMembers = [], properties = [], propertyGroups = [] }: Props) {
   const [state, formAction, isPending] = useActionState(createTransaction, initialState)
 
   const incomeCategories = categories.filter((c) => c.type === 'income')
@@ -43,12 +54,60 @@ export default function TransactionForm({ accounts, categories, householdMembers
   const defaultMember = householdMembers.find(m => m.isDefault)
   const defaultProperty = properties.find(p => p.isDefault)
 
+  // Split toggle state
+  const [selectedPropertyId, setSelectedPropertyId] = useState(defaultProperty?.id ?? '')
+  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [splitAllocations, setSplitAllocations] = useState<Array<{ propertyId: string; percentage: number }>>([])
+  const [amountStr, setAmountStr] = useState('')
+
+  // Find if selected property belongs to a group
+  const selectedProp = properties.find(p => p.id === selectedPropertyId)
+  const groupForProperty = selectedProp?.groupId
+    ? propertyGroups.find(g => g.id === selectedProp.groupId)
+    : null
+
+  function handlePropertyChange(propId: string) {
+    setSelectedPropertyId(propId)
+    setSplitEnabled(false)
+    setSplitAllocations([])
+  }
+
+  function enableSplit() {
+    if (!groupForProperty) return
+    // Initialize allocations from group's default split percentages
+    const allocs = groupForProperty.properties.map(p => ({
+      propertyId: p.id,
+      percentage: p.splitPct ?? 0,
+    }))
+    setSplitAllocations(allocs)
+    setSplitEnabled(true)
+  }
+
+  function disableSplit() {
+    setSplitEnabled(false)
+    setSplitAllocations([])
+  }
+
+  function updateAllocation(propertyId: string, pct: number) {
+    setSplitAllocations(prev =>
+      prev.map(a => a.propertyId === propertyId ? { ...a, percentage: pct } : a)
+    )
+  }
+
+  const totalPct = splitAllocations.reduce((sum, a) => sum + a.percentage, 0)
+  const parsedAmount = parseFloat(amountStr) || 0
+
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
         <p className="rounded-lg bg-ember/10 p-3 text-sm text-ember" role="alert">
           {state.error}
         </p>
+      )}
+
+      {/* Hidden field for split data */}
+      {splitEnabled && splitAllocations.length > 0 && (
+        <input type="hidden" name="splitAllocations" value={JSON.stringify(splitAllocations)} />
       )}
 
       {/* Amount */}
@@ -69,6 +128,8 @@ export default function TransactionForm({ accounts, categories, householdMembers
             className="input pl-7"
             placeholder="0.00"
             required
+            value={amountStr}
+            onChange={(e) => setAmountStr(e.target.value)}
           />
         </div>
         <p className="mt-1 text-xs text-stone">Enter a positive amount (minimum $0.01). The sign is set automatically by category.</p>
@@ -172,7 +233,8 @@ export default function TransactionForm({ accounts, categories, householdMembers
             id="propertyId"
             name="propertyId"
             className="input"
-            defaultValue={defaultProperty?.id ?? ''}
+            value={selectedPropertyId}
+            onChange={(e) => handlePropertyChange(e.target.value)}
           >
             <option value="">No property</option>
             {properties.map((p) => (
@@ -181,6 +243,81 @@ export default function TransactionForm({ accounts, categories, householdMembers
               </option>
             ))}
           </select>
+
+          {/* Split toggle — shown when selected property belongs to a group */}
+          {groupForProperty && (
+            <div className="mt-3 rounded-lg border border-pine/20 bg-pine/5 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-fjord">Split across group</p>
+                  <p className="text-xs text-stone">
+                    {groupForProperty.name} — {groupForProperty.properties.length} properties
+                  </p>
+                </div>
+                {!splitEnabled ? (
+                  <button
+                    type="button"
+                    onClick={enableSplit}
+                    className="rounded-button bg-pine/10 border border-pine/30 px-3 py-1 text-xs font-medium text-pine hover:bg-pine/20"
+                  >
+                    Enable Split
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={disableSplit}
+                    className="rounded-button bg-ember/10 border border-ember/30 px-3 py-1 text-xs font-medium text-ember hover:bg-ember/20"
+                  >
+                    Disable Split
+                  </button>
+                )}
+              </div>
+
+              {splitEnabled && (
+                <div className="mt-3 space-y-2">
+                  {splitAllocations.map((alloc) => {
+                    const prop = groupForProperty.properties.find(p => p.id === alloc.propertyId)
+                    const allocAmount = parsedAmount > 0 ? (parsedAmount * alloc.percentage / 100) : 0
+                    const isTaxDeductible = prop?.taxSchedule === 'SCHEDULE_E' || prop?.taxSchedule === 'SCHEDULE_C'
+                    return (
+                      <div key={alloc.propertyId} className="flex items-center gap-2">
+                        <span className="flex-1 text-sm text-fjord">
+                          {prop?.name ?? 'Unknown'}
+                          {isTaxDeductible && (
+                            <span className="ml-1 rounded-badge bg-pine/10 border border-pine/30 px-1 py-0.5 text-[10px] font-medium text-pine">
+                              Tax
+                            </span>
+                          )}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={alloc.percentage}
+                          onChange={(e) => updateAllocation(alloc.propertyId, parseFloat(e.target.value) || 0)}
+                          className="input w-20 text-right text-sm"
+                        />
+                        <span className="text-xs text-stone">%</span>
+                        {parsedAmount > 0 && (
+                          <span className="w-20 text-right text-xs font-mono text-stone">
+                            ${allocAmount.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <div className="flex items-center justify-between border-t border-pine/20 pt-2">
+                    <span className="text-xs font-medium text-fjord">Total</span>
+                    <span className={`text-xs font-medium ${Math.abs(totalPct - 100) < 0.01 ? 'text-pine' : 'text-ember'}`}>
+                      {totalPct.toFixed(1)}%
+                      {Math.abs(totalPct - 100) >= 0.01 && ' (must be 100%)'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

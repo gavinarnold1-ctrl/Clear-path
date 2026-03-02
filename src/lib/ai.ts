@@ -14,6 +14,7 @@ export interface InsightGenerationContext {
   velocity?: SpendingVelocity
   budget?: BudgetContext
   history?: InsightHistory
+  entitySummary?: string
 }
 
 function sanitizeForPrompt(value: string): string {
@@ -201,6 +202,13 @@ USER HISTORY:
     if (history.previousInsightTitles.length > 0) {
       userPrompt += `\n- DO NOT repeat these titles: ${history.previousInsightTitles.slice(0, 15).join(' | ')}`
     }
+  }
+
+  if (ctx.entitySummary) {
+    userPrompt += `
+
+PROPERTY/BUSINESS SUMMARY:
+${ctx.entitySummary}`
   }
 
   userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'
