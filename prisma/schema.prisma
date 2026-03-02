@@ -1,4 +1,4 @@
-// Prisma schema for Clear-path budgeting app
+// Prisma schema for Oversikt budgeting app
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -60,6 +60,7 @@ model User {
   name                String?
   password            String // hashed — never store plaintext
   refreshTokenVersion Int      @default(0) // Incremented on refresh token rotation to invalidate old tokens
+  tosAcceptedAt       DateTime? // Timestamp when user accepted Terms of Service and Privacy Policy
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

@@ -297,7 +297,7 @@ npm run test:coverage  # Coverage report
 
 ### Authentication
 
-- JWT-based sessions stored in an `httpOnly` cookie (`clear-path-session`).
+- JWT-based sessions stored in an `httpOnly` cookie (`oversikt-session`).
 - `src/lib/jwt.ts` handles sign / verify using `jose` (Edge-compatible, no Node.js built-ins).
 - `src/lib/session.ts` provides `getSession()`, `setSession()`, `clearSession()` helpers for Server Components and Route Handlers.
 - `middleware.ts` guards protected routes (`/dashboard`, `/insights`, `/transactions`, `/budgets`, `/accounts`, `/categories`, `/spending`, `/onboarding`, `/debts`) and redirects unauthenticated users to `/login`.

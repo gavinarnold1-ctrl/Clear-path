@@ -117,10 +117,10 @@ async function seedCategories(userId: string) {
 async function main() {
   // Create a demo user (password would be hashed in production)
   const user = await db.user.upsert({
-    where: { email: 'demo@clear-path.app' },
+    where: { email: 'demo@oversikt.app' },
     update: {},
     create: {
-      email: 'demo@clear-path.app',
+      email: 'demo@oversikt.app',
       name: 'Demo User',
       password: 'hashed-password-placeholder',
     },
@@ -298,7 +298,7 @@ async function main() {
   await seedTaxRules(db)
   await seedBenchmarks(db)
 
-  console.log('Seed complete. Demo user: demo@clear-path.app')
+  console.log('Seed complete. Demo user: demo@oversikt.app')
 }
 
 main()

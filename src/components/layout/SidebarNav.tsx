@@ -146,6 +146,13 @@ export default function SidebarNav({ navGroups, userName, userEmail, logoutActio
               Sign out
             </button>
           </form>
+          <div className="flex gap-2 px-1 text-[10px] text-snow/30">
+            <Link href="/security" className="hover:text-snow/60">Security</Link>
+            <span>&middot;</span>
+            <Link href="/privacy" className="hover:text-snow/60">Privacy</Link>
+            <span>&middot;</span>
+            <Link href="/terms" className="hover:text-snow/60">Terms</Link>
+          </div>
         </div>
       </aside>
     </>

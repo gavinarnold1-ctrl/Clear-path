@@ -107,9 +107,14 @@ describe('register', () => {
     expect(result.error).toContain('8 characters')
   })
 
+  it('returns error when TOS is not accepted', async () => {
+    const result = await register({ error: null }, fd({ email: 'a@b.com', name: 'Alice', password: 'password123' }))
+    expect(result.error).toContain('Terms of Service')
+  })
+
   it('returns error when email already exists', async () => {
     mockUser.findUnique.mockResolvedValue({ id: '1' })
-    const result = await register({ error: null }, fd({ email: 'a@b.com', name: 'Alice', password: 'password123' }))
+    const result = await register({ error: null }, fd({ email: 'a@b.com', name: 'Alice', password: 'password123', tos: 'on' }))
     expect(result.error).toContain('Unable to create account')
   })
 
@@ -119,7 +124,7 @@ describe('register', () => {
     mockSetSession.mockResolvedValue(undefined)
 
     await expect(
-      register({ error: null }, fd({ email: 'new@b.com', name: 'Bob', password: 'password123' }))
+      register({ error: null }, fd({ email: 'new@b.com', name: 'Bob', password: 'password123', tos: 'on' }))
     ).rejects.toThrow('NEXT_REDIRECT:/onboarding')
     expect(mockUser.create).toHaveBeenCalled()
     expect(mockSetSession).toHaveBeenCalledWith({ userId: 'new-id', email: 'new@b.com', name: 'Bob' }, 0)
@@ -131,7 +136,7 @@ describe('register', () => {
     mockSetSession.mockResolvedValue(undefined)
 
     await expect(
-      register({ error: null }, fd({ email: 'x@b.com', name: '', password: 'password123' }))
+      register({ error: null }, fd({ email: 'x@b.com', name: '', password: 'password123', tos: 'on' }))
     ).rejects.toThrow('NEXT_REDIRECT:/onboarding')
 
     const createCall = mockUser.create.mock.calls[0][0]

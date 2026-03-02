@@ -3,8 +3,8 @@
  * Do NOT import this file from middleware — use src/lib/jwt.ts directly there.
  *
  * Uses two HttpOnly cookies:
- * - clear-path-session: access token (1h), used for authentication
- * - clear-path-refresh: refresh token (7d), used to obtain new access tokens
+ * - oversikt-session: access token (1h), used for authentication
+ * - oversikt-refresh: refresh token (7d), used to obtain new access tokens
  * Both use SameSite=Strict for CSRF protection.
  */
 import { cookies } from 'next/headers'
