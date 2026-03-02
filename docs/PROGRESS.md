@@ -795,8 +795,39 @@ The user's goal drives AI to generate a personalized starter budget set using re
 
 | Step | Description | Status | Effort |
 |------|-------------|--------|--------|
-| 1 | **Schema + Quiz Redesign** — Add `incomeRange`, `goalSetAt`, `previousGoals` to UserProfile. Rewrite OnboardingWizard from 6 steps to 3 (Goal → Household → Income Range). Update `saveOnboardingStep` and `completeOnboarding`. | ⬜ TODO | S |
+| 1 | **Schema + Quiz Redesign** — Add `incomeRange`, `goalSetAt`, `previousGoals` to UserProfile. Rewrite OnboardingWizard from 6 steps to 3 (Goal → Household → Income Range). Update `saveOnboardingStep` and `completeOnboarding`. | ✅ Done | S |
 | 2 | **AI Budget Builder API** — New `/api/budgets/ai-builder` endpoint. Build context from transactions + benchmarks + goal. Claude prompt for budget proposals. Accept endpoint for batch creation. | ⬜ TODO | M |
+
+### Step 1 — Schema + Quiz Redesign (2026-03-02)
+
+**Types** (`src/types/index.ts`):
+- `PrimaryGoal` replaced: `debt_payoff`/`emergency_savings`/`major_purchase`/`invest`/`organize` → `save_more`/`spend_smarter`/`pay_off_debt`/`gain_visibility`/`build_wealth`
+- Added `IncomeRange` type with 6 brackets
+- Simplified `OnboardingAnswers` to 4 fields (primaryGoal, householdType, partnerName, incomeRange)
+- Removed `OnboardingAccountEntry`, `OnboardingPropertyEntry` interfaces
+
+**Schema** (`prisma/schema.prisma` — UserProfile):
+- Added: `incomeRange` (String?), `goalSetAt` (DateTime?), `previousGoals` (Json?)
+- Legacy fields kept: `hasRentalProperty`, `debtLevel`, `categoryMode` (no longer set during onboarding)
+- `onboardingStep` range changed from 0-6 to 0-3
+
+**OnboardingWizard** (`src/components/onboarding/OnboardingWizard.tsx`):
+- Rewritten from 597 → 246 lines, 6 steps → 3 steps
+- Step 1: Goal selection (5 goal cards with name + description)
+- Step 2: Household type (same options as before, partner name field when applicable)
+- Step 3: Income range (6 brackets, pre-fills `expectedMonthlyIncome` from midpoint)
+
+**Onboarding Actions** (`src/app/actions/onboarding.ts`):
+- `saveOnboardingStep`: only persists goal/household/incomeRange + partnerName in pendingSetup
+- `completeOnboarding`: sets `goalSetAt`, pre-fills `expectedMonthlyIncome`, removes category seeding and account/property creation
+- `getOnboardingState`: returns simplified 4-field answers
+
+**Other Updates**:
+- `OnboardingBanner.tsx`: step messages updated for 3-step flow
+- `seed-demo.ts`: `organize` → `gain_visibility`, step 6 → 3, added `incomeRange`/`goalSetAt`
+- `prisma/migrate-goals.ts`: migration script mapping old → new goal values for existing users
+
+**Tests**: 455/468 passing (13 pre-existing, 0 new failures). TypeScript: zero errors.
 | 3 | **Goal Threading — Insights** — Add `goalContext` to insight context builder. Update system prompt in `ai.ts` with goal-aware instructions. | ⬜ TODO | S |
 | 4 | **Goal Threading — True Remaining + Monthly Review** — Add goal subtext to True Remaining. Add goal metrics to monthly review generation. | ⬜ TODO | S |
 | 5 | **Goal Change Flow** — Settings UI for goal change. Goal history archiving. "Refresh suggestions" flow. AI-prompted goal shift detection. | ⬜ TODO | S |
