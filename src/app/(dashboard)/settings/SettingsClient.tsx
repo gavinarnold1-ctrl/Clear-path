@@ -14,6 +14,15 @@ interface Property {
   name: string
   type: string
   isDefault: boolean
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zipCode?: string | null
+  taxSchedule?: string | null
+  purchasePrice?: string | null
+  purchaseDate?: string | null
+  buildingValuePct?: string | null
+  priorDepreciation?: string | null
 }
 
 interface Props {
@@ -46,7 +55,16 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   // Properties state
   const [properties, setProperties] = useState(initialProperties)
   const [newPropName, setNewPropName] = useState('')
-  const [newPropType, setNewPropType] = useState<'PERSONAL' | 'RENTAL'>('PERSONAL')
+  const [newPropType, setNewPropType] = useState<'PERSONAL' | 'RENTAL' | 'BUSINESS'>('PERSONAL')
+  const [newPropAddress, setNewPropAddress] = useState('')
+  const [newPropCity, setNewPropCity] = useState('')
+  const [newPropState, setNewPropState] = useState('')
+  const [newPropZip, setNewPropZip] = useState('')
+  const [newPropPurchasePrice, setNewPropPurchasePrice] = useState('')
+  const [newPropPurchaseDate, setNewPropPurchaseDate] = useState('')
+  const [newPropBuildingPct, setNewPropBuildingPct] = useState('')
+  const [newPropPriorDepr, setNewPropPriorDepr] = useState('')
+  const [showPropDetails, setShowPropDetails] = useState(false)
   const [propSaving, setPropSaving] = useState(false)
   const [propMsg, setPropMsg] = useState<string | null>(null)
 
@@ -186,16 +204,39 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   }
 
   // ─── Properties ──────────────────────────────────────────────────────────
+  function resetPropForm() {
+    setNewPropName('')
+    setNewPropAddress('')
+    setNewPropCity('')
+    setNewPropState('')
+    setNewPropZip('')
+    setNewPropPurchasePrice('')
+    setNewPropPurchaseDate('')
+    setNewPropBuildingPct('')
+    setNewPropPriorDepr('')
+    setShowPropDetails(false)
+  }
+
   async function addProperty() {
     const trimmed = newPropName.trim()
     if (!trimmed || propSaving) return
     setPropSaving(true)
     setPropMsg(null)
     try {
+      const payload: Record<string, unknown> = { name: trimmed, type: newPropType }
+      if (newPropAddress.trim()) payload.address = newPropAddress.trim()
+      if (newPropCity.trim()) payload.city = newPropCity.trim()
+      if (newPropState.trim()) payload.state = newPropState.trim()
+      if (newPropZip.trim()) payload.zipCode = newPropZip.trim()
+      if (newPropPurchasePrice) payload.purchasePrice = parseFloat(newPropPurchasePrice)
+      if (newPropPurchaseDate) payload.purchaseDate = newPropPurchaseDate
+      if (newPropBuildingPct) payload.buildingValuePct = parseFloat(newPropBuildingPct)
+      if (newPropPriorDepr) payload.priorDepreciation = parseFloat(newPropPriorDepr)
+
       const res = await fetch('/api/properties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, type: newPropType }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -204,7 +245,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       }
       const prop = await res.json()
       setProperties((prev) => [...prev, prop])
-      setNewPropName('')
+      resetPropForm()
       router.refresh()
     } catch {
       setPropMsg('Network error.')
@@ -466,67 +507,189 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         </div>
       </section>
 
-      {/* R10.3: Properties */}
+      {/* R10.3: Properties & Entities */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Properties</h2>
+        <h2 className="mb-4 text-base font-semibold text-fjord">Properties &amp; Entities</h2>
         {properties.length === 0 ? (
           <p className="mb-3 text-sm text-stone">No properties yet.</p>
         ) : (
           <ul className="mb-4 space-y-2">
-            {properties.map((p) => (
-              <li key={p.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-fjord">{p.name}</span>
-                  <span className="rounded-badge bg-frost px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                    {p.type === 'RENTAL' ? 'Rental' : 'Personal'}
-                  </span>
-                  {p.isDefault && (
-                    <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">
-                      Default
-                    </span>
+            {properties.map((p) => {
+              const typeLabel = p.type === 'RENTAL' ? 'Rental' : p.type === 'BUSINESS' ? 'Business' : 'Personal'
+              const scheduleLabel = p.taxSchedule === 'SCHEDULE_E' ? 'Sch E' : p.taxSchedule === 'SCHEDULE_C' ? 'Sch C' : p.taxSchedule === 'SCHEDULE_A' ? 'Sch A' : null
+              return (
+                <li key={p.id} className="rounded-lg border border-mist bg-snow px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-fjord">{p.name}</span>
+                      <span className="rounded-badge bg-frost px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                        {typeLabel}
+                      </span>
+                      {scheduleLabel && (
+                        <span className="rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                          {scheduleLabel}
+                        </span>
+                      )}
+                      {p.isDefault && (
+                        <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!p.isDefault && (
+                        <button
+                          onClick={() => setDefaultProperty(p.id)}
+                          className="text-xs text-stone hover:text-fjord"
+                        >
+                          Set default
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteProperty(p.id)}
+                        className="text-xs text-stone hover:text-ember"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  {(p.address || p.city) && (
+                    <p className="mt-1 text-xs text-stone">
+                      {[p.address, p.city, p.state, p.zipCode].filter(Boolean).join(', ')}
+                    </p>
                   )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {!p.isDefault && (
-                    <button
-                      onClick={() => setDefaultProperty(p.id)}
-                      className="text-xs text-stone hover:text-fjord"
-                    >
-                      Set default
-                    </button>
-                  )}
-                  <button
-                    onClick={() => deleteProperty(p.id)}
-                    className="text-xs text-stone hover:text-ember"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         )}
         {propMsg && <p className="mb-2 text-sm text-expense">{propMsg}</p>}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newPropName}
-            onChange={(e) => setNewPropName(e.target.value)}
-            className="input flex-1 text-sm"
-            placeholder="Property name"
-            onKeyDown={(e) => e.key === 'Enter' && addProperty()}
-          />
-          <select
-            value={newPropType}
-            onChange={(e) => setNewPropType(e.target.value as 'PERSONAL' | 'RENTAL')}
-            className="input w-32 text-sm"
-          >
-            <option value="PERSONAL">Personal</option>
-            <option value="RENTAL">Rental</option>
-          </select>
-          <button onClick={addProperty} disabled={propSaving || !newPropName.trim()} className="btn-primary text-sm">
-            {propSaving ? 'Adding...' : 'Add'}
-          </button>
+
+        {/* Add property form */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newPropName}
+              onChange={(e) => setNewPropName(e.target.value)}
+              className="input flex-1 text-sm"
+              placeholder="Property / entity name"
+              onKeyDown={(e) => e.key === 'Enter' && !showPropDetails && addProperty()}
+            />
+            <select
+              value={newPropType}
+              onChange={(e) => setNewPropType(e.target.value as 'PERSONAL' | 'RENTAL' | 'BUSINESS')}
+              className="input w-32 text-sm"
+            >
+              <option value="PERSONAL">Personal</option>
+              <option value="RENTAL">Rental</option>
+              <option value="BUSINESS">Business</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowPropDetails(!showPropDetails)}
+              className="text-xs text-stone hover:text-fjord"
+              title={showPropDetails ? 'Hide details' : 'Show details'}
+            >
+              {showPropDetails ? 'Less' : 'More'}
+            </button>
+            <button onClick={addProperty} disabled={propSaving || !newPropName.trim()} className="btn-primary text-sm">
+              {propSaving ? 'Adding...' : 'Add'}
+            </button>
+          </div>
+
+          {showPropDetails && (
+            <div className="rounded-lg border border-mist bg-frost/30 p-3 space-y-3">
+              {/* Address fields */}
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-fjord">Address</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    value={newPropAddress}
+                    onChange={(e) => setNewPropAddress(e.target.value)}
+                    className="input text-sm"
+                    placeholder="Street address"
+                  />
+                  <input
+                    type="text"
+                    value={newPropCity}
+                    onChange={(e) => setNewPropCity(e.target.value)}
+                    className="input text-sm"
+                    placeholder="City"
+                  />
+                  <input
+                    type="text"
+                    value={newPropState}
+                    onChange={(e) => setNewPropState(e.target.value)}
+                    className="input text-sm"
+                    placeholder="State"
+                  />
+                  <input
+                    type="text"
+                    value={newPropZip}
+                    onChange={(e) => setNewPropZip(e.target.value)}
+                    className="input text-sm"
+                    placeholder="ZIP code"
+                  />
+                </div>
+              </div>
+
+              {/* Tax schedule auto-display */}
+              <div>
+                <p className="text-xs text-stone">
+                  Tax schedule:{' '}
+                  <span className="font-medium text-fjord">
+                    {newPropType === 'PERSONAL' ? 'Schedule A' : newPropType === 'RENTAL' ? 'Schedule E' : 'Schedule C'}
+                  </span>
+                  <span className="ml-1 text-[10px] text-stone">(auto-set from type)</span>
+                </p>
+              </div>
+
+              {/* Depreciation fields — shown for RENTAL */}
+              {newPropType === 'RENTAL' && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-fjord">Depreciation</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <input
+                      type="number"
+                      value={newPropPurchasePrice}
+                      onChange={(e) => setNewPropPurchasePrice(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Purchase price"
+                      min="0"
+                      step="0.01"
+                    />
+                    <input
+                      type="date"
+                      value={newPropPurchaseDate}
+                      onChange={(e) => setNewPropPurchaseDate(e.target.value)}
+                      className="input text-sm"
+                    />
+                    <input
+                      type="number"
+                      value={newPropBuildingPct}
+                      onChange={(e) => setNewPropBuildingPct(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Building value % (e.g. 80)"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                    <input
+                      type="number"
+                      value={newPropPriorDepr}
+                      onChange={(e) => setNewPropPriorDepr(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Prior depreciation"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
