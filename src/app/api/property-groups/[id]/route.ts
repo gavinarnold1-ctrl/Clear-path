@@ -15,6 +15,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         select: { id: true, propertyId: true, allocationPct: true },
         orderBy: { createdAt: 'asc' },
       },
+      matchRules: {
+        select: { id: true, name: true, matchField: true, matchPattern: true, allocations: true, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   })
 
@@ -64,6 +68,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         select: { id: true, propertyId: true, allocationPct: true },
         orderBy: { createdAt: 'asc' },
       },
+      matchRules: {
+        select: { id: true, name: true, matchField: true, matchPattern: true, allocations: true, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   })
 
@@ -80,13 +88,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Unlink properties from this group, delete split rules, then delete group
+  // Unlink properties from this group, delete split/match rules, then delete group
   await db.$transaction([
     db.property.updateMany({
       where: { groupId: id },
       data: { groupId: null, splitPct: null },
     }),
     db.splitRule.deleteMany({
+      where: { propertyGroupId: id },
+    }),
+    db.splitMatchRule.deleteMany({
       where: { propertyGroupId: id },
     }),
     db.propertyGroup.delete({ where: { id } }),

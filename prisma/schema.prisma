@@ -403,6 +403,7 @@ model PropertyGroup {
 
   properties  Property[]
   splitRules  SplitRule[]
+  matchRules  SplitMatchRule[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -421,6 +422,22 @@ model SplitRule {
   @@unique([propertyGroupId, propertyId])
   @@index([propertyGroupId])
   @@index([propertyId])
+}
+
+model SplitMatchRule {
+  id              String        @id @default(cuid())
+  propertyGroupId String
+  propertyGroup   PropertyGroup @relation(fields: [propertyGroupId], references: [id], onDelete: Cascade)
+  name            String
+  matchField      String        // "merchant" | "category" | "description"
+  matchPattern    String
+  allocations     Json          // Array<{ propertyId: string; percentage: number }>
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([propertyGroupId, name])
+  @@index([propertyGroupId])
 }
 
 model TransactionSplit {

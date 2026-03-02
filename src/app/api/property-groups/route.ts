@@ -14,6 +14,10 @@ export async function GET() {
         select: { id: true, propertyId: true, allocationPct: true },
         orderBy: { createdAt: 'asc' },
       },
+      matchRules: {
+        select: { id: true, name: true, matchField: true, matchPattern: true, allocations: true, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      },
     },
     orderBy: { name: 'asc' },
   })
@@ -55,6 +59,7 @@ export async function POST(req: NextRequest) {
     include: {
       properties: { select: { id: true, name: true, type: true, splitPct: true } },
       splitRules: { select: { id: true, propertyId: true, allocationPct: true } },
+      matchRules: { select: { id: true, name: true, matchField: true, matchPattern: true, allocations: true, isActive: true } },
     },
   })
 
