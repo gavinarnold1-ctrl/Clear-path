@@ -15,9 +15,11 @@ export async function register(prevState: AuthState, formData: FormData): Promis
   const name = (formData.get('name') as string)?.trim() || null
   const email = (formData.get('email') as string)?.trim().toLowerCase()
   const password = formData.get('password') as string
+  const tos = formData.get('tos')
 
   if (!email || !password) return { error: 'Email and password are required.' }
   if (password.length < 8) return { error: 'Password must be at least 8 characters.' }
+  if (!tos) return { error: 'You must accept the Terms of Service and Privacy Policy.' }
 
   const existing = await db.user.findUnique({ where: { email } })
   if (existing) return { error: 'Unable to create account. Please try again or sign in.' }
@@ -27,6 +29,7 @@ export async function register(prevState: AuthState, formData: FormData): Promis
       email,
       name,
       password: await hashPassword(password),
+      tosAcceptedAt: new Date(),
       profile: { create: {} }, // creates UserProfile with onboardingCompleted=false
     },
   })

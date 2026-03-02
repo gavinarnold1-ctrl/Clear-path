@@ -59,9 +59,10 @@ model User {
   email               String   @unique
   name                String?
   password            String // hashed — never store plaintext
-  refreshTokenVersion Int      @default(0) // Incremented on refresh token rotation to invalidate old tokens
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  refreshTokenVersion Int       @default(0) // Incremented on refresh token rotation to invalidate old tokens
+  tosAcceptedAt       DateTime? // Timestamp when user accepted Terms of Service
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   profile           UserProfile?
   accounts          Account[]

@@ -61,6 +61,26 @@ export default function RegisterForm() {
         />
       </div>
 
+      <div className="flex items-start gap-2">
+        <input
+          id="tos"
+          name="tos"
+          type="checkbox"
+          className="mt-1 h-4 w-4 rounded border-mist text-pine focus:ring-pine"
+          required
+        />
+        <label htmlFor="tos" className="text-sm text-stone">
+          I agree to the{' '}
+          <Link href="/terms" target="_blank" className="font-medium text-fjord hover:text-midnight">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" target="_blank" className="font-medium text-fjord hover:text-midnight">
+            Privacy Policy
+          </Link>
+        </label>
+      </div>
+
       <button type="submit" className="btn-primary w-full" disabled={isPending}>
         {isPending ? 'Creating account…' : 'Create account'}
       </button>

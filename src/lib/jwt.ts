@@ -7,8 +7,8 @@
  */
 import { SignJWT, jwtVerify } from 'jose'
 
-export const SESSION_COOKIE = 'clear-path-session'
-export const REFRESH_COOKIE = 'clear-path-refresh'
+export const SESSION_COOKIE = 'oversikt-session'
+export const REFRESH_COOKIE = 'oversikt-refresh'
 
 export interface SessionPayload {
   userId: string

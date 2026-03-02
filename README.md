@@ -1,4 +1,4 @@
-# Clear-path
+# oversikt
 
 A simple, honest budgeting app — track income and expenses, set budgets by category, and see where your money goes.
 
