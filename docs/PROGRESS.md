@@ -521,3 +521,106 @@ Requirements documented in `docs/briefs/uat-round3-fixes.md`.
 - Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
 - **Zero new failures** introduced
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Entity System — Steps 4-5 (2026-03-02)
+
+### Step 4: Depreciation + Tax Engine Extensions
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 4A | Depreciation Calculator | 🟢 Done | `src/lib/engines/tax.ts` |
+| 4B | Depreciation UI Helper | 🟢 Done | `src/app/(dashboard)/settings/SettingsClient.tsx` |
+| 4C | Schedule C Tax Support | 🟢 Done | `src/lib/engines/tax.ts`, `prisma/seed-tax-2025-2026.ts` |
+| 4D | Tax Summary Generator | 🟢 Done | `src/lib/engines/tax.ts` |
+
+#### 4A: Depreciation Calculator
+
+Added `calculateDepreciation()` to tax engine — IRS 27.5-year straight-line depreciation for residential rental property with mid-month convention.
+
+| Feature | Description |
+|---------|-------------|
+| Mid-month convention | First month prorated at 0.5 months per IRS rules |
+| Cap at building value | `totalDepreciation` never exceeds `purchasePrice × buildingValuePct` |
+| Prior depreciation | Subtracts user-entered prior depreciation from remaining basis |
+| Fully depreciated handling | When `depreciableMonths >= 330` (27.5 × 12), returns `buildingValue` directly to avoid floating-point drift |
+
+New interfaces: `DepreciationInput`, `DepreciationResult`
+
+#### 4B: Depreciation UI Helper
+
+Enhanced RENTAL property form in Settings with:
+- Building value % helper text ("Check county property assessment for land vs building split")
+- Prior depreciation helper text ("Enter total claimed before importing to oversikt")
+- Live depreciation preview grid: building value, annual/monthly depreciation, remaining basis, years remaining
+
+#### 4C: Schedule C Tax Support
+
+`TaxRuleInput.propertyType` extended to include `'business'`. Schedule C rules (8 expense types + QBI deduction) already seeded in `prisma/seed-tax-2025-2026.ts`.
+
+#### 4D: Tax Summary Generator
+
+Added `generateTaxSummary()` — aggregates TransactionSplit records and direct property attributions into Schedule A/E/C buckets.
+
+| Feature | Description |
+|---------|-------------|
+| Schedule routing | PERSONAL → SCHEDULE_A, RENTAL → SCHEDULE_E, BUSINESS → SCHEDULE_C |
+| Split + direct | Processes both split allocations and direct property-tagged transactions |
+| Depreciation included | Automatically calculates and includes depreciation for rental properties |
+| Per-schedule totals | Returns per-schedule entries with category, amount, property, and grand total |
+
+New interface: `TaxSummary`
+
+#### Tests (12 new)
+
+Created `tests/lib/tax-depreciation.test.ts`:
+- 7 depreciation tests: standard case, prior depreciation, cap at building value, first-year proration, 0% building, same-month purchase, annual cap
+- 5 tax summary tests: Schedule E aggregation, Schedule C aggregation, Schedule A deductions, mixed splits+direct, empty data
+- All 12 pass
+
+### Step 5: Entity Dashboard + Tax Report + AI Integration
+
+| Sub-step | Description | Status | Files |
+|----------|-------------|--------|-------|
+| 5A | Properties Dashboard Page | 🟢 Done | `src/app/(dashboard)/properties/page.tsx` (new) |
+| 5B | Tax Report View | 🟢 Done | `src/app/(dashboard)/properties/PropertiesClient.tsx` (new) |
+| 5C | AI Monthly Review Integration | 🟢 Done | `src/lib/entity-summary.ts` (new), `src/lib/ai.ts`, `src/lib/insights.ts` |
+| 5D | Monthly Snapshot Integration | 🟢 Done | `src/lib/snapshots.ts` |
+| 5E | Navigation Update | 🟢 Done | `src/app/(dashboard)/layout.tsx`, `middleware.ts` |
+
+#### 5A: Properties Dashboard Page
+
+New server component at `/properties` — fetches properties, direct transactions, split allocations for current month. Computes per-property income, expenses, depreciation, and net income. Shows "Add in Settings" card when no properties exist.
+
+#### 5B: Tax Report View
+
+New client component `PropertiesClient.tsx` with two tabs:
+- **Dashboard**: Entity cards (frost bg) showing income (pine), expenses (ember), depreciation (stone), net income per property. Summary row with total rental net, business net, and depreciation.
+- **Tax Report**: Schedule E, C, A sections with expense category tables. CSV export for CPA handoff (Schedule / Property / Category / Amount / Period columns).
+
+#### 5C: AI Monthly Review Integration
+
+Created `src/lib/entity-summary.ts` with `getEntitySummary(userId, year, month)` — queries properties, transactions, splits and returns a formatted string for the AI prompt. Added `entitySummary?: string` to `InsightGenerationContext` and `PROPERTY/BUSINESS SUMMARY:` section to the AI prompt. Integrated into `generateAndStoreInsights()` pipeline.
+
+#### 5D: Monthly Snapshot Integration
+
+Enhanced `snapshots.ts` property breakdown from simple expense totals to rich structure:
+- Per-property: income, expenses, depreciation, netIncome, splitTransactions, directTransactions
+- Totals: totalRentalNet, totalBusinessNet, totalDepreciation
+- Imported `calculateDepreciation` from tax engine for rental property depreciation
+
+#### 5E: Navigation Update
+
+- Converted static `navGroups` to `buildNavGroups(showProperties: boolean)` function
+- Properties nav item shown when: 2+ properties OR any BUSINESS type property
+- Added `/properties` to middleware PROTECTED routes array
+- Updated `src/types/index.ts`: `PropertyType` includes `'BUSINESS'`, added address/tax/depreciation fields
+
+### Test Results
+
+- **468 total tests**: 455 passed, 13 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: `t1-1` (1), `insights.test` (5), `t2-3` (3), `t1-8` (4)
+- **12 new depreciation/tax tests**: all pass
+- **Zero new failures** introduced
+- TypeScript: zero errors (`npx tsc --noEmit` clean)

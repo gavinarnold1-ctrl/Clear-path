@@ -1003,41 +1003,86 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-fjord">Depreciation</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input
-                      type="number"
-                      value={newPropPurchasePrice}
-                      onChange={(e) => setNewPropPurchasePrice(e.target.value)}
-                      className="input text-sm"
-                      placeholder="Purchase price"
-                      min="0"
-                      step="0.01"
-                    />
-                    <input
-                      type="date"
-                      value={newPropPurchaseDate}
-                      onChange={(e) => setNewPropPurchaseDate(e.target.value)}
-                      className="input text-sm"
-                    />
-                    <input
-                      type="number"
-                      value={newPropBuildingPct}
-                      onChange={(e) => setNewPropBuildingPct(e.target.value)}
-                      className="input text-sm"
-                      placeholder="Building value % (e.g. 80)"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                    />
-                    <input
-                      type="number"
-                      value={newPropPriorDepr}
-                      onChange={(e) => setNewPropPriorDepr(e.target.value)}
-                      className="input text-sm"
-                      placeholder="Prior depreciation"
-                      min="0"
-                      step="0.01"
-                    />
+                    <div>
+                      <input
+                        type="number"
+                        value={newPropPurchasePrice}
+                        onChange={(e) => setNewPropPurchasePrice(e.target.value)}
+                        className="input text-sm"
+                        placeholder="Purchase price"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="date"
+                        value={newPropPurchaseDate}
+                        onChange={(e) => setNewPropPurchaseDate(e.target.value)}
+                        className="input text-sm"
+                      />
+                      <p className="mt-0.5 text-[10px] text-stone">Date placed in service</p>
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        value={newPropBuildingPct}
+                        onChange={(e) => setNewPropBuildingPct(e.target.value)}
+                        className="input text-sm"
+                        placeholder="Building value % (default 80)"
+                        min="1"
+                        max="99"
+                        step="0.01"
+                      />
+                      <p className="mt-0.5 text-[10px] text-stone">
+                        Check your county&apos;s property tax assessment. If the building is assessed at $240K and land at $60K on a $300K property, your building percentage is 80%.
+                      </p>
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        value={newPropPriorDepr}
+                        onChange={(e) => setNewPropPriorDepr(e.target.value)}
+                        className="input text-sm"
+                        placeholder="Already claimed depreciation"
+                        min="0"
+                        step="0.01"
+                      />
+                      <p className="mt-0.5 text-[10px] text-stone">
+                        If you&apos;ve been depreciating this property on previous tax returns, enter the total depreciation already claimed. Find this on your last Schedule E or depreciation worksheet.
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Live depreciation preview */}
+                  {newPropPurchasePrice && newPropPurchaseDate && (() => {
+                    const price = parseFloat(newPropPurchasePrice)
+                    const bldgPct = newPropBuildingPct ? parseFloat(newPropBuildingPct) : 80
+                    const prior = newPropPriorDepr ? parseFloat(newPropPriorDepr) : 0
+                    if (!price || price <= 0 || bldgPct <= 0 || bldgPct > 100) return null
+                    const buildingValue = Math.round((price * bldgPct / 100) * 100) / 100
+                    const annual = Math.round((buildingValue / 27.5) * 100) / 100
+                    const monthly = Math.round((annual / 12) * 100) / 100
+                    const remaining = Math.max(0, buildingValue - prior)
+                    const yearsLeft = annual > 0 ? Math.round((remaining / annual) * 10) / 10 : 0
+                    return (
+                      <div className="mt-2 rounded-md border border-mist bg-snow p-2 text-xs text-stone">
+                        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-fjord">Depreciation Preview</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                          <span>Building value:</span>
+                          <span className="font-mono text-fjord">${buildingValue.toLocaleString()}</span>
+                          <span>Annual depreciation:</span>
+                          <span className="font-mono text-fjord">${annual.toLocaleString()}/yr</span>
+                          <span>Monthly depreciation:</span>
+                          <span className="font-mono text-fjord">${monthly.toLocaleString()}/mo</span>
+                          <span>Remaining basis:</span>
+                          <span className="font-mono text-fjord">${remaining.toLocaleString()}</span>
+                          <span>Years remaining:</span>
+                          <span className="font-mono text-fjord">{yearsLeft}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
