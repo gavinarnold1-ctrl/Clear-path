@@ -67,7 +67,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       />
 
       {/* Main content — Snow background */}
-      <main className="flex flex-1 flex-col overflow-y-auto bg-snow p-4 pt-16 md:p-8 md:pt-8">
+      <main className="flex-1 overflow-y-auto bg-snow p-4 pt-16 md:p-8 md:pt-8">
         {isDemo && (
           <div className="mb-4 flex items-center justify-between rounded-card bg-birch/30 px-4 py-2.5 text-sm text-midnight">
             <span>
@@ -78,14 +78,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             </Link>
           </div>
         )}
-        <div className="flex-1">{children}</div>
-        <footer className="mt-8 flex items-center justify-center gap-3 border-t border-mist py-4 text-xs text-stone">
-          <Link href="/privacy" className="hover:text-fjord">Privacy</Link>
-          <span>&middot;</span>
-          <Link href="/terms" className="hover:text-fjord">Terms</Link>
-          <span>&middot;</span>
-          <Link href="/security" className="hover:text-fjord">Security</Link>
-        </footer>
+        {children}
       </main>
     </div>
   )

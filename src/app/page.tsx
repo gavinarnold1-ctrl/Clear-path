@@ -35,17 +35,17 @@ export default function HomePage() {
 
           <p className="mt-8 text-xs text-snow/40">No credit card required.</p>
 
-          <div className="mt-4 flex items-center justify-center gap-3 text-xs text-snow/30">
-            <Link href="/privacy" className="hover:text-snow/60">
+          <div className="mt-4 flex items-center justify-center gap-3 text-xs">
+            <Link href="/security" className="text-snow/30 hover:text-snow/60">
+              Security
+            </Link>
+            <span className="text-snow/20">&middot;</span>
+            <Link href="/privacy" className="text-snow/30 hover:text-snow/60">
               Privacy
             </Link>
-            <span>&middot;</span>
-            <Link href="/terms" className="hover:text-snow/60">
+            <span className="text-snow/20">&middot;</span>
+            <Link href="/terms" className="text-snow/30 hover:text-snow/60">
               Terms
-            </Link>
-            <span>&middot;</span>
-            <Link href="/security" className="hover:text-snow/60">
-              Security
             </Link>
           </div>
         </div>

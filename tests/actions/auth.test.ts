@@ -107,7 +107,7 @@ describe('register', () => {
     expect(result.error).toContain('8 characters')
   })
 
-  it('returns error when TOS not accepted', async () => {
+  it('returns error when TOS is not accepted', async () => {
     const result = await register({ error: null }, fd({ email: 'a@b.com', name: 'Alice', password: 'password123' }))
     expect(result.error).toContain('Terms of Service')
   })

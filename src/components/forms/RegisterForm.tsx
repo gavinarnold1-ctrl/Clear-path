@@ -66,18 +66,28 @@ export default function RegisterForm() {
           id="tos"
           name="tos"
           type="checkbox"
-          className="mt-1 h-4 w-4 rounded border-mist text-pine focus:ring-pine"
+          className="mt-1 h-4 w-4 rounded-badge border-mist text-fjord accent-fjord focus:ring-fjord"
           required
         />
         <label htmlFor="tos" className="text-sm text-stone">
           I agree to the{' '}
-          <Link href="/terms" target="_blank" className="font-medium text-fjord hover:text-midnight">
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-fjord hover:text-midnight underline"
+          >
             Terms of Service
-          </Link>{' '}
+          </a>{' '}
           and{' '}
-          <Link href="/privacy" target="_blank" className="font-medium text-fjord hover:text-midnight">
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-fjord hover:text-midnight underline"
+          >
             Privacy Policy
-          </Link>
+          </a>
         </label>
       </div>
 
