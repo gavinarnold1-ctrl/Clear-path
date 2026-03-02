@@ -11,12 +11,7 @@ const EMPTY_ANSWERS: OnboardingAnswers = {
   primaryGoal: null,
   householdType: null,
   partnerName: null,
-  accounts: [],
-  hasRentalProperty: false,
-  rentalCount: 0,
-  properties: [],
-  debtLevel: null,
-  categoryMode: null,
+  incomeRange: null,
 }
 
 export default async function OnboardingPage() {

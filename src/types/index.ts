@@ -181,7 +181,9 @@ export interface Debt {
 
 // ─── Onboarding types ────────────────────────────────────────────────────────
 
-export type PrimaryGoal = 'debt_payoff' | 'emergency_savings' | 'major_purchase' | 'invest' | 'organize'
+export type PrimaryGoal = 'save_more' | 'spend_smarter' | 'pay_off_debt' | 'gain_visibility' | 'build_wealth'
+
+export type IncomeRange = 'under_50k' | '50k_100k' | '100k_150k' | '150k_200k' | '200k_300k' | 'over_300k'
 
 export type HouseholdType = 'single' | 'shared_partner' | 'separate_partner' | 'family'
 
@@ -189,31 +191,15 @@ export type DebtLevel = 'minimal' | 'credit_cards' | 'student_loans' | 'multiple
 
 export type CategoryMode = 'recommended' | 'custom' | 'import_match'
 
-export interface OnboardingAccountEntry {
-  name: string
-  type: AccountType
-}
-
-export interface OnboardingPropertyEntry {
-  name: string
-}
-
 export interface OnboardingPendingSetup {
   partnerName?: string
-  accounts: OnboardingAccountEntry[]
-  properties: OnboardingPropertyEntry[]
 }
 
 export interface OnboardingAnswers {
   primaryGoal: PrimaryGoal | null
   householdType: HouseholdType | null
   partnerName: string | null
-  accounts: OnboardingAccountEntry[]
-  hasRentalProperty: boolean
-  rentalCount: number
-  properties: OnboardingPropertyEntry[]
-  debtLevel: DebtLevel | null
-  categoryMode: CategoryMode | null
+  incomeRange: IncomeRange | null
 }
 
 // ─── API response shapes ──────────────────────────────────────────────────────

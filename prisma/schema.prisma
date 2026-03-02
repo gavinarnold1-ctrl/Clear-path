@@ -309,28 +309,29 @@ model UserProfile {
   // Onboarding state
   onboardingCompleted   Boolean   @default(false)
   onboardingCompletedAt DateTime?
-  onboardingStep        Int       @default(0) // 0-6: tracks how far the user got
+  onboardingStep        Int       @default(0) // 0-3: tracks how far the user got
 
   // Q1: Financial Goal
-  primaryGoal           String?   // "debt_payoff" | "emergency_savings" | "major_purchase" | "invest" | "organize"
+  primaryGoal           String?   // "save_more" | "spend_smarter" | "pay_off_debt" | "gain_visibility" | "build_wealth"
+  goalSetAt             DateTime? // When current goal was selected
+  previousGoals         Json?     // Array of {goal, setAt, changedAt} for goal change history
 
   // Q2: Household Structure
   householdType         String?   // "single" | "shared_partner" | "separate_partner" | "family"
 
-  // Q4: Rental Property
+  // Q3: Income Range
+  incomeRange           String?   // "under_50k" | "50k_100k" | "100k_150k" | "150k_200k" | "200k_300k" | "over_300k"
+
+  // Legacy fields (kept for backward compatibility, no longer set during onboarding)
   hasRentalProperty     Boolean   @default(false)
-
-  // Q5: Debt Snapshot
   debtLevel             String?   // "minimal" | "credit_cards" | "student_loans" | "multiple"
-
-  // Q6: Category Setup
   categoryMode          String?   // "recommended" | "custom" | "import_match"
 
   // Budget settings
   expectedMonthlyIncome Float?    // User-set expected monthly income for budgets page
 
   // In-progress answers not yet materialized into records (JSON)
-  pendingSetup          String?   // JSON: { partnerName?, accounts[], properties[] }
+  pendingSetup          String?   // JSON: { partnerName? }
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

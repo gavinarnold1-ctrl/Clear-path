@@ -4,12 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 
 const STEP_MESSAGES: Record<number, string> = {
-  0: 'Tell us about your goals so we can personalize your experience.',
+  0: 'Tell us about your financial goal so we can personalize your experience.',
   1: 'Set up your household for better tracking.',
-  2: 'Add your accounts so imports match automatically.',
-  3: 'Let us know about your property for tax-relevant categories.',
-  4: 'Share your debt situation for smarter recommendations.',
-  5: 'Choose how to organize your spending categories.',
+  2: 'Share your income range for personalized benchmarks.',
 }
 
 export default function OnboardingBanner({ step }: { step: number }) {
