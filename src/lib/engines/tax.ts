@@ -133,7 +133,7 @@ export function qbiDeduction(
   // Standard QBI deduction is 20% of qualified business income
   const baseDeduction = qualifiedIncome * 0.2
 
-  // Phase-out thresholds for 2024/2025
+  // Phase-out thresholds for 2025 (extended by OBBBA)
   const threshold = filingStatus === 'married_filing_jointly' ? 383900 : 191950
   const phaseOutEnd = filingStatus === 'married_filing_jointly' ? 483900 : 241950
 
@@ -177,23 +177,54 @@ export function calculateBracketTax(
 }
 
 /**
- * Calculate SALT deduction (state and local taxes), subject to $10K cap.
+ * Calculate SALT deduction (state and local taxes).
+ * OBBBA (July 2025) raised cap from $10K to $40K, with phase-out above $500K MAGI.
+ * Cap rises 1%/year: $40K (2025), $40,400 (2026).
  */
 export function saltDeduction(
   stateIncomeTax: number,
   propertyTax: number,
   filingStatus: string,
+  magi?: number,
+  taxYear: number = 2025,
 ): DeductionResult {
   const total = stateIncomeTax + propertyTax
-  const cap = filingStatus === 'married_filing_separately' ? 5000 : 10000
-  const amount = Math.min(total, cap)
+
+  // OBBBA SALT caps (1% annual increase)
+  const baseCap = taxYear >= 2026 ? 40400 : 40000
+  const cap = filingStatus === 'married_filing_separately' ? baseCap / 2 : baseCap
+  let amount = Math.min(total, cap)
+
+  // Phase-out: $500K-$600K MAGI ($250K-$300K MFS)
+  const phaseOutStart = filingStatus === 'married_filing_separately' ? 250000 : 500000
+  const phaseOutEnd = filingStatus === 'married_filing_separately' ? 300000 : 600000
+
+  let limitApplied: string | undefined
+  if (total > cap) {
+    limitApplied = `SALT cap $${cap.toLocaleString()}`
+  }
+
+  if (magi !== undefined && magi > phaseOutStart) {
+    if (magi >= phaseOutEnd) {
+      return {
+        eligible: false,
+        amount: 0,
+        form: 'Schedule A',
+        formLine: 'Line 5d',
+        limitApplied: `SALT phase-out complete at $${phaseOutEnd.toLocaleString()} MAGI`,
+      }
+    }
+    const reductionPct = (magi - phaseOutStart) / (phaseOutEnd - phaseOutStart)
+    amount = amount * (1 - reductionPct)
+    limitApplied = `SALT phase-out at $${phaseOutStart.toLocaleString()} MAGI`
+  }
 
   return {
     eligible: amount > 0,
     amount: Math.round(amount * 100) / 100,
     form: 'Schedule A',
     formLine: 'Line 5d',
-    limitApplied: total > cap ? `SALT cap $${cap.toLocaleString()}` : undefined,
+    limitApplied,
   }
 }
 
