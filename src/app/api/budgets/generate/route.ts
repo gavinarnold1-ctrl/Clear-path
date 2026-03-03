@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { analyzeSpendingProfile, generateBudgetProposal } from '@/lib/budget-builder'
+import { getGoalContext } from '@/lib/goal-context'
 
 export async function POST() {
   const session = await getSession()
@@ -8,7 +9,8 @@ export async function POST() {
 
   try {
     const profile = await analyzeSpendingProfile(session.userId)
-    const proposal = await generateBudgetProposal(profile)
+    const goalContext = await getGoalContext(session.userId)
+    const proposal = await generateBudgetProposal(profile, goalContext)
 
     return NextResponse.json({
       profile: {

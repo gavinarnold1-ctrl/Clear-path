@@ -3,6 +3,7 @@ import type { TransactionSummary, AIInsightResponse } from '@/types/insights'
 import type { TemporalContext, SpendingVelocity } from './temporal-context'
 import type { BudgetContext } from './budget-context'
 import type { InsightHistory } from './insight-history'
+import type { GoalContext } from './goal-context'
 import { OVERSIKT_VOICE } from './ai-voice'
 
 const anthropic = new Anthropic({
@@ -16,6 +17,7 @@ export interface InsightGenerationContext {
   budget?: BudgetContext
   history?: InsightHistory
   entitySummary?: string
+  goalContext?: GoalContext
 }
 
 function sanitizeForPrompt(value: string): string {
@@ -211,6 +213,15 @@ USER HISTORY:
 
 PROPERTY/BUSINESS SUMMARY:
 ${ctx.entitySummary}`
+  }
+
+  if (ctx.goalContext) {
+    userPrompt += `
+
+USER'S PRIMARY GOAL: ${ctx.goalContext.goalLabel}
+${ctx.goalContext.guidanceForAI}
+Set since: ${ctx.goalContext.goalSetAt?.toLocaleDateString() ?? 'unknown'}
+Frame all insights through this lens. The user chose this goal — respect it.`
   }
 
   userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'
