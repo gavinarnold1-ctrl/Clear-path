@@ -21,7 +21,7 @@ export default async function DebtsPage() {
     db.property.findMany({
       where: { userId: session.userId },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, type: true },
+      select: { id: true, name: true, type: true, taxSchedule: true },
     }),
     db.category.findMany({
       where: {
@@ -60,7 +60,7 @@ export default async function DebtsPage() {
       startDate: d.startDate?.toISOString() ?? null,
       propertyId: d.propertyId,
       categoryId: d.categoryId,
-      property: d.property ? { id: d.property.id, name: d.property.name } : null,
+      property: d.property ? { id: d.property.id, name: d.property.name, taxSchedule: d.property.taxSchedule } : null,
       category: d.category ? { id: d.category.id, name: d.category.name } : null,
       monthlyInterest: pi.monthlyInterest,
       monthlyPrincipal: pi.monthlyPrincipal,

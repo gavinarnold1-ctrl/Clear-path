@@ -158,6 +158,20 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
     }
   }, [linkToken, plaidReady, openPlaidLink])
 
+  // Plaid CDN timeout — if link token received but CDN never loads, show error
+  useEffect(() => {
+    if (linkToken && !plaidReady) {
+      const timeout = setTimeout(() => {
+        if (!plaidReady) {
+          setError('Unable to load bank connection. Please try again later.')
+          setPlaidLoading(false)
+          setLinkToken(null)
+        }
+      }, 15000)
+      return () => clearTimeout(timeout)
+    }
+  }, [linkToken, plaidReady])
+
   async function syncAccount(accountId: string) {
     setSyncingAccountId(accountId)
     setError(null)

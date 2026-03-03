@@ -130,6 +130,7 @@ export default function TransactionForm({ accounts, categories, householdMembers
             required
             value={amountStr}
             onChange={(e) => setAmountStr(e.target.value)}
+            onFocus={(e) => e.target.select()}
           />
         </div>
         <p className="mt-1 text-xs text-stone">Enter a positive amount (minimum $0.01). The sign is set automatically by category.</p>
@@ -318,6 +319,7 @@ export default function TransactionForm({ accounts, categories, householdMembers
                           step="0.01"
                           value={alloc.percentage}
                           onChange={(e) => updateAllocation(alloc.propertyId, parseFloat(e.target.value) || 0)}
+                          onFocus={(e) => e.target.select()}
                           className="input w-20 text-right text-sm"
                         />
                         <span className="text-xs text-stone">%</span>

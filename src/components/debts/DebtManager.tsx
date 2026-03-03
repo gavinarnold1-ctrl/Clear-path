@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
+import AmortizationTable from './AmortizationTable'
 
 interface PaymentRecord {
   id: string
@@ -25,7 +26,7 @@ interface DebtRow {
   startDate: string | null
   propertyId: string | null
   categoryId: string | null
-  property: { id: string; name: string } | null
+  property: { id: string; name: string; taxSchedule?: string | null } | null
   category: { id: string; name: string } | null
   monthlyInterest: number
   monthlyPrincipal: number
@@ -37,6 +38,7 @@ interface PropertyOption {
   id: string
   name: string
   type: string
+  taxSchedule?: string | null
 }
 
 interface CategoryOption {
@@ -71,6 +73,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showAmortization, setShowAmortization] = useState<string | null>(null)
 
   // Form state
   const [formName, setFormName] = useState('')
@@ -208,9 +211,21 @@ export default function DebtManager({ debts: initial, properties, categories }: 
       const updated = await res.json()
       // Recompute P&I fields client-side for immediate display
       const piPayment = updated.minimumPayment - (updated.escrowAmount ?? 0)
-      const monthlyInterest = updated.currentBalance * (updated.interestRate / 12)
+      const monthlyRate = updated.interestRate / 12
+      const monthlyInterest = updated.currentBalance * monthlyRate
       const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
-      const monthsRemaining = monthlyPrincipal > 0 ? Math.ceil(updated.currentBalance / monthlyPrincipal) : null
+
+      // Use amortization formula for months remaining (not linear division)
+      // n = -ln(1 - balance * r / P) / ln(1 + r)
+      let monthsRemaining: number | null = null
+      if (monthlyPrincipal > 0 && piPayment > monthlyInterest && updated.interestRate > 0) {
+        const fraction = 1 - (updated.currentBalance * monthlyRate) / piPayment
+        if (fraction > 0) {
+          monthsRemaining = Math.ceil(-Math.log(fraction) / Math.log(1 + monthlyRate))
+        }
+      } else if (monthlyPrincipal > 0 && updated.interestRate === 0) {
+        monthsRemaining = Math.ceil(updated.currentBalance / piPayment)
+      }
 
       setDebts(prev => prev.map(d => d.id === editingId ? {
         ...d,
@@ -225,7 +240,9 @@ export default function DebtManager({ debts: initial, properties, categories }: 
         termMonths: updated.termMonths ?? null,
         propertyId: updated.propertyId ?? null,
         categoryId: updated.categoryId ?? null,
-        property: updated.property ? { id: updated.property.id, name: updated.property.name } : null,
+        property: updated.property
+          ? { id: updated.property.id, name: updated.property.name, taxSchedule: updated.property.taxSchedule ?? null }
+          : null,
         category: updated.category ? { id: updated.category.id, name: updated.category.name } : null,
         monthlyInterest: Math.round(monthlyInterest * 100) / 100,
         monthlyPrincipal: Math.round(monthlyPrincipal * 100) / 100,
@@ -398,6 +415,52 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                       />
                     </div>
                   </div>
+                )}
+
+                {/* PITI: Tax-deductible info when debt linked to property */}
+                {debt.type === 'MORTGAGE' && debt.property?.taxSchedule && (
+                  <div className="mt-3 rounded-lg border border-mist bg-snow p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
+                      Tax-Deductible Breakdown
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-stone">
+                      <div className="flex justify-between">
+                        <span>Mortgage Interest:</span>
+                        <span className="text-fjord">{formatCurrency(debt.monthlyInterest)}/mo</span>
+                      </div>
+                      {(debt.escrowAmount ?? 0) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Escrow (taxes &amp; ins.):</span>
+                          <span className="text-fjord">{formatCurrency(debt.escrowAmount ?? 0)}/mo</span>
+                        </div>
+                      )}
+                      <div className="col-span-2 mt-1 text-xs text-pine">
+                        Tax-deductible ({debt.property.taxSchedule === 'SCHEDULE_E' ? 'Schedule E' : 'Schedule A'}): {formatCurrency(
+                          debt.monthlyInterest +
+                          (debt.property.taxSchedule === 'SCHEDULE_E' ? (debt.escrowAmount ?? 0) : 0)
+                        )}/mo
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Amortization schedule toggle */}
+                {debt.interestRate > 0 && debt.monthlyPrincipal > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowAmortization(showAmortization === debt.id ? null : debt.id)}
+                      className="mt-2 text-xs text-fjord hover:text-midnight"
+                    >
+                      {showAmortization === debt.id ? 'Hide' : 'View'} Amortization Schedule
+                    </button>
+                    {showAmortization === debt.id && (
+                      <AmortizationTable
+                        balance={debt.currentBalance}
+                        annualRate={debt.interestRate}
+                        monthlyPIPayment={debt.minimumPayment - (debt.escrowAmount ?? 0)}
+                      />
+                    )}
+                  </>
                 )}
 
                 {/* R5.8: Payment history */}

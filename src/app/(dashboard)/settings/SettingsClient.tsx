@@ -1166,6 +1166,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                       type="number"
                                       value={p.splitPct ?? ''}
                                       onChange={(e) => updatePropertySplitPct(group.id, p.id, e.target.value)}
+                                      onFocus={(e) => e.target.select()}
                                       className="input w-20 text-sm text-right"
                                       placeholder="%"
                                       min="0"
@@ -1424,10 +1425,12 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       <section className="card">
         <h2 className="mb-4 text-base font-semibold text-fjord">Connected Accounts</h2>
         <p className="text-sm text-stone">
-          Bank connections via Plaid will be available in a future update. For now, use{' '}
-          <a href="/accounts" className="font-medium text-fjord hover:underline">manual accounts</a>{' '}
+          Connect your bank accounts on the{' '}
+          <a href="/accounts" className="font-medium text-fjord hover:text-midnight underline">Accounts page</a>
+          , or use{' '}
+          <a href="/accounts" className="font-medium text-fjord hover:text-midnight underline">manual accounts</a>{' '}
           and{' '}
-          <a href="/transactions/import" className="font-medium text-fjord hover:underline">CSV import</a>.
+          <a href="/transactions/import" className="font-medium text-fjord hover:text-midnight underline">CSV import</a>.
         </p>
       </section>
 
