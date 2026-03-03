@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { buildTransactionSummary } from '@/lib/insights'
 import { formatCurrency } from '@/lib/utils'
+import { getValueSummary } from '@/lib/value-tracker'
 import EfficiencyScoreGauge from '@/components/insights/EfficiencyScoreGauge'
 import SpendingComparison from '@/components/insights/SpendingComparison'
 import InsightsList from '@/components/insights/InsightsList'
@@ -23,7 +24,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -48,6 +49,8 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
       where: { userId: session.userId },
       select: { type: true, balance: true },
     }),
+    // Cumulative savings identified by AI insights
+    getValueSummary(session.userId),
   ])
 
   // R7.8: Convert snapshot months (Date) to YYYY-MM strings
@@ -156,6 +159,33 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Cumulative value banner */}
+          {valueSummary.totalIdentified > 0 && (
+            <div className="rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-stone">Your Oversikt Value</p>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="font-mono text-2xl font-semibold text-pine">
+                      {formatCurrency(valueSummary.totalIdentified)}
+                    </span>
+                    <span className="text-sm text-stone">
+                      in potential savings identified
+                      {valueSummary.since && (
+                        <> since {valueSummary.since.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                {valueSummary.roi > 0 && (
+                  <span className="shrink-0 rounded-badge bg-pine/10 px-2.5 py-1 text-sm font-medium text-pine">
+                    {valueSummary.roi}x ROI
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* R7.8: Month snapshot summary with clickable blocks */}
           {activeSnapshot && (
             <div className="card">
