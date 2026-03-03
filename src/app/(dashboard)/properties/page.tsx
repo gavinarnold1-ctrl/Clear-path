@@ -8,6 +8,13 @@ import Link from 'next/link'
 import { calculateDepreciation } from '@/lib/engines/tax'
 import { generateTaxSummary } from '@/lib/engines/tax'
 import AddPropertyInline from '@/components/properties/AddPropertyInline'
+import AddPropertyButton from '@/components/properties/AddPropertyButton'
+
+interface AccountOption {
+  id: string
+  name: string
+  type: string
+}
 
 export const metadata: Metadata = { title: 'Properties & Businesses — oversikt' }
 
@@ -37,11 +44,24 @@ export default async function PropertiesPage({ searchParams }: Props) {
   const monthLabel = startDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
   const monthParam = `${year}-${String(month + 1).padStart(2, '0')}`
 
-  // Fetch properties
-  const properties = await db.property.findMany({
-    where: { userId: session.userId },
-    orderBy: { name: 'asc' },
-  })
+  // Fetch properties and accounts
+  const [properties, userAccounts] = await Promise.all([
+    db.property.findMany({
+      where: { userId: session.userId },
+      orderBy: { name: 'asc' },
+    }),
+    db.account.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true, type: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
+
+  const accountsForWizard: AccountOption[] = userAccounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+  }))
 
   if (properties.length === 0) {
     return (
@@ -49,7 +69,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
         <h1 className="mb-6 font-display text-2xl font-semibold text-fjord">
           Properties & Businesses
         </h1>
-        <AddPropertyInline />
+        <AddPropertyInline accounts={accountsForWizard} />
       </div>
     )
   }
@@ -235,6 +255,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
           Properties & Businesses
         </h1>
         <div className="flex items-center gap-3">
+          <AddPropertyButton accounts={accountsForWizard} />
           <MonthPicker currentMonth={monthParam} />
           <Link href="/settings" className="text-sm text-stone hover:text-fjord">
             Manage in Settings
@@ -251,6 +272,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
         monthParam={monthParam}
         monthLabel={monthLabel}
         initialTab={params.tab ?? 'dashboard'}
+        accounts={accountsForWizard}
       />
     </div>
   )

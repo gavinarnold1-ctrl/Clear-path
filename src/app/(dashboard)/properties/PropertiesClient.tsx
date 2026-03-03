@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import type { TaxSummary } from '@/lib/engines/tax'
+import { pitiBreakdown } from '@/lib/engines/amortization'
+import PropertySetupWizard from '@/components/properties/PropertySetupWizard'
 
 interface PropertyCardData {
   id: string
@@ -28,6 +30,12 @@ interface PropertyCardData {
   monthlyPMI?: number | null
 }
 
+interface AccountOption {
+  id: string
+  name: string
+  type: string
+}
+
 interface Props {
   properties: PropertyCardData[]
   totalRentalNet: number
@@ -37,6 +45,7 @@ interface Props {
   monthParam: string
   monthLabel: string
   initialTab: string
+  accounts: AccountOption[]
 }
 
 function formatCurrency(n: number): string {
@@ -82,6 +91,7 @@ export default function PropertiesClient({
   monthParam,
   monthLabel,
   initialTab,
+  accounts,
 }: Props) {
   const [tab, setTab] = useState<'dashboard' | 'tax'>(
     initialTab === 'tax' ? 'tax' : 'dashboard',
@@ -120,6 +130,7 @@ export default function PropertiesClient({
           totalBusinessNet={totalBusinessNet}
           totalDepreciation={totalDepreciation}
           monthParam={monthParam}
+          accounts={accounts}
         />
       ) : (
         <TaxReportView
@@ -138,106 +149,28 @@ function DashboardView({
   totalBusinessNet,
   totalDepreciation,
   monthParam,
+  accounts,
 }: {
   properties: PropertyCardData[]
   totalRentalNet: number
   totalBusinessNet: number
   totalDepreciation: number
   monthParam: string
+  accounts: AccountOption[]
 }) {
-  const [editingFinancials, setEditingFinancials] = useState<string | null>(null)
+  const [editingProperty, setEditingProperty] = useState<PropertyCardData | null>(null)
 
   return (
     <>
       {/* Entity Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {properties.map((prop) => (
-          <div key={prop.id} className="card">
-            <div className="mb-3 flex items-start justify-between">
-              <div>
-                <h3 className="font-medium text-fjord">
-                  {prop.name}{' '}
-                  <span className="text-xs text-stone">({typeLabel(prop.type)})</span>
-                </h3>
-                {prop.address && (
-                  <p className="mt-0.5 text-xs text-stone">{prop.address}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditingFinancials(editingFinancials === prop.id ? null : prop.id)}
-                  className="text-[10px] text-stone hover:text-fjord"
-                >
-                  {editingFinancials === prop.id ? 'Close' : 'Financials'}
-                </button>
-                <span className="rounded-badge bg-frost px-2 py-0.5 text-[10px] font-medium text-stone">
-                  {scheduleLabel(prop.taxSchedule)}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-stone">Income</span>
-                <span className="font-mono text-income">{formatCurrency(prop.income)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-stone">Expenses</span>
-                <span className="font-mono text-expense">
-                  {prop.expenses > 0 ? `-${formatCurrency(prop.expenses)}` : formatCurrency(0)}
-                </span>
-              </div>
-              {prop.depreciation > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-stone">Depreciation</span>
-                  <span className="font-mono text-stone">
-                    -{formatCurrency(prop.depreciation)}
-                  </span>
-                </div>
-              )}
-              <div className="border-t border-mist pt-1.5 flex justify-between font-medium">
-                <span className="text-fjord">Net</span>
-                <span
-                  className={`font-mono ${prop.net >= 0 ? 'text-income' : 'text-expense'}`}
-                >
-                  {formatCurrency(prop.net)}
-                </span>
-              </div>
-            </div>
-
-            {/* Tax approximation warning for rental/business properties without financial details */}
-            {(prop.taxSchedule === 'SCHEDULE_E' || prop.taxSchedule === 'SCHEDULE_C') &&
-              prop.expenses > 0 && !prop.loanBalance && (
-                <p className="mt-2 text-[10px] text-stone leading-tight">
-                  Tax figures are approximate. Add financial details to enable PITI decomposition for accurate tax reporting.
-                </p>
-              )}
-
-            {/* Equity display for properties with value and loan data */}
-            {prop.currentValue != null && prop.loanBalance != null && prop.currentValue > 0 && (
-              <div className="mt-2 flex items-center justify-between text-xs">
-                <span className="text-stone">Equity</span>
-                <span className="font-mono font-medium text-pine">
-                  {formatCurrency(prop.currentValue - prop.loanBalance)}{' '}
-                  <span className="text-stone font-normal">
-                    ({((1 - prop.loanBalance / prop.currentValue) * 100).toFixed(0)}%)
-                  </span>
-                </span>
-              </div>
-            )}
-
-            {/* Financial details form (expandable) */}
-            {editingFinancials === prop.id && (
-              <PropertyFinancialForm property={prop} onClose={() => setEditingFinancials(null)} />
-            )}
-
-            <Link
-              href={`/transactions?propertyId=${prop.id}&month=${monthParam}`}
-              className="mt-3 block text-xs text-stone hover:text-fjord"
-            >
-              View Transactions ({prop.transactionCount})
-            </Link>
-          </div>
+          <PropertyCard
+            key={prop.id}
+            prop={prop}
+            monthParam={monthParam}
+            onEdit={() => setEditingProperty(prop)}
+          />
         ))}
       </div>
 
@@ -275,7 +208,191 @@ function DashboardView({
           </div>
         </div>
       </div>
+
+      {/* Edit Wizard Modal */}
+      {editingProperty && (
+        <PropertySetupWizard
+          isOpen={true}
+          onClose={() => setEditingProperty(null)}
+          accounts={accounts}
+          existingProperty={editingProperty}
+        />
+      )}
     </>
+  )
+}
+
+/** Property card with inline PITI breakdown bar */
+function PropertyCard({
+  prop,
+  monthParam,
+  onEdit,
+}: {
+  prop: PropertyCardData
+  monthParam: string
+  onEdit: () => void
+}) {
+  const hasFinancials = prop.loanBalance != null && prop.loanBalance > 0
+  const hasPiti = hasFinancials &&
+    prop.monthlyPayment != null && prop.monthlyPayment > 0 &&
+    prop.monthlyPropertyTax != null
+
+  // Compute PITI inline
+  const piti = hasPiti
+    ? pitiBreakdown(
+        prop.loanBalance!,
+        prop.interestRate ?? 0,
+        prop.monthlyPayment!,
+        prop.monthlyPropertyTax ?? 0,
+        prop.monthlyInsurance ?? 0,
+        prop.monthlyHOA ?? 0,
+        prop.monthlyPMI ?? 0,
+      )
+    : null
+
+  return (
+    <div className="card">
+      <div className="mb-3 flex items-start justify-between">
+        <div>
+          <h3 className="font-medium text-fjord">
+            {prop.name}{' '}
+            <span className="text-xs text-stone">({typeLabel(prop.type)})</span>
+          </h3>
+          {prop.address && (
+            <p className="mt-0.5 text-xs text-stone">{prop.address}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onEdit}
+            className="text-[10px] text-stone hover:text-fjord"
+          >
+            Edit
+          </button>
+          <span className="rounded-badge bg-frost px-2 py-0.5 text-[10px] font-medium text-stone">
+            {scheduleLabel(prop.taxSchedule)}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-stone">Income</span>
+          <span className="font-mono text-income">{formatCurrency(prop.income)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone">Expenses</span>
+          <span className="font-mono text-expense">
+            {prop.expenses > 0 ? `-${formatCurrency(prop.expenses)}` : formatCurrency(0)}
+          </span>
+        </div>
+        {prop.depreciation > 0 && (
+          <div className="flex justify-between">
+            <span className="text-stone">Depreciation</span>
+            <span className="font-mono text-stone">
+              -{formatCurrency(prop.depreciation)}
+            </span>
+          </div>
+        )}
+        <div className="border-t border-mist pt-1.5 flex justify-between font-medium">
+          <span className="text-fjord">Net</span>
+          <span
+            className={`font-mono ${prop.net >= 0 ? 'text-income' : 'text-expense'}`}
+          >
+            {formatCurrency(prop.net)}
+          </span>
+        </div>
+      </div>
+
+      {/* Inline PITI breakdown bar */}
+      {piti && piti.totalPayment > 0 && (
+        <div className="mt-3 rounded-lg border border-pine/20 bg-pine/5 p-2">
+          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone">
+            Monthly PITI
+          </p>
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-pine" />
+              P: {formatCurrency(piti.principal)}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-ember" />
+              I: {formatCurrency(piti.interest)}
+            </span>
+            {piti.propertyTax > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-birch" />
+                T: {formatCurrency(piti.propertyTax)}
+              </span>
+            )}
+            {piti.insurance > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-lichen" />
+                Ins: {formatCurrency(piti.insurance)}
+              </span>
+            )}
+          </div>
+          <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-bar">
+            <div className="bg-pine" style={{ width: `${(piti.principal / piti.totalPayment) * 100}%` }} />
+            <div className="bg-ember" style={{ width: `${(piti.interest / piti.totalPayment) * 100}%` }} />
+            {piti.propertyTax > 0 && (
+              <div className="bg-birch" style={{ width: `${(piti.propertyTax / piti.totalPayment) * 100}%` }} />
+            )}
+            {piti.insurance > 0 && (
+              <div className="bg-lichen" style={{ width: `${(piti.insurance / piti.totalPayment) * 100}%` }} />
+            )}
+            {piti.hoa > 0 && (
+              <div className="bg-mist" style={{ width: `${(piti.hoa / piti.totalPayment) * 100}%` }} />
+            )}
+            {piti.pmi > 0 && (
+              <div className="bg-stone/50" style={{ width: `${(piti.pmi / piti.totalPayment) * 100}%` }} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tax approximation warning for rental/business properties without financial details */}
+      {(prop.taxSchedule === 'SCHEDULE_E' || prop.taxSchedule === 'SCHEDULE_C') &&
+        prop.expenses > 0 && !prop.loanBalance && (
+          <p className="mt-2 text-[10px] text-stone leading-tight">
+            Tax figures are approximate.{' '}
+            <button onClick={onEdit} className="text-fjord underline hover:no-underline">
+              Add financial details
+            </button>{' '}
+            for accurate PITI decomposition.
+          </p>
+        )}
+
+      {/* Equity display for properties with value and loan data */}
+      {prop.currentValue != null && prop.loanBalance != null && prop.currentValue > 0 && (
+        <div className="mt-2 flex items-center justify-between text-xs">
+          <span className="text-stone">Equity</span>
+          <span className="font-mono font-medium text-pine">
+            {formatCurrency(prop.currentValue - prop.loanBalance)}{' '}
+            <span className="text-stone font-normal">
+              ({((1 - prop.loanBalance / prop.currentValue) * 100).toFixed(0)}%)
+            </span>
+          </span>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between">
+        <Link
+          href={`/transactions?propertyId=${prop.id}&month=${monthParam}`}
+          className="text-xs text-stone hover:text-fjord"
+        >
+          View Transactions ({prop.transactionCount})
+        </Link>
+        {hasFinancials && (
+          <Link
+            href={`/debts`}
+            className="text-xs text-stone hover:text-fjord"
+          >
+            View on Debts page
+          </Link>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -393,7 +510,7 @@ function TaxReportView({
       <div className="rounded-card border border-birch/40 bg-birch/10 px-4 py-3">
         <p className="text-xs font-medium text-fjord">Approximation Notice</p>
         <p className="mt-1 text-[11px] text-stone leading-relaxed">
-          Properties with financial details use PITI decomposition to separate mortgage payments into deductible components (interest, taxes, insurance) and non-deductible principal. Properties without financial details show full payment amounts as estimates. Add loan details via the &quot;Financials&quot; button on each property card. Consult your CPA for exact amounts.
+          Properties with financial details use PITI decomposition to separate mortgage payments into deductible components (interest, taxes, insurance) and non-deductible principal. Properties without financial details show full payment amounts as estimates. Edit a property to add loan details. Consult your CPA for exact amounts.
         </p>
       </div>
 
@@ -570,203 +687,6 @@ function TaxReportView({
           </div>
         </section>
       )}
-    </div>
-  )
-}
-
-function PropertyFinancialForm({
-  property,
-  onClose,
-}: {
-  property: PropertyCardData
-  onClose: () => void
-}) {
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const [currentValue, setCurrentValue] = useState(property.currentValue?.toString() ?? '')
-  const [loanBalance, setLoanBalance] = useState(property.loanBalance?.toString() ?? '')
-  const [interestRate, setInterestRate] = useState(
-    property.interestRate != null ? (property.interestRate * 100).toString() : '',
-  )
-  const [loanTermMonths, setLoanTermMonths] = useState(property.loanTermMonths?.toString() ?? '')
-  const [monthlyPayment, setMonthlyPayment] = useState(property.monthlyPayment?.toString() ?? '')
-  const [monthlyPropertyTax, setMonthlyPropertyTax] = useState(
-    property.monthlyPropertyTax?.toString() ?? '',
-  )
-  const [monthlyInsurance, setMonthlyInsurance] = useState(
-    property.monthlyInsurance?.toString() ?? '',
-  )
-  const [monthlyHOA, setMonthlyHOA] = useState(property.monthlyHOA?.toString() ?? '')
-  const [monthlyPMI, setMonthlyPMI] = useState(property.monthlyPMI?.toString() ?? '')
-
-  // Compute P&I from current form values
-  const bal = parseFloat(loanBalance) || 0
-  const rate = (parseFloat(interestRate) || 0) / 100
-  const pmt = parseFloat(monthlyPayment) || 0
-  const escrow =
-    (parseFloat(monthlyPropertyTax) || 0) +
-    (parseFloat(monthlyInsurance) || 0) +
-    (parseFloat(monthlyHOA) || 0) +
-    (parseFloat(monthlyPMI) || 0)
-  const piPayment = pmt - escrow
-  const monthlyInterest = bal * (rate / 12)
-  const monthlyPrincipal = Math.max(0, piPayment - monthlyInterest)
-
-  async function handleSave() {
-    if (saving) return
-    setSaving(true)
-    setError(null)
-
-    try {
-      const res = await fetch(`/api/properties/${property.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentValue: currentValue ? parseFloat(currentValue) : null,
-          loanBalance: loanBalance ? parseFloat(loanBalance) : null,
-          interestRate: interestRate ? parseFloat(interestRate) / 100 : null,
-          loanTermMonths: loanTermMonths ? parseInt(loanTermMonths, 10) : null,
-          monthlyPayment: monthlyPayment ? parseFloat(monthlyPayment) : null,
-          monthlyPropertyTax: monthlyPropertyTax ? parseFloat(monthlyPropertyTax) : null,
-          monthlyInsurance: monthlyInsurance ? parseFloat(monthlyInsurance) : null,
-          monthlyHOA: monthlyHOA ? parseFloat(monthlyHOA) : null,
-          monthlyPMI: monthlyPMI ? parseFloat(monthlyPMI) : null,
-        }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error ?? 'Failed to save')
-      }
-      onClose()
-      window.location.reload()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="mt-3 rounded-lg border border-mist bg-snow p-3">
-      <p className="mb-3 text-xs font-medium uppercase tracking-wider text-stone">
-        Financial Details
-      </p>
-      {error && (
-        <p className="mb-3 rounded-lg bg-ember/10 p-2 text-xs text-ember">{error}</p>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">Property Value</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={currentValue}
-              onChange={(e) => setCurrentValue(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 350,000" />
-          </div>
-        </div>
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">Loan Balance</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={loanBalance}
-              onChange={(e) => setLoanBalance(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 280,000" />
-          </div>
-        </div>
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">Interest Rate (%)</label>
-          <input type="number" step="0.01" min="0" max="100" value={interestRate}
-            onChange={(e) => setInterestRate(e.target.value)}
-            className="input py-1.5 text-sm" placeholder="e.g. 4.85" />
-        </div>
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">Term (months)</label>
-          <input type="number" min="1" value={loanTermMonths}
-            onChange={(e) => setLoanTermMonths(e.target.value)}
-            className="input py-1.5 text-sm" placeholder="e.g. 360" />
-        </div>
-        <div className="col-span-2">
-          <label className="mb-0.5 block text-[11px] text-stone">Total Monthly Payment</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={monthlyPayment}
-              onChange={(e) => setMonthlyPayment(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 2,100" />
-          </div>
-        </div>
-      </div>
-
-      {/* Escrow breakdown */}
-      <p className="mb-2 mt-3 text-[11px] font-medium text-stone">Escrow Breakdown</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">Property Tax</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={monthlyPropertyTax}
-              onChange={(e) => setMonthlyPropertyTax(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 350" />
-          </div>
-        </div>
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">Insurance</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={monthlyInsurance}
-              onChange={(e) => setMonthlyInsurance(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 120" />
-          </div>
-        </div>
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">HOA</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={monthlyHOA}
-              onChange={(e) => setMonthlyHOA(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 0" />
-          </div>
-        </div>
-        <div>
-          <label className="mb-0.5 block text-[11px] text-stone">PMI</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
-            <input type="number" step="0.01" min="0" value={monthlyPMI}
-              onChange={(e) => setMonthlyPMI(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 0" />
-          </div>
-        </div>
-      </div>
-
-      {/* Live P&I display */}
-      {pmt > 0 && bal > 0 && rate > 0 && (
-        <div className="mt-3 rounded-lg border border-pine/20 bg-pine/5 p-2">
-          <p className="mb-1 text-[10px] font-medium text-stone">Computed P&I</p>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-pine font-medium">
-              Principal: {formatCurrency(monthlyPrincipal)}
-            </span>
-            <span className="text-ember font-medium">
-              Interest: {formatCurrency(monthlyInterest)}
-            </span>
-            {escrow > 0 && (
-              <span className="text-stone font-medium">
-                Escrow: {formatCurrency(escrow)}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-3 flex gap-2">
-        <button onClick={handleSave} disabled={saving} className="btn-primary text-xs py-1.5 px-3">
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button onClick={onClose} className="btn-secondary text-xs py-1.5 px-3">
-          Cancel
-        </button>
-      </div>
     </div>
   )
 }
