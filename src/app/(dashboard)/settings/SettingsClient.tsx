@@ -456,7 +456,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     try {
       const allocations = group.properties.map((p) => ({
         propertyId: p.id,
-        allocationPct: typeof p.splitPct === 'string' ? parseFloat(p.splitPct) : (p.splitPct ?? 0),
+        allocationPct: typeof p.splitPct === 'string' ? (parseFloat(p.splitPct) || 0) : (p.splitPct ?? 0),
       }))
       const res = await fetch('/api/split-rules', {
         method: 'POST',
@@ -1197,6 +1197,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                     </button>
                                   )}
                                 </div>
+                                {groupMsg && (
+                                  <p className="mt-1 text-xs text-ember">{groupMsg}</p>
+                                )}
                               </div>
                             )}
 
@@ -1332,6 +1335,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                               prev.map((a, idx) => idx === i ? { ...a, percentage: val } : a)
                                             )
                                           }}
+                                          onFocus={(e) => e.target.select()}
                                           className="input w-20 text-sm text-right"
                                           min="0"
                                           max="100"
@@ -1401,7 +1405,6 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             )}
 
             {/* Create group form */}
-            {groupMsg && <p className="mb-2 text-sm text-expense">{groupMsg}</p>}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <input

@@ -23,6 +23,7 @@ const DEFAULT_CATEGORIES: SeedCategory[] = [
   { type: 'income', group: 'Income', name: 'Paychecks', icon: '💵' },
   { type: 'income', group: 'Income', name: 'Interest', icon: '💸' },
   { type: 'income', group: 'Income', name: 'Business Income', icon: '💰' },
+  { type: 'income', group: 'Income', name: 'Dividends & Capital Gains', icon: '📈' },
   { type: 'income', group: 'Income', name: 'Other Income', icon: '💰' },
 
   // === EXPENSES ===
