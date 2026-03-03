@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { db } from './db'
 import { buildTemporalContext } from './temporal-context'
+import type { GoalContext } from './goal-context'
 
 // ─── Spending Profile ───────────────────────────────────────────────────────
 
@@ -334,7 +335,8 @@ export interface BudgetProposal {
 }
 
 export async function generateBudgetProposal(
-  profile: SpendingProfile
+  profile: SpendingProfile,
+  goalContext?: GoalContext | null
 ): Promise<BudgetProposal> {
   const temporalContext = buildTemporalContext()
 
@@ -417,7 +419,7 @@ OUTPUT FORMAT — Return ONLY valid JSON with no markdown, no commentary, no tex
   const regularIncome = profile.incomeStreams.filter(s => ['monthly', 'biweekly', 'weekly'].includes(s.frequency))
   const irregularIncome = profile.incomeStreams.filter(s => !['monthly', 'biweekly', 'weekly'].includes(s.frequency))
 
-  const userPrompt = `Build a complete budget proposal based on this spending profile:
+  let userPrompt = `Build a complete budget proposal based on this spending profile:
 
 REGULAR INCOME:
 ${regularIncome.map((s) => `- ${s.source}: $${s.averageAmount.toFixed(2)} (${s.frequency}, ${s.count} occurrences${s.dayOfMonth ? `, ~day ${s.dayOfMonth}` : ''})`).join('\n') || 'None detected'}
@@ -448,7 +450,17 @@ ${
 ${topAnnual.length > 0 ? '\nNOTE: The above charges are historical. Only budget for them if they show a clear annual recurrence pattern. One-time events (weddings, moves, large purchases) should NOT be projected forward.' : ''}
 
 DATA COVERAGE: Income based on last 3 months. Fixed/variable based on last 6 months. Annual detection based on last 12 months. Total history: ${profile.monthsOfData} months, ${profile.totalTransactions} transactions.
-CURRENT SAVINGS RATE: ${profile.savingsRate}%
+CURRENT SAVINGS RATE: ${profile.savingsRate}%`
+
+  if (goalContext) {
+    userPrompt += `
+
+USER'S PRIMARY FINANCIAL GOAL: ${goalContext.goalLabel}
+${goalContext.guidanceForAI}
+Tailor the budget structure and commentary to serve this goal. For example, if the goal is "Save More," be more aggressive with flexible spending targets and highlight the projected savings rate improvement.`
+  }
+
+  userPrompt += `
 
 Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Annual). For categories with limited data, use your judgment and mark with lower confidence. Include 2-3 suggested annual expenses even if not in the data — common ones most households have.`
 

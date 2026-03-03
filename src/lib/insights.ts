@@ -5,6 +5,7 @@ import { buildTemporalContext, getSpendingVelocity } from './temporal-context'
 import { buildBudgetContext } from './budget-context'
 import { buildInsightHistory } from './insight-history'
 import { getEntitySummary } from './entity-summary'
+import { getGoalContext } from './goal-context'
 import type { TransactionSummary, RecurringCharge, MonthOverMonthItem } from '@/types/insights'
 
 export async function buildTransactionSummary(
@@ -174,14 +175,16 @@ function calculateMoMChange(expenses: TransactionWithCategory[]): MonthOverMonth
 
 export async function generateAndStoreInsights(userId: string) {
   const now = new Date()
-  const [summary, temporal, velocity, budget, history, entitySummary] = await Promise.all([
-    buildTransactionSummary(userId, 3),
-    Promise.resolve(buildTemporalContext()),
-    getSpendingVelocity(userId),
-    buildBudgetContext(userId),
-    buildInsightHistory(userId),
-    getEntitySummary(userId, now.getFullYear(), now.getMonth()),
-  ])
+  const [summary, temporal, velocity, budget, history, entitySummary, goalContext] =
+    await Promise.all([
+      buildTransactionSummary(userId, 3),
+      Promise.resolve(buildTemporalContext()),
+      getSpendingVelocity(userId),
+      buildBudgetContext(userId),
+      buildInsightHistory(userId),
+      getEntitySummary(userId, now.getFullYear(), now.getMonth()),
+      getGoalContext(userId),
+    ])
 
   const aiResponse = await generateInsights({
     summary,
@@ -190,6 +193,7 @@ export async function generateAndStoreInsights(userId: string) {
     budget,
     history,
     entitySummary: entitySummary ?? undefined,
+    goalContext: goalContext ?? undefined,
   })
 
   // Build context snapshot for storage
