@@ -375,6 +375,20 @@ model Property {
   buildingValuePct   Decimal?  @db.Decimal(5, 2)  // e.g. 80.00 means 80% of purchase price is building
   priorDepreciation  Decimal?  @db.Decimal(12, 2)
 
+  // Financial details (for mortgage-bearing properties)
+  currentValue       Float?
+  loanBalance        Float?
+  monthlyPayment     Float?
+  interestRate       Float?      // Annual rate as decimal (e.g., 0.0485 for 4.85%)
+  loanTermMonths     Int?        // Original term (e.g., 360 for 30-year)
+  loanStartDate      DateTime?
+
+  // Escrow breakdown (monthly amounts)
+  monthlyPropertyTax Float?
+  monthlyInsurance   Float?
+  monthlyHOA         Float?
+  monthlyPMI         Float?
+
   // Property group membership
   groupId      String?
   group        PropertyGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)

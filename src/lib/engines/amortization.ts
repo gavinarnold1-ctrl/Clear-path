@@ -184,3 +184,60 @@ export function piBreakdown(
     monthsRemaining,
   }
 }
+
+/** PITI breakdown result */
+export interface PITIBreakdown {
+  principal: number
+  interest: number
+  propertyTax: number
+  insurance: number
+  hoa: number
+  pmi: number
+  escrowTotal: number
+  piPayment: number
+  totalPayment: number
+}
+
+/**
+ * Decompose a mortgage payment into PITI components.
+ * Unlike piBreakdown(), this separates escrow into tax, insurance, HOA, and PMI.
+ */
+export function pitiBreakdown(
+  currentBalance: number,
+  annualRate: number,
+  totalMonthlyPayment: number,
+  monthlyPropertyTax: number,
+  monthlyInsurance: number,
+  monthlyHOA: number,
+  monthlyPMI: number,
+): PITIBreakdown {
+  const escrowTotal = monthlyPropertyTax + monthlyInsurance + monthlyHOA + monthlyPMI
+  const piPayment = totalMonthlyPayment - escrowTotal
+  const monthlyRate = annualRate / 12
+  const interest = Math.round(currentBalance * monthlyRate * 100) / 100
+  const principal = Math.round(Math.max(0, piPayment - interest) * 100) / 100
+
+  return {
+    principal,
+    interest,
+    propertyTax: monthlyPropertyTax,
+    insurance: monthlyInsurance,
+    hoa: monthlyHOA,
+    pmi: monthlyPMI,
+    escrowTotal: Math.round(escrowTotal * 100) / 100,
+    piPayment: Math.round(piPayment * 100) / 100,
+    totalPayment: totalMonthlyPayment,
+  }
+}
+
+/**
+ * Effective interest rate — the true cost of a mortgage including escrow.
+ * (total monthly cost / loan balance) × 12
+ */
+export function effectiveRate(
+  currentBalance: number,
+  totalMonthlyPayment: number,
+): number {
+  if (currentBalance <= 0 || totalMonthlyPayment <= 0) return 0
+  return Math.round(((totalMonthlyPayment * 12) / currentBalance) * 10000) / 10000
+}

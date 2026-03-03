@@ -153,6 +153,17 @@ export default async function PropertiesPage({ searchParams }: Props) {
       depreciation: Math.round(depreciation * 100) / 100,
       net,
       transactionCount,
+      // Financial details for PropertyFinancialForm
+      currentValue: prop.currentValue,
+      loanBalance: prop.loanBalance,
+      monthlyPayment: prop.monthlyPayment,
+      interestRate: prop.interestRate,
+      loanTermMonths: prop.loanTermMonths,
+      loanStartDate: prop.loanStartDate?.toISOString() ?? null,
+      monthlyPropertyTax: prop.monthlyPropertyTax,
+      monthlyInsurance: prop.monthlyInsurance,
+      monthlyHOA: prop.monthlyHOA,
+      monthlyPMI: prop.monthlyPMI,
     }
   })
 
@@ -207,6 +218,14 @@ export default async function PropertiesPage({ searchParams }: Props) {
       purchaseDate: p.purchaseDate,
       buildingValuePct: p.buildingValuePct ? Number(p.buildingValuePct) : null,
       priorDepreciation: p.priorDepreciation ? Number(p.priorDepreciation) : null,
+      // Financial details for PITI decomposition
+      loanBalance: p.loanBalance,
+      interestRate: p.interestRate,
+      monthlyPayment: p.monthlyPayment,
+      monthlyPropertyTax: p.monthlyPropertyTax,
+      monthlyInsurance: p.monthlyInsurance,
+      monthlyHOA: p.monthlyHOA,
+      monthlyPMI: p.monthlyPMI,
     })),
     { start: startDate, end: endDate },
   )

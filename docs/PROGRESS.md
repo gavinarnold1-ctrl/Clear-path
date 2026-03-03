@@ -977,7 +977,6 @@ This is Step 3 of the Goal-Driven Budget System (see above) — not a regression
 
 **Medium priority:**
 - **Bug #2**: Exclude investment/brokerage accounts from refund detection in `src/lib/refund-detection.ts`, or require merchant similarity for those account types. Root cause identified, test written documenting the gap.
-- **Bug #4a/4b/4c**: Mortgage decomposition and structured property setup — significant V2 feature work. Approximation warnings added as V1 mitigation.
 
 **Low priority / deferred:**
 - **Bug #6**: Added explicit `text-left` as defense; original issue was browser-specific.
@@ -989,3 +988,113 @@ This is Step 3 of the Goal-Driven Budget System (see above) — not a regression
 - **37 new regression tests**: all pass (12 Bug 1, 10 Bug 2, 8 Bug 3, 7 Bug 7)
 - **Zero new failures** introduced
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Property Setup, Debt Enhancement & Tax Attribution Fix (2026-03-03)
+
+### Step 1: Schema Migration + Property Setup UI
+
+| Sub-step | Description | Status |
+|----------|-------------|--------|
+| 1A | Add financial fields to Property model | 🟢 Done |
+| 1B | Property Financial Form (expandable per-card) | 🟢 Done |
+| 1C | Bidirectional Property ↔ Debt sync | 🟢 Done |
+| 1D | API route updates (PATCH properties + debts) | 🟢 Done |
+
+**1A — Schema fields added to Property model:**
+- `currentValue`, `loanBalance`, `monthlyPayment`, `interestRate` (Float?)
+- `loanTermMonths` (Int?), `loanStartDate` (DateTime?)
+- `monthlyPropertyTax`, `monthlyInsurance`, `monthlyHOA`, `monthlyPMI` (Float?)
+- Migration generated; `prisma generate` succeeded. DB push deferred (remote DB).
+- File: `prisma/schema.prisma`
+
+**1B — PropertyFinancialForm component:**
+- Expandable form on each property card via "Financials" toggle button
+- Inputs: value, loan balance, rate, term, monthly payment, escrow breakdown (tax/insurance/HOA/PMI)
+- Live P&I computation display from current form values
+- Equity display (currentValue − loanBalance) with percentage when both are set
+- Tax approximation warning shown only when property lacks financial details
+- Saves via PATCH to `/api/properties/[id]`
+- File: `PropertiesClient.tsx`
+
+**1C — Property ↔ Debt bidirectional sync:**
+- `syncPropertyToDebt()`: When property financial fields saved, creates/updates linked MORTGAGE Debt
+- `syncDebtToProperty()`: When MORTGAGE Debt with propertyId updated, syncs back to Property
+- Escrow computed as sum of tax + insurance + PMI
+- Auto-creates Debt if none exists and loanBalance > 0
+- File: `src/lib/property-debt-sync.ts`
+
+**1D — API route updates:**
+- Properties PATCH: accepts all 10 new financial fields, calls `syncPropertyToDebt()` when financial fields change
+- Debts PATCH: calls `syncDebtToProperty()` when type is MORTGAGE and propertyId exists
+- Files: `api/properties/[id]/route.ts`, `api/debts/[id]/route.ts`
+
+### Step 2: PITI Decomposition + Tax Engine Fix
+
+| Sub-step | Description | Status |
+|----------|-------------|--------|
+| 2A | pitiBreakdown() and effectiveRate() in amortization engine | 🟢 Done |
+| 2B | generateTaxSummary() PITI decomposition | 🟢 Done |
+| 2C | Updated approximation notice text | 🟢 Done |
+
+**2A — New amortization engine functions:**
+- `pitiBreakdown()`: Decomposes mortgage payment into Principal, Interest, Property Tax, Insurance, HOA, PMI
+- `effectiveRate()`: True cost of mortgage including escrow as annual rate
+- `PITIBreakdown` interface exported for consumers
+- File: `src/lib/engines/amortization.ts`
+
+**2B — Tax engine PITI decomposition:**
+- `generateTaxSummary()` property input extended with financial fields
+- When a mortgage category expense is attributed to a property with PITI details:
+  - Schedule A: Interest → mortgage interest line, Tax → property tax line, Principal dropped
+  - Schedule E: Decomposed into Mortgage Interest, Property Tax, Insurance expense lines
+  - Schedule C: Same decomposition as Schedule E
+- Falls back to lump-sum behavior for properties without financial details
+- Helper functions: `isMortgageCategory()`, `hasPitiDetails()`, `pitiRatios()`
+- File: `src/lib/engines/tax.ts`
+
+**2C — Approximation notice update:**
+- Explains PITI decomposition when financial details are present
+- Directs users to "Financials" button on property cards
+- File: `PropertiesClient.tsx`
+
+### Step 3: Debt Tab Enhancements
+
+| Sub-step | Description | Status |
+|----------|-------------|--------|
+| 3A | Itemized PITI breakdown in debt cards | 🟢 Done |
+| 3B | Effective interest rate display | 🟢 Done |
+| 3C | Equity and LTV display | 🟢 Done |
+| 3D | Expandable amortization schedule | 🟢 Done |
+
+**3A — Itemized PITI display:**
+- When a MORTGAGE debt links to a property with financial details, escrow breaks into: Property Tax (birch), Insurance (lichen), HOA (mist), PMI (stone/50)
+- Bar chart uses same color coding for each component
+- Falls back to single "Escrow" display when no property financial details
+- Extracted into `DebtPITIBreakdown` component
+
+**3B — Effective interest rate:**
+- Shows effective rate (total annual cost / balance) alongside nominal rate
+- Helps users see the true cost when escrow is significant
+
+**3C — Equity and LTV:**
+- When property has `currentValue`, shows equity (value − balance) and LTV percentage
+- Positive equity in pine, negative in ember
+
+**3D — Amortization schedule:**
+- Toggle "Show/Hide Amortization Schedule" when debt has balance, rate, and term
+- Scrollable table (max-height 256px) with month, payment, principal, interest, balance columns
+- Uses `amortizationSchedule()` from the amortization engine
+- Principal in pine, interest in ember, balance in fjord
+
+**Files changed:**
+- `src/components/debts/DebtManager.tsx` — DebtPITIBreakdown component, extended PropertyOption interface
+- `src/app/(dashboard)/debts/page.tsx` — extended property select fields
+- `src/app/(dashboard)/properties/page.tsx` — pass financial fields to PropertiesClient and generateTaxSummary
+
+### Verification
+
+- **TypeScript**: zero errors (`npx tsc --noEmit` clean)
+- **Build**: passes (fails only due to network: Neon DB unreachable, Google Fonts unreachable)
+- **Tests**: 505 total — 492 passed, 13 pre-existing failures, zero new regressions

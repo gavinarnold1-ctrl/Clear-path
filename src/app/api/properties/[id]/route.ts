@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { syncPropertyToDebt } from '@/lib/property-debt-sync'
 import type { TaxSchedule } from '@prisma/client'
 
 const VALID_TYPES = new Set<string>(['PERSONAL', 'RENTAL', 'BUSINESS'])
@@ -28,6 +29,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     taxSchedule,
     purchasePrice, purchaseDate, buildingValuePct, priorDepreciation,
     groupId, splitPct,
+    // Financial details
+    currentValue, loanBalance, monthlyPayment: bodyMonthlyPayment,
+    interestRate: bodyInterestRate, loanTermMonths, loanStartDate,
+    monthlyPropertyTax, monthlyInsurance, monthlyHOA, monthlyPMI,
   } = body
 
   if (type !== undefined && !VALID_TYPES.has(type)) {
@@ -98,9 +103,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Group membership
       ...(groupId !== undefined && { groupId: groupId || null }),
       ...(splitPct !== undefined && { splitPct }),
+      // Financial details
+      ...(currentValue !== undefined && { currentValue }),
+      ...(loanBalance !== undefined && { loanBalance }),
+      ...(bodyMonthlyPayment !== undefined && { monthlyPayment: bodyMonthlyPayment }),
+      ...(bodyInterestRate !== undefined && { interestRate: bodyInterestRate }),
+      ...(loanTermMonths !== undefined && { loanTermMonths }),
+      ...(loanStartDate !== undefined && { loanStartDate: loanStartDate ? new Date(loanStartDate) : null }),
+      ...(monthlyPropertyTax !== undefined && { monthlyPropertyTax }),
+      ...(monthlyInsurance !== undefined && { monthlyInsurance }),
+      ...(monthlyHOA !== undefined && { monthlyHOA }),
+      ...(monthlyPMI !== undefined && { monthlyPMI }),
     },
     include: { group: { select: { id: true, name: true } } },
   })
+
+  // Sync Property → Debt when financial fields are present
+  const hasFinancialUpdate = loanBalance !== undefined || bodyMonthlyPayment !== undefined || bodyInterestRate !== undefined
+  if (hasFinancialUpdate) {
+    await syncPropertyToDebt(id, session.userId, updated.name, {
+      loanBalance: updated.loanBalance,
+      interestRate: updated.interestRate,
+      monthlyPayment: updated.monthlyPayment,
+      monthlyPropertyTax: updated.monthlyPropertyTax,
+      monthlyInsurance: updated.monthlyInsurance,
+      monthlyPMI: updated.monthlyPMI,
+      monthlyHOA: updated.monthlyHOA,
+      loanTermMonths: updated.loanTermMonths,
+      loanStartDate: updated.loanStartDate,
+    })
+  }
 
   return NextResponse.json(updated)
 }
