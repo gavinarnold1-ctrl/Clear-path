@@ -989,6 +989,18 @@ This is Step 3 of the Goal-Driven Budget System (see above) — not a regression
 - **Zero new failures** introduced
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
 
+### UAT Round 5 Fixes (2026-03-03)
+
+- [x] Demo seed: properties (personal + rental), property group, split rules, debts (mortgage + credit card), attributed transactions
+- [x] Sidebar: Properties link always visible
+- [x] Input focus: percentage fields auto-select on focus
+- [x] Plaid: 15s timeout with error message when CDN fails
+- [x] Settings: corrected Plaid messaging with links to Accounts
+- [x] Properties: improved empty state CTA
+- [x] Debt tab: PITI decomposition display when property linked
+- [x] Debt tab: amortization schedule toggle with scrollable table
+- [x] Debt tab: fixed Est. Remaining to use amortization formula (was linear division)
+
 ---
 
 ## Property Setup, Debt Enhancement & Tax Attribution Fix (2026-03-03)

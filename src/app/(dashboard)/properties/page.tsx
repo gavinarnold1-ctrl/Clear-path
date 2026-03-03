@@ -48,10 +48,14 @@ export default async function PropertiesPage({ searchParams }: Props) {
         <h1 className="mb-6 font-display text-2xl font-semibold text-fjord">
           Properties & Businesses
         </h1>
-        <div className="card text-center py-12">
-          <p className="text-stone mb-3">No properties or businesses set up yet.</p>
-          <Link href="/settings" className="btn-primary inline-block text-sm">
-            Add in Settings
+        <div className="card text-center py-8">
+          <h3 className="text-lg font-medium text-fjord mb-2">Track Your Properties</h3>
+          <p className="text-sm text-stone mb-4 max-w-md mx-auto">
+            Add your rental properties, primary home, or business to track income, expenses,
+            tax deductions, and mortgage breakdown automatically.
+          </p>
+          <Link href="/settings#properties" className="btn-primary inline-block text-sm">
+            Add Your First Property
           </Link>
         </div>
       </div>

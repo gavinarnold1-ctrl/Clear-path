@@ -56,19 +56,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }
   }
 
-  // Show Properties nav if user has 2+ properties or any BUSINESS entities
-  let showProperties = false
-  if (session) {
-    const propertyCount = await db.property.count({ where: { userId: session.userId } })
-    if (propertyCount >= 2) {
-      showProperties = true
-    } else {
-      const businessCount = await db.property.count({
-        where: { userId: session.userId, type: 'BUSINESS' },
-      })
-      showProperties = businessCount > 0
-    }
-  }
+  // Always show Properties nav — empty state on the page guides users to setup
+  const showProperties = true
 
   const navGroups = buildNavGroups(showProperties)
 

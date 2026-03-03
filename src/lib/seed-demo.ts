@@ -3,7 +3,7 @@
  * and the cron reset API route.
  */
 import type { PrismaClient } from '@prisma/client'
-import { AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
+import { Prisma, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
 import { hashPassword } from '@/lib/password'
 import { DEMO_USER_ID, DEMO_USER_EMAIL } from '@/lib/demo'
 
@@ -35,6 +35,14 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   // Clean up existing demo data
   const existing = await db.user.findUnique({ where: { id: DEMO_USER_ID } })
   if (existing) {
+    // Clean up entity system models (must precede parent deletions)
+    await db.transactionSplit.deleteMany({ where: { transaction: { userId: DEMO_USER_ID } } })
+    await db.splitMatchRule.deleteMany({ where: { propertyGroup: { userId: DEMO_USER_ID } } })
+    await db.splitRule.deleteMany({ where: { propertyGroup: { userId: DEMO_USER_ID } } })
+    await db.accountPropertyLink.deleteMany({ where: { account: { userId: DEMO_USER_ID } } })
+    await db.debt.deleteMany({ where: { userId: DEMO_USER_ID } })
+    await db.propertyGroup.deleteMany({ where: { userId: DEMO_USER_ID } })
+
     await db.transaction.deleteMany({ where: { userId: DEMO_USER_ID } })
     await db.annualExpense.deleteMany({ where: { userId: DEMO_USER_ID } })
     await db.budget.deleteMany({ where: { userId: DEMO_USER_ID } })
@@ -76,6 +84,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     { type: 'income', group: 'Income', name: 'Paychecks', icon: '💵' },
     { type: 'income', group: 'Income', name: 'Side Gig', icon: '💰' },
     { type: 'expense', group: 'Housing', name: 'Rent', icon: '🏠', budgetTier: 'FIXED' as const },
+    { type: 'expense', group: 'Housing', name: 'Mortgage', icon: '🏡', budgetTier: 'FIXED' as const },
+    { type: 'income', group: 'Income', name: 'Rental Income', icon: '🏘️' },
     { type: 'expense', group: 'Auto & Transport', name: 'Auto Payment', icon: '🚗', budgetTier: 'FIXED' as const },
     { type: 'expense', group: 'Financial', name: 'Insurance', icon: '☂️', budgetTier: 'FIXED' as const },
     { type: 'expense', group: 'Bills & Utilities', name: 'Gas & Electric', icon: '⚡️', budgetTier: 'FIXED' as const },
@@ -131,6 +141,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     merchant: string
     date: Date
     importSource: string
+    propertyId?: string | null
+    classification?: string
   }[] = []
 
   function addTx(
@@ -138,7 +150,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     categoryName: string | null,
     amount: number,
     merchant: string,
-    date: Date
+    date: Date,
+    extra?: { propertyId?: string; classification?: string }
   ) {
     allTransactions.push({
       userId: DEMO_USER_ID,
@@ -148,6 +161,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
       merchant,
       date,
       importSource: 'manual',
+      propertyId: extra?.propertyId ?? null,
+      classification: extra?.classification ?? (amount > 0 ? 'income' : 'expense'),
     })
   }
 
@@ -351,4 +366,145 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     })
   }
 
+  // ─── Properties ─────────────────────────────────────────────────────
+  const primaryHome = await db.property.create({
+    data: {
+      userId: DEMO_USER_ID,
+      name: '456 Oak Ave',
+      type: 'PERSONAL',
+      taxSchedule: 'SCHEDULE_A',
+    },
+  })
+
+  const rentalProperty = await db.property.create({
+    data: {
+      userId: DEMO_USER_ID,
+      name: '123 Main St',
+      type: 'RENTAL',
+      taxSchedule: 'SCHEDULE_E',
+      purchasePrice: new Prisma.Decimal(265000),
+      purchaseDate: new Date('2021-03-01'),
+      buildingValuePct: new Prisma.Decimal(80),
+      priorDepreciation: new Prisma.Decimal(38545.45),
+    },
+  })
+
+  // ─── Property Group with Split Rules ────────────────────────────────
+  const propGroup = await db.propertyGroup.create({
+    data: {
+      userId: DEMO_USER_ID,
+      name: 'All Properties',
+      description: 'Shared expenses split 50/50 between primary and rental',
+    },
+  })
+
+  await db.property.update({
+    where: { id: primaryHome.id },
+    data: { groupId: propGroup.id, splitPct: new Prisma.Decimal(50) },
+  })
+  await db.property.update({
+    where: { id: rentalProperty.id },
+    data: { groupId: propGroup.id, splitPct: new Prisma.Decimal(50) },
+  })
+
+  // Split rules (allocation per property within the group)
+  await db.splitRule.create({
+    data: { propertyGroupId: propGroup.id, propertyId: primaryHome.id, allocationPct: new Prisma.Decimal(50) },
+  })
+  await db.splitRule.create({
+    data: { propertyGroupId: propGroup.id, propertyId: rentalProperty.id, allocationPct: new Prisma.Decimal(50) },
+  })
+
+  // Match rule for auto-splitting mortgage payments
+  await db.splitMatchRule.create({
+    data: {
+      propertyGroupId: propGroup.id,
+      name: 'Mortgage payments',
+      matchField: 'CATEGORY',
+      matchPattern: 'Mortgage',
+      allocations: [
+        { propertyId: primaryHome.id, percentage: 50 },
+        { propertyId: rentalProperty.id, percentage: 50 },
+      ],
+      isActive: true,
+    },
+  })
+
+  // ─── Account-Property Link ──────────────────────────────────────────
+  await db.accountPropertyLink.create({
+    data: {
+      accountId: checking.id,
+      propertyId: primaryHome.id,
+    },
+  })
+
+  // ─── Debts ──────────────────────────────────────────────────────────
+  const mortgageCatId = categoryMap.get('Mortgage')
+
+  await db.debt.create({
+    data: {
+      userId: DEMO_USER_ID,
+      name: 'Mortgage \u2013 456 Oak Ave',
+      type: 'MORTGAGE',
+      currentBalance: 310000,
+      originalBalance: 340000,
+      interestRate: 0.0625,
+      minimumPayment: 2350,
+      escrowAmount: 400,
+      paymentDay: 1,
+      termMonths: 360,
+      startDate: new Date('2022-06-01'),
+      propertyId: primaryHome.id,
+      categoryId: mortgageCatId ?? null,
+    },
+  })
+
+  await db.debt.create({
+    data: {
+      userId: DEMO_USER_ID,
+      name: 'Chase Sapphire',
+      type: 'CREDIT_CARD',
+      currentBalance: 5290.14,
+      interestRate: 0.2499,
+      minimumPayment: 132,
+      paymentDay: 15,
+      accountId: creditCard.id,
+    },
+  })
+
+  // ─── Property-attributed Transactions ───────────────────────────────
+  // Mortgage payments for primary home (3 months)
+  for (const month of [1, 2, 3]) {
+    addTx(
+      checking.id, 'Mortgage', -2350, 'US Bank Mortgage',
+      new Date(2026, month - 1, 1),
+      { propertyId: primaryHome.id }
+    )
+  }
+
+  // Rental income + rental mortgage expense (3 months)
+  for (const month of [1, 2, 3]) {
+    addTx(
+      checking.id, 'Rental Income', 1850, 'Tenant Payment',
+      new Date(2026, month - 1, 5),
+      { propertyId: rentalProperty.id, classification: 'income' }
+    )
+    addTx(
+      checking.id, 'Mortgage', -1800, 'Wells Fargo Mortgage',
+      new Date(2026, month - 1, 1),
+      { propertyId: rentalProperty.id }
+    )
+  }
+
+  // Write property-attributed transactions separately (main batch was already written)
+  const propertyTxs = allTransactions.filter(tx => tx.propertyId)
+  if (propertyTxs.length > 0) {
+    await db.transaction.createMany({ data: propertyTxs })
+    for (const tx of propertyTxs) {
+      await db.account.update({
+        where: { id: tx.accountId },
+        data: { balance: { increment: tx.amount } },
+      })
+    }
+  }
 }
