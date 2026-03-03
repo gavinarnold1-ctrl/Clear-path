@@ -131,9 +131,15 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
-    // Property filter (R4.4)
+    // Property filter (R4.4) — also match transactions with split allocations to this property
     if (filterPropertyId) {
-      if (filterPropertyId === '__none__' ? tx.propertyId !== null : tx.propertyId !== filterPropertyId) return false
+      if (filterPropertyId === '__none__') {
+        if (tx.propertyId !== null) return false
+      } else {
+        const directMatch = tx.propertyId === filterPropertyId
+        const splitMatch = tx.splits?.some(s => s.propertyId === filterPropertyId) ?? false
+        if (!directMatch && !splitMatch) return false
+      }
     }
     // Person filter (R3.3a)
     if (filterPersonId) {
@@ -717,8 +723,22 @@ export default function TransactionList({ transactions: initial, categories, acc
                     <td className="px-4 py-3 text-stone">{tx.property?.name ?? '—'}</td>
                   )}
                   <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
-                    {tx.amount < 0 ? '−' : '+'}
-                    {formatCurrency(Math.abs(tx.amount))}
+                    {(() => {
+                      // When filtering by property, show the split amount if the match is via split
+                      const splitForFilter = filterPropertyId && filterPropertyId !== '__none__' && tx.propertyId !== filterPropertyId
+                        ? tx.splits?.find(s => s.propertyId === filterPropertyId)
+                        : null
+                      const displayAmount = splitForFilter ? splitForFilter.amount : tx.amount
+                      return (
+                        <>
+                          {displayAmount < 0 ? '−' : '+'}
+                          {formatCurrency(Math.abs(displayAmount))}
+                          {splitForFilter && (
+                            <span className="ml-1 text-[10px] font-normal text-stone">(split)</span>
+                          )}
+                        </>
+                      )
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button

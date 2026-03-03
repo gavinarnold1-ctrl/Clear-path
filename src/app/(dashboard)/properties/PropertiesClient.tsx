@@ -184,6 +184,14 @@ function DashboardView({
               </div>
             </div>
 
+            {/* Tax approximation warning for rental/business properties */}
+            {(prop.taxSchedule === 'SCHEDULE_E' || prop.taxSchedule === 'SCHEDULE_C') &&
+              prop.expenses > 0 && (
+                <p className="mt-2 text-[10px] text-stone leading-tight">
+                  Tax figures are approximate. Mortgage splits include principal (not deductible) alongside interest, tax escrow, and insurance. Actual deductible amounts depend on your amortization schedule.
+                </p>
+              )}
+
             <Link
               href={`/transactions?propertyId=${prop.id}&month=${monthParam}`}
               className="mt-3 block text-xs text-stone hover:text-fjord"
@@ -340,6 +348,14 @@ function TaxReportView({
         <button onClick={exportCsv} className="btn-secondary text-xs">
           Export for CPA
         </button>
+      </div>
+
+      {/* Tax approximation notice */}
+      <div className="rounded-card border border-birch/40 bg-birch/10 px-4 py-3">
+        <p className="text-xs font-medium text-fjord">Approximation Notice</p>
+        <p className="mt-1 text-[11px] text-stone leading-relaxed">
+          Mortgage payment splits include the full allocated amount. In practice, only the interest, property tax, and insurance portions are deductible — principal payments are not. Until mortgage decomposition is available, treat these figures as estimates for tax planning. Consult your CPA for exact amounts.
+        </p>
       </div>
 
       {/* Schedule E */}
