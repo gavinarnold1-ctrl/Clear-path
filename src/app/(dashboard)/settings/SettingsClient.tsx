@@ -68,14 +68,26 @@ interface AccountPropertyLinkData {
   property: { id: string; name: string; type: string }
 }
 
+type PrimaryGoal = 'save_more' | 'spend_smarter' | 'pay_off_debt' | 'gain_visibility' | 'build_wealth'
+
+const GOAL_OPTIONS: { key: PrimaryGoal; label: string; description: string }[] = [
+  { key: 'save_more', label: 'Save More', description: 'Build your savings cushion' },
+  { key: 'spend_smarter', label: 'Spend Smarter', description: 'Get more value from every dollar' },
+  { key: 'pay_off_debt', label: 'Pay Off Debt', description: 'Accelerate your path to debt-free' },
+  { key: 'gain_visibility', label: 'Gain Visibility', description: 'Finally see where your money goes' },
+  { key: 'build_wealth', label: 'Build Wealth', description: 'Grow your net worth over time' },
+]
+
 interface Props {
   user: { name: string; email: string; createdAt: string }
   initialMembers: Member[]
   initialProperties: Property[]
   initialAccounts?: AccountOption[]
+  initialGoal?: string | null
+  goalSetAt?: string | null
 }
 
-export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [] }: Props) {
+export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt }: Props) {
   const router = useRouter()
 
   // Profile state
@@ -83,6 +95,14 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [email, setEmail] = useState(user.email)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Goal state
+  const [selectedGoal, setSelectedGoal] = useState<PrimaryGoal | null>(
+    (initialGoal as PrimaryGoal) ?? null
+  )
+  const [currentGoalSetAt, setCurrentGoalSetAt] = useState<string | null>(goalSetAt ?? null)
+  const [goalSaving, setGoalSaving] = useState(false)
+  const [goalMsg, setGoalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -219,6 +239,35 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       setPasswordMsg({ type: 'error', text: 'Network error.' })
     } finally {
       setPasswordSaving(false)
+    }
+  }
+
+  // ─── Financial Goal ─────────────────────────────────────────────────────
+  const goalChanged = selectedGoal !== (initialGoal ?? null)
+
+  async function saveGoal() {
+    if (!selectedGoal || !goalChanged) return
+    setGoalSaving(true)
+    setGoalMsg(null)
+    try {
+      const res = await fetch('/api/profile/goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primaryGoal: selectedGoal }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setGoalMsg({ type: 'error', text: data.error ?? 'Failed to update goal.' })
+        return
+      }
+      const data = await res.json()
+      setCurrentGoalSetAt(data.goalSetAt)
+      setGoalMsg({ type: 'success', text: 'Financial goal updated.' })
+      router.refresh()
+    } catch {
+      setGoalMsg({ type: 'error', text: 'Network error.' })
+    } finally {
+      setGoalSaving(false)
     }
   }
 
@@ -807,6 +856,46 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             {passwordSaving ? 'Changing...' : 'Change Password'}
           </button>
         </div>
+      </section>
+
+      {/* Financial Goal */}
+      <section className="card">
+        <h2 className="mb-1 text-base font-semibold text-fjord">Financial Goal</h2>
+        <p className="mb-4 text-xs text-stone">
+          This drives your budget suggestions, insights, and progress tracking.
+          {currentGoalSetAt && (
+            <> Set on {new Date(currentGoalSetAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.</>
+          )}
+        </p>
+        <div className="space-y-2">
+          {GOAL_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => { setSelectedGoal(opt.key); setGoalMsg(null) }}
+              className={`w-full rounded-card border px-4 py-3 text-left transition ${
+                selectedGoal === opt.key
+                  ? 'border-fjord bg-frost text-midnight'
+                  : 'border-mist text-fjord hover:border-lichen hover:bg-snow'
+              }`}
+            >
+              <span className="block text-sm font-semibold">{opt.label}</span>
+              <span className="block text-xs text-stone mt-0.5">{opt.description}</span>
+            </button>
+          ))}
+        </div>
+        {goalMsg && (
+          <p className={`mt-3 text-sm ${goalMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
+            {goalMsg.text}
+          </p>
+        )}
+        <button
+          onClick={saveGoal}
+          disabled={goalSaving || !goalChanged || !selectedGoal}
+          className="btn-primary mt-4 text-sm disabled:opacity-50"
+        >
+          {goalSaving ? 'Saving...' : 'Save Goal'}
+        </button>
       </section>
 
       {/* R10.2: Household Members */}
