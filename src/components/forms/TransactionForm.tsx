@@ -155,7 +155,7 @@ export default function TransactionForm({ accounts, categories, householdMembers
         <label htmlFor="date" className="mb-1 block text-sm font-medium text-fjord">
           Date
         </label>
-        <input id="date" name="date" type="date" className="input" defaultValue={today} required />
+        <input id="date" name="date" type="date" className="input text-left" defaultValue={today} required />
       </div>
 
       {/* Account */}
@@ -237,11 +237,30 @@ export default function TransactionForm({ accounts, categories, householdMembers
             onChange={(e) => handlePropertyChange(e.target.value)}
           >
             <option value="">No property</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+            {/* Properties in groups — show group headers with units indented */}
+            {propertyGroups.map((group) => (
+              <optgroup key={group.id} label={group.name}>
+                {group.properties.map((gp) => {
+                  const schedLabel = gp.taxSchedule === 'SCHEDULE_E' ? ' (Schedule E)' :
+                    gp.taxSchedule === 'SCHEDULE_C' ? ' (Schedule C)' :
+                      gp.taxSchedule === 'SCHEDULE_A' ? ' (Schedule A)' : ''
+                  const fullProp = properties.find(p => p.id === gp.id)
+                  return (
+                    <option key={gp.id} value={gp.id}>
+                      {fullProp?.name ?? gp.name}{schedLabel}
+                    </option>
+                  )
+                })}
+              </optgroup>
             ))}
+            {/* Ungrouped properties */}
+            {properties
+              .filter((p) => !p.groupId || !propertyGroups.some(g => g.properties.some(gp => gp.id === p.id)))
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
           </select>
 
           {/* Split toggle — shown when selected property belongs to a group */}
@@ -284,8 +303,11 @@ export default function TransactionForm({ accounts, categories, householdMembers
                         <span className="flex-1 text-sm text-fjord">
                           {prop?.name ?? 'Unknown'}
                           {isTaxDeductible && (
-                            <span className="ml-1 rounded-badge bg-pine/10 border border-pine/30 px-1 py-0.5 text-[10px] font-medium text-pine">
-                              Tax
+                            <span
+                              className="ml-1 rounded-badge bg-pine/10 border border-pine/30 px-1 py-0.5 text-[10px] font-medium text-pine"
+                              title="Tax-relevant split. Note: mortgage splits include principal (not deductible) — actual deductible amount depends on amortization breakdown."
+                            >
+                              Tax*
                             </span>
                           )}
                         </span>

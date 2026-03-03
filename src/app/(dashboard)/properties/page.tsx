@@ -87,17 +87,23 @@ export default async function PropertiesPage({ searchParams }: Props) {
     },
   })
 
+  // Build a set of transaction IDs that have splits, to avoid double-counting
+  const txIdsWithSplits = new Set(splits.map((s) => s.transaction.id))
+
   // Build per-property data
   const propertyData = properties.map((prop) => {
-    // Direct attributions for this property
-    const directTxs = directTransactions.filter((t) => t.propertyId === prop.id)
+    // Direct attributions for this property — exclude transactions that have splits
+    // (their amounts are captured via split records instead to avoid double-counting)
+    const directTxs = directTransactions.filter(
+      (t) => t.propertyId === prop.id && !txIdsWithSplits.has(t.id),
+    )
     // Split allocations for this property
     const propSplits = splits.filter((s) => s.propertyId === prop.id)
 
     let income = 0
     let expenses = 0
 
-    // From direct transactions
+    // From direct transactions (only those without splits)
     for (const tx of directTxs) {
       if (tx.classification === 'income' || tx.amount > 0) {
         income += Math.abs(tx.amount)
@@ -106,7 +112,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
       }
     }
 
-    // From splits
+    // From splits (the allocated portion for this property)
     for (const s of propSplits) {
       if (s.transaction.classification === 'income' || s.amount > 0) {
         income += Math.abs(s.amount)
