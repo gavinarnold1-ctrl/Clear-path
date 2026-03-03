@@ -193,18 +193,20 @@ export default async function PropertiesPage({ searchParams }: Props) {
           : undefined,
       },
     })),
-    directTransactions.map((t) => ({
-      propertyId: t.propertyId!,
-      amount: t.amount,
-      classification: t.classification,
-      category: t.category
-        ? {
-          group: t.category.group,
-          name: t.category.name,
-          scheduleECategory: t.category.scheduleECategory,
-        }
-        : undefined,
-    })),
+    directTransactions
+      .filter((t) => !txIdsWithSplits.has(t.id))
+      .map((t) => ({
+        propertyId: t.propertyId!,
+        amount: t.amount,
+        classification: t.classification,
+        category: t.category
+          ? {
+            group: t.category.group,
+            name: t.category.name,
+            scheduleECategory: t.category.scheduleECategory,
+          }
+          : undefined,
+      })),
     properties.map((p) => ({
       id: p.id,
       name: p.name,
