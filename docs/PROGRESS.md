@@ -887,3 +887,61 @@ After step 3 → Connect accounts (Plaid) → transactions land → "Build My Bu
 - Existing users: no forced re-onboarding. If `primaryGoal` is set, it starts being used immediately. Soft prompt for `incomeRange`.
 - New users: 3-step quiz → Plaid → AI builder flow.
 - Schema migration: all new fields nullable (non-breaking).
+
+---
+
+## V1 Bug Tracker (2026-03-02)
+
+> **Source:** Manual QA of budget proposal + transaction list + properties views
+
+| # | Issue | Severity | Type | Status |
+|---|-------|----------|------|--------|
+| 1 | One-time large payments treated as recurring in AI budget | High | Logic/AI | ⬜ TODO |
+| 2 | Dividend + money market sweep misclassified as Refunded | Medium | Classification | ⬜ TODO |
+| 3 | Miscellaneous in Flexible rollup — verify "Other" group handling | Low | Verify | ✅ Verified OK |
+| 4a | Mortgage payment needs P/I/T/I component breakdown | High | Feature/Tax | ⬜ TODO |
+| 4b | Structured property setup flow (group → units → loan → depreciation) | High | Feature/UX | ⬜ TODO |
+| 4c | Insurance: escrow vs separate — possible double-count | Medium | Data integrity | ⬜ TODO |
+| 5 | Transaction form lacks unit-level property assignment | Medium | UX/Feature | ⬜ TODO |
+| 6 | Date field center-aligned in transaction form | Low | UI polish | ✅ Not reproducible |
+| 7 | Rental unit split mortgage not visible in transaction detail view | High | Data integrity | ⬜ TODO |
+| 8 | Goals-driven AI budget not surfacing in UI | High | Feature/AI | ⬜ TODO |
+| 9 | Account reset button for testing | Medium | Dev tooling | ✅ Already exists |
+
+### Verification Notes
+
+**Bug #2 — Refund detection false positive on investment accounts:**
+Root cause confirmed in `src/lib/refund-detection.ts`. The algorithm matches by: same account + exact absolute amount + opposite signs + within 30 days. Merchant matching is explicitly NOT required (line 88). A dividend (+$64.31) and a sweep purchase (-$64.31) on the same investment account on the same day are an exact match for the refund heuristic.
+**Fix needed:** Add account type awareness — investment/brokerage accounts should be excluded from refund detection, or at minimum require merchant similarity for investment account matches.
+
+**Bug #3 — Verified OK:**
+`src/lib/budget-engine.ts` `calculateTierSummary()` aggregates all budgets with `tier === 'FLEXIBLE'` — there is no group-based exclusion. This is correct behavior: if a "Miscellaneous" category budget has `tier: FLEXIBLE`, it rolls into the flexible total. The tier assignment on the Budget model (not the category group) is the authoritative source. Math confirmed correct.
+
+**Bug #6 — Not reproducible:**
+Date input at `src/components/forms/TransactionForm.tsx:158` uses `className="input"` — the same utility class as all other form fields. The `.input` class in `globals.css` applies `block w-full px-3 py-2 text-sm`. No text-center or alignment override found. May be a browser-specific rendering quirk with `type="date"` inputs (native date picker rendering varies by browser/OS).
+
+**Bug #8 — Goals not wired to AI budget generation:**
+Confirmed. `UserProfile.primaryGoal` exists in schema (added with `goalSetAt`, `previousGoals`), and onboarding stores it. However:
+- `src/lib/budget-builder.ts` `generateBudgetProposal()` receives only a `SpendingProfile` — no goal field
+- `src/app/api/budgets/generate/route.ts` never queries `UserProfile.primaryGoal`
+- `src/lib/budget-context.ts` has no goal references
+- `src/lib/ai.ts` insight prompt has no goal-awareness
+This is Step 3 of the Goal-Driven Budget System (see above) — not a regression, but a not-yet-implemented feature.
+
+**Bug #9 — Already exists:**
+`POST /api/profile/reset` at `src/app/api/profile/reset/route.ts` deletes all user-scoped data (14 tables in dependency order via `db.$transaction()`) while preserving the user account. Exposed in Settings → Data Tools → "Reset All Data" with confirmation dialog. Full first-run state reset including onboarding.
+
+### Remaining Work
+
+**High priority (blocks V1 quality):**
+- **Bug #1**: Add anomaly detection layer to AI budget builder — flag payments appearing < 3 months or exceeding 30% of income. Generate with/without scenarios. Ties into Goal-Driven Budget Step 2 (AI Budget Builder API).
+- **Bug #7**: Properties "View Transactions" only queries direct transactions by `propertyId`, not split allocations. Need to union `TransactionSplit` records as virtual line items. Also audit personal unit for double-counting (full mortgage + split allocation).
+- **Bug #8**: Wire `primaryGoal` into budget generation context and AI insight prompts. Goal-Driven Budget Steps 2-4.
+
+**Medium priority:**
+- **Bug #2**: Exclude investment/brokerage accounts from refund detection in `src/lib/refund-detection.ts`, or require merchant similarity for those account types.
+- **Bug #4a/4b/4c**: Mortgage decomposition and structured property setup — significant feature work, likely post-V1 unless tax accuracy is a V1 requirement.
+- **Bug #5**: Unit-level property assignment in transaction form — depends on Bug #4b property structure.
+
+**Low priority / deferred:**
+- **Bug #6**: Browser-specific date input rendering — no code fix needed.
