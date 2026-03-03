@@ -264,6 +264,32 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   addTx(creditCard.id, 'Restaurants & Bars', -28.5, 'Starbucks', yesterday)
   addTx(checking.id, 'Gas', -42.18, 'Shell', yesterday)
 
+  // ─── Current month guaranteed transactions ──────────────────────────
+  // Ensure dashboard, spending, and budget pages always show data even
+  // early in the month when random-date transactions may fall in the future.
+
+  // Income
+  addTx(checking.id, 'Paychecks', 4200, 'Employer Direct Deposit', monthsAgo(0, 1))
+  addTx(checking.id, 'Paychecks', 4200, 'Employer Direct Deposit', monthsAgo(0, 15))
+
+  // Fixed expenses
+  addTx(checking.id, 'Rent', -1850, 'Property Management Co', monthsAgo(0, 1))
+  addTx(checking.id, 'Gas & Electric', -145, 'Electric Company', monthsAgo(0, 5))
+  addTx(checking.id, 'Insurance', -180, 'State Farm', monthsAgo(0, 3))
+  addTx(creditCard.id, 'Internet & Cable', -89.99, 'Verizon', monthsAgo(0, 7))
+  addTx(creditCard.id, 'Subscriptions', -15.99, 'Netflix', monthsAgo(0, 4))
+  addTx(creditCard.id, 'Subscriptions', -10.99, 'Spotify', monthsAgo(0, 4))
+
+  // Flexible spending
+  addTx(creditCard.id, 'Groceries', -68.33, 'Whole Foods', monthsAgo(0, 2))
+  addTx(creditCard.id, 'Groceries', -52.17, "Trader Joe's", monthsAgo(0, 5))
+  addTx(creditCard.id, 'Restaurants & Bars', -43.5, 'Chipotle', monthsAgo(0, 3))
+  addTx(creditCard.id, 'Gas', -48.2, 'Shell', monthsAgo(0, 1))
+  addTx(creditCard.id, 'Clothing', -34.99, 'Amazon', monthsAgo(0, 6))
+  addTx(creditCard.id, 'Restaurants & Bars', -6.75, 'Blue Bottle Coffee', monthsAgo(0, 2))
+  addTx(creditCard.id, 'Restaurants & Bars', -5.5, 'Blue Bottle Coffee', monthsAgo(0, 5))
+  addTx(creditCard.id, 'Fitness', -50, 'Planet Fitness', monthsAgo(0, 1))
+
   // Write all transactions
   await db.transaction.createMany({ data: allTransactions })
 
