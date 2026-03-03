@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
+import { amortizationSchedule, effectiveRate as calcEffectiveRate } from '@/lib/engines/amortization'
+import type { AmortizationRow } from '@/lib/engines/amortization'
 
 interface PaymentRecord {
   id: string
@@ -37,6 +39,15 @@ interface PropertyOption {
   id: string
   name: string
   type: string
+  currentValue?: number | null
+  loanBalance?: number | null
+  monthlyPayment?: number | null
+  interestRate?: number | null
+  loanTermMonths?: number | null
+  monthlyPropertyTax?: number | null
+  monthlyInsurance?: number | null
+  monthlyHOA?: number | null
+  monthlyPMI?: number | null
 }
 
 interface CategoryOption {
@@ -332,53 +343,8 @@ export default function DebtManager({ debts: initial, properties, categories }: 
                   </div>
                 </div>
 
-                {/* P&I breakdown */}
-                <div className="mt-4 rounded-lg border border-mist bg-snow p-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
-                    Monthly Payment Breakdown
-                  </p>
-                  <div className="flex flex-wrap items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full bg-pine" />
-                      <span className="text-stone">Principal:</span>
-                      <span className="font-semibold text-fjord">{formatCurrency(debt.monthlyPrincipal)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full bg-ember" />
-                      <span className="text-stone">Interest:</span>
-                      <span className="font-semibold text-fjord">{formatCurrency(debt.monthlyInterest)}</span>
-                    </div>
-                    {debt.escrowAmount != null && debt.escrowAmount > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-stone" />
-                        <span className="text-stone">Escrow:</span>
-                        <span className="font-semibold text-fjord">{formatCurrency(debt.escrowAmount)}</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* P&I (+Escrow) bar */}
-                  {debt.minimumPayment > 0 && (() => {
-                    const totalBar = debt.minimumPayment
-                    return (
-                      <div className="mt-2 flex h-2 overflow-hidden rounded-bar">
-                        <div
-                          className="bg-pine"
-                          style={{ width: `${(debt.monthlyPrincipal / totalBar) * 100}%` }}
-                        />
-                        <div
-                          className="bg-ember"
-                          style={{ width: `${(debt.monthlyInterest / totalBar) * 100}%` }}
-                        />
-                        {debt.escrowAmount != null && debt.escrowAmount > 0 && (
-                          <div
-                            className="bg-stone"
-                            style={{ width: `${(debt.escrowAmount / totalBar) * 100}%` }}
-                          />
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
+                {/* PITI breakdown */}
+                <DebtPITIBreakdown debt={debt} properties={properties} />
 
                 {/* Progress bar for original → current */}
                 {debt.originalBalance && debt.originalBalance > 0 && (
@@ -641,5 +607,178 @@ export default function DebtManager({ debts: initial, properties, categories }: 
         </div>
       )}
     </div>
+  )
+}
+
+/** Enhanced PITI breakdown, effective rate, equity/LTV, and amortization schedule */
+function DebtPITIBreakdown({ debt, properties }: { debt: DebtRow; properties: PropertyOption[] }) {
+  const [showSchedule, setShowSchedule] = useState(false)
+
+  const prop = debt.propertyId ? properties.find(p => p.id === debt.propertyId) : null
+  const hasPiti = debt.type === 'MORTGAGE' && prop != null &&
+    prop.monthlyPropertyTax != null
+
+  // PITI line items (when available)
+  const propTax = prop?.monthlyPropertyTax ?? 0
+  const ins = prop?.monthlyInsurance ?? 0
+  const hoa = prop?.monthlyHOA ?? 0
+  const pmi = prop?.monthlyPMI ?? 0
+  const escrowItems = hasPiti
+    ? [
+        { label: 'Property Tax', amount: propTax, color: 'bg-birch' },
+        { label: 'Insurance', amount: ins, color: 'bg-lichen' },
+        ...(hoa > 0 ? [{ label: 'HOA', amount: hoa, color: 'bg-mist' }] : []),
+        ...(pmi > 0 ? [{ label: 'PMI', amount: pmi, color: 'bg-stone/50' }] : []),
+      ]
+    : []
+
+  const totalBar = debt.minimumPayment
+
+  // Effective rate
+  const effRate = debt.type === 'MORTGAGE' && debt.currentBalance > 0
+    ? calcEffectiveRate(debt.currentBalance, debt.minimumPayment)
+    : null
+
+  // Equity / LTV
+  const propertyValue = prop?.currentValue ?? null
+  const equity = propertyValue != null && debt.currentBalance != null
+    ? propertyValue - debt.currentBalance
+    : null
+  const ltv = propertyValue != null && propertyValue > 0
+    ? (debt.currentBalance / propertyValue) * 100
+    : null
+
+  // Amortization schedule
+  const canShowSchedule = debt.currentBalance > 0 && debt.interestRate >= 0 && debt.termMonths != null && debt.termMonths > 0
+  const scheduleRows: AmortizationRow[] = canShowSchedule
+    ? (() => {
+        try {
+          const result = amortizationSchedule({
+            principal: debt.currentBalance,
+            annualRate: debt.interestRate,
+            termMonths: debt.termMonths!,
+          })
+          return result.schedule
+        } catch {
+          return []
+        }
+      })()
+    : []
+
+  return (
+    <>
+      <div className="mt-4 rounded-lg border border-mist bg-snow p-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
+          Monthly Payment Breakdown {hasPiti && '(PITI)'}
+        </p>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-pine" />
+            <span className="text-stone">Principal:</span>
+            <span className="font-semibold text-fjord">{formatCurrency(debt.monthlyPrincipal)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-ember" />
+            <span className="text-stone">Interest:</span>
+            <span className="font-semibold text-fjord">{formatCurrency(debt.monthlyInterest)}</span>
+          </div>
+          {hasPiti ? (
+            escrowItems.map((item) => (
+              <div key={item.label} className="flex items-center gap-1.5">
+                <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
+                <span className="text-stone">{item.label}:</span>
+                <span className="font-semibold text-fjord">{formatCurrency(item.amount)}</span>
+              </div>
+            ))
+          ) : debt.escrowAmount != null && debt.escrowAmount > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-stone" />
+              <span className="text-stone">Escrow:</span>
+              <span className="font-semibold text-fjord">{formatCurrency(debt.escrowAmount)}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* PITI bar */}
+        {totalBar > 0 && (
+          <div className="mt-2 flex h-2 overflow-hidden rounded-bar">
+            <div className="bg-pine" style={{ width: `${(debt.monthlyPrincipal / totalBar) * 100}%` }} />
+            <div className="bg-ember" style={{ width: `${(debt.monthlyInterest / totalBar) * 100}%` }} />
+            {hasPiti ? (
+              escrowItems.map((item) => (
+                <div key={item.label} className={item.color} style={{ width: `${(item.amount / totalBar) * 100}%` }} />
+              ))
+            ) : debt.escrowAmount != null && debt.escrowAmount > 0 ? (
+              <div className="bg-stone" style={{ width: `${(debt.escrowAmount / totalBar) * 100}%` }} />
+            ) : null}
+          </div>
+        )}
+
+        {/* Effective rate + Equity row */}
+        {(effRate !== null || equity !== null) && (
+          <div className="mt-3 flex flex-wrap gap-4 border-t border-mist pt-2 text-xs">
+            {effRate !== null && (
+              <div>
+                <span className="text-stone">Effective Rate: </span>
+                <span className="font-semibold text-fjord">{(effRate * 100).toFixed(2)}%</span>
+                <span className="ml-1 text-stone" title="Annual cost including escrow as a percentage of loan balance">
+                  (nominal {(debt.interestRate * 100).toFixed(2)}%)
+                </span>
+              </div>
+            )}
+            {equity !== null && ltv !== null && (
+              <div>
+                <span className="text-stone">Equity: </span>
+                <span className={`font-semibold ${equity >= 0 ? 'text-pine' : 'text-ember'}`}>
+                  {formatCurrency(equity)}
+                </span>
+                <span className="ml-1 text-stone">
+                  (LTV {ltv.toFixed(1)}%)
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Amortization schedule toggle */}
+      {canShowSchedule && scheduleRows.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowSchedule(!showSchedule)}
+            className="text-xs text-stone hover:text-fjord"
+          >
+            {showSchedule ? 'Hide' : 'Show'} Amortization Schedule ({scheduleRows.length} months)
+          </button>
+
+          {showSchedule && (
+            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-mist bg-snow">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-frost">
+                  <tr className="text-left text-stone">
+                    <th className="px-2 py-1.5 font-medium">#</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Payment</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Principal</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Interest</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduleRows.map((row) => (
+                    <tr key={row.month} className="border-t border-mist/50">
+                      <td className="px-2 py-1 text-stone">{row.month}</td>
+                      <td className="px-2 py-1 text-right font-mono text-fjord">{formatCurrency(row.payment)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-pine">{formatCurrency(row.principal)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-ember">{formatCurrency(row.interest)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-fjord">{formatCurrency(row.remainingBalance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   )
 }

@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { piBreakdown } from '@/lib/engines/amortization'
+import { syncDebtToProperty } from '@/lib/property-debt-sync'
 
 const VALID_DEBT_TYPES = new Set([
   'MORTGAGE',
@@ -96,6 +97,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
     include: { property: true, category: true },
   })
+
+  // Sync Debt → Property for MORTGAGE debts with a linked property
+  const debtType = updated.type ?? existing.type
+  const propId = updated.propertyId
+  if (debtType === 'MORTGAGE' && propId) {
+    await syncDebtToProperty(updated.id, propId, {
+      currentBalance: updated.currentBalance,
+      interestRate: updated.interestRate,
+      minimumPayment: updated.minimumPayment,
+      escrowAmount: updated.escrowAmount,
+      termMonths: updated.termMonths,
+      startDate: updated.startDate,
+    })
+  }
 
   revalidatePath('/debts')
   return NextResponse.json(updated)
