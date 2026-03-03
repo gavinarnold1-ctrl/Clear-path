@@ -663,7 +663,7 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={currentValue}
               onChange={(e) => setCurrentValue(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="350,000" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 350,000" />
           </div>
         </div>
         <div>
@@ -672,20 +672,20 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={loanBalance}
               onChange={(e) => setLoanBalance(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="280,000" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 280,000" />
           </div>
         </div>
         <div>
           <label className="mb-0.5 block text-[11px] text-stone">Interest Rate (%)</label>
           <input type="number" step="0.01" min="0" max="100" value={interestRate}
             onChange={(e) => setInterestRate(e.target.value)}
-            className="input py-1.5 text-sm" placeholder="4.85" />
+            className="input py-1.5 text-sm" placeholder="e.g. 4.85" />
         </div>
         <div>
           <label className="mb-0.5 block text-[11px] text-stone">Term (months)</label>
           <input type="number" min="1" value={loanTermMonths}
             onChange={(e) => setLoanTermMonths(e.target.value)}
-            className="input py-1.5 text-sm" placeholder="360" />
+            className="input py-1.5 text-sm" placeholder="e.g. 360" />
         </div>
         <div className="col-span-2">
           <label className="mb-0.5 block text-[11px] text-stone">Total Monthly Payment</label>
@@ -693,7 +693,7 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={monthlyPayment}
               onChange={(e) => setMonthlyPayment(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="2,100" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 2,100" />
           </div>
         </div>
       </div>
@@ -707,7 +707,7 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={monthlyPropertyTax}
               onChange={(e) => setMonthlyPropertyTax(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="350" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 350" />
           </div>
         </div>
         <div>
@@ -716,7 +716,7 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={monthlyInsurance}
               onChange={(e) => setMonthlyInsurance(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="120" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 120" />
           </div>
         </div>
         <div>
@@ -725,7 +725,7 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={monthlyHOA}
               onChange={(e) => setMonthlyHOA(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="0" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 0" />
           </div>
         </div>
         <div>
@@ -734,7 +734,7 @@ function PropertyFinancialForm({
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-stone">$</span>
             <input type="number" step="0.01" min="0" value={monthlyPMI}
               onChange={(e) => setMonthlyPMI(e.target.value)}
-              className="input py-1.5 pl-5 text-sm" placeholder="0" />
+              className="input py-1.5 pl-5 text-sm" placeholder="e.g. 0" />
           </div>
         </div>
       </div>
