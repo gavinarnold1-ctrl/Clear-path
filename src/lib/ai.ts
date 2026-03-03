@@ -4,6 +4,7 @@ import type { TemporalContext, SpendingVelocity } from './temporal-context'
 import type { BudgetContext } from './budget-context'
 import type { InsightHistory } from './insight-history'
 import type { GoalContext } from './goal-context'
+import { OVERSIKT_VOICE } from './ai-voice'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -48,7 +49,8 @@ function sanitizeForPrompt(value: string): string {
 export async function generateInsights(ctx: InsightGenerationContext): Promise<AIInsightResponse> {
   const { summary, temporal, velocity, budget, history } = ctx
 
-  const systemPrompt = `You are a personal finance analyst inside a budgeting app called Oversikt. Your job is to analyze a user's spending data and generate specific, actionable recommendations that save them money.
+  const systemPrompt = `${OVERSIKT_VOICE}
+You are a personal finance analyst inside a budgeting app called Oversikt. Your job is to analyze a user's spending data and generate specific, actionable recommendations that save them money.
 
 RULES:
 - Every recommendation MUST include a specific dollar amount (monthly or annual savings)

@@ -215,6 +215,7 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   async function saveEdit() {
     if (!editingId || saving) return
+    const txId = editingId
     const merchant = editMerchant.trim()
     if (!merchant) { setError('Merchant is required.'); return }
     const amount = parseFloat(editAmount)
@@ -238,7 +239,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     const prevTransactions = transactions
     setTransactions(txs =>
       txs.map(tx => {
-        if (tx.id !== editingId) return tx
+        if (tx.id !== txId) return tx
         const cat = categories.find(c => c.id === editCategoryId) ?? null
         const acct = accounts.find(a => a.id === editAccountId) ?? null
         const member = householdMembers.find(m => m.id === editHouseholdMemberId) ?? null
@@ -263,7 +264,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     setEditingId(null)
 
     try {
-      const res = await fetch(`/api/transactions/${editingId}`, {
+      const res = await fetch(`/api/transactions/${txId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -275,6 +276,7 @@ export default function TransactionList({ transactions: initial, categories, acc
       router.refresh()
     } catch (err) {
       setTransactions(prevTransactions)
+      setEditingId(txId)
       setError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSaving(false)

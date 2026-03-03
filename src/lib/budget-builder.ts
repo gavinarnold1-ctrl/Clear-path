@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { db } from './db'
 import { buildTemporalContext } from './temporal-context'
 import type { GoalContext } from './goal-context'
+import { OVERSIKT_VOICE } from './ai-voice'
 
 // ─── Spending Profile ───────────────────────────────────────────────────────
 
@@ -340,7 +341,8 @@ export async function generateBudgetProposal(
 ): Promise<BudgetProposal> {
   const temporalContext = buildTemporalContext()
 
-  const systemPrompt = `You are a personal finance expert building a budget for a user of Oversikt, a budgeting app. You have their actual spending data and need to propose a complete budget structure.
+  const systemPrompt = `${OVERSIKT_VOICE}
+You are a personal finance expert building a budget for a user of Oversikt, a budgeting app. You have their actual spending data and need to propose a complete budget structure.
 
 Oversikt uses THREE budget tiers:
 
