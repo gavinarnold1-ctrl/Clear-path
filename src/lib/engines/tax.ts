@@ -499,6 +499,14 @@ export function generateTaxSummary(
     purchaseDate?: Date | null
     buildingValuePct?: number | null
     priorDepreciation?: number | null
+    // Financial details for PITI decomposition
+    loanBalance?: number | null
+    interestRate?: number | null
+    monthlyPayment?: number | null
+    monthlyPropertyTax?: number | null
+    monthlyInsurance?: number | null
+    monthlyHOA?: number | null
+    monthlyPMI?: number | null
   }>,
   dateRange: { start: Date; end: Date },
 ): TaxSummary {
@@ -553,6 +561,47 @@ export function generateTaxSummary(
     { income: number; expenses: Map<string, number> }
   >()
 
+  // Helper: check if a category name looks like a mortgage payment
+  function isMortgageCategory(name: string): boolean {
+    const lower = name.toLowerCase()
+    return lower.includes('mortgage') || lower.includes('home loan')
+  }
+
+  // Helper: check if a property has PITI financial details
+  function hasPitiDetails(prop: typeof properties[number]): boolean {
+    return prop.loanBalance != null && prop.loanBalance > 0 &&
+      prop.interestRate != null && prop.monthlyPayment != null && prop.monthlyPayment > 0
+  }
+
+  // Helper: compute PITI ratios for a property
+  function pitiRatios(prop: typeof properties[number]): {
+    interestPct: number
+    taxPct: number
+    insurancePct: number
+    principalPct: number
+  } {
+    const balance = prop.loanBalance ?? 0
+    const rate = prop.interestRate ?? 0
+    const total = prop.monthlyPayment ?? 0
+    const tax = prop.monthlyPropertyTax ?? 0
+    const ins = prop.monthlyInsurance ?? 0
+    const hoa = prop.monthlyHOA ?? 0
+    const pmi = prop.monthlyPMI ?? 0
+    const escrow = tax + ins + hoa + pmi
+    const pi = total - escrow
+    const interest = balance * (rate / 12)
+    const principal = Math.max(0, pi - interest)
+
+    if (total <= 0) return { interestPct: 0, taxPct: 0, insurancePct: 0, principalPct: 0 }
+
+    return {
+      interestPct: interest / total,
+      taxPct: tax / total,
+      insurancePct: (ins + hoa + pmi) / total,
+      principalPct: principal / total,
+    }
+  }
+
   for (const item of allItems) {
     const prop = propertyMap.get(item.propertyId)
     if (!prop) continue
@@ -566,7 +615,15 @@ export function generateTaxSummary(
     if (schedule === 'SCHEDULE_A') {
       const absAmount = Math.abs(item.amount)
       const lowerName = item.categoryName.toLowerCase()
-      if (lowerName.includes('mortgage') && lowerName.includes('interest')) {
+
+      // PITI decomposition for Schedule A: if mortgage category and property has financial details
+      if (isMortgageCategory(item.categoryName) && item.classification === 'expense' && hasPitiDetails(prop)) {
+        const ratios = pitiRatios(prop)
+        mortgageInterest += Math.round(absAmount * ratios.interestPct * 100) / 100
+        propertyTax += Math.round(absAmount * ratios.taxPct * 100) / 100
+        // Principal is not deductible — intentionally dropped
+        // Insurance on personal property is not deductible — intentionally dropped
+      } else if (lowerName.includes('mortgage') && lowerName.includes('interest')) {
         mortgageInterest += absAmount
       } else if (lowerName.includes('property tax') || lowerName.includes('real estate tax')) {
         propertyTax += absAmount
@@ -581,6 +638,17 @@ export function generateTaxSummary(
       const entry = schedEProperties.get(item.propertyId)!
       if (item.classification === 'income' || item.amount > 0) {
         entry.income += Math.abs(item.amount)
+      } else if (isMortgageCategory(item.categoryName) && hasPitiDetails(prop)) {
+        // PITI decomposition for Schedule E
+        const absAmount = Math.abs(item.amount)
+        const ratios = pitiRatios(prop)
+        const interestAmt = Math.round(absAmount * ratios.interestPct * 100) / 100
+        const taxAmt = Math.round(absAmount * ratios.taxPct * 100) / 100
+        const insAmt = Math.round(absAmount * ratios.insurancePct * 100) / 100
+        // Principal is not deductible — excluded
+        if (interestAmt > 0) entry.expenses.set('Mortgage Interest', (entry.expenses.get('Mortgage Interest') ?? 0) + interestAmt)
+        if (taxAmt > 0) entry.expenses.set('Property Tax', (entry.expenses.get('Property Tax') ?? 0) + taxAmt)
+        if (insAmt > 0) entry.expenses.set('Insurance', (entry.expenses.get('Insurance') ?? 0) + insAmt)
       } else {
         const key = item.scheduleECategory ?? item.categoryName
         entry.expenses.set(key, (entry.expenses.get(key) ?? 0) + Math.abs(item.amount))
@@ -592,6 +660,16 @@ export function generateTaxSummary(
       const entry = schedCBusinesses.get(item.propertyId)!
       if (item.classification === 'income' || item.amount > 0) {
         entry.income += Math.abs(item.amount)
+      } else if (isMortgageCategory(item.categoryName) && hasPitiDetails(prop)) {
+        // PITI decomposition for Schedule C
+        const absAmount = Math.abs(item.amount)
+        const ratios = pitiRatios(prop)
+        const interestAmt = Math.round(absAmount * ratios.interestPct * 100) / 100
+        const taxAmt = Math.round(absAmount * ratios.taxPct * 100) / 100
+        const insAmt = Math.round(absAmount * ratios.insurancePct * 100) / 100
+        if (interestAmt > 0) entry.expenses.set('Mortgage Interest', (entry.expenses.get('Mortgage Interest') ?? 0) + interestAmt)
+        if (taxAmt > 0) entry.expenses.set('Property Tax', (entry.expenses.get('Property Tax') ?? 0) + taxAmt)
+        if (insAmt > 0) entry.expenses.set('Insurance', (entry.expenses.get('Insurance') ?? 0) + insAmt)
       } else {
         const key = item.categoryName
         entry.expenses.set(key, (entry.expenses.get(key) ?? 0) + Math.abs(item.amount))

@@ -21,7 +21,12 @@ export default async function DebtsPage() {
     db.property.findMany({
       where: { userId: session.userId },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, type: true, taxSchedule: true },
+      select: {
+        id: true, name: true, type: true, taxSchedule: true,
+        currentValue: true, loanBalance: true, monthlyPayment: true,
+        interestRate: true, loanTermMonths: true,
+        monthlyPropertyTax: true, monthlyInsurance: true, monthlyHOA: true, monthlyPMI: true,
+      },
     }),
     db.category.findMany({
       where: {
