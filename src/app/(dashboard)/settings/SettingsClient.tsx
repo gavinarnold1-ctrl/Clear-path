@@ -120,6 +120,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [newGroupDesc, setNewGroupDesc] = useState('')
   const [groupSaving, setGroupSaving] = useState(false)
   const [groupMsg, setGroupMsg] = useState<string | null>(null)
+  const [allocMsg, setAllocMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   // Expanded group for editing
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
   // Add property to group
@@ -453,6 +454,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     const group = groups.find((g) => g.id === groupId)
     if (!group || group.properties.length === 0) return
     setGroupMsg(null)
+    setAllocMsg(null)
     try {
       const allocations = group.properties.map((p) => ({
         propertyId: p.id,
@@ -465,17 +467,18 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       })
       if (!res.ok) {
         const data = await res.json()
-        setGroupMsg(data.error ?? 'Failed to save allocations.')
+        setAllocMsg({ type: 'error', text: data.error ?? 'Failed to save allocations.' })
         return
       }
-      setGroupMsg(null)
+      setAllocMsg({ type: 'success', text: 'Allocations saved successfully.' })
       loadGroups()
     } catch {
-      setGroupMsg('Network error.')
+      setAllocMsg({ type: 'error', text: 'Network error.' })
     }
   }
 
   function updatePropertySplitPct(groupId: string, propertyId: string, pct: string) {
+    setAllocMsg(null)
     setGroups((prev) =>
       prev.map((g) =>
         g.id === groupId
@@ -1197,8 +1200,10 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                     </button>
                                   )}
                                 </div>
-                                {groupMsg && (
-                                  <p className="mt-1 text-xs text-ember">{groupMsg}</p>
+                                {allocMsg && (
+                                  <p className={`mt-2 text-sm ${allocMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
+                                    {allocMsg.text}
+                                  </p>
                                 )}
                               </div>
                             )}

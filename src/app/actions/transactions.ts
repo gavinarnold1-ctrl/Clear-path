@@ -72,8 +72,13 @@ export async function createTransaction(
 
   await db.$transaction(async (tx) => {
     // 1. Create the transaction record
+    // When split allocations are provided, don't set propertyId on the transaction itself —
+    // the property attribution comes from the split records to avoid double-counting.
+    const effectivePropertyId = parsedSplitAllocations && parsedSplitAllocations.length > 0
+      ? null
+      : propertyId
     const created = await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId, amount: finalAmount, classification, merchant, date: txDate, notes, tags },
+      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId: effectivePropertyId, amount: finalAmount, classification, merchant, date: txDate, notes, tags },
     })
 
     // 2. Adjust account balance (amount sign already correct)
