@@ -83,6 +83,7 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   const categoryDefs = [
     { type: 'income', group: 'Income', name: 'Paychecks', icon: '💵' },
     { type: 'income', group: 'Income', name: 'Side Gig', icon: '💰' },
+    { type: 'income', group: 'Income', name: 'Dividends & Capital Gains', icon: '📈' },
     { type: 'expense', group: 'Housing', name: 'Rent', icon: '🏠', budgetTier: 'FIXED' as const },
     { type: 'expense', group: 'Housing', name: 'Mortgage', icon: '🏡', budgetTier: 'FIXED' as const },
     { type: 'income', group: 'Income', name: 'Rental Income', icon: '🏘️' },

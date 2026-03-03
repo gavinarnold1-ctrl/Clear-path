@@ -47,6 +47,7 @@ const GROUP_KEYWORDS: Record<string, string[]> = {
     'bonus', 'refund', 'reimbursement', 'freelance', 'contract',
     'wages', 'investment income', 'rental income', 'interest',
     'pension', 'social security', 'annuity', 'royalty', 'commission',
+    'capital gain', 'capital gains', 'dividends', 'distribution',
   ],
   'Transfers': [
     'transfer', 'credit card payment', 'internal transfer',

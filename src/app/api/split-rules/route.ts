@@ -117,6 +117,13 @@ export async function POST(req: NextRequest) {
         },
       })
     ),
+    // Sync Property.splitPct to match the new allocations
+    ...allocations.map((alloc: { propertyId: string; allocationPct: number }) =>
+      db.property.update({
+        where: { id: alloc.propertyId },
+        data: { splitPct: alloc.allocationPct },
+      })
+    ),
   ]
 
   await db.$transaction(operations)

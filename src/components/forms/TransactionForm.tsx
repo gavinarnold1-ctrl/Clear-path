@@ -60,14 +60,38 @@ export default function TransactionForm({ accounts, categories, householdMembers
   const [splitAllocations, setSplitAllocations] = useState<Array<{ propertyId: string; percentage: number }>>([])
   const [amountStr, setAmountStr] = useState('')
 
+  // Track whether a group is selected directly
+  const [selectedGroupId, setSelectedGroupId] = useState('')
+
   // Find if selected property belongs to a group
   const selectedProp = properties.find(p => p.id === selectedPropertyId)
-  const groupForProperty = selectedProp?.groupId
-    ? propertyGroups.find(g => g.id === selectedProp.groupId)
-    : null
+  const groupForProperty = selectedGroupId
+    ? propertyGroups.find(g => g.id === selectedGroupId)
+    : selectedProp?.groupId
+      ? propertyGroups.find(g => g.id === selectedProp.groupId)
+      : null
 
-  function handlePropertyChange(propId: string) {
-    setSelectedPropertyId(propId)
+  function handlePropertyChange(value: string) {
+    // Check if user selected a group (prefixed with "group:")
+    if (value.startsWith('group:')) {
+      const gId = value.slice(6)
+      const group = propertyGroups.find(g => g.id === gId)
+      if (group && group.properties.length > 0) {
+        setSelectedGroupId(gId)
+        // Set propertyId to first property in the group for the form submission
+        setSelectedPropertyId(group.properties[0].id)
+        // Auto-enable split with group's default allocations
+        const allocs = group.properties.map(p => ({
+          propertyId: p.id,
+          percentage: p.splitPct ?? 0,
+        }))
+        setSplitAllocations(allocs)
+        setSplitEnabled(true)
+        return
+      }
+    }
+    setSelectedGroupId('')
+    setSelectedPropertyId(value)
     setSplitEnabled(false)
     setSplitAllocations([])
   }
@@ -234,11 +258,21 @@ export default function TransactionForm({ accounts, categories, householdMembers
             id="propertyId"
             name="propertyId"
             className="input"
-            value={selectedPropertyId}
+            value={selectedGroupId ? `group:${selectedGroupId}` : selectedPropertyId}
             onChange={(e) => handlePropertyChange(e.target.value)}
           >
             <option value="">No property</option>
-            {/* Properties in groups — show group headers with units indented */}
+            {/* Property groups as selectable options (auto-split) */}
+            {propertyGroups.length > 0 && (
+              <optgroup label="Property Groups (auto-split)">
+                {propertyGroups.map((group) => (
+                  <option key={`group-${group.id}`} value={`group:${group.id}`}>
+                    {group.name} ({group.properties.length} properties)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {/* Individual properties in groups */}
             {propertyGroups.map((group) => (
               <optgroup key={group.id} label={group.name}>
                 {group.properties.map((gp) => {
