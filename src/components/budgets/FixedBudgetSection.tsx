@@ -105,6 +105,7 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
             return (
               <FixedBudgetRow
                 key={budget.id}
+                id={budget.id}
                 name={budget.name}
                 amount={budget.amount}
                 spent={matchedAmount}

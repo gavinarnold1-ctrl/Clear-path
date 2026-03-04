@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BudgetProposal as BudgetProposalType } from '@/lib/budget-builder'
-import type { ProfileSummary, GoalSummary } from './BudgetBuilderCTA'
+import type { ProfileSummary, GoalSummary, BuilderMode } from './BudgetBuilderCTA'
 import ProposalFixedSection from './ProposalFixedSection'
 import ProposalFlexibleSection from './ProposalFlexibleSection'
 import ProposalAnnualSection from './ProposalAnnualSection'
@@ -13,10 +13,11 @@ interface Props {
   initialProposal: BudgetProposalType
   profileSummary: ProfileSummary
   goalSummary: GoalSummary | null
+  mode: BuilderMode
   onCancel: () => void
 }
 
-export default function BudgetProposal({ initialProposal, profileSummary, goalSummary, onCancel }: Props) {
+export default function BudgetProposal({ initialProposal, profileSummary, goalSummary, mode, onCancel }: Props) {
   const router = useRouter()
   const [proposal, setProposal] = useState<BudgetProposalType>(initialProposal)
   const [applying, setApplying] = useState(false)
@@ -29,7 +30,7 @@ export default function BudgetProposal({ initialProposal, profileSummary, goalSu
       const res = await fetch('/api/budgets/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposal }),
+        body: JSON.stringify({ proposal, mode }),
       })
       if (!res.ok) {
         const data = await res.json()

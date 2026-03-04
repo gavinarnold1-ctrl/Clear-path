@@ -8,8 +8,8 @@ export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = (await req.json()) as { proposal: BudgetProposal }
-  const { proposal } = body
+  const body = (await req.json()) as { proposal: BudgetProposal; mode?: 'replace' | 'merge' }
+  const { proposal, mode = 'merge' } = body
 
   if (!proposal) {
     return NextResponse.json({ error: 'Missing proposal' }, { status: 400 })
@@ -72,22 +72,41 @@ export async function POST(req: NextRequest) {
       existingBudgets.map((b) => [`${b.name.toLowerCase()}::${b.tier}`, b])
     )
 
+    // Secondary dedup: find existing budget by categoryId + tier when name doesn't match
+    function findExistingByCategoryAndTier(
+      categoryId: string | null,
+      tier: string,
+      touchedIds: Set<string>
+    ): typeof existingBudgets[0] | null {
+      if (!categoryId) return null
+      return (
+        existingBudgets.find(
+          (b) => b.tier === tier && b.categoryId === categoryId && !touchedIds.has(b.id)
+        ) ?? null
+      )
+    }
+
     const results = await db.$transaction(async (tx) => {
       const created = { fixed: 0, flexible: 0, annual: 0 }
+      const touchedIds = new Set<string>()
 
       // ── Fixed budgets ──
       for (const item of proposal.fixed) {
         const categoryId = findCategoryId(item.category, 'expense')
         const key = `${item.name.toLowerCase()}::FIXED`
-        const existing = existingByKey.get(key)
+        let existing = existingByKey.get(key) ?? null
+        if (!existing) {
+          existing = findExistingByCategoryAndTier(categoryId, 'FIXED', touchedIds)
+        }
 
         if (existing) {
+          touchedIds.add(existing.id)
           await tx.budget.update({
             where: { id: existing.id },
             data: { amount: item.amount, categoryId, isAutoPay: item.isAutoPay, dueDay: item.dueDay },
           })
         } else {
-          await tx.budget.create({
+          const newBudget = await tx.budget.create({
             data: {
               userId: session!.userId,
               name: item.name,
@@ -100,6 +119,7 @@ export async function POST(req: NextRequest) {
               dueDay: item.dueDay,
             },
           })
+          touchedIds.add(newBudget.id)
         }
         created.fixed++
       }
@@ -108,15 +128,19 @@ export async function POST(req: NextRequest) {
       for (const item of proposal.flexible) {
         const categoryId = findCategoryId(item.category, 'expense')
         const key = `${item.name.toLowerCase()}::FLEXIBLE`
-        const existing = existingByKey.get(key)
+        let existing = existingByKey.get(key) ?? null
+        if (!existing) {
+          existing = findExistingByCategoryAndTier(categoryId, 'FLEXIBLE', touchedIds)
+        }
 
         if (existing) {
+          touchedIds.add(existing.id)
           await tx.budget.update({
             where: { id: existing.id },
             data: { amount: item.amount, categoryId },
           })
         } else {
-          await tx.budget.create({
+          const newBudget = await tx.budget.create({
             data: {
               userId: session!.userId,
               name: item.name,
@@ -127,6 +151,7 @@ export async function POST(req: NextRequest) {
               categoryId,
             },
           })
+          touchedIds.add(newBudget.id)
         }
         created.flexible++
       }
@@ -151,9 +176,13 @@ export async function POST(req: NextRequest) {
         const monthlySetAside = Math.ceil((item.annualAmount / monthsLeft) * 100) / 100
 
         const key = `${item.name.toLowerCase()}::ANNUAL`
-        const existing = existingByKey.get(key)
+        let existing = existingByKey.get(key) ?? null
+        if (!existing) {
+          existing = findExistingByCategoryAndTier(categoryId, 'ANNUAL', touchedIds)
+        }
 
         if (existing) {
+          touchedIds.add(existing.id)
           await tx.budget.update({
             where: { id: existing.id },
             data: { amount: monthlySetAside, categoryId },
@@ -192,6 +221,8 @@ export async function POST(req: NextRequest) {
             },
           })
 
+          touchedIds.add(budget.id)
+
           await tx.annualExpense.create({
             data: {
               budgetId: budget.id,
@@ -208,6 +239,17 @@ export async function POST(req: NextRequest) {
           })
         }
         created.annual++
+      }
+
+      // ── Replace mode: delete untouched budgets ──
+      if (mode === 'replace') {
+        const untouched = existingBudgets.filter((b) => !touchedIds.has(b.id))
+        for (const b of untouched) {
+          if (b.annualExpense) {
+            await tx.annualExpense.delete({ where: { id: b.annualExpense.id } })
+          }
+          await tx.budget.delete({ where: { id: b.id } })
+        }
       }
 
       return created

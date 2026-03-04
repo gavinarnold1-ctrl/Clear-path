@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useActionState } from 'react'
 import Link from 'next/link'
-import { createBudget } from '@/app/actions/budgets'
+import { createBudget, updateBudget } from '@/app/actions/budgets'
 
 interface CategoryOption {
   id: string
@@ -11,8 +11,23 @@ interface CategoryOption {
   type: string
 }
 
+interface InitialBudget {
+  id: string
+  name: string
+  amount: number
+  tier: string
+  period: string
+  categoryId: string | null
+  startDate: string
+  endDate: string | null
+  dueDay: number | null
+  isAutoPay: boolean | null
+  varianceLimit: number | null
+}
+
 interface Props {
   categories: CategoryOption[]
+  initialBudget?: InitialBudget
 }
 
 const initialState = { error: null }
@@ -42,20 +57,24 @@ const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(),
 
 const currentYear = new Date().getFullYear()
 
-export default function BudgetForm({ categories }: Props) {
-  const [state, formAction, isPending] = useActionState(createBudget, initialState)
-  const [tier, setTier] = useState('FLEXIBLE')
+export default function BudgetForm({ categories, initialBudget }: Props) {
+  const isEdit = !!initialBudget
+  const action = isEdit ? updateBudget : createBudget
+  const [state, formAction, isPending] = useActionState(action, initialState)
+  const [tier, setTier] = useState(initialBudget?.tier ?? 'FLEXIBLE')
   const expenseCategories = categories.filter((c) => c.type === 'expense')
 
   return (
     <form action={formAction} className="space-y-5">
+      {isEdit && <input type="hidden" name="id" value={initialBudget.id} />}
+
       {state?.error && (
         <p className="rounded-lg bg-ember/10 p-3 text-sm text-ember" role="alert">
           {state.error}
         </p>
       )}
 
-      {/* Tier selector */}
+      {/* Tier selector — disabled in edit mode (tier can't change) */}
       <div>
         <label className="mb-2 block text-sm font-medium text-fjord">Budget type</label>
         <div className="grid grid-cols-3 gap-2">
@@ -63,12 +82,13 @@ export default function BudgetForm({ categories }: Props) {
             <button
               key={t.value}
               type="button"
-              onClick={() => setTier(t.value)}
+              onClick={() => !isEdit && setTier(t.value)}
+              disabled={isEdit}
               className={`rounded-lg border-2 p-3 text-left transition-colors ${
                 tier === t.value
                   ? 'border-fjord bg-frost'
                   : 'border-mist hover:border-mist'
-              }`}
+              } ${isEdit ? 'cursor-default opacity-60' : ''}`}
             >
               <p className="text-sm font-semibold text-fjord">{t.label}</p>
               <p className="mt-0.5 text-xs text-stone">{t.desc}</p>
@@ -88,6 +108,7 @@ export default function BudgetForm({ categories }: Props) {
           name="name"
           type="text"
           className="input"
+          defaultValue={initialBudget?.name ?? ''}
           placeholder={
             tier === 'FIXED' ? 'e.g. Rent, Internet, Car Insurance'
             : tier === 'ANNUAL' ? 'e.g. Summer Vacation, Christmas Gifts'
@@ -114,6 +135,7 @@ export default function BudgetForm({ categories }: Props) {
               step="0.01"
               min="0.01"
               className="input pl-7"
+              defaultValue={initialBudget?.amount ?? ''}
               placeholder="0.00"
               required
             />
@@ -136,6 +158,7 @@ export default function BudgetForm({ categories }: Props) {
                 min="1"
                 max="31"
                 className="input"
+                defaultValue={initialBudget?.dueDay ?? ''}
                 placeholder="1"
               />
             </div>
@@ -150,6 +173,7 @@ export default function BudgetForm({ categories }: Props) {
                 step="0.01"
                 min="0"
                 className="input"
+                defaultValue={initialBudget?.varianceLimit ?? ''}
                 placeholder="0.00"
               />
             </div>
@@ -160,6 +184,7 @@ export default function BudgetForm({ categories }: Props) {
               name="isAutoPay"
               type="checkbox"
               value="true"
+              defaultChecked={initialBudget?.isAutoPay ?? false}
               className="h-4 w-4 rounded border-mist text-fjord"
             />
             <label htmlFor="isAutoPay" className="text-sm text-fjord">
@@ -176,7 +201,7 @@ export default function BudgetForm({ categories }: Props) {
             <label htmlFor="period" className="mb-1 block text-sm font-medium text-fjord">
               Period
             </label>
-            <select id="period" name="period" className="input" defaultValue="MONTHLY" required>
+            <select id="period" name="period" className="input" defaultValue={initialBudget?.period ?? 'MONTHLY'} required>
               {PERIODS.map(({ value, label }) => (
                 <option key={value} value={value}>
                   {label}
@@ -188,13 +213,19 @@ export default function BudgetForm({ categories }: Props) {
             <label htmlFor="endDate" className="mb-1 block text-sm font-medium text-fjord">
               End date <span className="font-normal text-stone">(optional — leave blank for rolling)</span>
             </label>
-            <input id="endDate" name="endDate" type="date" className="input" />
+            <input
+              id="endDate"
+              name="endDate"
+              type="date"
+              className="input"
+              defaultValue={initialBudget?.endDate ?? ''}
+            />
           </div>
         </>
       )}
 
-      {/* ANNUAL-specific fields */}
-      {tier === 'ANNUAL' && (
+      {/* ANNUAL-specific fields — only shown in create mode */}
+      {tier === 'ANNUAL' && !isEdit && (
         <>
           <div>
             <label htmlFor="annualAmount" className="mb-1 block text-sm font-medium text-fjord">
@@ -282,7 +313,7 @@ export default function BudgetForm({ categories }: Props) {
         <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-fjord">
           Category <span className="font-normal text-stone">(optional)</span>
         </label>
-        <select id="categoryId" name="categoryId" className="input">
+        <select id="categoryId" name="categoryId" className="input" defaultValue={initialBudget?.categoryId ?? ''}>
           <option value="">No category</option>
           {expenseCategories.map((c) => (
             <option key={c.id} value={c.id}>
@@ -292,24 +323,26 @@ export default function BudgetForm({ categories }: Props) {
         </select>
       </div>
 
-      {/* Start date — shared */}
-      <div>
-        <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-fjord">
-          Start date
-        </label>
-        <input
-          id="startDate"
-          name="startDate"
-          type="date"
-          className="input"
-          defaultValue={thisMonthStart}
-          required
-        />
-      </div>
+      {/* Start date — shared (hidden in edit mode, not editable) */}
+      {!isEdit && (
+        <div>
+          <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-fjord">
+            Start date
+          </label>
+          <input
+            id="startDate"
+            name="startDate"
+            type="date"
+            className="input"
+            defaultValue={thisMonthStart}
+            required
+          />
+        </div>
+      )}
 
       <div className="flex gap-3 pt-1">
         <button type="submit" className="btn-primary" disabled={isPending}>
-          {isPending ? 'Saving…' : 'Save budget'}
+          {isPending ? 'Saving…' : isEdit ? 'Update budget' : 'Save budget'}
         </button>
         <Link href="/budgets" className="btn-secondary">
           Cancel
