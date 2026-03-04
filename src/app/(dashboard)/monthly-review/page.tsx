@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { buildTransactionSummary } from '@/lib/insights'
 import { formatCurrency } from '@/lib/utils'
+import { getValueSummary } from '@/lib/value-tracker'
 import EfficiencyScoreGauge from '@/components/insights/EfficiencyScoreGauge'
 import SpendingComparison from '@/components/insights/SpendingComparison'
 import InsightsList from '@/components/insights/InsightsList'
@@ -23,7 +24,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -41,13 +42,15 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     // Current debt totals for comparison (R5.5)
     db.debt.findMany({
       where: { userId: session.userId },
-      select: { currentBalance: true, originalBalance: true, name: true, type: true },
+      select: { currentBalance: true, originalBalance: true, name: true, type: true, propertyId: true, property: { select: { name: true } } },
     }),
     // Account balances for net worth (R7.9)
     db.account.findMany({
       where: { userId: session.userId },
       select: { type: true, balance: true },
     }),
+    // Cumulative savings identified by AI insights
+    getValueSummary(session.userId),
   ])
 
   // R7.8: Convert snapshot months (Date) to YYYY-MM strings
@@ -156,6 +159,33 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Cumulative value banner */}
+          {valueSummary.totalIdentified > 0 && (
+            <div className="rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-stone">Your Oversikt Value</p>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="font-mono text-2xl font-semibold text-pine">
+                      {formatCurrency(valueSummary.totalIdentified)}
+                    </span>
+                    <span className="text-sm text-stone">
+                      in potential savings identified
+                      {valueSummary.since && (
+                        <> since {valueSummary.since.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                {valueSummary.roi > 0 && (
+                  <span className="shrink-0 rounded-badge bg-pine/10 px-2.5 py-1 text-sm font-medium text-pine">
+                    {valueSummary.roi}x ROI
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* R7.8: Month snapshot summary with clickable blocks */}
           {activeSnapshot && (
             <div className="card">
@@ -360,22 +390,64 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                 )}
               </div>
               <ul className="space-y-2">
-                {debts.map((d, i) => {
-                  const paidPct = d.originalBalance
-                    ? ((d.originalBalance - d.currentBalance) / d.originalBalance) * 100
-                    : 0
-                  return (
-                    <li key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-fjord">{d.name}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-stone">{formatCurrency(d.currentBalance)}</span>
-                        {d.originalBalance && paidPct > 0 && (
-                          <span className="text-xs text-income">{paidPct.toFixed(0)}% paid</span>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
+                {(() => {
+                  const TYPE_LABELS: Record<string, string> = {
+                    MORTGAGE: 'Mortgage',
+                    STUDENT_LOAN: 'Student Loans',
+                    AUTO: 'Auto Loans',
+                    CREDIT_CARD: 'Credit Cards',
+                    PERSONAL_LOAN: 'Personal Loans',
+                    OTHER: 'Other Debt',
+                  }
+                  // Mortgages: group by property so each property rolls up into one line
+                  // Non-mortgages: group by debt type
+                  const rows: { key: string; label: string; current: number; original: number }[] = []
+                  const mortgagesByProperty = new Map<string, { label: string; current: number; original: number }>()
+                  const nonMortgageByType = new Map<string, { current: number; original: number }>()
+
+                  for (const d of debts) {
+                    if (d.type === 'MORTGAGE') {
+                      const groupKey = d.propertyId ?? `no-prop-${d.name}`
+                      const entry = mortgagesByProperty.get(groupKey) ?? {
+                        label: d.property?.name ? `${d.property.name} Mortgage` : d.name,
+                        current: 0,
+                        original: 0,
+                      }
+                      entry.current += d.currentBalance
+                      entry.original += d.originalBalance ?? 0
+                      mortgagesByProperty.set(groupKey, entry)
+                    } else {
+                      const entry = nonMortgageByType.get(d.type) ?? { current: 0, original: 0 }
+                      entry.current += d.currentBalance
+                      entry.original += d.originalBalance ?? 0
+                      nonMortgageByType.set(d.type, entry)
+                    }
+                  }
+
+                  for (const [key, m] of mortgagesByProperty) {
+                    rows.push({ key: `mortgage-${key}`, label: m.label, current: m.current, original: m.original })
+                  }
+                  for (const [type, totals] of nonMortgageByType) {
+                    rows.push({ key: type, label: TYPE_LABELS[type] ?? type, current: totals.current, original: totals.original })
+                  }
+
+                  return rows.map((row) => {
+                    const paidPct = row.original > 0
+                      ? ((row.original - row.current) / row.original) * 100
+                      : 0
+                    return (
+                      <li key={row.key} className="flex items-center justify-between text-sm">
+                        <span className="text-fjord">{row.label}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-stone">{formatCurrency(row.current)}</span>
+                          {row.original > 0 && paidPct > 0 && (
+                            <span className="text-xs text-income">{paidPct.toFixed(0)}% paid</span>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })
+                })()}
               </ul>
             </Link>
           )}

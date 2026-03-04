@@ -7,8 +7,10 @@ import { formatCurrency, formatDate, budgetProgress } from '@/lib/utils'
 import ProgressBar from '@/components/ui/ProgressBar'
 import MonthPicker from './MonthPicker'
 import MonthlyChart from '@/components/dashboard/MonthlyChart'
+import ValueTracker from '@/components/dashboard/ValueTracker'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
+import { getValueSummary } from '@/lib/value-tracker'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -93,6 +95,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     categorySpending,
     chartData,
     userProfile,
+    valueSummary,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     // R1.14: Income = classification "income"
@@ -183,6 +186,8 @@ export default async function DashboardPage({ searchParams }: Props) {
       where: { userId: session.userId },
       select: { expectedMonthlyIncome: true },
     }),
+    // Value tracker — cumulative savings identified by AI insights
+    getValueSummary(session.userId),
   ])
 
   // New users with no accounts: show streamlined "Get Started" flow
@@ -482,6 +487,11 @@ export default async function DashboardPage({ searchParams }: Props) {
             </ul>
           )}
         </div>
+      </div>
+
+      {/* Value tracker — cumulative savings identified */}
+      <div className="mb-8">
+        <ValueTracker value={valueSummary} />
       </div>
 
       {/* Recent transactions */}

@@ -456,10 +456,10 @@ export default function PrivacyPage() {
             <br />
             Email:{' '}
             <a
-              href="mailto:gavinarnold1@gmail.com"
+              href="mailto:hello@oversikt.io"
               className="text-pine underline"
             >
-              gavinarnold1@gmail.com
+              hello@oversikt.io
             </a>
           </p>
           <p className="mt-2 text-sm leading-relaxed text-stone">
