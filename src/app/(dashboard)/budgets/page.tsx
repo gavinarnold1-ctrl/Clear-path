@@ -98,27 +98,17 @@ export default async function BudgetsPage() {
 
   // Compute spent per category from this month's expense transactions.
   // Budget spent is always computed on read — never stored.
-  // Build two sets of maps:
-  //   1. Full maps (for fixed/annual budgets) — all transactions
-  //   2. Non-annual maps (for flexible budgets) — excludes transactions linked to annual plans
-  // This ensures annual-plan-linked transactions don't double-count in flexible budgets.
+  // Transactions linked to annual plans are excluded from ALL budget tiers
+  // to prevent double-counting (they are tracked on the annual plan itself).
   const spentByCategory = new Map<string, number>()
   const spentByCategoryName = new Map<string, number>()
-  const flexSpentByCategory = new Map<string, number>()
-  const flexSpentByCategoryName = new Map<string, number>()
   for (const tx of transactions) {
-    const isAnnualLinked = !!tx.annualExpenseId
+    if (tx.annualExpenseId) continue // annual-linked → tracked on annual plan only
     if (tx.categoryId) {
       spentByCategory.set(
         tx.categoryId,
         (spentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
       )
-      if (!isAnnualLinked) {
-        flexSpentByCategory.set(
-          tx.categoryId,
-          (flexSpentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
-        )
-      }
     }
     if (tx.category?.name) {
       const nameKey = tx.category.name.toLowerCase()
@@ -126,12 +116,6 @@ export default async function BudgetsPage() {
         nameKey,
         (spentByCategoryName.get(nameKey) ?? 0) + Math.abs(tx.amount)
       )
-      if (!isAnnualLinked) {
-        flexSpentByCategoryName.set(
-          nameKey,
-          (flexSpentByCategoryName.get(nameKey) ?? 0) + Math.abs(tx.amount)
-        )
-      }
     }
   }
 
@@ -147,14 +131,8 @@ export default async function BudgetsPage() {
   }
 
   const budgetsWithSpent = budgets.map((b) => {
-    // FLEXIBLE budgets use maps that exclude annual-plan-linked transactions.
-    // This prevents double-counting when a transaction is linked to an annual plan.
-    const isFlexible = b.tier === 'FLEXIBLE'
-    const catMap = isFlexible ? flexSpentByCategory : spentByCategory
-    const nameMap = isFlexible ? flexSpentByCategoryName : spentByCategoryName
-
     // Primary: match by categoryId
-    let spent = b.categoryId ? (catMap.get(b.categoryId) ?? 0) : 0
+    let spent = b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0
 
     // Fallback: if no categoryId or no spent found, try matching by category/budget name.
     // SKIP all reconciliation for ANNUAL tier — annual budgets get their categoryId
@@ -162,16 +140,16 @@ export default async function BudgetsPage() {
     if (spent === 0 && !b.categoryId && b.tier !== 'ANNUAL') {
       // Try budget's category name (if somehow category relation exists without categoryId — unlikely but safe)
       const catName = b.category?.name?.toLowerCase()
-      if (catName && nameMap.has(catName)) {
-        spent = nameMap.get(catName)!
+      if (catName && spentByCategoryName.has(catName)) {
+        spent = spentByCategoryName.get(catName)!
         const matchedCatId = categoryNameToId.get(catName)
         if (matchedCatId) budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
       }
       // Try budget name as category name (e.g. budget "Groceries" → category "Groceries")
       if (spent === 0) {
         const budgetNameKey = b.name.toLowerCase()
-        if (nameMap.has(budgetNameKey)) {
-          spent = nameMap.get(budgetNameKey)!
+        if (spentByCategoryName.has(budgetNameKey)) {
+          spent = spentByCategoryName.get(budgetNameKey)!
           const matchedCatId = categoryNameToId.get(budgetNameKey)
           if (matchedCatId) budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
         }
@@ -185,7 +163,7 @@ export default async function BudgetsPage() {
       if (spent === 0) {
         const budgetWords = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
         if (budgetWords.length >= 1) {
-          for (const [catName, catSpent] of nameMap) {
+          for (const [catName, catSpent] of spentByCategoryName) {
             const catWords = catName.split(/[\s&,]+/).filter((w) => w.length > 2)
             if (catWords.length === 0) continue
             const overlap = budgetWords.filter((w) => catWords.some((cw) => cw === w)).length
@@ -278,15 +256,16 @@ export default async function BudgetsPage() {
   const claimedTxIds = new Set<string>()
   for (const b of fixed) {
     // Get candidate transactions: by categoryId first, then by name
+    // Exclude annual-linked transactions — they belong to the annual plan, not fixed bills
     let candidates = b.categoryId
-      ? transactions.filter((tx) => tx.categoryId === b.categoryId && !claimedTxIds.has(tx.id))
+      ? transactions.filter((tx) => tx.categoryId === b.categoryId && !claimedTxIds.has(tx.id) && !tx.annualExpenseId)
       : []
 
     // Fallback: name-based matching when no categoryId or no category matches
     if (candidates.length === 0) {
       const budgetNameLower = b.name.toLowerCase()
       candidates = transactions.filter((tx) => {
-        if (claimedTxIds.has(tx.id)) return false
+        if (claimedTxIds.has(tx.id) || tx.annualExpenseId) return false
         const merchant = (tx.merchant ?? '').toLowerCase()
         return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
       })
