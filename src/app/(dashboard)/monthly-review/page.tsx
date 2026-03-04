@@ -42,7 +42,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     // Current debt totals for comparison (R5.5)
     db.debt.findMany({
       where: { userId: session.userId },
-      select: { currentBalance: true, originalBalance: true, name: true, type: true },
+      select: { currentBalance: true, originalBalance: true, name: true, type: true, propertyId: true, property: { select: { name: true } } },
     }),
     // Account balances for net worth (R7.9)
     db.account.findMany({
@@ -399,23 +399,48 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                     PERSONAL_LOAN: 'Personal Loans',
                     OTHER: 'Other Debt',
                   }
-                  const grouped = new Map<string, { current: number; original: number }>()
+                  // Mortgages: group by property so each property rolls up into one line
+                  // Non-mortgages: group by debt type
+                  const rows: { key: string; label: string; current: number; original: number }[] = []
+                  const mortgagesByProperty = new Map<string, { label: string; current: number; original: number }>()
+                  const nonMortgageByType = new Map<string, { current: number; original: number }>()
+
                   for (const d of debts) {
-                    const entry = grouped.get(d.type) ?? { current: 0, original: 0 }
-                    entry.current += d.currentBalance
-                    entry.original += d.originalBalance ?? 0
-                    grouped.set(d.type, entry)
+                    if (d.type === 'MORTGAGE') {
+                      const groupKey = d.propertyId ?? `no-prop-${d.name}`
+                      const entry = mortgagesByProperty.get(groupKey) ?? {
+                        label: d.property?.name ? `${d.property.name} Mortgage` : d.name,
+                        current: 0,
+                        original: 0,
+                      }
+                      entry.current += d.currentBalance
+                      entry.original += d.originalBalance ?? 0
+                      mortgagesByProperty.set(groupKey, entry)
+                    } else {
+                      const entry = nonMortgageByType.get(d.type) ?? { current: 0, original: 0 }
+                      entry.current += d.currentBalance
+                      entry.original += d.originalBalance ?? 0
+                      nonMortgageByType.set(d.type, entry)
+                    }
                   }
-                  return Array.from(grouped.entries()).map(([type, totals]) => {
-                    const paidPct = totals.original > 0
-                      ? ((totals.original - totals.current) / totals.original) * 100
+
+                  for (const [key, m] of mortgagesByProperty) {
+                    rows.push({ key: `mortgage-${key}`, label: m.label, current: m.current, original: m.original })
+                  }
+                  for (const [type, totals] of nonMortgageByType) {
+                    rows.push({ key: type, label: TYPE_LABELS[type] ?? type, current: totals.current, original: totals.original })
+                  }
+
+                  return rows.map((row) => {
+                    const paidPct = row.original > 0
+                      ? ((row.original - row.current) / row.original) * 100
                       : 0
                     return (
-                      <li key={type} className="flex items-center justify-between text-sm">
-                        <span className="text-fjord">{TYPE_LABELS[type] ?? type}</span>
+                      <li key={row.key} className="flex items-center justify-between text-sm">
+                        <span className="text-fjord">{row.label}</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-stone">{formatCurrency(totals.current)}</span>
-                          {totals.original > 0 && paidPct > 0 && (
+                          <span className="text-stone">{formatCurrency(row.current)}</span>
+                          {row.original > 0 && paidPct > 0 && (
                             <span className="text-xs text-income">{paidPct.toFixed(0)}% paid</span>
                           )}
                         </div>
