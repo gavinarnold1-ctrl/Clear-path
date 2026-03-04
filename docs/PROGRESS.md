@@ -1161,3 +1161,44 @@ This is Step 3 of the Goal-Driven Budget System (see above) — not a regression
 - Pre-existing failures unchanged: t1-1 (1), insights.test (5), t2-3 (3), t1-8 (4)
 - Zero new failures introduced
 - **TypeScript**: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Goal-Driven Budget System — Step 2: AI Budget Builder Enhancement (2026-03-04)
+
+**Objective**: Upgrade the existing AI Budget Builder to be goal-aware and BLS-benchmark-informed, so proposals reference the user's primary financial goal and real spending norms.
+
+### Changes
+
+| # | Change | Files |
+|---|--------|-------|
+| 1 | Route fetches BLS benchmarks for user's income bracket | `src/app/api/budgets/generate/route.ts` |
+| 2 | `generateBudgetProposal()` accepts + uses BLS benchmarks in AI prompt | `src/lib/budget-builder.ts` |
+| 3 | Variable spending categories annotated with BLS benchmark in user prompt | `src/lib/budget-builder.ts` |
+| 4 | Goal context returned in API response for UI display | `src/app/api/budgets/generate/route.ts` |
+| 5 | Goal-aware UI: label on proposal header + target indicator in summary | `BudgetProposal.tsx`, `ProposalSummary.tsx`, `BudgetBuilderCTA.tsx`, `BudgetBuilderFlow.tsx` |
+
+### Details
+
+**Route enhancement (`/api/budgets/generate`):**
+- Fetches `UserProfile.incomeRange` in parallel with spending analysis and goal context
+- Maps income range string (e.g. `"100k_150k"`) → `incomeRangeLow` via `INCOME_RANGE_TO_LOW` lookup
+- Queries `SpendingBenchmark` table for matching income bracket (category, appCategory, monthlyMean, annualMedian, shareOfTotal)
+- Passes benchmarks as third argument to `generateBudgetProposal()`
+- Returns `goalContext: { goalLabel, primaryGoal }` in the JSON response
+
+**AI prompt enhancement (`budget-builder.ts`):**
+- New `BenchmarkData` interface exported for type safety
+- System prompt includes a `BLS BENCHMARK DATA` section when benchmarks are available, instructing the AI to compare user spending against norms and set targets accordingly
+- Each variable spending category in the user prompt is annotated with its BLS benchmark (e.g. `[BLS benchmark: $593/mo]`) via fuzzy matching on category/appCategory names
+
+**UI goal awareness:**
+- `GoalSummary` type exported from `BudgetBuilderCTA.tsx`
+- `BudgetBuilderFlow` threads `goalSummary` state through CTA → BudgetProposal → ProposalSummary
+- Proposal header shows "Optimized for your goal: Save More" (or whichever goal is set)
+- `ProposalSummary` displays a goal target indicator — green (`border-pine/30 bg-pine/5`) if savings rate meets the goal's threshold, birch-toned (`border-birch/50 bg-birch/10`) with guidance if not
+- Goal targets defined per goal: save_more (20%), build_wealth (25%), spend_smarter (15%), gain_visibility (10%), pay_off_debt (True Remaining > $0)
+
+### TypeScript
+
+- Zero errors (`npx tsc --noEmit` clean)
