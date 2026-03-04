@@ -794,7 +794,6 @@ export default function TransactionList({ transactions: initial, categories, acc
                 {expandedSplitId === tx.id && tx.splits && tx.splits.length > 0 && (
                   tx.splits.map((split) => {
                     const pct = tx.amount !== 0 ? Math.abs((split.amount / tx.amount) * 100) : 0
-                    const isTaxDeductible = split.property?.taxSchedule === 'SCHEDULE_E' || split.property?.taxSchedule === 'SCHEDULE_C'
                     return (
                       <tr key={split.id} className="bg-frost/50 border-t border-mist/50">
                         <td className="px-3 py-2" />
@@ -802,11 +801,6 @@ export default function TransactionList({ transactions: initial, categories, acc
                         <td className="px-4 py-2 pl-8 text-xs text-stone" colSpan={2 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)}>
                           <span className="font-medium text-fjord">{split.property?.name ?? 'Unknown'}</span>
                           <span className="ml-2 text-stone">{pct.toFixed(1)}%</span>
-                          {isTaxDeductible && (
-                            <span className="ml-1.5 rounded-badge bg-pine/10 border border-pine/30 px-1.5 py-0.5 text-[10px] font-medium text-pine">
-                              Tax
-                            </span>
-                          )}
                         </td>
                         <td className={`whitespace-nowrap px-4 py-2 text-right text-xs font-medium ${split.amount < 0 ? 'text-expense' : split.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                           {split.amount < 0 ? '−' : '+'}
