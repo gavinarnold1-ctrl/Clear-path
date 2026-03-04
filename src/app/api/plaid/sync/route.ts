@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { plaidClient, mapPlaidCategory } from '@/lib/plaid'
+import { plaidClient, mapPlaidCategory, detectCreditCardPayment } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
 import { decrypt } from '@/lib/encryption'
 import { normalizeMerchant } from '@/lib/normalize-merchant'
@@ -100,42 +100,61 @@ export async function POST(request: Request) {
             let resolvedGroup: string | null = null
             let resolvedType: string | null = null
 
-            // 1. Merchant history — match to most recently categorized transaction
-            const merchantKey = merchantName.toLowerCase()
-            const histCatId = merchantCategoryMap.get(merchantKey)
-            if (histCatId) {
-              categoryId = histCatId
-              const cat = allCategories.find(c => c.id === histCatId)
-              if (cat) {
-                resolvedGroup = cat.group
-                resolvedType = cat.type
+            // 0. Credit card payment detection — force as transfer
+            if (detectCreditCardPayment(tx.name) && amount < 0) {
+              const ccCat = categoryByName.get('credit card payment')
+              if (ccCat) {
+                categoryId = ccCat.id
+                resolvedGroup = ccCat.group
+                resolvedType = ccCat.type
               }
             }
 
-            // 2. Plaid metadata — use personal_finance_category as hint
-            if (!categoryId && tx.personal_finance_category?.primary) {
-              const mapped = mapPlaidCategory(tx.personal_finance_category.primary)
-              const existing = categoryByName.get(mapped.name.toLowerCase())
-              if (existing) {
-                categoryId = existing.id
-                resolvedGroup = existing.group
-                resolvedType = existing.type
-              } else {
-                // Create the category
-                const newCat = await db.category.create({
-                  data: {
-                    userId: session.userId,
-                    name: mapped.name,
-                    type: mapped.type,
-                    group: mapped.group,
-                    isDefault: false,
-                  },
-                })
-                categoryId = newCat.id
-                resolvedGroup = newCat.group
-                resolvedType = newCat.type
-                categoryByName.set(mapped.name.toLowerCase(), newCat)
-                allCategories.push(newCat)
+            // 1. Merchant history — match to most recently categorized transaction
+            if (!categoryId) {
+              const merchantKey = merchantName.toLowerCase()
+              const histCatId = merchantCategoryMap.get(merchantKey)
+              if (histCatId) {
+                categoryId = histCatId
+                const cat = allCategories.find(c => c.id === histCatId)
+                if (cat) {
+                  resolvedGroup = cat.group
+                  resolvedType = cat.type
+                }
+              }
+            }
+
+            const merchantKey = merchantName.toLowerCase()
+
+            // 2. Plaid metadata — use personal_finance_category with detailed + amount context
+            if (!categoryId) {
+              const pfc = tx.personal_finance_category
+              const mapped = pfc?.primary
+                ? mapPlaidCategory(pfc.primary, pfc.detailed ?? null, amount)
+                : (amount > 0 ? { group: 'Income', name: 'Other Income', type: 'income' } : null)
+              if (mapped) {
+                const existing = categoryByName.get(mapped.name.toLowerCase())
+                if (existing) {
+                  categoryId = existing.id
+                  resolvedGroup = existing.group
+                  resolvedType = existing.type
+                } else {
+                  // Create the category
+                  const newCat = await db.category.create({
+                    data: {
+                      userId: session.userId,
+                      name: mapped.name,
+                      type: mapped.type,
+                      group: mapped.group,
+                      isDefault: false,
+                    },
+                  })
+                  categoryId = newCat.id
+                  resolvedGroup = newCat.group
+                  resolvedType = newCat.type
+                  categoryByName.set(mapped.name.toLowerCase(), newCat)
+                  allCategories.push(newCat)
+                }
               }
             }
 
@@ -244,10 +263,64 @@ export async function POST(request: Request) {
       }
     }
 
+    // AI categorization pass — only on initial sync with many uncategorized txs
+    let aiCategorized = 0
+    try {
+      const uncategorized = await db.transaction.findMany({
+        where: {
+          userId: session.userId,
+          importSource: 'plaid',
+          OR: [
+            { categoryId: null },
+            { category: { name: 'Uncategorized' } },
+          ],
+          date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+        },
+        include: { account: { select: { name: true } } },
+        take: 50,
+      })
+
+      if (uncategorized.length > 5) {
+        const { aiCategorizeBatch } = await import('@/lib/ai-categorize')
+        const userCategories = await db.category.findMany({
+          where: { userId: session.userId, isActive: true },
+        })
+
+        const suggestions = await aiCategorizeBatch(
+          uncategorized.map(t => ({
+            id: t.id,
+            merchant: t.merchant,
+            amount: t.amount,
+            date: t.date.toISOString().split('T')[0],
+            originalStatement: t.originalStatement,
+            accountName: t.account?.name || 'Unknown',
+          })),
+          userCategories,
+        )
+
+        for (const suggestion of suggestions) {
+          if (suggestion.confidence >= 0.85) {
+            const cat = userCategories.find(c => c.name === suggestion.categoryName)
+            if (cat) {
+              const classification = classifyTransaction(cat.group, cat.type, 0)
+              await db.transaction.update({
+                where: { id: suggestion.transactionId },
+                data: { categoryId: cat.id, classification },
+              })
+              aiCategorized++
+            }
+          }
+        }
+      }
+    } catch (aiErr) {
+      console.error('AI categorization pass failed (non-fatal):', aiErr)
+    }
+
     return NextResponse.json({
       added: totalAdded,
       modified: totalModified,
       removed: totalRemoved,
+      aiCategorized,
     })
   } catch (error) {
     console.error('Plaid sync failed:', error)

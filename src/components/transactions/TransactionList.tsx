@@ -555,12 +555,26 @@ export default function TransactionList({ transactions: initial, categories, acc
             })}
           </select>
         )}
-        {searchText && (
-          <div className="flex items-center gap-1 rounded-full bg-brand-100 px-3 py-1 text-xs font-medium text-midnight">
-            Search: &quot;{searchText}&quot;
-            <button onClick={() => setSearchText('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
-          </div>
-        )}
+        <div className="relative">
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search transactions..."
+            className="input pl-8 text-sm"
+          />
+          <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {searchText && (
+            <button
+              onClick={() => setSearchText('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone hover:text-fjord"
+            >
+              &times;
+            </button>
+          )}
+        </div>
         {filterClassification && (
           <div className="rounded-badge bg-frost px-2 py-0.5 text-xs text-fjord">
             {filterClassification}

@@ -40,10 +40,59 @@ export function mapPlaidAccountType(
 }
 
 /**
- * Map Plaid's personal_finance_category.primary to our category groups.
- * Returns { group, name, type } for category matching/creation.
+ * Detect credit card payments by merchant/statement name patterns.
+ * These should be classified as transfers, not expenses.
  */
-export function mapPlaidCategory(primary: string): { group: string; name: string; type: string } {
+export function detectCreditCardPayment(merchantOrStatement: string): boolean {
+  const CC_PATTERNS = [
+    /american express.*pmt/i,
+    /capital one.*pmt/i,
+    /chase.*payment/i,
+    /citi.*payment/i,
+    /discover.*payment/i,
+    /barclays.*payment/i,
+    /wells fargo.*card.*pmt/i,
+    /credit card.*payment/i,
+    /card payment/i,
+  ]
+  return CC_PATTERNS.some(p => p.test(merchantOrStatement))
+}
+
+/**
+ * Map Plaid's personal_finance_category to our category groups.
+ * Uses primary, detailed, and amount context for accurate classification.
+ */
+export function mapPlaidCategory(
+  primary: string,
+  detailed?: string | null,
+  amount?: number,
+): { group: string; name: string; type: string } {
+  // Credit card payments — internal transfer, NOT an expense
+  if (primary === 'LOAN_PAYMENTS' && detailed?.includes('CREDIT_CARD')) {
+    return { group: 'Transfers', name: 'Credit Card Payment', type: 'transfer' }
+  }
+
+  // Mortgage payments — real expense
+  if (primary === 'LOAN_PAYMENTS' && detailed?.includes('MORTGAGE')) {
+    return { group: 'Housing', name: 'Mortgage', type: 'expense' }
+  }
+
+  // Income detection from transfers
+  if (primary === 'TRANSFER_IN') {
+    if (detailed === 'TRANSFER_IN_DEPOSIT' || detailed === 'TRANSFER_IN_PAYROLL') {
+      return { group: 'Income', name: 'Paychecks', type: 'income' }
+    }
+    // Large positive transfers that aren't account-to-account
+    if (detailed !== 'TRANSFER_IN_ACCOUNT_TRANSFER' && amount && amount > 0 && amount >= 200) {
+      return { group: 'Income', name: 'Other Income', type: 'income' }
+    }
+  }
+
+  // Positive amounts with no PFC = likely income
+  if (!primary && amount && amount > 0) {
+    return { group: 'Income', name: 'Other Income', type: 'income' }
+  }
+
   const mapping: Record<string, { group: string; name: string; type: string }> = {
     'INCOME': { group: 'Income', name: 'Other Income', type: 'income' },
     'TRANSFER_IN': { group: 'Transfers', name: 'Transfer', type: 'transfer' },

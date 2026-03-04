@@ -6,6 +6,7 @@ import type { PrismaClient } from '@prisma/client'
 import { Prisma, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
 import { hashPassword } from '@/lib/password'
 import { DEMO_USER_ID, DEMO_USER_EMAIL } from '@/lib/demo'
+import { DEFAULT_CATEGORIES } from '@/lib/seed-categories'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -80,41 +81,70 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   })
 
   // ─── Categories ──────────────────────────────────────────────────────
-  const categoryDefs = [
-    { type: 'income', group: 'Income', name: 'Paychecks', icon: '💵' },
+  // Start from the shared default set, then add demo-specific extras
+  const demoIcons: Record<string, string> = {
+    'Paychecks': '💵', 'Side Income': '💰', 'Rental Income': '🏘️',
+    'Dividends & Interest': '📈', 'Other Income': '💸',
+    'Mortgage': '🏡', 'Rent': '🏠', 'Home Improvement': '🔨',
+    'Gas & Electric': '⚡️', 'Internet & Phone': '🌐', 'Water & Sewer': '💧',
+    'Groceries': '🍏', 'Restaurants & Bars': '🍽️', 'Coffee Shops': '☕',
+    'Gas & Fuel': '⛽️', 'Auto Payment': '🚗', 'Auto Insurance': '🛡️',
+    'Medical': '🏥', 'Gym & Fitness': '💪',
+    'Shopping': '🛍️', 'Clothing': '👕', 'Personal Care': '💇',
+    'Entertainment': '🎥', 'Subscriptions': '📺', 'Travel & Vacation': '🏝️',
+    'Insurance': '☂️', 'Bank Fees': '🏦', 'Loan Payment': '📋',
+    'Gifts & Donations': '🎁', 'Uncategorized': '❓',
+    'Transfer': '🔄', 'Credit Card Payment': '💳',
+  }
+  const demoBudgetTiers: Record<string, 'FIXED' | 'FLEXIBLE' | 'ANNUAL'> = {
+    'Rent': 'FIXED', 'Mortgage': 'FIXED', 'Auto Payment': 'FIXED',
+    'Insurance': 'FIXED', 'Gas & Electric': 'FIXED', 'Internet & Phone': 'FIXED',
+    'Subscriptions': 'FIXED', 'Gym & Fitness': 'FIXED',
+    'Groceries': 'FLEXIBLE', 'Restaurants & Bars': 'FLEXIBLE',
+    'Gas & Fuel': 'FLEXIBLE', 'Entertainment': 'FLEXIBLE',
+    'Clothing': 'FLEXIBLE', 'Personal Care': 'FLEXIBLE',
+    'Travel & Vacation': 'ANNUAL',
+  }
+
+  // Demo-specific categories not in DEFAULT_CATEGORIES
+  const demoExtraCategories = [
     { type: 'income', group: 'Income', name: 'Side Gig', icon: '💰' },
     { type: 'income', group: 'Income', name: 'Dividends & Capital Gains', icon: '📈' },
-    { type: 'expense', group: 'Housing', name: 'Rent', icon: '🏠', budgetTier: 'FIXED' as const },
-    { type: 'expense', group: 'Housing', name: 'Mortgage', icon: '🏡', budgetTier: 'FIXED' as const },
-    { type: 'income', group: 'Income', name: 'Rental Income', icon: '🏘️' },
-    { type: 'expense', group: 'Auto & Transport', name: 'Auto Payment', icon: '🚗', budgetTier: 'FIXED' as const },
-    { type: 'expense', group: 'Financial', name: 'Insurance', icon: '☂️', budgetTier: 'FIXED' as const },
-    { type: 'expense', group: 'Bills & Utilities', name: 'Gas & Electric', icon: '⚡️', budgetTier: 'FIXED' as const },
     { type: 'expense', group: 'Bills & Utilities', name: 'Internet & Cable', icon: '🌐', budgetTier: 'FIXED' as const },
-    { type: 'expense', group: 'Travel & Lifestyle', name: 'Subscriptions', icon: '📺', budgetTier: 'FIXED' as const },
     { type: 'expense', group: 'Health & Wellness', name: 'Fitness', icon: '💪', budgetTier: 'FIXED' as const },
-    { type: 'expense', group: 'Food & Dining', name: 'Groceries', icon: '🍏', budgetTier: 'FLEXIBLE' as const },
-    { type: 'expense', group: 'Food & Dining', name: 'Restaurants & Bars', icon: '🍽️', budgetTier: 'FLEXIBLE' as const },
     { type: 'expense', group: 'Auto & Transport', name: 'Gas', icon: '⛽️', budgetTier: 'FLEXIBLE' as const },
     { type: 'expense', group: 'Travel & Lifestyle', name: 'Entertainment & Recreation', icon: '🎥', budgetTier: 'FLEXIBLE' as const },
-    { type: 'expense', group: 'Shopping', name: 'Clothing', icon: '👕', budgetTier: 'FLEXIBLE' as const },
-    { type: 'expense', group: 'Health & Wellness', name: 'Personal Care', icon: '💇', budgetTier: 'FLEXIBLE' as const },
     { type: 'expense', group: 'Auto & Transport', name: 'Auto Maintenance', icon: '🔧', budgetTier: 'ANNUAL' as const },
     { type: 'expense', group: 'Gifts & Donations', name: 'Gifts', icon: '🎁', budgetTier: 'ANNUAL' as const },
-    { type: 'expense', group: 'Travel & Lifestyle', name: 'Travel & Vacation', icon: '🏝️', budgetTier: 'ANNUAL' as const },
-    { type: 'transfer', group: 'Transfers', name: 'Transfer', icon: '🔄' },
-    { type: 'transfer', group: 'Transfers', name: 'Credit Card Payment', icon: '💳' },
   ]
 
   const categoryMap = new Map<string, string>()
-  for (const cat of categoryDefs) {
+
+  // Create categories from shared defaults
+  for (const cat of DEFAULT_CATEGORIES) {
     const created = await db.category.create({
       data: {
         userId: DEMO_USER_ID,
         type: cat.type,
         group: cat.group,
         name: cat.name,
-        icon: cat.icon,
+        icon: demoIcons[cat.name] ?? null,
+        budgetTier: demoBudgetTiers[cat.name] ?? null,
+        isDefault: false,
+      },
+    })
+    categoryMap.set(cat.name, created.id)
+  }
+
+  // Create demo-specific extras
+  for (const cat of demoExtraCategories) {
+    const created = await db.category.create({
+      data: {
+        userId: DEMO_USER_ID,
+        type: cat.type,
+        group: cat.group,
+        name: cat.name,
+        icon: cat.icon ?? null,
         budgetTier: cat.budgetTier ?? null,
         isDefault: false,
       },

@@ -180,6 +180,53 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // Batch-apply: recategorize all other transactions from the same merchant
+  // that had the old category (or Uncategorized)
+  let batchUpdated = 0
+  if (body.categoryId && body.categoryId !== existing.categoryId && transaction.merchant) {
+    try {
+      const normalizedMerchant = transaction.merchant.toLowerCase().trim()
+      // Find the "Uncategorized" category id for this user
+      const uncatCategory = await db.category.findFirst({
+        where: { userId: session.userId, name: 'Uncategorized' },
+        select: { id: true },
+      })
+      const oldCategoryConditions: object[] = []
+      if (existing.categoryId) oldCategoryConditions.push({ categoryId: existing.categoryId })
+      oldCategoryConditions.push({ categoryId: null })
+      if (uncatCategory) oldCategoryConditions.push({ categoryId: uncatCategory.id })
+
+      const similarTxs = await db.transaction.findMany({
+        where: {
+          userId: session.userId,
+          id: { not: id },
+          merchant: { equals: transaction.merchant, mode: 'insensitive' },
+          OR: oldCategoryConditions,
+        },
+        select: { id: true, amount: true },
+      })
+
+      if (similarTxs.length > 0) {
+        const newCategory = await db.category.findFirst({
+          where: { id: body.categoryId },
+          select: { group: true, type: true },
+        })
+        if (newCategory) {
+          for (const sim of similarTxs) {
+            const simClassification = classifyTransaction(newCategory.group, newCategory.type, sim.amount)
+            await db.transaction.update({
+              where: { id: sim.id },
+              data: { categoryId: body.categoryId, classification: simClassification },
+            })
+          }
+          batchUpdated = similarTxs.length
+        }
+      }
+    } catch {
+      // Non-critical — don't fail if batch apply errors
+    }
+  }
+
   // Smart property learning: when a user changes a transaction's property (without category change),
   // update any existing mapping with the property signal.
   if (body.propertyId && body.propertyId !== existing.propertyId && transaction.merchant && transaction.categoryId) {
@@ -210,7 +257,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   revalidatePath('/transactions')
   revalidatePath('/budgets')
   revalidatePath('/spending')
-  return NextResponse.json(transaction)
+  return NextResponse.json({ ...transaction, batchUpdated })
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -84,6 +84,7 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
   const [plaidLoading, setPlaidLoading] = useState(false)
   const [plaidMessage, setPlaidMessage] = useState<string | null>(null)
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null)
+  const [showPostConnect, setShowPostConnect] = useState(false)
 
   const nameRef = useRef<HTMLInputElement>(null)
 
@@ -131,6 +132,7 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
       setPlaidMessage(
         `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''}`
       )
+      setShowPostConnect(true)
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect bank')
@@ -309,9 +311,27 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
       )}
 
       {plaidMessage && (
-        <div className="mb-4 rounded-lg border border-pine/30 bg-pine/10 px-4 py-2 text-sm text-pine">
-          {plaidMessage}
-          <button onClick={() => setPlaidMessage(null)} className="ml-2 font-medium underline">dismiss</button>
+        <div className="mb-4 rounded-lg border border-pine/30 bg-pine/10 px-4 py-3 text-sm text-pine">
+          <p>{plaidMessage}</p>
+          {showPostConnect && (
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={() => { setPlaidMessage(null); setShowPostConnect(false); fetchLinkToken() }}
+                className="rounded-button bg-fjord px-4 py-1.5 text-sm font-medium text-snow hover:bg-midnight"
+              >
+                Add Another Bank
+              </button>
+              <button
+                onClick={() => { setPlaidMessage(null); setShowPostConnect(false) }}
+                className="text-sm text-stone hover:text-fjord"
+              >
+                Done
+              </button>
+            </div>
+          )}
+          {!showPostConnect && (
+            <button onClick={() => setPlaidMessage(null)} className="mt-1 font-medium underline">dismiss</button>
+          )}
         </div>
       )}
 
