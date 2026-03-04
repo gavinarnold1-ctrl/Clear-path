@@ -15,7 +15,10 @@ export default async function DebtsPage() {
   const [debts, properties, categories] = await Promise.all([
     db.debt.findMany({
       where: { userId: session.userId },
-      include: { property: true, category: true },
+      include: {
+        property: { include: { group: { select: { id: true, name: true } } } },
+        category: true,
+      },
       orderBy: { currentBalance: 'desc' },
     }),
     db.property.findMany({
@@ -65,7 +68,14 @@ export default async function DebtsPage() {
       startDate: d.startDate?.toISOString() ?? null,
       propertyId: d.propertyId,
       categoryId: d.categoryId,
-      property: d.property ? { id: d.property.id, name: d.property.name, taxSchedule: d.property.taxSchedule } : null,
+      property: d.property ? {
+        id: d.property.id,
+        name: d.property.name,
+        taxSchedule: d.property.taxSchedule,
+        groupId: d.property.groupId ?? null,
+        groupName: d.property.group?.name ?? null,
+        splitPct: d.property.splitPct ? Number(d.property.splitPct) : null,
+      } : null,
       category: d.category ? { id: d.category.id, name: d.category.name } : null,
       monthlyInterest: pi.monthlyInterest,
       monthlyPrincipal: pi.monthlyPrincipal,
