@@ -79,10 +79,11 @@ interface Props {
   initialClassification?: string
   initialAnnualExpenseId?: string
   initialAnnualExpenseName?: string
+  initialUncategorized?: boolean
   refundedTxIds?: string[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, refundedTxIds = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -96,6 +97,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [filterAccountId, setFilterAccountId] = useState<string>(initialAccountId)
   const [searchText, setSearchText] = useState<string>(initialSearch)
   const [filterClassification, setFilterClassification] = useState<string>(initialClassification)
+  const [filterUncategorized, setFilterUncategorized] = useState<boolean>(initialUncategorized)
   const [filterAnnualExpenseId, setFilterAnnualExpenseId] = useState<string>(initialAnnualExpenseId)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -162,6 +164,10 @@ export default function TransactionList({ transactions: initial, categories, acc
     // Person filter (R3.3a)
     if (filterPersonId) {
       if (filterPersonId === '__none__' ? tx.householdMemberId !== null : tx.householdMemberId !== filterPersonId) return false
+    }
+    // Uncategorized filter — show only transactions with no category
+    if (filterUncategorized) {
+      if (tx.categoryId !== null) return false
     }
     // Category filter (R6.8)
     if (filterCategoryId) {
@@ -567,9 +573,15 @@ export default function TransactionList({ transactions: initial, categories, acc
             <button onClick={() => setFilterAnnualExpenseId('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
           </div>
         )}
-        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId) && (
+        {filterUncategorized && (
+          <div className="flex items-center gap-1 rounded-full border border-birch/40 bg-birch/10 px-3 py-1 text-xs font-medium text-fjord">
+            Needs category
+            <button onClick={() => setFilterUncategorized(false)} className="ml-1 text-stone hover:text-fjord">&times;</button>
+          </div>
+        )}
+        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || filterUncategorized) && (
           <button
-            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId('') }}
+            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId(''); setFilterUncategorized(false) }}
             className="text-xs text-stone hover:text-fjord"
           >
             Clear all
