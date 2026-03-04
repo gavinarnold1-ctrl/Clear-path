@@ -758,6 +758,15 @@ function GroupedDebtCard({
         )}
       </div>
 
+      {/* Effective rate + Equity row */}
+      <GroupedDebtExtras
+        totalBalance={totalBalance}
+        totalPayment={totalPayment}
+        avgRate={avgRate}
+        debts={debts}
+        properties={properties}
+      />
+
       {/* Expanded per-unit breakdown */}
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-mist pt-4">
@@ -809,6 +818,148 @@ function GroupedDebtCard({
         </div>
       )}
     </div>
+  )
+}
+
+/** Effective rate, equity/LTV, payoff progress, and amortization schedule for grouped debts */
+function GroupedDebtExtras({
+  totalBalance,
+  totalPayment,
+  avgRate,
+  debts,
+  properties,
+}: {
+  totalBalance: number
+  totalPayment: number
+  avgRate: number
+  debts: DebtRow[]
+  properties: PropertyOption[]
+}) {
+  const [showSchedule, setShowSchedule] = useState(false)
+
+  // Effective rate (total payment / balance annualized)
+  const effRate = totalBalance > 0
+    ? calcEffectiveRate(totalBalance, totalPayment)
+    : null
+
+  // Combined equity/LTV across all units
+  const totalPropertyValue = debts.reduce((s, d) => {
+    const prop = d.propertyId ? properties.find(p => p.id === d.propertyId) : null
+    return s + (prop?.currentValue ?? 0)
+  }, 0)
+  const equity = totalPropertyValue > 0 ? totalPropertyValue - totalBalance : null
+  const ltv = totalPropertyValue > 0 ? (totalBalance / totalPropertyValue) * 100 : null
+
+  // Combined original balance for payoff progress
+  const totalOriginalBalance = debts.reduce((s, d) => s + (d.originalBalance ?? 0), 0)
+
+  // Amortization schedule using combined values
+  // Use max termMonths from any unit debt
+  const maxTermMonths = debts.reduce<number | null>((max, d) => {
+    if (d.termMonths == null) return max
+    if (max == null) return d.termMonths
+    return Math.max(max, d.termMonths)
+  }, null)
+
+  const canShowSchedule = totalBalance > 0 && avgRate >= 0 && maxTermMonths != null && maxTermMonths > 0
+  const scheduleRows: AmortizationRow[] = canShowSchedule
+    ? (() => {
+        try {
+          const result = amortizationSchedule({
+            principal: totalBalance,
+            annualRate: avgRate,
+            termMonths: maxTermMonths!,
+          })
+          return result.schedule
+        } catch {
+          return []
+        }
+      })()
+    : []
+
+  return (
+    <>
+      {/* Effective rate + Equity row */}
+      {(effRate !== null || equity !== null) && (
+        <div className="mt-3 flex flex-wrap gap-4 text-xs">
+          {effRate !== null && (
+            <div>
+              <span className="text-stone">Effective Rate: </span>
+              <span className="font-semibold text-fjord">{(effRate * 100).toFixed(2)}%</span>
+              <span className="ml-1 text-stone">(nominal {(avgRate * 100).toFixed(2)}%)</span>
+            </div>
+          )}
+          {equity !== null && ltv !== null && (
+            <div>
+              <span className="text-stone">Combined Equity: </span>
+              <span className={`font-semibold ${equity >= 0 ? 'text-pine' : 'text-ember'}`}>
+                {formatCurrency(equity)}
+              </span>
+              <span className="ml-1 text-stone">(LTV {ltv.toFixed(1)}%)</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Payoff progress */}
+      {totalOriginalBalance > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-stone">
+            <span>Payoff progress</span>
+            <span>
+              {(((totalOriginalBalance - totalBalance) / totalOriginalBalance) * 100).toFixed(1)}%
+            </span>
+          </div>
+          <div className="mt-1 h-2 overflow-hidden rounded-bar bg-mist">
+            <div
+              className="h-full rounded-bar bg-pine"
+              style={{
+                width: `${((totalOriginalBalance - totalBalance) / totalOriginalBalance) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Amortization schedule toggle */}
+      {canShowSchedule && scheduleRows.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowSchedule(!showSchedule)}
+            className="text-xs text-stone hover:text-fjord"
+          >
+            {showSchedule ? 'Hide' : 'Show'} Amortization Schedule ({scheduleRows.length} months)
+          </button>
+
+          {showSchedule && (
+            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-mist bg-snow">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-frost">
+                  <tr className="text-left text-stone">
+                    <th className="px-2 py-1.5 font-medium">#</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Payment</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Principal</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Interest</th>
+                    <th className="px-2 py-1.5 font-medium text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduleRows.map((row) => (
+                    <tr key={row.month} className="border-t border-mist/50">
+                      <td className="px-2 py-1 text-stone">{row.month}</td>
+                      <td className="px-2 py-1 text-right font-mono text-fjord">{formatCurrency(row.payment)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-pine">{formatCurrency(row.principal)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-ember">{formatCurrency(row.interest)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-fjord">{formatCurrency(row.remainingBalance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   )
 }
 
