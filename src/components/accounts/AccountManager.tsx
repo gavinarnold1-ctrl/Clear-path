@@ -124,7 +124,7 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
       const syncRes = await fetch('/api/plaid/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ itemId: exchangeData.itemId }),
       })
       const syncData = syncRes.ok ? await syncRes.json() : { added: 0 }
 

@@ -117,6 +117,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      itemId,
       accounts: createdAccounts.map(a => ({
         id: a.id,
         name: a.name,
