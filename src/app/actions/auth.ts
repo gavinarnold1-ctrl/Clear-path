@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { hashPassword, verifyPassword } from '@/lib/password'
 import { setSession, clearSession } from '@/lib/session'
+import { seedUserCategories } from '@/lib/seed-categories'
 
 const DUMMY_HASH = '$2a$12$000000000000000000000uGHEfMOB3LMGYHqD.Q9AvYhCj78xjqK'
 
@@ -34,6 +35,7 @@ export async function register(prevState: AuthState, formData: FormData): Promis
     },
   })
 
+  await seedUserCategories(user.id)
   await setSession({ userId: user.id, email: user.email, name: user.name }, user.refreshTokenVersion)
   redirect('/onboarding')
 }

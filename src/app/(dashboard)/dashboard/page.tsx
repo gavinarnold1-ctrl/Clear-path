@@ -250,7 +250,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   const annualSetAside = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
 
   const activeBudgets = allBudgetsWithSpent
-    .sort((a, b) => b.spent - a.spent)
+    .filter((b) => b.spent > 0 || b.amount > 0)
+    .sort((a, b) => {
+      const pctA = a.amount > 0 ? a.spent / a.amount : 0
+      const pctB = b.amount > 0 ? b.spent / b.amount : 0
+      return pctB - pctA
+    })
     .slice(0, 4)
 
   const CASH_TYPES = new Set(['CHECKING', 'SAVINGS'])
@@ -425,7 +430,7 @@ export default async function DashboardPage({ searchParams }: Props) {
                 return (
                   <li key={b.id}>
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-fjord">{b.name}</span>
+                      <span className="font-medium text-fjord">{b.category?.name ?? b.name}</span>
                       <span className="text-stone">
                         {formatCurrency(b.spent)} / {formatCurrency(b.amount)}
                       </span>
