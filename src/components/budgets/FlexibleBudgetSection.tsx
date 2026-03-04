@@ -133,6 +133,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
         {visibleBudgets.map((budget) => (
           <FlexibleBudgetRow
             key={budget.id}
+            id={budget.id}
             name={budget.name}
             amount={budget.amount}
             spent={budget.spent}

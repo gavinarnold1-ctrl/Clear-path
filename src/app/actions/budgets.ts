@@ -176,6 +176,60 @@ export async function fundAnnualExpense(
   return { error: null }
 }
 
+export async function updateBudget(
+  prevState: BudgetState,
+  formData: FormData
+): Promise<BudgetState> {
+  const session = await getSession()
+  if (!session) redirect('/login')
+
+  const id = formData.get('id') as string
+  if (!id) return { error: 'Budget ID is required.' }
+
+  const budget = await db.budget.findFirst({
+    where: { id, userId: session.userId },
+  })
+  if (!budget) return { error: 'Budget not found.' }
+
+  const name = (formData.get('name') as string)?.trim()
+  const amount = parseFloat(formData.get('amount') as string)
+  const categoryId = (formData.get('categoryId') as string) || null
+
+  if (!name) return { error: 'Budget name is required.' }
+  if (!isFinite(amount) || amount <= 0) return { error: 'Amount must be a positive number.' }
+
+  const data: Record<string, unknown> = { name, amount, categoryId }
+
+  if (budget.tier === 'FIXED') {
+    const rawDueDay = formData.get('dueDay') as string
+    const dueDay = rawDueDay ? parseInt(rawDueDay, 10) : null
+    const isAutoPay = formData.get('isAutoPay') === 'true'
+    const rawVariance = formData.get('varianceLimit') as string
+    const varianceLimit = rawVariance ? parseFloat(rawVariance) : null
+
+    if (dueDay !== null && (dueDay < 1 || dueDay > 31)) {
+      return { error: 'Due day must be between 1 and 31.' }
+    }
+    if (varianceLimit !== null && (!isFinite(varianceLimit) || varianceLimit < 0)) {
+      return { error: 'Variance limit must be a non-negative number.' }
+    }
+
+    data.dueDay = dueDay
+    data.isAutoPay = isAutoPay
+    data.varianceLimit = varianceLimit
+  } else if (budget.tier === 'FLEXIBLE') {
+    const period = (formData.get('period') as string) || 'MONTHLY'
+    const endDate = (formData.get('endDate') as string) || null
+    data.period = period
+    data.endDate = endDate ? new Date(endDate) : null
+  }
+
+  await db.budget.update({ where: { id }, data })
+
+  revalidatePath('/budgets')
+  redirect('/budgets')
+}
+
 export async function deleteBudget(id: string): Promise<void> {
   const session = await getSession()
   if (!session) redirect('/login')
