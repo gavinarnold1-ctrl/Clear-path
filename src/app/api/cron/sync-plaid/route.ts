@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { plaidClient, mapPlaidCategory } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
 import { decrypt } from '@/lib/encryption'
+import { normalizeMerchant } from '@/lib/normalize-merchant'
 import type { RemovedTransaction } from 'plaid'
 
 export async function GET(req: NextRequest) {
@@ -102,7 +103,8 @@ export async function GET(req: NextRequest) {
             if (!ourAccountId) continue
 
             const amount = -tx.amount
-            const merchantName = tx.merchant_name || tx.name
+            const rawMerchant = tx.merchant_name || tx.name
+            const merchantName = normalizeMerchant(rawMerchant)
             let categoryId: string | null = null
             let resolvedGroup: string | null = null
             let resolvedType: string | null = null
@@ -148,8 +150,10 @@ export async function GET(req: NextRequest) {
             const classification = classifyTransaction(resolvedGroup, resolvedType, amount)
             const account = accounts.find(a => a.plaidAccountId === tx.account_id)
 
-            await db.transaction.create({
-              data: {
+            // Upsert by plaidTransactionId — prevents duplicates on re-sync
+            await db.transaction.upsert({
+              where: { plaidTransactionId: tx.transaction_id },
+              create: {
                 userId,
                 accountId: ourAccountId,
                 date: new Date(tx.date),
@@ -159,8 +163,15 @@ export async function GET(req: NextRequest) {
                 categoryId,
                 originalStatement: tx.name,
                 importSource: 'plaid',
+                plaidTransactionId: tx.transaction_id,
                 householdMemberId: account?.ownerId ?? null,
                 propertyId: defaultProperty?.id ?? null,
+              },
+              update: {
+                date: new Date(tx.date),
+                merchant: merchantName,
+                amount,
+                originalStatement: tx.name,
               },
             })
 
@@ -170,21 +181,17 @@ export async function GET(req: NextRequest) {
             totalAdded++
           }
 
+          // Modified — look up by plaidTransactionId
           for (const tx of modified) {
             const ourAccountId = accountIdMap.get(tx.account_id)
             if (!ourAccountId) continue
 
             const amount = -tx.amount
-            const merchantName = tx.merchant_name || tx.name
+            const rawMerchant = tx.merchant_name || tx.name
+            const merchantName = normalizeMerchant(rawMerchant)
 
-            const existing = await db.transaction.findFirst({
-              where: {
-                userId,
-                accountId: ourAccountId,
-                originalStatement: tx.name,
-                date: new Date(tx.date),
-                importSource: 'plaid',
-              },
+            const existing = await db.transaction.findUnique({
+              where: { plaidTransactionId: tx.transaction_id },
             })
 
             if (existing) {
@@ -195,19 +202,19 @@ export async function GET(req: NextRequest) {
 
               await db.transaction.update({
                 where: { id: existing.id },
-                data: { merchant: merchantName, amount, classification },
+                data: { merchant: merchantName, amount, classification, originalStatement: tx.name },
               })
               totalModified++
             }
           }
 
+          // Removed — look up by plaidTransactionId
           for (const tx of removed as RemovedTransaction[]) {
             if (!tx.transaction_id) continue
             const deleted = await db.transaction.deleteMany({
               where: {
                 userId,
-                importSource: 'plaid',
-                originalStatement: tx.transaction_id,
+                plaidTransactionId: tx.transaction_id,
               },
             })
             totalRemoved += deleted.count

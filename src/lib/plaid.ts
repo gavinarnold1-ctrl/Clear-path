@@ -61,6 +61,18 @@ export function mapPlaidCategory(primary: string): { group: string; name: string
     'TRANSPORTATION': { group: 'Transport', name: 'Transportation', type: 'expense' },
     'TRAVEL': { group: 'Entertainment', name: 'Travel', type: 'expense' },
     'RENT_AND_UTILITIES': { group: 'Housing', name: 'Rent & Utilities', type: 'expense' },
+    'GROCERIES': { group: 'Food', name: 'Groceries', type: 'expense' },
+    'AUTO_TRANSPORT': { group: 'Transport', name: 'Auto & Transport', type: 'expense' },
+    'EDUCATION': { group: 'Personal', name: 'Education', type: 'expense' },
+    'CHILDCARE': { group: 'Personal', name: 'Childcare', type: 'expense' },
+    'PETS': { group: 'Entertainment', name: 'Pets', type: 'expense' },
+    'SUBSCRIPTION': { group: 'Entertainment', name: 'Subscriptions', type: 'expense' },
+    'TOBACCO_AND_ALCOHOL': { group: 'Food', name: 'Alcohol & Bars', type: 'expense' },
+    'GAS_STATIONS': { group: 'Transport', name: 'Gas & Fuel', type: 'expense' },
+    'GYMS_AND_FITNESS_CENTERS': { group: 'Healthcare', name: 'Gym & Fitness', type: 'expense' },
+    'AIRLINES_AND_AVIATION_SERVICES': { group: 'Entertainment', name: 'Travel', type: 'expense' },
+    'LODGING': { group: 'Entertainment', name: 'Travel', type: 'expense' },
+    'CAR_SERVICE': { group: 'Transport', name: 'Ride Share', type: 'expense' },
   }
   return mapping[primary] ?? { group: 'Other', name: 'Uncategorized', type: 'expense' }
 }

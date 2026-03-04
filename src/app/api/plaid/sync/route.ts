@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { plaidClient, mapPlaidCategory } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
 import { decrypt } from '@/lib/encryption'
+import { normalizeMerchant } from '@/lib/normalize-merchant'
 import type { RemovedTransaction } from 'plaid'
 
 export async function POST(request: Request) {
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
 
           const { added, modified, removed, next_cursor, has_more } = syncResponse.data
 
-          // Process added transactions
+          // Process added transactions — upsert by plaidTransactionId to prevent duplicates
           for (const tx of added) {
             const ourAccountId = accountIdMap.get(tx.account_id)
             if (!ourAccountId) continue
@@ -93,7 +94,8 @@ export async function POST(request: Request) {
             const amount = -tx.amount
 
             // R1.8: Auto-categorization hierarchy
-            const merchantName = tx.merchant_name || tx.name
+            const rawMerchant = tx.merchant_name || tx.name
+            const merchantName = normalizeMerchant(rawMerchant)
             let categoryId: string | null = null
             let resolvedGroup: string | null = null
             let resolvedType: string | null = null
@@ -144,8 +146,10 @@ export async function POST(request: Request) {
             const account = accounts.find(a => a.plaidAccountId === tx.account_id)
             const householdMemberId = account?.ownerId ?? null
 
-            await db.transaction.create({
-              data: {
+            // Upsert by plaidTransactionId — prevents duplicates on re-sync
+            await db.transaction.upsert({
+              where: { plaidTransactionId: tx.transaction_id },
+              create: {
                 userId: session.userId,
                 accountId: ourAccountId,
                 date: new Date(tx.date),
@@ -155,8 +159,16 @@ export async function POST(request: Request) {
                 categoryId,
                 originalStatement: tx.name,
                 importSource: 'plaid',
+                plaidTransactionId: tx.transaction_id,
                 householdMemberId,
                 propertyId: defaultProperty?.id ?? null,
+              },
+              update: {
+                // Only update fields Plaid controls — preserve user edits to category, notes, etc.
+                date: new Date(tx.date),
+                merchant: merchantName,
+                amount,
+                originalStatement: tx.name,
               },
             })
 
@@ -168,23 +180,17 @@ export async function POST(request: Request) {
             totalAdded++
           }
 
-          // Process modified transactions — match by date + merchant + account
+          // Process modified transactions — look up by plaidTransactionId
           for (const tx of modified) {
             const ourAccountId = accountIdMap.get(tx.account_id)
             if (!ourAccountId) continue
 
             const amount = -tx.amount
-            const merchantName = tx.merchant_name || tx.name
+            const rawMerchant = tx.merchant_name || tx.name
+            const merchantName = normalizeMerchant(rawMerchant)
 
-            // Find existing transaction to update
-            const existing = await db.transaction.findFirst({
-              where: {
-                userId: session.userId,
-                accountId: ourAccountId,
-                originalStatement: tx.name,
-                date: new Date(tx.date),
-                importSource: 'plaid',
-              },
+            const existing = await db.transaction.findUnique({
+              where: { plaidTransactionId: tx.transaction_id },
             })
 
             if (existing) {
@@ -199,21 +205,20 @@ export async function POST(request: Request) {
                   merchant: merchantName,
                   amount,
                   classification,
+                  originalStatement: tx.name,
                 },
               })
               totalModified++
             }
           }
 
-          // Process removed transactions
+          // Process removed transactions — look up by plaidTransactionId
           for (const tx of removed as RemovedTransaction[]) {
             if (!tx.transaction_id) continue
-            // Try to find and delete by matching original statement patterns
             const deleted = await db.transaction.deleteMany({
               where: {
                 userId: session.userId,
-                importSource: 'plaid',
-                originalStatement: tx.transaction_id,
+                plaidTransactionId: tx.transaction_id,
               },
             })
             totalRemoved += deleted.count
