@@ -1202,3 +1202,60 @@ This is Step 3 of the Goal-Driven Budget System (see above) — not a regression
 ### TypeScript
 
 - Zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Plaid Production Cutover (2026-03-04)
+
+**Status**: Production approved. Credentials in Vercel. Sandbox cursors reset script ready.
+
+### Environment Verification
+
+| Check | Result |
+|-------|--------|
+| `src/lib/plaid.ts` reads `PLAID_ENV` from env | Confirmed — `PlaidEnvironments[process.env.PLAID_ENV \|\| 'sandbox']` |
+| No hardcoded `'sandbox'` except fallback default | Confirmed — only 1 reference (plaid.ts:4 fallback) |
+| `.env.example` documents all Plaid vars | Confirmed — PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV, PLAID_ENCRYPTION_KEY |
+| AES-256-GCM encryption for token storage | Confirmed — `src/lib/encryption.ts` with 96-bit IV, 128-bit auth tag |
+| CSP allows `*.plaid.com` (connect-src + frame-src) | Confirmed — `next.config.ts` |
+
+### Exchange-Token Flow (Step 3)
+
+| Check | Status |
+|-------|--------|
+| `itemPublicTokenExchange(public_token)` | Present |
+| `accountsGet(access_token)` for metadata | Present |
+| `encrypt(accessToken)` before DB storage | Present |
+| Plaid → Oversikt account type mapping | Present via `mapPlaidAccountType()` |
+| Auto-creates Debt for loan/credit accounts | Present |
+| Duplicate plaidAccountId check | Present |
+| No sensitive data in API response | Confirmed |
+
+### Daily Sync Cron (Step 4)
+
+| Check | Status |
+|-------|--------|
+| CRON_SECRET header validation | Present, fail-closed in production |
+| Cursor-based pagination (`while hasMore`) | Present |
+| No sensitive data leakage in errors | Confirmed |
+| Balance refresh after sync | Present |
+| Linked Debt balance sync | Present |
+| Schedule | 6 AM UTC daily (`vercel.json`) |
+
+### Production Concerns (non-blocking, V2)
+
+- **No per-item retry**: Failed items are skipped, cursor preserved for next cron run
+- **No external error alerting**: Errors logged to console + returned in response, no Slack/email
+- **No explicit timeout**: Relies on Vercel function timeout (acceptable for V1)
+
+### Cursor Reset Script
+
+Created `scripts/reset-plaid-cursors.ts` — clears sandbox `plaidCursor` values so production sync starts fresh. Run with `npx tsx scripts/reset-plaid-cursors.ts` after Vercel deploy.
+
+### Post-Cutover Steps (for Gavin)
+
+1. Deploy Vercel project (picks up production env vars)
+2. Run `npx tsx scripts/reset-plaid-cursors.ts` against production DB
+3. Go to Settings → Accounts → "Connect Bank" to re-link real bank accounts
+4. Click "Sync Now" for first production transaction pull
+5. Existing sandbox accounts can be deleted manually or superseded by real data
