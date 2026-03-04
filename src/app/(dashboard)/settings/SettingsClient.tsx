@@ -751,10 +751,35 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         setResetMsg({ type: 'error', text: data.error ?? 'Failed to reset data.' })
         return
       }
-      setResetMsg({ type: 'success', text: data.message })
       setShowResetConfirm(false)
       setMembers([])
       setProperties([])
+
+      // If Plaid accounts were preserved, trigger a fresh sync with AI categorization
+      if (data.plaidAccountCount > 0) {
+        setResetMsg({ type: 'success', text: data.message })
+        try {
+          const syncRes = await fetch('/api/plaid/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          })
+          if (syncRes.ok) {
+            const syncData = await syncRes.json()
+            setResetMsg({
+              type: 'success',
+              text: `Reset complete. Re-imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''} from ${data.plaidAccountCount} connected bank${data.plaidAccountCount !== 1 ? 's' : ''}.`,
+            })
+          } else {
+            setResetMsg({ type: 'success', text: `${data.message} Visit the Accounts page to manually sync.` })
+          }
+        } catch {
+          setResetMsg({ type: 'success', text: `${data.message} Visit the Accounts page to manually sync.` })
+        }
+      } else {
+        setResetMsg({ type: 'success', text: data.message })
+      }
+
       router.refresh()
     } catch {
       setResetMsg({ type: 'error', text: 'Network error.' })
@@ -1710,8 +1735,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         <div>
           <h3 className="mb-1 text-sm font-semibold text-ember">Reset All Data</h3>
           <p className="mb-3 text-sm text-stone">
-            Deletes all your transactions, accounts, budgets, debts, and categories.
-            Your login stays intact so you can start fresh.
+            Deletes all transactions, budgets, debts, and manual accounts.
+            Connected banks are preserved and re-synced with AI categorization.
+            Default categories are re-seeded so you start fresh.
           </p>
           {resetMsg && (
             <p className={`mb-2 text-sm ${resetMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
