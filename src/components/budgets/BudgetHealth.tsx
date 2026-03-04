@@ -183,7 +183,7 @@ export default function BudgetHealth({
     </div>
   )
 
-  const incomeMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  const incomeMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`
 
   return (
     <div className="card mb-6">
