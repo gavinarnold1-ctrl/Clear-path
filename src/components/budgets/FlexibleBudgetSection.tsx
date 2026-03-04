@@ -63,48 +63,66 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
   const rollupPace = getPaceInfo(rollupBudget, rollupSpent)
 
   return (
-    <section className="mb-8 rounded-card border-l-4 border-l-pine bg-frost/40 p-4">
-      <div className="mb-3">
-        <h2 className="font-display text-lg font-semibold text-fjord">Flexible Spending</h2>
-        <p className="text-sm text-stone">Variable spending you control — track against a monthly limit</p>
-      </div>
-      <div className="divide-y divide-mist rounded-card border border-mist bg-snow">
-        {/* Rollup summary at top */}
-        {rollupBudget > 0 && (
-          <div className="rounded-lg bg-frost/30 px-3 py-3">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-sm font-semibold text-fjord">Flexible Budget</span>
-              <span className="text-sm text-stone">
-                <span className={rollupColor}>{formatCurrency(rollupSpent)}</span>
-                {' of '}
-                {formatCurrency(rollupBudget)}
-              </span>
-            </div>
-            <ProgressBar value={rollupPct} paceMarker={rollupPace.paceMarkerPct} />
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="text-stone">
-                {rollupSpent <= rollupBudget
-                  ? `${formatCurrency(rollupBudget - rollupSpent)} remaining`
-                  : ''
-                }
-                {rollupSpent > rollupBudget && (
-                  <span className="font-semibold text-ember">{formatCurrency(rollupSpent - rollupBudget)} over budget</span>
-                )}
-                {rollupSpent <= rollupBudget && (
-                  <>
-                    {' · '}
-                    <span className={rollupPace.ahead ? 'text-pine' : 'text-ember'}>
-                      {formatCurrency(Math.abs(rollupPace.diff))} {rollupPace.ahead ? 'ahead' : 'behind'}
-                    </span>
-                  </>
-                )}
-              </span>
-              <span className={`font-semibold ${rollupColor}`}>{rollupPct}%</span>
-            </div>
+    <section className="mb-8">
+      {/* Flexible Budget Summary — visually distinct header above category cards */}
+      {rollupBudget > 0 && (
+        <div className="mb-3 rounded-card border border-pine/30 bg-pine/5 px-5 py-4">
+          <div className="mb-0.5 flex items-center gap-2">
+            <h2 className="font-display text-lg font-semibold text-fjord">Flexible Spending</h2>
+            <span className="rounded-badge bg-pine/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pine">
+              {formatCurrency(rollupBudget)}/mo
+            </span>
           </div>
-        )}
+          <p className="mb-3 text-xs text-stone">Variable spending you control — track against a monthly limit</p>
 
-        {/* Named budgets (sorted) */}
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-semibold text-fjord">
+              {formatCurrency(rollupSpent)}
+              <span className="font-normal text-stone"> of {formatCurrency(rollupBudget)}</span>
+            </span>
+            <span className={`text-sm font-semibold ${rollupColor}`}>{rollupPct}%</span>
+          </div>
+          <ProgressBar value={rollupPct} paceMarker={rollupPace.paceMarkerPct} />
+          <div className="mt-1 flex items-center justify-between text-xs">
+            <span className="text-stone">
+              {rollupSpent <= rollupBudget
+                ? `${formatCurrency(rollupBudget - rollupSpent)} remaining`
+                : ''
+              }
+              {rollupSpent > rollupBudget && (
+                <span className="font-semibold text-ember">{formatCurrency(rollupSpent - rollupBudget)} over budget</span>
+              )}
+              {rollupSpent <= rollupBudget && (
+                <>
+                  {' · '}
+                  <span className={rollupPace.ahead ? 'text-pine' : 'text-ember'}>
+                    {formatCurrency(Math.abs(rollupPace.diff))} {rollupPace.ahead ? 'ahead' : 'behind'}
+                  </span>
+                </>
+              )}
+            </span>
+            <span className="text-stone">
+              {(() => {
+                const { daily, daysLeft } = getDailyAllowance(rollupBudget, rollupSpent)
+                return rollupSpent <= rollupBudget
+                  ? `${formatCurrency(daily)}/day · ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`
+                  : ''
+              })()}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Heading fallback when there's no rollup budget */}
+      {rollupBudget <= 0 && (
+        <div className="mb-3">
+          <h2 className="font-display text-lg font-semibold text-fjord">Flexible Spending</h2>
+          <p className="text-sm text-stone">Variable spending you control — track against a monthly limit</p>
+        </div>
+      )}
+
+      {/* Individual flexible category cards */}
+      <div className="divide-y divide-mist rounded-card border border-mist bg-snow">
         {visibleBudgets.map((budget) => (
           <FlexibleBudgetRow
             key={budget.id}
