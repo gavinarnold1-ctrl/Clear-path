@@ -9,7 +9,7 @@ import type { SplitRuleData, PropertyInfo } from '@/lib/engines/split'
  * 1. If the transaction has a propertyId, check if that property belongs to a group.
  * 2. If it has a group, check match rules (by merchant, category, description).
  * 3. If a match rule matches, use its allocations.
- * 4. Otherwise, fall back to the group's default split percentages.
+ * 4. Otherwise, respect the user's explicit property choice — no auto-split.
  * 5. Create TransactionSplit records for the transaction.
  *
  * @param transactionId - The ID of the created transaction
@@ -81,15 +81,11 @@ export async function applyPropertyAttribution(
   if (matchedRule) {
     allocations = matchedRule.allocations
   } else {
-    // Fall back to group's default split percentages
-    const defaultAllocs = group.properties
-      .filter(p => p.splitPct !== null && Number(p.splitPct) > 0)
-      .map(p => ({ propertyId: p.id, percentage: Number(p.splitPct) }))
-
-    // Only use defaults if they sum to ~100%
-    const totalPct = defaultAllocs.reduce((sum, a) => sum + a.percentage, 0)
-    if (defaultAllocs.length === 0 || Math.abs(totalPct - 100) > 0.01) return
-    allocations = defaultAllocs
+    // No match rule fired — respect the user's explicit property choice.
+    // The transaction already has propertyId set for direct attribution;
+    // auto-splitting via group defaults would override the user's intent
+    // (e.g. rent income directed to one unit would be split across all units).
+    return
   }
 
   // Apply the split with penny-perfect rounding
