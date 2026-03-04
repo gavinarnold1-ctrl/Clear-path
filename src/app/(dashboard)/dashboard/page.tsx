@@ -254,8 +254,27 @@ export default async function DashboardPage({ searchParams }: Props) {
   const flexibleSpent = flexibleBudgets.reduce((sum, b) => sum + b.spent, 0)
   const annualSetAside = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
 
-  const activeBudgets = allBudgetsWithSpent
-    .filter((b) => b.spent > 0 || b.amount > 0)
+  // Active Budgets: deduplicate by categoryId so the same category doesn't
+  // appear multiple times when the user has multiple budgets for one category.
+  // Collapse into one entry per category: sum budget amounts, keep actual spent.
+  const budgetsByCategoryId = new Map<string, { name: string; amount: number; spent: number; id: string }>()
+  for (const b of allBudgetsWithSpent) {
+    if (b.spent <= 0 && b.amount <= 0) continue
+    const key = b.categoryId ?? b.id // ungrouped budgets use their own id
+    const existing = budgetsByCategoryId.get(key)
+    if (existing) {
+      existing.amount += b.amount
+      // spent is per-category, so it's the same — don't double it
+    } else {
+      budgetsByCategoryId.set(key, {
+        name: b.category?.name ?? b.name,
+        amount: b.amount,
+        spent: b.spent,
+        id: b.id,
+      })
+    }
+  }
+  const activeBudgets = [...budgetsByCategoryId.values()]
     .sort((a, b) => {
       const pctA = a.amount > 0 ? a.spent / a.amount : 0
       const pctB = b.amount > 0 ? b.spent / b.amount : 0
@@ -435,7 +454,7 @@ export default async function DashboardPage({ searchParams }: Props) {
                 return (
                   <li key={b.id}>
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-fjord">{b.category?.name ?? b.name}</span>
+                      <span className="font-medium text-fjord">{b.name}</span>
                       <span className="text-stone">
                         {formatCurrency(b.spent)} / {formatCurrency(b.amount)}
                       </span>
