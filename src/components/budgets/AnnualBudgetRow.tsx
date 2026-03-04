@@ -19,6 +19,7 @@ interface Props {
   categoryId: string | null
   category: { name: string; icon: string | null } | null
   annualExpense: AnnualExpense
+  spent: number
 }
 
 function getAlertLevel(dueMonth: number, dueYear: number, funded: number, annualAmount: number) {
@@ -40,14 +41,13 @@ const ALERT_STYLES = {
   ok: 'text-stone',
 }
 
-export default function AnnualBudgetRow({ name, categoryId, category, annualExpense: ae }: Props) {
-  const pct = budgetProgress(ae.funded, ae.annualAmount)
+export default function AnnualBudgetRow({ name, categoryId, category, annualExpense: ae, spent }: Props) {
+  const fundedPct = budgetProgress(ae.funded, ae.annualAmount)
+  const spentPct = ae.annualAmount > 0 ? Math.min(Math.round((spent / ae.annualAmount) * 100), 100) : 0
   const monthlyNeeded = calculateMonthlySetAside(ae.annualAmount, ae.funded, ae.dueMonth, ae.dueYear)
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
+  const overspent = spent > ae.funded
 
-  // Navigate to transactions linked to this specific annual plan item.
-  // Uses annualExpenseId filter — NOT category filter — because a single plan
-  // can contain transactions from multiple categories.
   const href = `/transactions?annualExpenseId=${ae.id}&annualExpenseName=${encodeURIComponent(name)}`
 
   const content = (
@@ -61,14 +61,41 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
               recurring
             </span>
           )}
+          <span className={`rounded-badge px-1.5 py-0.5 text-[10px] font-semibold ${
+            fundedPct >= 100 ? 'bg-pine/10 text-pine' : 'bg-mist text-stone'
+          }`}>
+            {fundedPct}% funded
+          </span>
         </div>
         <span className="text-sm text-stone">
           {formatCurrency(ae.funded)} / {formatCurrency(ae.annualAmount)}
-          <span className="ml-2 text-xs text-stone">{pct}%</span>
         </span>
       </div>
 
-      <ProgressBar value={pct} />
+      {/* Funded progress bar */}
+      <ProgressBar value={fundedPct} />
+
+      {/* Spent bar — shown when there's spending against this annual plan */}
+      {spent > 0 && (
+        <div className="mt-1">
+          <div className="relative h-1.5 w-full overflow-hidden rounded-bar bg-mist">
+            <div
+              className={`h-full rounded-bar transition-all duration-300 ${overspent ? 'bg-ember' : 'bg-birch'}`}
+              style={{ width: `${spentPct}%` }}
+            />
+          </div>
+          <div className="mt-0.5 flex items-center justify-between text-[11px]">
+            <span className={overspent ? 'font-medium text-ember' : 'text-stone'}>
+              {formatCurrency(spent)} spent
+            </span>
+            {overspent && (
+              <span className="text-ember">
+                {formatCurrency(spent - ae.funded)} over funded
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-1 flex items-center justify-between text-xs">
         <span className="text-stone">
