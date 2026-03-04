@@ -119,6 +119,18 @@ export default async function BudgetsPage() {
     }
   }
 
+  // Compute spent per annual expense from annual-linked transactions.
+  // These are excluded from spentByCategory above to prevent double-counting.
+  const spentByAnnualExpense = new Map<string, number>()
+  for (const tx of transactions) {
+    if (tx.annualExpenseId) {
+      spentByAnnualExpense.set(
+        tx.annualExpenseId,
+        (spentByAnnualExpense.get(tx.annualExpenseId) ?? 0) + Math.abs(tx.amount)
+      )
+    }
+  }
+
   // Auto-reconcile: if a budget has no categoryId but we can match by name,
   // permanently link it so future reads work without fallback.
   const budgetsToReconcile: { id: string; categoryId: string }[] = []
@@ -162,6 +174,13 @@ export default async function BudgetsPage() {
   }
 
   const budgetsWithSpent = budgets.map((b) => {
+    // Annual tier: spent comes from transactions linked by annualExpenseId,
+    // not from the category spending map (those are excluded to prevent double-counting).
+    if (b.tier === 'ANNUAL' && b.annualExpense) {
+      const spent = spentByAnnualExpense.get(b.annualExpense.id) ?? 0
+      return { ...b, spent, resolvedCategoryId: b.categoryId }
+    }
+
     // Primary: match by categoryId
     let spent = b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0
     let resolvedCategoryId: string | null = null

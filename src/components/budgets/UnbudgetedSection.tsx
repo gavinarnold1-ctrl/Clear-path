@@ -13,7 +13,7 @@ interface Props {
 
 function getCurrentMonth(): string {
   const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
 export default function UnbudgetedSection({ categories }: Props) {

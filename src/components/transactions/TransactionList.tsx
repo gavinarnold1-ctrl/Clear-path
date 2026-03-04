@@ -176,7 +176,7 @@ export default function TransactionList({ transactions: initial, categories, acc
     // Month filter (R6.8)
     if (filterMonth) {
       const txDate = new Date(tx.date)
-      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`
+      const txMonth = `${txDate.getUTCFullYear()}-${String(txDate.getUTCMonth() + 1).padStart(2, '0')}`
       if (txMonth !== filterMonth) return false
     }
     // Account filter
@@ -489,7 +489,7 @@ export default function TransactionList({ transactions: initial, categories, acc
             const months = new Set<string>()
             for (const tx of transactions) {
               const d = new Date(tx.date)
-              months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+              months.add(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
             }
             return [...months].sort().reverse().map(m => (
               <option key={m} value={m}>{m}</option>
