@@ -179,16 +179,23 @@ export default async function BudgetsPage() {
       // Fuzzy: try partial match (budget "Dining Out" → category "Restaurants & Bars" won't match,
       // but "Mortgage Payment" → "Mortgage" will).
       // ANNUAL tier already excluded by outer condition.
+      // Rule: all words from the shorter name must match the longer name (exact words).
+      // This prevents "Services & Misc" from matching "Car Services" (only 1/2 overlap)
+      // but allows "Mortgage Payment" to match "Mortgage" (1/1 = 100% of short side).
       if (spent === 0) {
         const budgetWords = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
-        for (const [catName, catSpent] of nameMap) {
-          const catWords = catName.split(/[\s&,]+/).filter((w) => w.length > 2)
-          const overlap = budgetWords.filter((w) => catWords.some((cw) => cw.includes(w) || w.includes(cw))).length
-          if (overlap > 0 && overlap >= Math.min(budgetWords.length, catWords.length) * 0.5) {
-            spent = catSpent
-            const matchedCatId = categoryNameToId.get(catName)
-            if (matchedCatId) budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
-            break
+        if (budgetWords.length >= 1) {
+          for (const [catName, catSpent] of nameMap) {
+            const catWords = catName.split(/[\s&,]+/).filter((w) => w.length > 2)
+            if (catWords.length === 0) continue
+            const overlap = budgetWords.filter((w) => catWords.some((cw) => cw === w)).length
+            const shorterLen = Math.min(budgetWords.length, catWords.length)
+            if (overlap >= shorterLen && overlap >= 1) {
+              spent = catSpent
+              const matchedCatId = categoryNameToId.get(catName)
+              if (matchedCatId) budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
+              break
+            }
           }
         }
       }
@@ -232,17 +239,14 @@ export default async function BudgetsPage() {
     // Exact name match (budget name or budget's category name)
     if (budgetedCategoryNames.has(categoryName.toLowerCase())) return true
     // Fuzzy: word-overlap match (e.g., "Travel & Vacation" ↔ "Vacation & Travel")
+    // All words from the shorter name must match the longer name.
     const catWords = categoryName.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
     if (catWords.length === 0) return false
     for (const wordSet of budgetWordSets) {
       if (wordSet.size === 0) continue
-      const overlap = catWords.filter((w) => {
-        for (const bw of wordSet) {
-          if (bw.includes(w) || w.includes(bw)) return true
-        }
-        return false
-      }).length
-      if (overlap > 0 && overlap >= Math.min(catWords.length, wordSet.size) * 0.5) return true
+      const overlap = catWords.filter((w) => wordSet.has(w)).length
+      const shorterLen = Math.min(catWords.length, wordSet.size)
+      if (overlap >= shorterLen && overlap >= 1) return true
     }
     return false
   }

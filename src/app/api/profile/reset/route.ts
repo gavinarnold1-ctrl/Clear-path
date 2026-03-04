@@ -48,13 +48,15 @@ export async function POST() {
     }),
     // 10. Household members
     db.householdMember.deleteMany({ where: { userId } }),
-    // 11. Properties
+    // 11. Property groups (cascades to SplitRules and SplitMatchRules)
+    db.propertyGroup.deleteMany({ where: { userId } }),
+    // 12. Properties (must come after property groups)
     db.property.deleteMany({ where: { userId } }),
-    // 12. User category mappings (learned merchant → category)
+    // 13. User category mappings (learned merchant → category)
     db.userCategoryMapping.deleteMany({ where: { userId } }),
-    // 13. User-created categories
+    // 14. User-created categories
     db.category.deleteMany({ where: { userId } }),
-    // 14. Reset onboarding profile
+    // 15. Reset onboarding profile
     db.userProfile.deleteMany({ where: { userId } }),
   ])
 

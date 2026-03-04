@@ -18,6 +18,7 @@ interface AnnualBudget {
   categoryId: string | null
   category: { name: string; icon: string | null } | null
   annualExpense: AnnualExpense | null
+  spent: number
 }
 
 interface Props {
@@ -62,6 +63,7 @@ export default function AnnualBudgetSection({ budgets }: Props) {
               categoryId={budget.categoryId}
               category={budget.category}
               annualExpense={budget.annualExpense!}
+              spent={budget.spent}
             />
           ))}
         </div>

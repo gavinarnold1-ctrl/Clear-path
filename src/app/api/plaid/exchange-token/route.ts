@@ -78,21 +78,70 @@ export async function POST(request: Request) {
         ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
         : (plaidAccount.balances.current ?? 0)
 
-      const account = await db.account.create({
-        data: {
+      const baseName = plaidAccount.official_name || plaidAccount.name
+      const displayName = plaidAccount.mask
+        ? `${baseName} (...${plaidAccount.mask})`
+        : baseName
+      const plaidName = baseName.toLowerCase().trim()
+
+      // Try to find an existing manual account to upgrade (merge) instead of creating a duplicate.
+      // Match by: same account type AND fuzzy name match (exact, substring, or last-4-digits).
+      const manualAccounts = await db.account.findMany({
+        where: {
           userId: session.userId,
-          name: plaidAccount.official_name || plaidAccount.name,
           type: accountType,
-          balance,
-          startingBalance: balance,
-          institution: institutionName,
-          isManual: false,
-          plaidAccountId: plaidAccount.account_id,
-          plaidItemId: itemId,
-          plaidAccessToken: encrypt(accessToken),
-          plaidLastSynced: new Date(),
+          plaidAccountId: null, // Only match manual (non-Plaid) accounts
         },
       })
+
+      let mergeTarget: typeof manualAccounts[0] | null = null
+      for (const manual of manualAccounts) {
+        const manualName = manual.name.toLowerCase().trim()
+        // Exact match
+        if (manualName === plaidName) { mergeTarget = manual; break }
+        // Substring containment (e.g. "Adv Plus Banking" vs "Adv Plus Banking (...6809)")
+        if (manualName.includes(plaidName) || plaidName.includes(manualName)) { mergeTarget = manual; break }
+        // Last 4 digits match (e.g. manual "Checking (...6809)" matches Plaid account mask "6809")
+        const mask = plaidAccount.mask
+        if (mask) {
+          const manualMaskMatch = manualName.match(/\(?\.{0,3}(\d{4})\)?/)
+          if (manualMaskMatch && manualMaskMatch[1] === mask) { mergeTarget = manual; break }
+        }
+      }
+
+      let account
+      if (mergeTarget) {
+        // Upgrade the existing manual account to a Plaid-connected account
+        account = await db.account.update({
+          where: { id: mergeTarget.id },
+          data: {
+            name: displayName,
+            balance,
+            institution: institutionName,
+            isManual: false,
+            plaidAccountId: plaidAccount.account_id,
+            plaidItemId: itemId,
+            plaidAccessToken: encrypt(accessToken),
+            plaidLastSynced: new Date(),
+          },
+        })
+      } else {
+        account = await db.account.create({
+          data: {
+            userId: session.userId,
+            name: displayName,
+            type: accountType,
+            balance,
+            startingBalance: balance,
+            institution: institutionName,
+            isManual: false,
+            plaidAccountId: plaidAccount.account_id,
+            plaidItemId: itemId,
+            plaidAccessToken: encrypt(accessToken),
+            plaidLastSynced: new Date(),
+          },
+        })
+      }
       createdAccounts.push(account)
 
       // Auto-create Debt record for loan/credit-type accounts
@@ -104,7 +153,7 @@ export async function POST(request: Request) {
         await db.debt.create({
           data: {
             userId: session.userId,
-            name: plaidAccount.official_name || plaidAccount.name,
+            name: displayName,
             type: debtType,
             currentBalance: Math.abs(balance),
             interestRate: 0,
