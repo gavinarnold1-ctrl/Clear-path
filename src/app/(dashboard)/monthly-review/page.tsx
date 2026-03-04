@@ -390,22 +390,39 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                 )}
               </div>
               <ul className="space-y-2">
-                {debts.map((d, i) => {
-                  const paidPct = d.originalBalance
-                    ? ((d.originalBalance - d.currentBalance) / d.originalBalance) * 100
-                    : 0
-                  return (
-                    <li key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-fjord">{d.name}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-stone">{formatCurrency(d.currentBalance)}</span>
-                        {d.originalBalance && paidPct > 0 && (
-                          <span className="text-xs text-income">{paidPct.toFixed(0)}% paid</span>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
+                {(() => {
+                  const TYPE_LABELS: Record<string, string> = {
+                    MORTGAGE: 'Mortgage',
+                    STUDENT_LOAN: 'Student Loans',
+                    AUTO: 'Auto Loans',
+                    CREDIT_CARD: 'Credit Cards',
+                    PERSONAL_LOAN: 'Personal Loans',
+                    OTHER: 'Other Debt',
+                  }
+                  const grouped = new Map<string, { current: number; original: number }>()
+                  for (const d of debts) {
+                    const entry = grouped.get(d.type) ?? { current: 0, original: 0 }
+                    entry.current += d.currentBalance
+                    entry.original += d.originalBalance ?? 0
+                    grouped.set(d.type, entry)
+                  }
+                  return Array.from(grouped.entries()).map(([type, totals]) => {
+                    const paidPct = totals.original > 0
+                      ? ((totals.original - totals.current) / totals.original) * 100
+                      : 0
+                    return (
+                      <li key={type} className="flex items-center justify-between text-sm">
+                        <span className="text-fjord">{TYPE_LABELS[type] ?? type}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-stone">{formatCurrency(totals.current)}</span>
+                          {totals.original > 0 && paidPct > 0 && (
+                            <span className="text-xs text-income">{paidPct.toFixed(0)}% paid</span>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })
+                })()}
               </ul>
             </Link>
           )}
