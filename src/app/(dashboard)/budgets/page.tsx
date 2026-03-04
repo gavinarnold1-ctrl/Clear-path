@@ -130,6 +130,37 @@ export default async function BudgetsPage() {
     }
   }
 
+  // Validate previously reconciled categoryIds — if the budget name no longer
+  // matches its linked category under the current matching rules, clear the
+  // stale link so re-reconciliation can run with stricter rules.
+  const budgetsToClear: string[] = []
+  for (const b of budgets) {
+    if (!b.categoryId || !b.category) continue
+    const catNameLower = b.category.name.toLowerCase()
+    const budgetNameLower = b.name.toLowerCase()
+    // Keep if exact name match
+    if (catNameLower === budgetNameLower) continue
+    // Re-validate fuzzy: requires 2+ word overlap on both sides
+    const budgetWords = budgetNameLower.split(/[\s&,]+/).filter((w) => w.length > 2)
+    const catWords = catNameLower.split(/[\s&,]+/).filter((w) => w.length > 2)
+    if (budgetWords.length >= 2 && catWords.length >= 2) {
+      const overlap = budgetWords.filter((w) => catWords.some((cw) => cw === w)).length
+      const shorterLen = Math.min(budgetWords.length, catWords.length)
+      if (overlap >= shorterLen && overlap >= 2) continue // still valid
+    }
+    // Stale — clear it
+    b.categoryId = null
+    b.category = null
+    budgetsToClear.push(b.id)
+  }
+  if (budgetsToClear.length > 0) {
+    Promise.all(
+      budgetsToClear.map((id) =>
+        db.budget.update({ where: { id }, data: { categoryId: null } })
+      )
+    ).catch(() => { /* non-critical */ })
+  }
+
   const budgetsWithSpent = budgets.map((b) => {
     // Primary: match by categoryId
     let spent = b.categoryId ? (spentByCategory.get(b.categoryId) ?? 0) : 0
