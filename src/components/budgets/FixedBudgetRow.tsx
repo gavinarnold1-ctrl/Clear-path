@@ -43,7 +43,6 @@ export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAuto
         <span className="font-medium text-fjord">{name}</span>
         <Link
           href={`/budgets/${id}/edit`}
-          onClick={(e) => e.stopPropagation()}
           className="ml-2 inline-block text-stone hover:text-fjord"
           title="Edit budget"
         >

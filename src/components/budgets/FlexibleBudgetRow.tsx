@@ -64,7 +64,6 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
           <span className="font-medium text-fjord">{name}</span>
           <Link
             href={`/budgets/${id}/edit`}
-            onClick={(e) => e.stopPropagation()}
             className="text-stone hover:text-fjord"
             title="Edit budget"
           >
