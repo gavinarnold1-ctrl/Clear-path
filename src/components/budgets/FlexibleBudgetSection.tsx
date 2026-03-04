@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import FlexibleBudgetRow from './FlexibleBudgetRow'
 import ProgressBar from '@/components/ui/ProgressBar'
@@ -10,6 +11,7 @@ interface FlexibleBudget {
   spent: number
   period: string
   categoryId: string | null
+  resolvedCategoryId: string | null
   category: { name: string; icon: string | null } | null
 }
 
@@ -42,6 +44,11 @@ function getPaceInfo(amount: number, spent: number): { paceMarkerPct: number; di
   const paceMarkerPct = amount > 0 ? Math.round((expectedSpend / amount) * 100) : 0
   const diff = expectedSpend - spent
   return { paceMarkerPct, diff, ahead: diff > 0 }
+}
+
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent }: Props) {
@@ -129,8 +136,9 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
             name={budget.name}
             amount={budget.amount}
             spent={budget.spent}
-            categoryId={budget.categoryId}
+            categoryId={budget.resolvedCategoryId ?? budget.categoryId}
             category={budget.category}
+            isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
           />
         ))}
 
@@ -146,7 +154,10 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
             pct >= 100 ? 'text-ember' : pct >= 90 ? 'text-ember' : pct >= 75 ? 'text-birch' : 'text-fjord'
 
           return (
-            <div className="rounded-lg bg-frost/50 px-3 py-3">
+            <Link
+              href={`/transactions?uncategorized=true&month=${getCurrentMonth()}`}
+              className="block rounded-lg bg-frost/50 px-3 py-3 hover:bg-frost"
+            >
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-fjord">Unallocated Flexible</span>
@@ -177,7 +188,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                 )}
                 <span className={`font-semibold ${pctColor}`}>{pct}%</span>
               </div>
-            </div>
+            </Link>
           )
         })()}
       </div>
