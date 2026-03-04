@@ -41,14 +41,22 @@ const ALERT_STYLES = {
   ok: 'text-stone',
 }
 
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default function AnnualBudgetRow({ name, categoryId, category, annualExpense: ae, spent }: Props) {
   const fundedPct = budgetProgress(ae.funded, ae.annualAmount)
   const spentPct = ae.annualAmount > 0 ? Math.min(Math.round((spent / ae.annualAmount) * 100), 100) : 0
   const monthlyNeeded = calculateMonthlySetAside(ae.annualAmount, ae.funded, ae.dueMonth, ae.dueYear)
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
-  const overspent = spent > ae.funded
 
-  const href = `/transactions?annualExpenseId=${ae.id}&annualExpenseName=${encodeURIComponent(name)}`
+  // Link to category transactions for the current month (matches how spent is computed),
+  // falling back to annual expense linked transactions if no category.
+  const href = categoryId
+    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
+    : `/transactions?annualExpenseId=${ae.id}&annualExpenseName=${encodeURIComponent(name)}`
 
   const content = (
     <>
@@ -68,34 +76,12 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
           </span>
         </div>
         <span className="text-sm text-stone">
-          {formatCurrency(ae.funded)} / {formatCurrency(ae.annualAmount)}
+          {formatCurrency(spent)} / {formatCurrency(ae.annualAmount)}
         </span>
       </div>
 
-      {/* Funded progress bar */}
-      <ProgressBar value={fundedPct} />
-
-      {/* Spent bar — shown when there's spending against this annual plan */}
-      {spent > 0 && (
-        <div className="mt-1">
-          <div className="relative h-1.5 w-full overflow-hidden rounded-bar bg-mist">
-            <div
-              className={`h-full rounded-bar transition-all duration-300 ${overspent ? 'bg-ember' : 'bg-birch'}`}
-              style={{ width: `${spentPct}%` }}
-            />
-          </div>
-          <div className="mt-0.5 flex items-center justify-between text-[11px]">
-            <span className={overspent ? 'font-medium text-ember' : 'text-stone'}>
-              {formatCurrency(spent)} spent
-            </span>
-            {overspent && (
-              <span className="text-ember">
-                {formatCurrency(spent - ae.funded)} over funded
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Spent progress bar */}
+      <ProgressBar value={spentPct} />
 
       <div className="mt-1 flex items-center justify-between text-xs">
         <span className="text-stone">

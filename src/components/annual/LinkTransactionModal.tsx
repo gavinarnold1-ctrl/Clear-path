@@ -40,9 +40,9 @@ export default function LinkTransactionModal({
       .then((res) => res.json())
       .then((data) => {
         const txs: Transaction[] = Array.isArray(data) ? data : data.transactions ?? []
-        // Exclude transactions already linked to ANY annual expense (except this one).
-        // annualExpenseId is a scalar field on Transaction — null when unlinked.
-        setTransactions(txs.filter((tx) => !tx.annualExpenseId || tx.annualExpenseId === expenseId))
+        // Exclude transactions already linked to ANY annual expense.
+        // Once linked, the transaction should not appear in the modal at all.
+        setTransactions(txs.filter((tx) => !tx.annualExpenseId))
       })
       .catch(() => setTransactions([]))
       .finally(() => setLoading(false))

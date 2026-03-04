@@ -8,6 +8,7 @@ interface Props {
   spent: number
   categoryId: string | null
   category: { name: string; icon: string | null } | null
+  isCatchAll?: boolean
 }
 
 function getDailyAllowance(amount: number, spent: number): { daily: number; daysLeft: number } {
@@ -38,7 +39,7 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FlexibleBudgetRow({ name, amount, spent, categoryId, category }: Props) {
+export default function FlexibleBudgetRow({ name, amount, spent, categoryId, category, isCatchAll }: Props) {
   const pct = budgetProgress(spent, amount)
   const remaining = amount - spent
   const isOver = spent > amount
@@ -50,7 +51,9 @@ export default function FlexibleBudgetRow({ name, amount, spent, categoryId, cat
 
   const href = categoryId
     ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
-    : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
+    : isCatchAll
+      ? `/transactions?uncategorized=true&month=${getCurrentMonth()}`
+      : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
 
   const content = (
     <>

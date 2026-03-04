@@ -50,7 +50,7 @@ export default function BudgetProposal({ initialProposal, profileSummary, goalSu
         <div>
           <h2 className="text-xl font-bold text-fjord">Review Budget Proposal</h2>
           <p className="mt-1 text-sm text-stone">
-            Edit amounts, remove items you don&apos;t want, then apply.
+            Edit amounts, add missing items, remove what you don&apos;t want, then apply.
           </p>
           {goalSummary && (
             <p className="mt-1 text-xs text-pine">

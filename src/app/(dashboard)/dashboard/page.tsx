@@ -196,48 +196,35 @@ export default async function DashboardPage({ searchParams }: Props) {
   }
 
   // Compute live budget spent from current-month expense transactions.
-  // Build two sets of maps: full (for fixed/annual) and non-annual (for flexible).
-  // This prevents annual-plan-linked transactions from double-counting in flexible budgets.
+  // Annual-plan-linked transactions are excluded from ALL budget tiers
+  // to prevent double-counting (they are tracked on the annual plan itself).
   const budgetSpentMap = new Map<string, number>()
   const spentByCatName = new Map<string, number>()
-  const flexBudgetSpentMap = new Map<string, number>()
-  const flexSpentByCatName = new Map<string, number>()
   const catNameToIdMap = new Map<string, string>()
   for (const tx of budgetExpenses) {
-    const isAnnualLinked = !!tx.annualExpenseId
+    if (tx.annualExpenseId) continue // annual-linked → tracked on annual plan only
     if (tx.categoryId) {
       budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
-      if (!isAnnualLinked) {
-        flexBudgetSpentMap.set(tx.categoryId, (flexBudgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
-      }
     }
     if (tx.category?.name) {
       const nameKey = tx.category.name.toLowerCase()
       spentByCatName.set(nameKey, (spentByCatName.get(nameKey) ?? 0) + Math.abs(tx.amount))
-      if (!isAnnualLinked) {
-        flexSpentByCatName.set(nameKey, (flexSpentByCatName.get(nameKey) ?? 0) + Math.abs(tx.amount))
-      }
       if (tx.categoryId) catNameToIdMap.set(nameKey, tx.categoryId)
     }
   }
 
   const allBudgetsWithSpent = rawBudgets.map((b) => {
-    // FLEXIBLE budgets use maps that exclude annual-plan-linked transactions
-    const isFlexible = b.tier === 'FLEXIBLE'
-    const catMap = isFlexible ? flexBudgetSpentMap : budgetSpentMap
-    const nameMap = isFlexible ? flexSpentByCatName : spentByCatName
-
     // Primary: match by categoryId
-    let spent = b.categoryId ? (catMap.get(b.categoryId) ?? 0) : 0
+    let spent = b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0
 
     // Fallback: match by category/budget name when categoryId is null
     if (spent === 0 && !b.categoryId) {
       const catName = b.category?.name?.toLowerCase()
-      if (catName && nameMap.has(catName)) {
-        spent = nameMap.get(catName)!
+      if (catName && spentByCatName.has(catName)) {
+        spent = spentByCatName.get(catName)!
       } else {
         const budgetNameKey = b.name.toLowerCase()
-        spent = nameMap.get(budgetNameKey) ?? 0
+        spent = spentByCatName.get(budgetNameKey) ?? 0
       }
     }
 
