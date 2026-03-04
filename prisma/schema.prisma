@@ -158,6 +158,7 @@ model Transaction {
   notes             String?  // User-added notes
   tags              String?  // Comma-separated tags (e.g., "tax,business")
   importSource      String?  // "csv" | "manual" | "plaid"
+  plaidTransactionId String?  @unique // Plaid's transaction_id — prevents duplicate imports
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
