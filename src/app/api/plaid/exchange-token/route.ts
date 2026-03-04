@@ -78,7 +78,11 @@ export async function POST(request: Request) {
         ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
         : (plaidAccount.balances.current ?? 0)
 
-      const plaidName = (plaidAccount.official_name || plaidAccount.name).toLowerCase().trim()
+      const baseName = plaidAccount.official_name || plaidAccount.name
+      const displayName = plaidAccount.mask
+        ? `${baseName} (...${plaidAccount.mask})`
+        : baseName
+      const plaidName = baseName.toLowerCase().trim()
 
       // Try to find an existing manual account to upgrade (merge) instead of creating a duplicate.
       // Match by: same account type AND fuzzy name match (exact, substring, or last-4-digits).
@@ -111,7 +115,7 @@ export async function POST(request: Request) {
         account = await db.account.update({
           where: { id: mergeTarget.id },
           data: {
-            name: plaidAccount.official_name || plaidAccount.name,
+            name: displayName,
             balance,
             institution: institutionName,
             isManual: false,
@@ -125,7 +129,7 @@ export async function POST(request: Request) {
         account = await db.account.create({
           data: {
             userId: session.userId,
-            name: plaidAccount.official_name || plaidAccount.name,
+            name: displayName,
             type: accountType,
             balance,
             startingBalance: balance,
@@ -149,7 +153,7 @@ export async function POST(request: Request) {
         await db.debt.create({
           data: {
             userId: session.userId,
-            name: plaidAccount.official_name || plaidAccount.name,
+            name: displayName,
             type: debtType,
             currentBalance: Math.abs(balance),
             interestRate: 0,
