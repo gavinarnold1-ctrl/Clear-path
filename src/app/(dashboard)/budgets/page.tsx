@@ -436,6 +436,7 @@ export default async function BudgetsPage() {
         <>
           <TrueRemainingBanner
             income={income}
+            expectedIncome={expectedIncome}
             fixedTotal={fixedTotal}
             flexibleSpent={flexibleSpent}
             annualSetAside={annualSetAside}

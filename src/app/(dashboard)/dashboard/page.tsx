@@ -345,6 +345,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       {hasBudgets ? (
         <TrueRemainingBanner
           income={monthlyIncome}
+          expectedIncome={userProfile?.expectedMonthlyIncome ?? prevIncome}
           fixedTotal={fixedTotal}
           flexibleSpent={flexibleSpent}
           annualSetAside={annualSetAside}
