@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import type { BudgetProposal } from '@/lib/budget-builder'
 
+export type BuilderMode = 'replace' | 'merge'
+
 export interface GoalSummary {
   goalLabel: string
   primaryGoal: string
@@ -10,7 +12,7 @@ export interface GoalSummary {
 
 interface BudgetBuilderCTAProps {
   hasBudgets: boolean
-  onProposalReady: (proposal: BudgetProposal, profileSummary: ProfileSummary, goalSummary: GoalSummary | null) => void
+  onProposalReady: (proposal: BudgetProposal, profileSummary: ProfileSummary, goalSummary: GoalSummary | null, mode: BuilderMode) => void
 }
 
 export interface ProfileSummary {
@@ -29,7 +31,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
   const [error, setError] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
 
-  async function handleGenerate() {
+  async function handleGenerate(selectedMode: BuilderMode = 'merge') {
     setGenerating(true)
     setError(null)
     try {
@@ -39,7 +41,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
         throw new Error(data.error || 'Failed to generate budget')
       }
       const data = await res.json()
-      onProposalReady(data.proposal, data.profile, data.goalContext ?? null)
+      onProposalReady(data.proposal, data.profile, data.goalContext ?? null, selectedMode)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -72,7 +74,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
           <div className="absolute right-0 z-10 mt-1 w-56 rounded-card border border-mist bg-snow shadow-lg">
             <button
               type="button"
-              onClick={() => { setShowMenu(false); handleGenerate() }}
+              onClick={() => { setShowMenu(false); handleGenerate('replace') }}
               className="w-full px-4 py-2.5 text-left text-sm hover:bg-frost"
             >
               <p className="font-medium text-fjord">Regenerate all</p>
@@ -80,7 +82,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
             </button>
             <button
               type="button"
-              onClick={() => { setShowMenu(false); handleGenerate() }}
+              onClick={() => { setShowMenu(false); handleGenerate('merge') }}
               className="w-full border-t border-mist px-4 py-2.5 text-left text-sm hover:bg-frost"
             >
               <p className="font-medium text-fjord">Add missing</p>
@@ -124,7 +126,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
 
       <button
         type="button"
-        onClick={handleGenerate}
+        onClick={() => handleGenerate('merge')}
         disabled={generating}
         className="btn-primary flex items-center gap-2 disabled:opacity-50"
       >
