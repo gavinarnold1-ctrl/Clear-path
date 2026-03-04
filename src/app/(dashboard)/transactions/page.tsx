@@ -27,7 +27,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const initialAnnualExpenseId = params.annualExpenseId ?? ''
   const initialAnnualExpenseName = params.annualExpenseName ?? ''
 
-  const [transactions, categories, accounts, householdMembers, properties] = await Promise.all([
+  const [transactions, categories, accounts, householdMembers, properties, propertyGroups] = await Promise.all([
     db.transaction.findMany({
       where: { userId: session.userId },
       include: {
@@ -63,7 +63,14 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     db.property.findMany({
       where: { userId: session.userId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-      select: { id: true, name: true, type: true, isDefault: true },
+      select: { id: true, name: true, type: true, isDefault: true, groupId: true },
+    }),
+    db.propertyGroup.findMany({
+      where: { userId: session.userId },
+      include: {
+        properties: { select: { id: true, name: true }, orderBy: { name: 'asc' } },
+      },
+      orderBy: { name: 'asc' },
     }),
   ])
 
@@ -126,6 +133,11 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           accounts={accounts}
           householdMembers={householdMembers}
           properties={properties}
+          propertyGroups={propertyGroups.map(g => ({
+            id: g.id,
+            name: g.name,
+            propertyIds: g.properties.map(p => p.id),
+          }))}
           initialCategoryId={initialCategoryId}
           initialMonth={initialMonth}
           initialPersonId={initialPersonId}

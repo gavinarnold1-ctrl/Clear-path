@@ -28,6 +28,13 @@ interface PropertyOption {
   name: string
   type: string
   isDefault: boolean
+  groupId?: string | null
+}
+
+interface PropertyGroupOption {
+  id: string
+  name: string
+  propertyIds: string[]
 }
 
 interface SplitRow {
@@ -62,6 +69,7 @@ interface Props {
   accounts: AccountOption[]
   householdMembers?: HouseholdMemberOption[]
   properties?: PropertyOption[]
+  propertyGroups?: PropertyGroupOption[]
   initialCategoryId?: string
   initialMonth?: string
   initialPersonId?: string
@@ -74,7 +82,7 @@ interface Props {
   refundedTxIds?: string[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', refundedTxIds = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -132,9 +140,19 @@ export default function TransactionList({ transactions: initial, categories, acc
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
     // Property filter (R4.4) — also match transactions with split allocations to this property
+    // Supports group: prefix to filter by all properties in a PropertyGroup
     if (filterPropertyId) {
       if (filterPropertyId === '__none__') {
         if (tx.propertyId !== null) return false
+      } else if (filterPropertyId.startsWith('group:')) {
+        const groupId = filterPropertyId.slice(6)
+        const group = propertyGroups.find(g => g.id === groupId)
+        if (group) {
+          const groupPropIds = new Set(group.propertyIds)
+          const directMatch = tx.propertyId !== null && groupPropIds.has(tx.propertyId)
+          const splitMatch = tx.splits?.some(s => groupPropIds.has(s.propertyId)) ?? false
+          if (!directMatch && !splitMatch) return false
+        }
       } else {
         const directMatch = tx.propertyId === filterPropertyId
         const splitMatch = tx.splits?.some(s => s.propertyId === filterPropertyId) ?? false
@@ -506,9 +524,29 @@ export default function TransactionList({ transactions: initial, categories, acc
           >
             <option value="">All Properties</option>
             <option value="__none__">No Property</option>
-            {properties.map((p) => (
+            {propertyGroups.length > 0 && (
+              <optgroup label="Property Groups">
+                {propertyGroups.map((g) => (
+                  <option key={`group-${g.id}`} value={`group:${g.id}`}>
+                    {g.name} (all units)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {properties.filter(p => !p.groupId).map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
+            {propertyGroups.map((g) => {
+              const groupProps = properties.filter(p => g.propertyIds.includes(p.id))
+              if (groupProps.length === 0) return null
+              return (
+                <optgroup key={g.id} label={g.name}>
+                  {groupProps.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </optgroup>
+              )
+            })}
           </select>
         )}
         {searchText && (

@@ -27,7 +27,14 @@ interface DebtRow {
   startDate: string | null
   propertyId: string | null
   categoryId: string | null
-  property: { id: string; name: string; taxSchedule?: string | null } | null
+  property: {
+    id: string
+    name: string
+    taxSchedule?: string | null
+    groupId?: string | null
+    groupName?: string | null
+    splitPct?: number | null
+  } | null
   category: { id: string; name: string } | null
   monthlyInterest: number
   monthlyPrincipal: number
@@ -301,108 +308,14 @@ export default function DebtManager({ debts: initial, properties, categories }: 
         </div>
       ) : (
         <>
-          {/* Debt cards */}
+          {/* Debt cards — group by property group */}
           <div className="space-y-4">
-            {debts.map((debt) => (
-              <div key={debt.id} className="card">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-base font-semibold text-fjord">{debt.name}</h3>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <span className="rounded-badge bg-fjord/10 px-2 py-0.5 text-xs font-medium text-fjord">
-                        {debtTypeLabel(debt.type)}
-                      </span>
-                      {debt.property && (
-                        <span className="text-xs text-stone">{debt.property.name}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => startEdit(debt)}
-                      className="text-xs text-stone hover:text-fjord"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(debt.id)}
-                      className="text-xs text-stone hover:text-ember"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <div>
-                    <p className="text-xs text-stone">Balance</p>
-                    <p className="text-lg font-bold text-fjord">{formatCurrency(debt.currentBalance)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-stone">Rate</p>
-                    <p className="text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-stone">Monthly Payment</p>
-                    <p className="text-lg font-bold text-fjord">
-                      {formatCurrency(debt.minimumPayment)}/mo
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-stone">Est. Remaining</p>
-                    <p className="text-lg font-bold text-fjord">
-                      {debt.monthsRemaining !== null
-                        ? `${Math.floor(debt.monthsRemaining / 12)}y ${debt.monthsRemaining % 12}m`
-                        : '—'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* PITI breakdown */}
-                <DebtPITIBreakdown debt={debt} properties={properties} />
-
-                {/* Progress bar for original → current */}
-                {debt.originalBalance && debt.originalBalance > 0 && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-stone">
-                      <span>Payoff progress</span>
-                      <span>
-                        {(((debt.originalBalance - debt.currentBalance) / debt.originalBalance) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-bar bg-mist">
-                      <div
-                        className="h-full rounded-bar bg-pine"
-                        style={{
-                          width: `${((debt.originalBalance - debt.currentBalance) / debt.originalBalance) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* R5.8: Payment history */}
-                {debt.transactions && debt.transactions.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-mist bg-snow p-3">
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
-                      Recent Payments
-                    </p>
-                    <ul className="space-y-1">
-                      {debt.transactions.slice(0, 5).map((tx) => (
-                        <li key={tx.id} className="flex items-center justify-between text-sm">
-                          <span className="text-stone">
-                            {new Date(tx.date).toLocaleDateString()} &middot; {tx.merchant}
-                          </span>
-                          <span className="font-mono font-semibold text-fjord">
-                            {formatCurrency(Math.abs(tx.amount))}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
+            <DebtCardList
+              debts={debts}
+              properties={properties}
+              onEdit={startEdit}
+              onDelete={handleDelete}
+            />
           </div>
 
           {/* Add debt button */}
@@ -619,6 +532,382 @@ export default function DebtManager({ debts: initial, properties, categories }: 
               Cancel
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Renders the debt list, grouping debts that share a PropertyGroup into
+ * a single rolled-up card with click-to-expand per-unit breakdown.
+ */
+function DebtCardList({
+  debts,
+  properties,
+  onEdit,
+  onDelete,
+}: {
+  debts: DebtRow[]
+  properties: PropertyOption[]
+  onEdit: (debt: DebtRow) => void
+  onDelete: (id: string) => void
+}) {
+  // Build grouped and ungrouped lists
+  const groupMap = new Map<string, { groupName: string; debts: DebtRow[] }>()
+  const ungrouped: DebtRow[] = []
+
+  for (const debt of debts) {
+    const groupId = debt.property?.groupId
+    if (groupId && debt.property?.groupName) {
+      const existing = groupMap.get(groupId)
+      if (existing) {
+        existing.debts.push(debt)
+      } else {
+        groupMap.set(groupId, { groupName: debt.property.groupName, debts: [debt] })
+      }
+    } else {
+      ungrouped.push(debt)
+    }
+  }
+
+  // Only roll up if there are 2+ debts in the group
+  const groups = Array.from(groupMap.entries()).filter(([, g]) => g.debts.length >= 2)
+  const singleGroupDebts = Array.from(groupMap.entries())
+    .filter(([, g]) => g.debts.length < 2)
+    .flatMap(([, g]) => g.debts)
+  const standaloneDebts = [...ungrouped, ...singleGroupDebts]
+
+  return (
+    <>
+      {/* Grouped debt cards */}
+      {groups.map(([groupId, group]) => (
+        <GroupedDebtCard
+          key={groupId}
+          groupName={group.groupName}
+          debts={group.debts}
+          properties={properties}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
+
+      {/* Ungrouped debt cards */}
+      {standaloneDebts.map((debt) => (
+        <SingleDebtCard
+          key={debt.id}
+          debt={debt}
+          properties={properties}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
+    </>
+  )
+}
+
+/** Rolled-up card for debts in the same PropertyGroup */
+function GroupedDebtCard({
+  groupName,
+  debts,
+  properties,
+  onEdit,
+  onDelete,
+}: {
+  groupName: string
+  debts: DebtRow[]
+  properties: PropertyOption[]
+  onEdit: (debt: DebtRow) => void
+  onDelete: (id: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  // Combined totals
+  const totalBalance = debts.reduce((s, d) => s + d.currentBalance, 0)
+  const totalPayment = debts.reduce((s, d) => s + d.minimumPayment, 0)
+  const totalInterest = debts.reduce((s, d) => s + d.monthlyInterest, 0)
+  const totalPrincipal = debts.reduce((s, d) => s + d.monthlyPrincipal, 0)
+  // Use weighted average for interest rate
+  const avgRate = totalBalance > 0
+    ? debts.reduce((s, d) => s + d.currentBalance * d.interestRate, 0) / totalBalance
+    : 0
+  // Use max of months remaining for the group
+  const maxMonthsRemaining = debts.reduce<number | null>((max, d) => {
+    if (d.monthsRemaining == null) return max
+    if (max == null) return d.monthsRemaining
+    return Math.max(max, d.monthsRemaining)
+  }, null)
+
+  // Combined PITI from all units' properties
+  const combinedEscrow = debts.reduce((s, d) => {
+    const prop = d.propertyId ? properties.find(p => p.id === d.propertyId) : null
+    if (!prop) return s
+    return s + (prop.monthlyPropertyTax ?? 0) + (prop.monthlyInsurance ?? 0) +
+      (prop.monthlyHOA ?? 0) + (prop.monthlyPMI ?? 0)
+  }, 0)
+  const combinedTax = debts.reduce((s, d) => {
+    const prop = d.propertyId ? properties.find(p => p.id === d.propertyId) : null
+    return s + (prop?.monthlyPropertyTax ?? 0)
+  }, 0)
+  const combinedInsurance = debts.reduce((s, d) => {
+    const prop = d.propertyId ? properties.find(p => p.id === d.propertyId) : null
+    return s + (prop?.monthlyInsurance ?? 0)
+  }, 0)
+  const combinedHOA = debts.reduce((s, d) => {
+    const prop = d.propertyId ? properties.find(p => p.id === d.propertyId) : null
+    return s + (prop?.monthlyHOA ?? 0)
+  }, 0)
+  const combinedPMI = debts.reduce((s, d) => {
+    const prop = d.propertyId ? properties.find(p => p.id === d.propertyId) : null
+    return s + (prop?.monthlyPMI ?? 0)
+  }, 0)
+  const hasPiti = combinedTax > 0
+
+  const escrowItems = hasPiti
+    ? [
+        { label: 'Property Tax', amount: combinedTax, color: 'bg-birch' },
+        { label: 'Insurance', amount: combinedInsurance, color: 'bg-lichen' },
+        ...(combinedHOA > 0 ? [{ label: 'HOA', amount: combinedHOA, color: 'bg-mist' }] : []),
+        ...(combinedPMI > 0 ? [{ label: 'PMI', amount: combinedPMI, color: 'bg-stone/50' }] : []),
+      ]
+    : []
+
+  return (
+    <div className="card">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-fjord">{groupName} Mortgage</h3>
+          <div className="mt-0.5 flex items-center gap-2">
+            <span className="rounded-badge bg-fjord/10 px-2 py-0.5 text-xs font-medium text-fjord">
+              Mortgage
+            </span>
+            <span className="text-xs text-stone">{debts.length} units</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1 text-xs text-stone hover:text-fjord"
+        >
+          {expanded ? 'Collapse' : 'Per-unit breakdown'}
+          <svg
+            className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Combined totals */}
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div>
+          <p className="text-xs text-stone">Total Balance</p>
+          <p className="text-lg font-bold text-fjord">{formatCurrency(totalBalance)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-stone">Rate</p>
+          <p className="text-lg font-bold text-fjord">{(avgRate * 100).toFixed(2)}%</p>
+        </div>
+        <div>
+          <p className="text-xs text-stone">Monthly Payment</p>
+          <p className="text-lg font-bold text-fjord">{formatCurrency(totalPayment)}/mo</p>
+        </div>
+        <div>
+          <p className="text-xs text-stone">Est. Remaining</p>
+          <p className="text-lg font-bold text-fjord">
+            {maxMonthsRemaining !== null
+              ? `${Math.floor(maxMonthsRemaining / 12)}y ${maxMonthsRemaining % 12}m`
+              : '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Combined PITI breakdown bar */}
+      <div className="mt-4 rounded-lg border border-mist bg-snow p-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
+          Monthly Payment Breakdown {hasPiti && '(PITI)'}
+        </p>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-pine" />
+            <span className="text-stone">Principal:</span>
+            <span className="font-semibold text-fjord">{formatCurrency(totalPrincipal)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-ember" />
+            <span className="text-stone">Interest:</span>
+            <span className="font-semibold text-fjord">{formatCurrency(totalInterest)}</span>
+          </div>
+          {hasPiti && escrowItems.map((item) => (
+            <div key={item.label} className="flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
+              <span className="text-stone">{item.label}:</span>
+              <span className="font-semibold text-fjord">{formatCurrency(item.amount)}</span>
+            </div>
+          ))}
+        </div>
+
+        {totalPayment > 0 && (
+          <div className="mt-2 flex h-2 overflow-hidden rounded-bar">
+            <div className="bg-pine" style={{ width: `${(totalPrincipal / totalPayment) * 100}%` }} />
+            <div className="bg-ember" style={{ width: `${(totalInterest / totalPayment) * 100}%` }} />
+            {hasPiti && escrowItems.map((item) => (
+              <div key={item.label} className={item.color} style={{ width: `${(item.amount / totalPayment) * 100}%` }} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Expanded per-unit breakdown */}
+      {expanded && (
+        <div className="mt-4 space-y-3 border-t border-mist pt-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-stone">Per-Unit Breakdown</p>
+          {debts.map((debt) => (
+            <div key={debt.id} className="rounded-lg border border-mist bg-snow p-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-fjord">{debt.name}</p>
+                  {debt.property && (
+                    <p className="text-xs text-stone">
+                      {debt.property.splitPct != null ? `${debt.property.splitPct}% allocation` : ''}
+                      {debt.property.taxSchedule && (
+                        <span className="ml-1">
+                          ({debt.property.taxSchedule === 'SCHEDULE_A' ? 'Schedule A' :
+                            debt.property.taxSchedule === 'SCHEDULE_E' ? 'Schedule E' :
+                              debt.property.taxSchedule === 'SCHEDULE_C' ? 'Schedule C' :
+                                debt.property.taxSchedule})
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => onEdit(debt)} className="text-xs text-stone hover:text-fjord">Edit</button>
+                  <button onClick={() => onDelete(debt.id)} className="text-xs text-stone hover:text-ember">Delete</button>
+                </div>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                <div>
+                  <span className="text-stone">Balance: </span>
+                  <span className="font-mono font-medium text-fjord">{formatCurrency(debt.currentBalance)}</span>
+                </div>
+                <div>
+                  <span className="text-stone">Payment: </span>
+                  <span className="font-mono font-medium text-fjord">{formatCurrency(debt.minimumPayment)}/mo</span>
+                </div>
+                <div>
+                  <span className="text-stone">Principal: </span>
+                  <span className="font-mono font-medium text-pine">{formatCurrency(debt.monthlyPrincipal)}</span>
+                </div>
+                <div>
+                  <span className="text-stone">Interest: </span>
+                  <span className="font-mono font-medium text-ember">{formatCurrency(debt.monthlyInterest)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Card for a single (ungrouped) debt */
+function SingleDebtCard({
+  debt,
+  properties,
+  onEdit,
+  onDelete,
+}: {
+  debt: DebtRow
+  properties: PropertyOption[]
+  onEdit: (debt: DebtRow) => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <div className="card">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-fjord">{debt.name}</h3>
+          <div className="mt-0.5 flex items-center gap-2">
+            <span className="rounded-badge bg-fjord/10 px-2 py-0.5 text-xs font-medium text-fjord">
+              {debtTypeLabel(debt.type)}
+            </span>
+            {debt.property && (
+              <span className="text-xs text-stone">{debt.property.name}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => onEdit(debt)} className="text-xs text-stone hover:text-fjord">Edit</button>
+          <button onClick={() => onDelete(debt.id)} className="text-xs text-stone hover:text-ember">Delete</button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div>
+          <p className="text-xs text-stone">Balance</p>
+          <p className="text-lg font-bold text-fjord">{formatCurrency(debt.currentBalance)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-stone">Rate</p>
+          <p className="text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
+        </div>
+        <div>
+          <p className="text-xs text-stone">Monthly Payment</p>
+          <p className="text-lg font-bold text-fjord">{formatCurrency(debt.minimumPayment)}/mo</p>
+        </div>
+        <div>
+          <p className="text-xs text-stone">Est. Remaining</p>
+          <p className="text-lg font-bold text-fjord">
+            {debt.monthsRemaining !== null
+              ? `${Math.floor(debt.monthsRemaining / 12)}y ${debt.monthsRemaining % 12}m`
+              : '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* PITI breakdown */}
+      <DebtPITIBreakdown debt={debt} properties={properties} />
+
+      {/* Progress bar for original → current */}
+      {debt.originalBalance && debt.originalBalance > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-stone">
+            <span>Payoff progress</span>
+            <span>
+              {(((debt.originalBalance - debt.currentBalance) / debt.originalBalance) * 100).toFixed(1)}%
+            </span>
+          </div>
+          <div className="mt-1 h-2 overflow-hidden rounded-bar bg-mist">
+            <div
+              className="h-full rounded-bar bg-pine"
+              style={{
+                width: `${((debt.originalBalance - debt.currentBalance) / debt.originalBalance) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* R5.8: Payment history */}
+      {debt.transactions && debt.transactions.length > 0 && (
+        <div className="mt-3 rounded-lg border border-mist bg-snow p-3">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
+            Recent Payments
+          </p>
+          <ul className="space-y-1">
+            {debt.transactions.slice(0, 5).map((tx) => (
+              <li key={tx.id} className="flex items-center justify-between text-sm">
+                <span className="text-stone">
+                  {new Date(tx.date).toLocaleDateString()} &middot; {tx.merchant}
+                </span>
+                <span className="font-mono font-semibold text-fjord">
+                  {formatCurrency(Math.abs(tx.amount))}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
