@@ -1110,3 +1110,54 @@ This is Step 3 of the Goal-Driven Budget System (see above) — not a regression
 - **TypeScript**: zero errors (`npx tsc --noEmit` clean)
 - **Build**: passes (fails only due to network: Neon DB unreachable, Google Fonts unreachable)
 - **Tests**: 505 total — 492 passed, 13 pre-existing failures, zero new regressions
+
+---
+
+## UAT Round 6 Fixes (2026-03-04)
+
+### Budget UX + Uncategorized Flow + Property Income Fix
+
+| # | Issue | Severity | Status | Files Changed |
+|---|-------|----------|--------|---------------|
+| 1 | Flexible budget summary not visually distinct from category rows | Medium | ✅ Fixed | `FlexibleBudgetSection.tsx` |
+| 2 | Rent income double-counted across grouped properties | High | ✅ Fixed | `src/lib/apply-splits.ts` |
+| 3 | Uncategorized transactions excluded from catch-all budget | Medium | ✅ Fixed | `budgets/page.tsx`, `UncategorizedReviewBanner.tsx` (new), `transactions/page.tsx`, `TransactionList.tsx` |
+| 4 | No auto-categorization on manual transaction create | Medium | ✅ Fixed | `api/transactions/route.ts`, `actions/transactions.ts` |
+| 5 | `url.parse()` DEP0169 deprecation warning on Plaid sandbox | Low | ✅ Fixed | `src/instrumentation.ts` (new) |
+
+**Bug 1 — Flexible budget summary visual differentiation:**
+- Pulled rollup summary out of the `divide-y` card container into a distinct header banner
+- Pine-tinted background (`bg-pine/5`) with pine border, budget amount badge, daily allowance
+- Individual category cards remain in the white `bg-snow` card below
+- File: `src/components/budgets/FlexibleBudgetSection.tsx`
+
+**Bug 2 — Property income double-counting:**
+- Root cause: `applyPropertyAttribution()` was falling back to group default split percentages when no match rule fired, creating `TransactionSplit` records for ALL properties in a group even when the user explicitly assigned income to one property
+- Fix: When no match rule matches, the function returns immediately without creating splits. The transaction's direct `propertyId` attribution is respected
+- Users who want auto-splitting can set up match rules for specific merchants/categories
+- File: `src/lib/apply-splits.ts`
+
+**Bug 3 — Uncategorized transactions flow + review UI:**
+- Transactions with `categoryId: null` now included in catch-all budget spent calculation (Miscellaneous/Uncategorized/Other flexible budgets)
+- New `UncategorizedReviewBanner` on budgets page — birch-toned banner showing count of uncategorized expense transactions with "Review" link
+- `?uncategorized=true` filter on transactions page with dismissable "Needs category" badge
+- Files: `budgets/page.tsx`, `src/components/budgets/UncategorizedReviewBanner.tsx` (new), `transactions/page.tsx`, `TransactionList.tsx`
+
+**Bug 4 — Auto-categorization on transaction create:**
+- Both POST route and server action now check `UserCategoryMapping` when no category is provided
+- Uses same multi-signal scoring as CSV import: merchant match (0.7 base) + direction match (+0.15) + amount range (+0.15), threshold ≥ 0.7
+- Increments `timesApplied` counter on successful auto-apply
+- Learning loop: user categorizes flagged transaction → PATCH captures mapping → future transactions from same merchant auto-categorize
+- Files: `src/app/api/transactions/route.ts`, `src/app/actions/transactions.ts`
+
+**Bug 5 — Plaid `url.parse()` deprecation:**
+- Warning from `follow-redirects` v1.15.11 (transitive: `plaid → axios → follow-redirects`) on Node.js ≥ 22
+- Added `src/instrumentation.ts` to filter DEP0169 warning at process startup via Next.js instrumentation hook
+- Cosmetic fix — Plaid functionality unaffected
+
+### Test Results
+
+- **505 total tests**: 491 passed, 14 failed (all pre-existing — same 4 test files, same root causes)
+- Pre-existing failures unchanged: t1-1 (1), insights.test (5), t2-3 (3), t1-8 (4)
+- Zero new failures introduced
+- **TypeScript**: zero errors (`npx tsc --noEmit` clean)
