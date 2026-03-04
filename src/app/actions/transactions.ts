@@ -33,11 +33,55 @@ export async function createTransaction(
   if (!merchant) return { error: 'Merchant is required.' }
   if (!date) return { error: 'Date is required.' }
 
+  // Auto-apply learned category if none provided — use merchant→category mappings
+  let resolvedCategoryId = categoryId
+  if (!resolvedCategoryId && merchant) {
+    const normalizedMerchant = merchant.toLowerCase().trim()
+    const direction = amount > 0 ? 'credit' : 'debit'
+    const absAmount = Math.abs(amount)
+
+    try {
+      const mappings = await db.userCategoryMapping.findMany({
+        where: { userId: session.userId, merchantName: normalizedMerchant },
+        orderBy: { timesApplied: 'desc' },
+      })
+
+      let bestMapping: (typeof mappings)[0] | null = null
+      let bestScore = 0
+
+      for (const m of mappings) {
+        let score = 0.7
+        if (m.direction) {
+          if (m.direction === direction) score += 0.15
+          else score -= 0.5
+        }
+        if (m.amountMin != null && m.amountMax != null) {
+          if (absAmount >= m.amountMin && absAmount <= m.amountMax) score += 0.15
+          else score -= 0.2
+        }
+        if (score > bestScore) {
+          bestScore = score
+          bestMapping = m
+        }
+      }
+
+      if (bestMapping && bestScore >= 0.7) {
+        resolvedCategoryId = bestMapping.categoryId
+        db.userCategoryMapping.update({
+          where: { id: bestMapping.id },
+          data: { timesApplied: { increment: 1 } },
+        }).catch(() => { /* non-critical */ })
+      }
+    } catch {
+      // Non-critical — proceed without auto-category
+    }
+  }
+
   // Determine sign and classification based on category group + type
   let finalAmount = amount
   let resolvedCategory: { type: string; group: string | null } | null = null
-  if (categoryId) {
-    const category = await db.category.findUnique({ where: { id: categoryId } })
+  if (resolvedCategoryId) {
+    const category = await db.category.findUnique({ where: { id: resolvedCategoryId } })
     if (category) {
       resolvedCategory = category
       if (category.type === 'expense') {
@@ -78,7 +122,7 @@ export async function createTransaction(
       ? null
       : propertyId
     const created = await tx.transaction.create({
-      data: { userId: session.userId, accountId, categoryId, householdMemberId, propertyId: effectivePropertyId, amount: finalAmount, classification, merchant, date: txDate, notes, tags },
+      data: { userId: session.userId, accountId, categoryId: resolvedCategoryId || null, householdMemberId, propertyId: effectivePropertyId, amount: finalAmount, classification, merchant, date: txDate, notes, tags },
     })
 
     // 2. Adjust account balance (amount sign already correct)

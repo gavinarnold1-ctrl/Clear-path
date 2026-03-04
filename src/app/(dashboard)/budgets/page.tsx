@@ -10,6 +10,7 @@ import FlexibleBudgetSection from '@/components/budgets/FlexibleBudgetSection'
 import AnnualBudgetSection from '@/components/budgets/AnnualBudgetSection'
 import BudgetBuilderFlow from '@/components/budget-builder/BudgetBuilderFlow'
 import UnbudgetedSection from '@/components/budgets/UnbudgetedSection'
+import UncategorizedReviewBanner from '@/components/budgets/UncategorizedReviewBanner'
 import { findRefundPairs } from '@/lib/refund-detection'
 
 export const metadata: Metadata = { title: 'Budgets' }
@@ -26,7 +27,7 @@ export default async function BudgetsPage() {
   const prev1Start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
   const prev1End = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile] = await Promise.all([
+  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true },
@@ -73,6 +74,15 @@ export default async function BudgetsPage() {
     db.userProfile.findUnique({
       where: { userId: session.userId },
       select: { expectedMonthlyIncome: true },
+    }),
+    // Count of uncategorized transactions this month (for review banner)
+    db.transaction.count({
+      where: {
+        userId: session.userId,
+        date: { gte: startOfMonth, lte: endOfMonth },
+        categoryId: null,
+        amount: { lt: 0 },
+      },
     }),
   ])
 
@@ -328,9 +338,11 @@ export default async function BudgetsPage() {
     }
 
     // Sum unclaimed expense spending (exclude annual-linked transactions)
+    // Include both: transactions in non-budgeted categories AND transactions with no category at all
     let unclaimedSpend = 0
     for (const tx of nonAnnualTransactions) {
-      if (tx.categoryId && !claimedCategoryIds.has(tx.categoryId) && !claimedTxIds.has(tx.id)) {
+      if (claimedTxIds.has(tx.id)) continue
+      if (!tx.categoryId || !claimedCategoryIds.has(tx.categoryId)) {
         unclaimedSpend += Math.abs(tx.amount)
       }
     }
@@ -401,6 +413,10 @@ export default async function BudgetsPage() {
             flexOverBudget={flexOverBudget}
             monthLabel={monthLabel}
           />
+
+          {uncategorizedCount > 0 && (
+            <UncategorizedReviewBanner count={uncategorizedCount} />
+          )}
 
           <FixedBudgetSection budgets={fixed} transactions={transactions} />
           <FlexibleBudgetSection

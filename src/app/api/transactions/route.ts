@@ -68,13 +68,58 @@ export async function POST(req: NextRequest) {
     if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
 
+  // Auto-apply learned category if none provided — use merchant→category mappings
+  let resolvedCategoryId = categoryId ?? null
+  if (!resolvedCategoryId && merchant) {
+    const normalizedMerchant = merchant.toLowerCase().trim()
+    const direction = amount > 0 ? 'credit' : 'debit'
+    const absAmount = Math.abs(amount)
+
+    try {
+      const mappings = await db.userCategoryMapping.findMany({
+        where: { userId: session.userId, merchantName: normalizedMerchant },
+        orderBy: { timesApplied: 'desc' },
+      })
+
+      let bestMapping: (typeof mappings)[0] | null = null
+      let bestScore = 0
+
+      for (const m of mappings) {
+        let score = 0.7 // Base: merchant name exact match
+        if (m.direction) {
+          if (m.direction === direction) score += 0.15
+          else score -= 0.5
+        }
+        if (m.amountMin != null && m.amountMax != null) {
+          if (absAmount >= m.amountMin && absAmount <= m.amountMax) score += 0.15
+          else score -= 0.2
+        }
+        if (score > bestScore) {
+          bestScore = score
+          bestMapping = m
+        }
+      }
+
+      if (bestMapping && bestScore >= 0.7) {
+        resolvedCategoryId = bestMapping.categoryId
+        // Increment usage counter
+        db.userCategoryMapping.update({
+          where: { id: bestMapping.id },
+          data: { timesApplied: { increment: 1 } },
+        }).catch(() => { /* non-critical */ })
+      }
+    } catch {
+      // Non-critical — proceed without auto-category
+    }
+  }
+
   // Correct amount sign based on category type — must match server action behavior.
   // Income = positive, expense = negative, transfer = keep user sign.
   let finalAmount = amount
   let resolvedCategory: { type: string; group: string | null } | null = null
-  if (categoryId) {
+  if (resolvedCategoryId) {
     const category = await db.category.findFirst({
-      where: { id: categoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
+      where: { id: resolvedCategoryId, OR: [{ userId: session.userId }, { userId: null, isDefault: true }] },
     })
     if (category) {
       resolvedCategory = category
@@ -142,7 +187,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: session.userId,
         accountId: accountId ?? null,
-        categoryId: categoryId ?? null,
+        categoryId: resolvedCategoryId,
         amount: finalAmount,
         classification,
         merchant,
