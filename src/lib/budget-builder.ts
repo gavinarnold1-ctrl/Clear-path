@@ -335,9 +335,18 @@ export interface BudgetProposal {
   }
 }
 
+export interface BenchmarkData {
+  category: string
+  appCategory: string | null
+  monthlyMean: number
+  annualMedian: number | null
+  shareOfTotal: number | null
+}
+
 export async function generateBudgetProposal(
   profile: SpendingProfile,
-  goalContext?: GoalContext | null
+  goalContext?: GoalContext | null,
+  benchmarks?: BenchmarkData[] | null
 ): Promise<BudgetProposal> {
   const temporalContext = buildTemporalContext()
 
@@ -371,6 +380,21 @@ RULES:
 TEMPORAL CONTEXT:
 Current date: ${temporalContext.currentMonth} ${temporalContext.dayOfMonth}, ${temporalContext.currentYear}
 For annual items, set due months that make sense (property tax: varies by state, insurance: typically renewal month, vacation: summer, gifts: December).
+${
+  benchmarks && benchmarks.length > 0
+    ? `
+BLS BENCHMARK DATA (Consumer Expenditure Survey for this income bracket):
+${benchmarks
+  .filter((b) => b.appCategory)
+  .map(
+    (b) =>
+      `- ${b.appCategory}: $${b.monthlyMean.toFixed(0)}/mo average${b.annualMedian ? ` (median $${(b.annualMedian / 12).toFixed(0)}/mo)` : ''}`
+  )
+  .join('\n')}
+
+When proposing flexible budget amounts, compare the user's actual spending to these benchmarks. If the user spends significantly above the benchmark median, note this in the reasoning and suggest a target closer to the benchmark — but never below the user's minimum observed spend. If below benchmark, acknowledge they're already efficient in that category.`
+    : ''
+}
 
 OUTPUT FORMAT — Return ONLY valid JSON with no markdown, no commentary, no text before or after the JSON object:
 {
@@ -436,7 +460,17 @@ DETECTED FIXED EXPENSES (${topFixed.length} of ${profile.detectedFixed.length} i
 ${topFixed.map((f) => `- ${f.merchant}: $${f.amount.toFixed(2)} (${f.frequency}, day ~${f.dayOfMonth}, ${f.category}, confidence: ${(f.confidence * 100).toFixed(0)}%${f.isAutoPay ? ', autopay likely' : ''})`).join('\n')}
 
 VARIABLE SPENDING BY CATEGORY:
-${topVariable.map((c) => `- ${c.category} (${c.group}): avg $${c.monthlyAverage.toFixed(2)}/mo, median $${c.monthlyMedian.toFixed(2)}, range $${c.min.toFixed(0)}-$${c.max.toFixed(0)}, trend: ${c.trend}, ${c.transactionCount} transactions over ${c.months} months`).join('\n')}
+${topVariable.map((c) => {
+    const bm = benchmarks?.find(
+      (b) =>
+        b.appCategory &&
+        (b.appCategory.toLowerCase() === c.category.toLowerCase() ||
+          b.category.toLowerCase().includes(c.category.toLowerCase()) ||
+          c.category.toLowerCase().includes((b.appCategory ?? '').toLowerCase()))
+    )
+    const bmNote = bm ? ` [BLS benchmark: $${bm.monthlyMean.toFixed(0)}/mo]` : ''
+    return `- ${c.category} (${c.group}): avg $${c.monthlyAverage.toFixed(2)}/mo, median $${c.monthlyMedian.toFixed(2)}, range $${c.min.toFixed(0)}-$${c.max.toFixed(0)}, trend: ${c.trend}, ${c.transactionCount} transactions over ${c.months} months${bmNote}`
+  }).join('\n')}
 
 LARGE INFREQUENT CHARGES (historical — these already happened):
 ${

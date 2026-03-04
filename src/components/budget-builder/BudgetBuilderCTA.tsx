@@ -3,9 +3,14 @@
 import { useState } from 'react'
 import type { BudgetProposal } from '@/lib/budget-builder'
 
+export interface GoalSummary {
+  goalLabel: string
+  primaryGoal: string
+}
+
 interface BudgetBuilderCTAProps {
   hasBudgets: boolean
-  onProposalReady: (proposal: BudgetProposal, profileSummary: ProfileSummary) => void
+  onProposalReady: (proposal: BudgetProposal, profileSummary: ProfileSummary, goalSummary: GoalSummary | null) => void
 }
 
 export interface ProfileSummary {
@@ -34,7 +39,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
         throw new Error(data.error || 'Failed to generate budget')
       }
       const data = await res.json()
-      onProposalReady(data.proposal, data.profile)
+      onProposalReady(data.proposal, data.profile, data.goalContext ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {

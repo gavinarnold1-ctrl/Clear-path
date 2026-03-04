@@ -2,14 +2,23 @@
 
 import { formatCurrency } from '@/lib/utils'
 import type { BudgetProposal } from '@/lib/budget-builder'
-import type { ProfileSummary } from './BudgetBuilderCTA'
+import type { ProfileSummary, GoalSummary } from './BudgetBuilderCTA'
+
+const GOAL_TARGETS: Record<string, { metric: string; threshold: number; unit: string }> = {
+  save_more: { metric: 'Savings Rate', threshold: 20, unit: '%' },
+  pay_off_debt: { metric: 'Extra for Debt', threshold: 0, unit: '$' },
+  build_wealth: { metric: 'Savings Rate', threshold: 25, unit: '%' },
+  spend_smarter: { metric: 'Savings Rate', threshold: 15, unit: '%' },
+  gain_visibility: { metric: 'Savings Rate', threshold: 10, unit: '%' },
+}
 
 interface Props {
   proposal: BudgetProposal
   profileSummary: ProfileSummary
+  goalSummary: GoalSummary | null
 }
 
-export default function ProposalSummary({ proposal, profileSummary }: Props) {
+export default function ProposalSummary({ proposal, profileSummary, goalSummary }: Props) {
   const totalFixed = proposal.fixed.reduce((sum, i) => sum + i.amount, 0)
   const totalFlexible = proposal.flexible.reduce((sum, i) => sum + i.amount, 0)
   const totalAnnualMonthly = proposal.annual.reduce((sum, i) => sum + i.annualAmount / 12, 0)
@@ -83,6 +92,24 @@ export default function ProposalSummary({ proposal, profileSummary }: Props) {
           <p className={`text-lg font-bold ${remainingColor}`}>{savingsRate.toFixed(1)}%</p>
         </div>
       </div>
+
+      {/* Goal target indicator */}
+      {goalSummary && (() => {
+        const target = GOAL_TARGETS[goalSummary.primaryGoal]
+        if (!target) return null
+        const meetsTarget = target.unit === '%' ? savingsRate >= target.threshold : trueRemaining >= target.threshold
+        return (
+          <div className={`mt-4 flex items-center gap-2 rounded-lg border px-3 py-2 ${meetsTarget ? 'border-pine/30 bg-pine/5' : 'border-birch/50 bg-birch/10'}`}>
+            <span className="text-sm">{meetsTarget ? '\u2713' : '\u2192'}</span>
+            <p className="text-xs text-fjord">
+              <span className="font-medium">{goalSummary.goalLabel}:</span>{' '}
+              {meetsTarget
+                ? `This budget meets your ${target.metric.toLowerCase()} target of ${target.threshold}${target.unit}`
+                : `Your ${target.metric.toLowerCase()} is ${savingsRate.toFixed(1)}% — aim for ${target.threshold}${target.unit} to hit your goal`}
+            </p>
+          </div>
+        )
+      })()}
 
       {/* AI commentary */}
       {proposal.summary.commentary && (

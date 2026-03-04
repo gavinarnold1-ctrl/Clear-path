@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BudgetProposal as BudgetProposalType } from '@/lib/budget-builder'
-import type { ProfileSummary } from './BudgetBuilderCTA'
+import type { ProfileSummary, GoalSummary } from './BudgetBuilderCTA'
 import ProposalFixedSection from './ProposalFixedSection'
 import ProposalFlexibleSection from './ProposalFlexibleSection'
 import ProposalAnnualSection from './ProposalAnnualSection'
@@ -12,10 +12,11 @@ import ProposalSummary from './ProposalSummary'
 interface Props {
   initialProposal: BudgetProposalType
   profileSummary: ProfileSummary
+  goalSummary: GoalSummary | null
   onCancel: () => void
 }
 
-export default function BudgetProposal({ initialProposal, profileSummary, onCancel }: Props) {
+export default function BudgetProposal({ initialProposal, profileSummary, goalSummary, onCancel }: Props) {
   const router = useRouter()
   const [proposal, setProposal] = useState<BudgetProposalType>(initialProposal)
   const [applying, setApplying] = useState(false)
@@ -51,6 +52,11 @@ export default function BudgetProposal({ initialProposal, profileSummary, onCanc
           <p className="mt-1 text-sm text-stone">
             Edit amounts, remove items you don&apos;t want, then apply.
           </p>
+          {goalSummary && (
+            <p className="mt-1 text-xs text-pine">
+              Optimized for your goal: {goalSummary.goalLabel}
+            </p>
+          )}
         </div>
         <button type="button" onClick={onCancel} className="btn-secondary">
           Cancel
@@ -58,7 +64,7 @@ export default function BudgetProposal({ initialProposal, profileSummary, onCanc
       </div>
 
       <div className="mb-6">
-        <ProposalSummary proposal={proposal} profileSummary={profileSummary} />
+        <ProposalSummary proposal={proposal} profileSummary={profileSummary} goalSummary={goalSummary} />
       </div>
 
       <ProposalFixedSection
