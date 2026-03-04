@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { plaidClient, mapPlaidCategory } from '@/lib/plaid'
+import { plaidClient, mapPlaidCategory, detectCreditCardPayment } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
 import { decrypt } from '@/lib/encryption'
 import { normalizeMerchant } from '@/lib/normalize-merchant'
@@ -109,21 +109,37 @@ export async function GET(req: NextRequest) {
             let resolvedGroup: string | null = null
             let resolvedType: string | null = null
 
-            // Merchant history
+            // Tier 0: Credit card payment detection
             const merchantKey = merchantName.toLowerCase()
-            const histCatId = merchantCategoryMap.get(merchantKey)
-            if (histCatId) {
-              categoryId = histCatId
-              const cat = allCategories.find(c => c.id === histCatId)
-              if (cat) {
-                resolvedGroup = cat.group
-                resolvedType = cat.type
+            if (detectCreditCardPayment(rawMerchant)) {
+              const ccCat = categoryByName.get('credit card payment')
+              if (ccCat) {
+                categoryId = ccCat.id
+                resolvedGroup = ccCat.group
+                resolvedType = ccCat.type
               }
             }
 
-            // Plaid metadata
+            // Tier 1: Merchant history
+            if (!categoryId) {
+              const histCatId = merchantCategoryMap.get(merchantKey)
+              if (histCatId) {
+                categoryId = histCatId
+                const cat = allCategories.find(c => c.id === histCatId)
+                if (cat) {
+                  resolvedGroup = cat.group
+                  resolvedType = cat.type
+                }
+              }
+            }
+
+            // Tier 2: Plaid metadata
             if (!categoryId && tx.personal_finance_category?.primary) {
-              const mapped = mapPlaidCategory(tx.personal_finance_category.primary)
+              const mapped = mapPlaidCategory(
+                tx.personal_finance_category.primary,
+                tx.personal_finance_category.detailed ?? null,
+                amount,
+              )
               const existing = categoryByName.get(mapped.name.toLowerCase())
               if (existing) {
                 categoryId = existing.id
@@ -270,12 +286,75 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // AI categorization pass — run per-user for any uncategorized Plaid transactions
+    let totalAiCategorized = 0
+    if (totalAdded > 0) {
+      // Get distinct user IDs that had new transactions
+      const userIds = [...new Set(plaidAccounts.map(a => a.userId))]
+      for (const userId of userIds) {
+        try {
+          const uncategorized = await db.transaction.findMany({
+            where: {
+              userId,
+              importSource: 'plaid',
+              OR: [
+                { categoryId: null },
+                { category: { name: { equals: 'Uncategorized', mode: 'insensitive' } } },
+              ],
+              date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+            },
+            include: { account: { select: { name: true } } },
+            take: 50,
+          })
+
+          if (uncategorized.length > 0) {
+            const { aiCategorizeBatch } = await import('@/lib/ai-categorize')
+            const userCategories = await db.category.findMany({
+              where: { userId, isActive: true },
+            })
+
+            const suggestions = await aiCategorizeBatch(
+              uncategorized.map(t => ({
+                id: t.id,
+                merchant: t.merchant,
+                amount: t.amount,
+                date: t.date.toISOString().split('T')[0],
+                originalStatement: t.originalStatement,
+                accountName: t.account?.name || 'Unknown',
+              })),
+              userCategories,
+            )
+
+            for (const suggestion of suggestions) {
+              if (suggestion.confidence >= 0.85) {
+                const cat = userCategories.find(c =>
+                  c.name.toLowerCase() === suggestion.categoryName.toLowerCase()
+                )
+                if (cat) {
+                  const tx = uncategorized.find(t => t.id === suggestion.transactionId)
+                  const classification = classifyTransaction(cat.group, cat.type, tx?.amount ?? 0)
+                  await db.transaction.update({
+                    where: { id: suggestion.transactionId },
+                    data: { categoryId: cat.id, classification },
+                  })
+                  totalAiCategorized++
+                }
+              }
+            }
+          }
+        } catch (aiErr) {
+          console.error(`AI categorization failed for user ${userId} (non-fatal):`, aiErr)
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       itemsSynced,
       totalAdded,
       totalModified,
       totalRemoved,
+      aiCategorized: totalAiCategorized,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error) {

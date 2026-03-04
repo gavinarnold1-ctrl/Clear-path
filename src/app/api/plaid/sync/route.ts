@@ -263,7 +263,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // AI categorization pass — only on initial sync with many uncategorized txs
+    // AI categorization pass — runs for any uncategorized Plaid transactions
     let aiCategorized = 0
     try {
       const uncategorized = await db.transaction.findMany({
@@ -272,7 +272,7 @@ export async function POST(request: Request) {
           importSource: 'plaid',
           OR: [
             { categoryId: null },
-            { category: { name: 'Uncategorized' } },
+            { category: { name: { equals: 'Uncategorized', mode: 'insensitive' } } },
           ],
           date: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
         },
@@ -280,7 +280,7 @@ export async function POST(request: Request) {
         take: 50,
       })
 
-      if (uncategorized.length > 5) {
+      if (uncategorized.length > 0) {
         const { aiCategorizeBatch } = await import('@/lib/ai-categorize')
         const userCategories = await db.category.findMany({
           where: { userId: session.userId, isActive: true },
@@ -300,9 +300,13 @@ export async function POST(request: Request) {
 
         for (const suggestion of suggestions) {
           if (suggestion.confidence >= 0.85) {
-            const cat = userCategories.find(c => c.name === suggestion.categoryName)
+            const cat = userCategories.find(c =>
+              c.name.toLowerCase() === suggestion.categoryName.toLowerCase()
+            )
             if (cat) {
-              const classification = classifyTransaction(cat.group, cat.type, 0)
+              // Find the original transaction to get the actual amount for classification
+              const tx = uncategorized.find(t => t.id === suggestion.transactionId)
+              const classification = classifyTransaction(cat.group, cat.type, tx?.amount ?? 0)
               await db.transaction.update({
                 where: { id: suggestion.transactionId },
                 data: { categoryId: cat.id, classification },
