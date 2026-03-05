@@ -1749,7 +1749,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
               onClick={() => setShowResetConfirm(true)}
               className="btn-danger text-sm"
             >
-              Nuke All Data
+              Reset All Data
             </button>
           ) : (
             <div className="rounded-lg border border-ember/30 bg-ember/5 p-4">

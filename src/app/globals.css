@@ -47,26 +47,41 @@
 
   /* Primary action button — Fjord bg */
   .btn-primary {
-    @apply rounded-button bg-fjord px-5 py-2.5 text-sm font-medium text-snow hover:bg-midnight focus:outline-none focus:ring-2 focus:ring-fjord/40 focus:ring-offset-2 disabled:opacity-50;
+    @apply rounded-button bg-fjord px-5 py-2.5 text-sm font-medium text-snow hover:bg-midnight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fjord/40 focus-visible:ring-offset-2 disabled:opacity-50;
   }
 
   /* Neutral / secondary button — Mist border */
   .btn-secondary {
-    @apply rounded-button border border-mist bg-transparent px-5 py-2.5 text-sm font-medium text-fjord hover:bg-frost focus:outline-none focus:ring-2 focus:ring-fjord/40 focus:ring-offset-2;
+    @apply rounded-button border border-mist bg-transparent px-5 py-2.5 text-sm font-medium text-fjord hover:bg-frost focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fjord/40 focus-visible:ring-offset-2;
   }
 
   /* Success button — Pine bg */
   .btn-success {
-    @apply rounded-button bg-pine px-5 py-2.5 text-sm font-medium text-snow hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pine/40 focus:ring-offset-2 disabled:opacity-50;
+    @apply rounded-button bg-pine px-5 py-2.5 text-sm font-medium text-snow hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine/40 focus-visible:ring-offset-2 disabled:opacity-50;
   }
 
   /* Danger button — Ember bg */
   .btn-danger {
-    @apply rounded-button bg-ember px-5 py-2.5 text-sm font-medium text-snow hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ember/40 focus:ring-offset-2 disabled:opacity-50;
+    @apply rounded-button bg-ember px-5 py-2.5 text-sm font-medium text-snow hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40 focus-visible:ring-offset-2 disabled:opacity-50;
   }
 
   /* Form input — Mist border, Fjord focus ring */
   .input {
-    @apply block w-full rounded-button border border-mist bg-snow px-3 py-2 text-sm shadow-sm placeholder:text-stone focus:border-fjord focus:outline-none focus:ring-1 focus:ring-fjord;
+    @apply block w-full rounded-button border border-mist bg-snow px-3 py-2 text-sm shadow-sm placeholder:text-stone focus-visible:border-fjord focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-fjord/40;
+  }
+
+  /* Global focus-visible ring for all interactive elements */
+  a:focus-visible,
+  button:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    @apply outline-none ring-2 ring-fjord/40 ring-offset-2;
+  }
+
+  /* Progress bar fill animation */
+  [role="progressbar"] > div,
+  .progress-fill {
+    transition: width 0.6s ease;
   }
 }

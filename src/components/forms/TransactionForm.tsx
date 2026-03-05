@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useActionState } from 'react'
-import Link from 'next/link'
 import { createTransaction } from '@/app/actions/transactions'
+import { Button } from '@/components/ui/Button'
 // Minimal prop shapes — compatible with Prisma results without unsafe casts
 interface AccountOption {
   id: string
@@ -385,12 +385,12 @@ export default function TransactionForm({ accounts, categories, householdMembers
       </div>
 
       <div className="flex gap-3 pt-1">
-        <button type="submit" className="btn-primary" disabled={isPending}>
-          {isPending ? 'Saving…' : 'Save transaction'}
-        </button>
-        <Link href="/transactions" className="btn-secondary">
+        <Button type="submit" loading={isPending} loadingText="Saving…">
+          Save transaction
+        </Button>
+        <Button variant="secondary" href="/transactions">
           Cancel
-        </Link>
+        </Button>
       </div>
     </form>
   )

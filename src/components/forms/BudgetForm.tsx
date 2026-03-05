@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useActionState } from 'react'
-import Link from 'next/link'
+import toast from 'react-hot-toast'
 import { createBudget, updateBudget } from '@/app/actions/budgets'
+import { Button } from '@/components/ui/Button'
 
 interface CategoryOption {
   id: string
@@ -72,13 +73,14 @@ export default function BudgetForm({ categories, initialBudget }: Props) {
       const res = await fetch(`/api/budgets/${initialBudget.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || 'Failed to delete budget')
+        toast.error(data.error || 'Failed to delete budget')
         setDeleting(false)
         return
       }
+      toast.success('Budget deleted')
       window.location.href = '/budgets'
     } catch {
-      alert('Failed to delete budget')
+      toast.error('Failed to delete budget')
       setDeleting(false)
     }
   }
@@ -360,21 +362,23 @@ export default function BudgetForm({ categories, initialBudget }: Props) {
       )}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="submit" className="btn-primary" disabled={isPending || deleting}>
-          {isPending ? 'Saving…' : isEdit ? 'Update budget' : 'Save budget'}
-        </button>
-        <Link href="/budgets" className="btn-secondary">
+        <Button type="submit" loading={isPending || deleting} loadingText="Saving…">
+          {isEdit ? 'Update budget' : 'Save budget'}
+        </Button>
+        <Button variant="secondary" href="/budgets">
           Cancel
-        </Link>
+        </Button>
         {isEdit && (
-          <button
+          <Button
+            variant="danger"
             type="button"
             onClick={handleDelete}
-            disabled={deleting}
-            className="btn-danger ml-auto disabled:opacity-50"
+            loading={deleting}
+            loadingText="Deleting…"
+            className="ml-auto"
           >
-            {deleting ? 'Deleting…' : 'Delete'}
-          </button>
+            Delete
+          </Button>
         )}
       </div>
     </form>
