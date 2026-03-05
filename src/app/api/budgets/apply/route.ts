@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
           touchedIds.add(existing.id)
           await tx.budget.update({
             where: { id: existing.id },
-            data: { amount: item.amount, categoryId, isAutoPay: item.isAutoPay, dueDay: item.dueDay },
+            data: { name: item.name, amount: item.amount, categoryId, isAutoPay: item.isAutoPay, dueDay: item.dueDay },
           })
         } else {
           const newBudget = await tx.budget.create({
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
           touchedIds.add(existing.id)
           await tx.budget.update({
             where: { id: existing.id },
-            data: { amount: item.amount, categoryId },
+            data: { name: item.name, amount: item.amount, categoryId },
           })
         } else {
           const newBudget = await tx.budget.create({
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
           touchedIds.add(existing.id)
           await tx.budget.update({
             where: { id: existing.id },
-            data: { amount: monthlySetAside, categoryId },
+            data: { name: item.name, amount: monthlySetAside, categoryId },
           })
           if (existing.annualExpense) {
             await tx.annualExpense.update({
