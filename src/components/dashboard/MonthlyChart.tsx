@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
+import { CHART_COLORS } from '@/lib/chart-colors'
 
 interface MonthData {
   label: string
@@ -38,22 +39,22 @@ export default function MonthlyChart({ data }: Props) {
               ]}
             />
             <Legend />
-            <Bar dataKey="income" fill="#2D5F3E" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="income" fill={CHART_COLORS.income} radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell
                   key={`income-${index}`}
                   fillOpacity={entry.isCurrent ? 1 : 0.6}
-                  stroke={entry.isCurrent ? '#2D5F3E' : 'none'}
+                  stroke={entry.isCurrent ? CHART_COLORS.currentPeriodStroke : 'none'}
                   strokeWidth={entry.isCurrent ? 2 : 0}
                 />
               ))}
             </Bar>
-            <Bar dataKey="expenses" fill="#C4704B" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="expenses" fill={CHART_COLORS.expense} radius={[4, 4, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell
                   key={`expenses-${index}`}
                   fillOpacity={entry.isCurrent ? 1 : 0.6}
-                  stroke={entry.isCurrent ? '#a35a3a' : 'none'}
+                  stroke={entry.isCurrent ? CHART_COLORS.expenseStroke : 'none'}
                   strokeWidth={entry.isCurrent ? 2 : 0}
                 />
               ))}

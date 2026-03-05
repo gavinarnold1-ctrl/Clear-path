@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
+import { CATEGORY_COLORS } from '@/lib/chart-colors'
 
 interface SpendingGroup {
   group: string
@@ -17,19 +18,13 @@ interface Props {
   currentMonth?: string
 }
 
-const COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
-  '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6',
-  '#a855f7', '#d946ef',
-]
-
 export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Props) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
 
   const pieData = data.map((g, i) => ({
     name: g.group,
     value: g.amount,
-    color: COLORS[i % COLORS.length],
+    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
   }))
 
   return (
@@ -86,7 +81,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Pr
                   <div className="flex min-w-0 items-center gap-2">
                     <span
                       className="inline-block h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: COLORS[gi % COLORS.length] }}
+                      style={{ backgroundColor: CATEGORY_COLORS[gi % CATEGORY_COLORS.length] }}
                     />
                     <span className="truncate font-semibold text-fjord">{group.group}</span>
                     <span className="shrink-0 whitespace-nowrap text-xs text-stone">
@@ -128,7 +123,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Pr
                                     className="h-full rounded-full"
                                     style={{
                                       width: `${Math.round((cat.amount / group.amount) * 100)}%`,
-                                      backgroundColor: COLORS[gi % COLORS.length],
+                                      backgroundColor: CATEGORY_COLORS[gi % CATEGORY_COLORS.length],
                                     }}
                                   />
                                 </div>

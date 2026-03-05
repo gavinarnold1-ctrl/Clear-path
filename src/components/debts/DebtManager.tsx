@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
 import { amortizationSchedule, effectiveRate as calcEffectiveRate } from '@/lib/engines/amortization'
 import type { AmortizationRow } from '@/lib/engines/amortization'
 
@@ -179,8 +181,10 @@ export default function DebtManager({ debts: initial, properties, categories }: 
       setDebts(prev => [...prev, newDebt])
       resetForm()
       setShowForm(false)
+      toast.success('Debt added')
       router.refresh()
     } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create debt')
       setError(err instanceof Error ? err.message : 'Failed to create debt')
     } finally {
       setSaving(false)
@@ -266,8 +270,10 @@ export default function DebtManager({ debts: initial, properties, categories }: 
       } : d))
       resetForm()
       setShowForm(false)
+      toast.success('Debt updated')
       router.refresh()
     } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update debt')
       setError(err instanceof Error ? err.message : 'Failed to update debt')
     } finally {
       setSaving(false)
@@ -281,9 +287,11 @@ export default function DebtManager({ debts: initial, properties, categories }: 
     try {
       const res = await fetch(`/api/debts/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
+      toast.success('Debt deleted')
       router.refresh()
     } catch {
       setDebts(prev)
+      toast.error('Failed to delete debt')
       setError('Failed to delete debt')
     }
   }
@@ -302,9 +310,9 @@ export default function DebtManager({ debts: initial, properties, categories }: 
         <div className="card text-center py-12">
           <p className="mb-1 text-sm font-medium text-stone">No debts tracked yet</p>
           <p className="mb-4 text-xs text-stone">Add your debts to track principal vs interest and payoff progress.</p>
-          <button onClick={() => setShowForm(true)} className="btn-primary">
+          <Button onClick={() => setShowForm(true)}>
             + Add debt
-          </button>
+          </Button>
         </div>
       ) : (
         <>
@@ -320,12 +328,12 @@ export default function DebtManager({ debts: initial, properties, categories }: 
 
           {/* Add debt button */}
           {!showForm && (
-            <button
+            <Button
               onClick={() => { resetForm(); setShowForm(true) }}
-              className="btn-primary mt-4"
+              className="mt-4"
             >
               + Add debt
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -518,19 +526,19 @@ export default function DebtManager({ debts: initial, properties, categories }: 
           </div>
 
           <div className="mt-5 flex gap-3">
-            <button
+            <Button
               onClick={editingId ? handleUpdate : handleCreate}
-              disabled={saving}
-              className="btn-primary"
+              loading={saving}
+              loadingText="Saving…"
             >
-              {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Debt'}
-            </button>
-            <button
+              {editingId ? 'Save Changes' : 'Add Debt'}
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => { setShowForm(false); resetForm() }}
-              className="btn-secondary"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}

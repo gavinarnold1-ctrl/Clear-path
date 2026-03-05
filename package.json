@@ -31,6 +31,7 @@
     "plaid": "^41.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.6.0",
     "react-plaid-link": "^4.1.1",
     "recharts": "^3.7.0",
     "zod": "^4.3.6"

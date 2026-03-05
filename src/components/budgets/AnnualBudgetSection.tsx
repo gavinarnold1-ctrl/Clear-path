@@ -48,11 +48,12 @@ export default function AnnualBudgetSection({ budgets }: Props) {
             </h2>
             <p className="text-sm text-stone group-open:hidden">Irregular expenses you plan and save for over time</p>
           </div>
-          <span className="text-xs text-stone group-open:hidden">
-            Show details &darr;
-          </span>
-          <span className="hidden text-xs text-stone group-open:inline">
-            Hide &uarr;
+          <span className="flex items-center gap-1 text-xs text-stone transition-colors hover:text-fjord">
+            <span className="group-open:hidden">Show details</span>
+            <span className="hidden group-open:inline">Hide details</span>
+            <svg className="h-4 w-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </span>
         </summary>
         <p className="mb-3 text-sm text-stone">Irregular expenses you plan and save for over time</p>
