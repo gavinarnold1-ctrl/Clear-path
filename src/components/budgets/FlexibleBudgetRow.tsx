@@ -50,10 +50,10 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
   const pctColor =
     pct >= 100 ? 'text-ember' : pct >= 90 ? 'text-ember' : pct >= 75 ? 'text-birch' : 'text-fjord'
 
-  const href = categoryId
-    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
+  const href = id
+    ? `/transactions?budgetId=${id}&tier=FLEXIBLE&month=${getCurrentMonth()}&budgetName=${encodeURIComponent(name)}`
     : isCatchAll
-      ? `/transactions?uncategorized=true&month=${getCurrentMonth()}`
+      ? `/transactions?tier=FLEXIBLE&catchAll=true&month=${getCurrentMonth()}`
       : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
 
   const content = (
@@ -102,6 +102,17 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
   )
 
   return (
-    <Link href={href} className="block rounded-lg px-3 py-3 hover:bg-snow">{content}</Link>
+    <div className="flex items-center gap-2 rounded-lg px-3 py-3 hover:bg-snow">
+      <Link href={href} className="block min-w-0 flex-1">{content}</Link>
+      {categoryId && (
+        <Link
+          href={`/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`}
+          className="shrink-0 text-xs text-stone hover:text-fjord"
+          title={`View all transactions in ${category?.name ?? name} (across all budgets)`}
+        >
+          All {category?.name ?? name}
+        </Link>
+      )}
+    </div>
   )
 }

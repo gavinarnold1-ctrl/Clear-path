@@ -156,7 +156,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
 
           return (
             <Link
-              href={`/transactions?uncategorized=true&month=${getCurrentMonth()}`}
+              href={`/transactions?tier=FLEXIBLE&catchAll=true&month=${getCurrentMonth()}`}
               className="block rounded-lg bg-frost/50 px-3 py-3 hover:bg-frost"
             >
               <div className="mb-1 flex items-center justify-between">

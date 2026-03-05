@@ -52,11 +52,9 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
   const monthlyNeeded = calculateMonthlySetAside(ae.annualAmount, ae.funded, ae.dueMonth, ae.dueYear)
   const alert = getAlertLevel(ae.dueMonth, ae.dueYear, ae.funded, ae.annualAmount)
 
-  // Link to category transactions for the current month (matches how spent is computed),
-  // falling back to annual expense linked transactions if no category.
-  const href = categoryId
-    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
-    : `/transactions?annualExpenseId=${ae.id}&annualExpenseName=${encodeURIComponent(name)}`
+  // Always link by annualExpenseId — annual spent is computed from transactions
+  // linked to the annual expense, not from category spending.
+  const href = `/transactions?annualExpenseId=${ae.id}&annualExpenseName=${encodeURIComponent(name)}`
 
   const content = (
     <>
