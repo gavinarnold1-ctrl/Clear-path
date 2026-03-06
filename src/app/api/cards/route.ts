@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { detectPerkCredit } from '@/lib/engines/perk-detection'
+import type { BenefitForMatching } from '@/lib/engines/perk-detection'
 
 // GET /api/cards — list user's identified cards with benefits
 export async function GET() {
@@ -113,5 +115,83 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  return NextResponse.json({ card: fullCard }, { status: 201 })
+  // R3D: Backfill scan — reclassify historical perk credits on the linked account
+  let backfillCount = 0
+  let backfillTotal = 0
+  if (accountId && fullCard) {
+    try {
+      const trackableBenefits: BenefitForMatching[] = program.benefits
+        .filter(b => b.isTransactionTrackable && b.isActive)
+        .map(b => ({
+          id: b.id,
+          name: b.name,
+          type: b.type,
+          creditAmount: b.creditAmount,
+          creditCycle: b.creditCycle,
+          eligibleMerchants: b.eligibleMerchants as string[] | null,
+          merchantMatchType: b.merchantMatchType,
+          creditMerchantPatterns: b.creditMerchantPatterns as string[] | null,
+          isTransactionTrackable: b.isTransactionTrackable,
+        }))
+
+      if (trackableBenefits.length > 0) {
+        // Find the "Card Perk Credits" category
+        const perkCategory = await db.category.findFirst({
+          where: {
+            name: { equals: 'Card Perk Credits', mode: 'insensitive' },
+            OR: [{ userId: session.userId }, { userId: null, isDefault: true }],
+          },
+        })
+
+        if (perkCategory) {
+          // Query positive-amount transactions on this account from the past 12 months
+          const twelveMonthsAgo = new Date()
+          twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+
+          const candidates = await db.transaction.findMany({
+            where: {
+              userId: session.userId,
+              accountId,
+              amount: { gt: 0 },
+              classification: { not: 'perk_reimbursement' },
+              date: { gte: twelveMonthsAgo },
+            },
+            select: { id: true, merchant: true, amount: true, tags: true },
+          })
+
+          for (const candidate of candidates) {
+            const match = detectPerkCredit(candidate.merchant, candidate.amount, trackableBenefits)
+            if (match && match.confidence >= 0.7) {
+              const tag = `card_benefit:${match.benefitName}`
+              const existingTags = candidate.tags ? candidate.tags.split(',').map(t => t.trim()) : []
+              if (!existingTags.includes(tag)) {
+                existingTags.push(tag)
+              }
+              await db.transaction.update({
+                where: { id: candidate.id },
+                data: {
+                  classification: 'perk_reimbursement',
+                  categoryId: perkCategory.id,
+                  tags: existingTags.join(','),
+                },
+              })
+              backfillCount++
+              backfillTotal += candidate.amount
+            }
+          }
+        }
+      }
+    } catch {
+      // Non-critical — don't fail card confirmation if backfill errors
+    }
+  }
+
+  return NextResponse.json({
+    card: fullCard,
+    backfill: backfillCount > 0 ? {
+      count: backfillCount,
+      total: Math.round(backfillTotal * 100) / 100,
+      message: `Found ${backfillCount} perk credit${backfillCount !== 1 ? 's' : ''} totaling $${backfillTotal.toFixed(2)} on this account`,
+    } : null,
+  }, { status: 201 })
 }

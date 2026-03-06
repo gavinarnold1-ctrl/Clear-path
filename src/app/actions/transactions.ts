@@ -88,15 +88,20 @@ export async function createTransaction(
         finalAmount = -Math.abs(amount)
       } else if (category.type === 'income') {
         finalAmount = Math.abs(amount)
+      } else if (category.type === 'perk_reimbursement') {
+        finalAmount = Math.abs(amount)
       }
     }
   }
   // Derive classification from category group (deterministic hierarchy).
-  const classification = classifyTransaction(
-    resolvedCategory?.group,
-    resolvedCategory?.type,
-    finalAmount,
-  )
+  // Perk reimbursements bypass the normal hierarchy — classified directly from category type.
+  const classification = resolvedCategory?.type === 'perk_reimbursement'
+    ? 'perk_reimbursement'
+    : classifyTransaction(
+        resolvedCategory?.group,
+        resolvedCategory?.type,
+        finalAmount,
+      )
 
   // Append time component to date-only strings so they parse as local time, not UTC midnight
   const txDate = new Date(date.includes('T') ? date : `${date}T12:00:00`)

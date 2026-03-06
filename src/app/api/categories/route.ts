@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
-const VALID_TYPES = new Set(['income', 'expense', 'transfer'])
+const VALID_TYPES = new Set(['income', 'expense', 'transfer', 'perk_reimbursement'])
 
 export async function GET(req: NextRequest) {
   const session = await getSession()

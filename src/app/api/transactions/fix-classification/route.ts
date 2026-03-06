@@ -28,11 +28,14 @@ export async function POST() {
   let fixed = 0
 
   for (const tx of transactions) {
-    const correct = classifyTransaction(
-      tx.category?.group,
-      tx.category?.type,
-      tx.amount,
-    )
+    // Perk reimbursement categories bypass the normal classification hierarchy
+    const correct = tx.category?.type === 'perk_reimbursement'
+      ? 'perk_reimbursement'
+      : classifyTransaction(
+          tx.category?.group,
+          tx.category?.type,
+          tx.amount,
+        )
 
     if (tx.classification !== correct) {
       await db.transaction.update({

@@ -58,9 +58,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (finalAmount !== undefined) {
         if (category.type === 'expense') finalAmount = -Math.abs(finalAmount)
         else if (category.type === 'income') finalAmount = Math.abs(finalAmount)
+        else if (category.type === 'perk_reimbursement') finalAmount = Math.abs(finalAmount)
       }
       const resolvedAmount = finalAmount ?? existing.amount
-      classification = classifyTransaction(category.group, category.type, resolvedAmount)
+      classification = category.type === 'perk_reimbursement'
+        ? 'perk_reimbursement'
+        : classifyTransaction(category.group, category.type, resolvedAmount)
     }
   }
 

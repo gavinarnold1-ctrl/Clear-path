@@ -17,6 +17,10 @@ interface SeedBenefit {
   maxReward?: number | null
   creditAmount?: number | null
   creditCycle?: string | null
+  eligibleMerchants?: string[] | null
+  merchantMatchType?: string
+  creditMerchantPatterns?: string[] | null
+  isTransactionTrackable?: boolean
   description: string
   terms?: string | null
 }
@@ -70,6 +74,10 @@ export async function seedCardPrograms() {
           maxReward: benefit.maxReward ?? null,
           creditAmount: benefit.creditAmount ?? null,
           creditCycle: benefit.creditCycle as 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY' | 'CALENDAR_YEAR' | 'CARDMEMBER_YEAR' | undefined ?? undefined,
+          eligibleMerchants: benefit.eligibleMerchants ?? undefined,
+          merchantMatchType: benefit.merchantMatchType ?? 'contains',
+          creditMerchantPatterns: benefit.creditMerchantPatterns ?? undefined,
+          isTransactionTrackable: benefit.isTransactionTrackable ?? false,
           description: benefit.description,
           terms: benefit.terms ?? null,
         },

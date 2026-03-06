@@ -27,7 +27,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile, perkCredits] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -70,6 +70,12 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     db.userProfile.findUnique({
       where: { userId: session.userId },
       select: { goalTarget: true, primaryGoal: true },
+    }),
+    // Perk reimbursement transactions for the current/selected month
+    db.transaction.findMany({
+      where: { userId: session.userId, classification: 'perk_reimbursement' },
+      select: { id: true, merchant: true, amount: true, date: true, tags: true },
+      orderBy: { date: 'desc' },
     }),
   ])
 
@@ -164,6 +170,26 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   // R7.8: month param for clickable links
   const monthParam = selectedMonth || activeSnapshot?.month || ''
+
+  // Perk credits scoped to active month
+  const activeMonthStr = activeSnapshot ? formatMonth(activeSnapshot.month) : null
+  const monthlyPerkCredits = activeMonthStr
+    ? perkCredits.filter(tx => {
+        const d = new Date(tx.date)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === activeMonthStr
+      })
+    : perkCredits
+  const perkTotal = monthlyPerkCredits.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+  // Group perks by benefit name (from tags)
+  const perkByBenefit = new Map<string, { count: number; total: number }>()
+  for (const tx of monthlyPerkCredits) {
+    const benefitTag = tx.tags?.split(',').map(t => t.trim()).find(t => t.startsWith('card_benefit:'))
+    const name = benefitTag ? benefitTag.replace('card_benefit:', '') : tx.merchant
+    const entry = perkByBenefit.get(name) ?? { count: 0, total: 0 }
+    entry.count++
+    entry.total += Math.abs(tx.amount)
+    perkByBenefit.set(name, entry)
+  }
 
   // Goal target for monthly review
   const goalTarget = goalProfile?.goalTarget as GoalTarget | null
@@ -306,6 +332,41 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                   </Link>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Perk Credits Summary */}
+          {monthlyPerkCredits.length > 0 && (
+            <div className="card">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-fjord">Card Perk Credits</h2>
+                <Link
+                  href={`/transactions?classification=perk_reimbursement${activeMonthStr ? `&month=${activeMonthStr}` : ''}`}
+                  className="text-xs text-pine hover:underline"
+                >
+                  View all
+                </Link>
+              </div>
+              <p className="mt-1 text-xs text-stone">
+                {monthlyPerkCredits.length} perk credit{monthlyPerkCredits.length !== 1 ? 's' : ''} received this period
+              </p>
+              <p className="mt-2 font-mono text-2xl font-semibold text-pine">
+                {formatCurrency(perkTotal)}
+              </p>
+              {perkByBenefit.size > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {[...perkByBenefit.entries()]
+                    .sort(([, a], [, b]) => b.total - a.total)
+                    .map(([name, { count, total }]) => (
+                      <li key={name} className="flex items-center justify-between text-sm">
+                        <span className="text-fjord">{name}</span>
+                        <span className="font-mono text-stone">
+                          {formatCurrency(total)}{count > 1 ? ` (${count}x)` : ''}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              )}
             </div>
           )}
 

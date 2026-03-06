@@ -93,6 +93,9 @@ const DEFAULT_CATEGORIES: SeedCategory[] = [
   // Other
   { type: 'expense', group: 'Other', name: 'Uncategorized', icon: '❓' },
 
+  // === CARD BENEFITS ===
+  { type: 'perk_reimbursement', group: 'Card Benefits', name: 'Card Perk Credits', icon: '💳' },
+
   // === TRANSFERS ===
   { type: 'transfer', group: 'Transfers', name: 'Transfer', icon: '🔄' },
   { type: 'transfer', group: 'Transfers', name: 'Credit Card Payment', icon: '💳' },

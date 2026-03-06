@@ -83,7 +83,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
   // Detect refund pairs for badge display
   const refundPairIds = findRefundPairs(
-    transactions.map(tx => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId }))
+    transactions.map(tx => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId, classification: tx.classification }))
   )
 
   // Serialize dates for the client component

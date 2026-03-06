@@ -594,11 +594,13 @@ export async function POST(request: Request) {
       const matchedCat = categoryId
         ? [...categoryMap.values()].find(c => c.id === categoryId)
         : null
-      const classification = classifyTransaction(
-        (matchedCat as { group?: string } | null)?.group,
-        matchedCat?.type,
-        finalAmount,
-      )
+      const classification = matchedCat?.type === 'perk_reimbursement'
+        ? 'perk_reimbursement'
+        : classifyTransaction(
+            (matchedCat as { group?: string } | null)?.group,
+            matchedCat?.type,
+            finalAmount,
+          )
 
       toImport.push({
         userId: session.userId,
