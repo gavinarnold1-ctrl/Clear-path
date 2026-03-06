@@ -33,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     currentValue, loanBalance, monthlyPayment: bodyMonthlyPayment,
     interestRate: bodyInterestRate, loanTermMonths, loanStartDate,
     monthlyPropertyTax, monthlyInsurance, monthlyHOA, monthlyPMI,
+    appreciationRate,
   } = body
 
   if (type !== undefined && !VALID_TYPES.has(type)) {
@@ -114,6 +115,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(monthlyInsurance !== undefined && { monthlyInsurance }),
       ...(monthlyHOA !== undefined && { monthlyHOA }),
       ...(monthlyPMI !== undefined && { monthlyPMI }),
+      ...(appreciationRate !== undefined && { appreciationRate: appreciationRate != null ? parseFloat(appreciationRate) : 0.03 }),
     },
     include: { group: { select: { id: true, name: true } } },
   })

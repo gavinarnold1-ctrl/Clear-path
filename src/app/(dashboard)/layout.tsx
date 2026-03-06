@@ -26,6 +26,7 @@ function buildNavGroups(showProperties: boolean): NavGroup[] {
       label: 'Periodic',
       items: [
         { href: '/monthly-review', label: 'Monthly Review' },
+        { href: '/forecast', label: 'Forecast' },
         { href: '/spending-analytics', label: 'Analytics' },
       ],
     },

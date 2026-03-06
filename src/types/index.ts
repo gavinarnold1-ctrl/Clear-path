@@ -202,10 +202,42 @@ export interface OnboardingAnswers {
   incomeRange: IncomeRange | null
 }
 
+// ─── Asset Classification ────────────────────────────────────────────────────
+
+export type AssetClass =
+  | 'cash'
+  | 'high_yield_savings'
+  | 'bonds'
+  | 'index_fund'
+  | 'mutual_fund'
+  | 'individual_stock'
+  | 'crypto'
+  | 'real_estate'
+  | 'other'
+
+export interface AssetClassConfig {
+  expectedAnnualReturn: number // decimal, e.g. 0.045
+  riskWeight: number           // 0.0–1.0
+  volatility: number           // annualized standard deviation
+  label: string
+}
+
 // ─── Goal target ─────────────────────────────────────────────────────────────
 
+export type GoalMetric =
+  | 'savings_amount'
+  | 'savings_rate'
+  | 'debt_payoff'
+  | 'debt_total'
+  | 'category_spend'
+  | 'categories_at_benchmark'
+  | 'categorization_pct'
+  | 'net_worth_increase'
+  | 'net_worth_target'
+
 export interface GoalTarget {
-  metric: 'savings_amount' | 'savings_rate' | 'debt_payoff' | 'category_spend' | 'categorization_pct' | 'net_worth_increase'
+  archetype?: PrimaryGoal
+  metric: GoalMetric
   targetValue: number       // e.g., 20000 (dollars) or 20 (percent)
   targetDate: string        // ISO date — when user wants to hit target
   startValue: number        // value when goal was set (baseline)
@@ -213,6 +245,145 @@ export interface GoalTarget {
   currentValue?: number     // latest computed value (updated on each dashboard load)
   description: string       // human-readable: "Save $20,000 by December 2026"
   monthlyNeeded?: number    // computed: what monthly contribution keeps you on pace
+  linkedDebtId?: string
+  linkedCategoryId?: string
+}
+
+// ─── Forecast Engine Input/Output ────────────────────────────────────────────
+
+export interface ForecastInput {
+  goal: GoalTarget
+  snapshots: MonthlySnapshotData[]
+  debts: DebtForForecast[]
+  accounts: AccountForForecast[]
+  budgets: BudgetSummaryForForecast
+  annualExpenses: AnnualExpenseForForecast[]
+  properties?: PropertyForForecast[]
+}
+
+export interface MonthlySnapshotData {
+  month: string // ISO date (first of month)
+  totalIncome: number
+  totalExpenses: number
+  netSurplus: number
+  savingsRate: number
+  totalDebt: number | null
+  debtPaidDown: number | null
+  netWorth: number | null
+  trueRemaining: number
+}
+
+export interface DebtForForecast {
+  id: string
+  name: string
+  type: string
+  balance: number
+  interestRate: number
+  minimumPayment: number
+  actualAvgPayment?: number
+}
+
+export interface AccountForForecast {
+  id: string
+  name: string
+  type: string
+  balance: number
+  assetClass: AssetClass
+  expectedReturn?: number | null
+  riskWeight?: number | null
+}
+
+export interface BudgetSummaryForForecast {
+  fixedTotal: number
+  flexibleTotal: number
+  annualSetAside: number
+  expectedMonthlyIncome: number
+  totalBudgeted: number
+  projectedSurplus: number
+}
+
+export interface AnnualExpenseForForecast {
+  id: string
+  name: string
+  annualAmount: number
+  monthlySetAside: number
+  funded: number
+  dueMonth: number
+  dueYear: number
+  status: string
+}
+
+export interface PropertyForForecast {
+  id: string
+  name: string
+  currentValue: number
+  loanBalance: number | null
+  interestRate: number | null
+  monthlyPayment: number | null
+  appreciationRate: number
+}
+
+// ─── Forecast Output ─────────────────────────────────────────────────────────
+
+export interface Forecast {
+  currentValue: number
+  progressPercent: number
+  pace: 'ahead' | 'on_track' | 'behind' | 'at_risk' | 'off_track'
+  paceDetail: string
+  monthlyVelocity: number
+  requiredVelocity: number
+  projectedDate: string | null
+  projectedValue: number
+  daysAhead: number
+  timeline: ForecastPoint[]
+  scenarios: ForecastScenario[]
+  confidence: 'high' | 'medium' | 'low'
+  confidenceReason: string
+  tabSummaries: {
+    dashboard: string
+    budgets: string
+    debts: string
+    annualPlan: string
+    transactions: string
+  }
+  assetGrowth: AssetGrowthProjection[]
+}
+
+export interface ForecastPoint {
+  month: string // "2026-04"
+  projected: number
+  optimistic: number
+  conservative: number
+  onPlan: number
+  actual?: number
+  isHistorical: boolean
+}
+
+export interface AssetGrowthProjection {
+  accountId: string
+  accountName: string
+  assetClass: AssetClass
+  currentBalance: number
+  projectedBalance12mo: number
+  expectedGrowth: number
+  uncertaintyRange: { low: number; high: number }
+}
+
+export interface ForecastScenario {
+  id: string
+  label: string
+  description: string
+  type: 'expense' | 'debt' | 'income' | 'refinance' | 'investment' | 'cut'
+  impact: {
+    newProjectedDate: string | null
+    daysSaved: number
+    monthlyImpactOnTrueRemaining: number
+    monthlyImpactOnGoal: number
+    totalInterestImpact?: number
+    newMonthlyPayment?: number
+    budgetCategoriesAffected: string[]
+    annualExpensesAffected: string[]
+  }
 }
 
 // ─── Card benefits types ─────────────────────────────────────────────────────

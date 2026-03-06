@@ -12,6 +12,7 @@ import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
 import { getValueSummary } from '@/lib/value-tracker'
 import { getGoalContext } from '@/lib/goal-context'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
 import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
 import type { PrimaryGoal, GoalTarget } from '@/types'
 
@@ -196,6 +197,9 @@ export default async function DashboardPage({ searchParams }: Props) {
     getGoalContext(session.userId),
   ])
 
+  // Fetch forecast summaries (non-blocking, after main data)
+  const forecastSummaries = await getForecastSummaries(session.userId)
+
   // New users with no accounts: show streamlined "Get Started" flow
   if (accounts.length === 0) {
     return <GetStarted />
@@ -360,6 +364,17 @@ export default async function DashboardPage({ searchParams }: Props) {
           target={goalTarget}
           trueRemaining={trueRemaining}
         />
+      )}
+
+      {/* Forecast summary — links to full forecast page */}
+      {forecastSummaries && (
+        <div className="mb-4 rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
+          <span className="text-xs font-medium uppercase tracking-wider text-stone">Forecast</span>
+          <p className="mt-1 text-sm text-fjord">{forecastSummaries.dashboard}</p>
+          <Link href="/forecast" className="mt-1 inline-block text-xs text-pine hover:underline">
+            See full forecast →
+          </Link>
+        </div>
       )}
 
       {/* True Remaining Hero — R8.1, R6.6 (secondary when goal is set, primary otherwise) */}

@@ -8,6 +8,11 @@ const VALID_TYPES = new Set([
   'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN',
 ])
 
+const VALID_ASSET_CLASSES = new Set([
+  'cash', 'high_yield_savings', 'bonds', 'index_fund', 'mutual_fund',
+  'individual_stock', 'crypto', 'real_estate', 'other',
+])
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,7 +22,7 @@ export async function PATCH(
 
   const { id } = await params
   const body = await req.json()
-  const { name, type, balance, institution, ownerId, startingBalance, balanceAsOfDate } = body
+  const { name, type, balance, institution, ownerId, startingBalance, balanceAsOfDate, assetClass, expectedReturn, riskWeightOverride } = body
 
   const existing = await db.account.findFirst({
     where: { id, userId: session.userId },
@@ -28,6 +33,10 @@ export async function PATCH(
 
   if (type && !VALID_TYPES.has(type)) {
     return NextResponse.json({ error: 'Invalid account type' }, { status: 400 })
+  }
+
+  if (assetClass && !VALID_ASSET_CLASSES.has(assetClass)) {
+    return NextResponse.json({ error: 'Invalid asset class' }, { status: 400 })
   }
 
   // R3.2a: Validate ownerId belongs to this user
@@ -74,12 +83,15 @@ export async function PATCH(
       ...(computedBalance !== undefined && { balance: computedBalance }),
       ...(institution !== undefined && { institution: institution || null }),
       ...(ownerId !== undefined && { ownerId: ownerId || null }),
+      ...(assetClass !== undefined && { assetClass: assetClass || null }),
+      ...(expectedReturn !== undefined && { expectedReturn: expectedReturn != null ? parseFloat(expectedReturn) : null }),
+      ...(riskWeightOverride !== undefined && { riskWeightOverride: riskWeightOverride != null ? parseFloat(riskWeightOverride) : null }),
     },
     select: {
       id: true, name: true, type: true, balance: true, startingBalance: true,
       balanceAsOfDate: true, currency: true, institution: true, isManual: true,
       createdAt: true, updatedAt: true, plaidAccountId: true, plaidLastSynced: true,
-      ownerId: true,
+      ownerId: true, assetClass: true, expectedReturn: true, riskWeightOverride: true,
       // R11.5: Never expose plaidAccessToken, plaidItemId, or plaidCursor
     },
   })

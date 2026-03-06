@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
 import AnnualOverview from '@/components/annual/AnnualOverview'
 import AnnualAlerts from '@/components/annual/AnnualAlerts'
 import AutoFundBanner from '@/components/annual/AutoFundBanner'
@@ -134,6 +135,8 @@ export default async function AnnualPlanningPage() {
     icon: c.icon,
   }))
 
+  const forecastSummary = await getForecastSummaries(session.userId)
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -143,6 +146,13 @@ export default async function AnnualPlanningPage() {
         </div>
         <AddExpenseButton categories={categoryOptions} />
       </div>
+
+      {forecastSummary && (
+        <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
+          <span className="text-xs font-medium uppercase text-stone">Annual Plan ↔ Goal</span>
+          <p className="text-sm text-fjord">{forecastSummary.annualPlan}</p>
+        </div>
+      )}
 
       <AnnualAlerts expenses={enriched} />
 
