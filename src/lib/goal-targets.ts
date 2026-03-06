@@ -85,6 +85,53 @@ export function monthsBetween(start: string, end: string): number {
   return (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
 }
 
+/**
+ * Compute the goal timeline impact of changing a budget amount.
+ * Returns the shift in projected completion date.
+ */
+export function computeBudgetChangeImpact(
+  goalTarget: GoalTarget,
+  currentSurplus: number,          // current monthly surplus (income - all budgets)
+  budgetDelta: number,             // positive = increased budget, negative = decreased
+): {
+  currentProjectedDate: string
+  newProjectedDate: string
+  monthsShifted: number            // positive = later, negative = earlier
+  newMonthlySurplus: number
+} | null {
+  if (!goalTarget.monthlyNeeded || goalTarget.monthlyNeeded <= 0) return null
+
+  const remaining = goalTarget.targetValue - (goalTarget.currentValue ?? goalTarget.startValue)
+  if (remaining <= 0) return null
+
+  // Current projection
+  const currentMonthlyContribution = Math.max(currentSurplus, 0)
+  const currentMonths = currentMonthlyContribution > 0
+    ? Math.ceil(remaining / currentMonthlyContribution)
+    : 999 // Effectively infinity
+
+  // New projection after budget change
+  const newSurplus = currentSurplus - budgetDelta  // Increasing budget reduces surplus
+  const newMonthlyContribution = Math.max(newSurplus, 0)
+  const newMonths = newMonthlyContribution > 0
+    ? Math.ceil(remaining / newMonthlyContribution)
+    : 999
+
+  const currentDate = new Date()
+  const currentProjected = new Date(currentDate)
+  currentProjected.setMonth(currentProjected.getMonth() + currentMonths)
+
+  const newProjected = new Date(currentDate)
+  newProjected.setMonth(newProjected.getMonth() + newMonths)
+
+  return {
+    currentProjectedDate: currentProjected.toISOString(),
+    newProjectedDate: newProjected.toISOString(),
+    monthsShifted: newMonths - currentMonths,
+    newMonthlySurplus: newSurplus,
+  }
+}
+
 /** Projected completion date based on current pace */
 export function projectedDate(target: GoalTarget): string {
   if (!target.currentValue || !target.monthlyNeeded || target.monthlyNeeded <= 0) {

@@ -16,6 +16,8 @@ import { findRefundPairs } from '@/lib/refund-detection'
 import { getGoalContext } from '@/lib/goal-context'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
+import { getBudgetBenchmarks } from '@/lib/budget-benchmarks'
+import BenchmarkBar from '@/components/budgets/BenchmarkBar'
 import type { GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Budgets' }
@@ -78,7 +80,7 @@ export default async function BudgetsPage() {
     // User profile for expected income + goal target
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { expectedMonthlyIncome: true, primaryGoal: true, goalTarget: true },
+      select: { expectedMonthlyIncome: true, primaryGoal: true, goalTarget: true, incomeRange: true },
     }),
     // Count of uncategorized transactions this month (for review banner)
     db.transaction.count({
@@ -431,6 +433,21 @@ export default async function BudgetsPage() {
   const goalTarget = userProfile?.goalTarget as GoalTarget | null
   const projectedMonthlySurplus = expectedIncome - fixedTotal - flexibleBudgeted - annualSetAside
 
+  // BLS benchmark comparisons for flexible budgets
+  const categorySpendingForBenchmark = namedFlexible.map(b => ({
+    categoryId: b.categoryId ?? b.id,
+    categoryName: b.category?.name ?? b.name,
+    categoryGroup: b.category?.group ?? '',
+    spent: b.spent,
+  }))
+  const benchmarks = await getBudgetBenchmarks(session.userId, categorySpendingForBenchmark, userProfile?.incomeRange ?? null)
+  const benchmarkMap = new Map(benchmarks.map(b => [b.categoryName, b]))
+
+  const overBenchmarkCount = benchmarks.filter(b => b.status === 'over' || b.status === 'way_over').length
+  const totalPotentialSavings = benchmarks
+    .filter(b => b.delta > 0)
+    .reduce((sum, b) => sum + b.delta, 0)
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -503,12 +520,29 @@ export default async function BudgetsPage() {
           )}
 
           <FixedBudgetSection budgets={fixed} transactions={transactions} />
+          {benchmarks.length > 0 && (
+            <div className="mb-3 rounded-lg bg-frost px-3 py-2 text-xs text-stone">
+              {overBenchmarkCount === 0 ? (
+                <span className="font-medium text-pine">All flexible spending is at or below bracket averages</span>
+              ) : (
+                <span>
+                  <strong className="text-ember">{overBenchmarkCount} categor{overBenchmarkCount === 1 ? 'y' : 'ies'}</strong> above your bracket average
+                  {totalPotentialSavings > 0 && (
+                    <> — matching benchmarks could free up <strong className="text-pine">{formatCurrency(totalPotentialSavings)}/month</strong></>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
           <FlexibleBudgetSection
             budgets={namedFlexible}
             unallocatedAmount={flexibleBudgeted - namedFlexibleTotal > 0 ? flexibleBudgeted - namedFlexibleTotal : totalUnbudgetedSpend > 0 ? totalUnbudgetedSpend : undefined}
             unallocatedSpent={catchAllBudgets.length > 0 ? catchAllBudgets[0].spent : totalUnbudgetedSpend}
             totalFlexibleBudget={flexibleBudgeted}
             totalFlexibleSpent={flexibleSpent}
+            benchmarks={benchmarks}
+            primaryGoal={userProfile?.primaryGoal ?? undefined}
+            hasGoalTarget={!!goalTarget}
           />
           <AnnualBudgetSection budgets={annual} />
           <UnbudgetedSection categories={unbudgetedCategories} />

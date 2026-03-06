@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useActionState } from 'react'
 import toast from 'react-hot-toast'
 import { createBudget, updateBudget } from '@/app/actions/budgets'
@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
+import GoalImpactTooltip from '@/components/budgets/GoalImpactTooltip'
+import { computeBudgetChangeImpact } from '@/lib/goal-targets'
+import type { GoalTarget } from '@/types'
 
 interface CategoryOption {
   id: string
@@ -32,6 +35,8 @@ interface InitialBudget {
 interface Props {
   categories: CategoryOption[]
   initialBudget?: InitialBudget
+  goalTarget?: GoalTarget
+  currentSurplus?: number
 }
 
 const initialState = { error: null }
@@ -61,14 +66,25 @@ const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(),
 
 const currentYear = new Date().getFullYear()
 
-export default function BudgetForm({ categories, initialBudget }: Props) {
+export default function BudgetForm({ categories, initialBudget, goalTarget, currentSurplus }: Props) {
   const isEdit = !!initialBudget
   const action = isEdit ? updateBudget : createBudget
   const [state, formAction, isPending] = useActionState(action, initialState)
   const [tier, setTier] = useState(initialBudget?.tier ?? 'FLEXIBLE')
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editAmount, setEditAmount] = useState<string>(String(initialBudget?.amount ?? ''))
   const expenseCategories = categories.filter((c) => c.type === 'expense')
+
+  // Compute goal impact when amount changes
+  const goalImpact = useMemo(() => {
+    if (!goalTarget || currentSurplus === undefined || !initialBudget) return null
+    const newAmount = parseFloat(editAmount)
+    if (isNaN(newAmount)) return null
+    const delta = newAmount - initialBudget.amount
+    if (delta === 0) return null
+    return computeBudgetChangeImpact(goalTarget, currentSurplus, delta)
+  }, [goalTarget, currentSurplus, initialBudget, editAmount])
 
   async function handleDelete() {
     if (!initialBudget) return
@@ -140,17 +156,27 @@ export default function BudgetForm({ categories, initialBudget }: Props) {
 
       {/* Amount — FIXED and FLEXIBLE */}
       {(tier === 'FIXED' || tier === 'FLEXIBLE') && (
-        <FormInput
-          label={tier === 'FIXED' ? 'Monthly amount' : 'Spending limit'}
-          name="amount"
-          type="number"
-          step="0.01"
-          min="0.01"
-          startAdornment="$"
-          defaultValue={initialBudget?.amount ?? ''}
-          placeholder="0.00"
-          required
-        />
+        <div>
+          <FormInput
+            label={tier === 'FIXED' ? 'Monthly amount' : 'Spending limit'}
+            name="amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            startAdornment="$"
+            defaultValue={initialBudget?.amount ?? ''}
+            placeholder="0.00"
+            required
+            onChange={(e: { target: { value: string } }) => setEditAmount(e.target.value)}
+          />
+          {goalImpact && (
+            <GoalImpactTooltip
+              monthsShifted={goalImpact.monthsShifted}
+              newProjectedDate={goalImpact.newProjectedDate}
+              isVisible
+            />
+          )}
+        </div>
       )}
 
       {/* FIXED-specific fields */}

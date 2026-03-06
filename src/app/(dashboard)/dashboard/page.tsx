@@ -14,6 +14,8 @@ import { getValueSummary } from '@/lib/value-tracker'
 import { getGoalContext } from '@/lib/goal-context'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
 import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
+import { checkRecalibration } from '@/lib/goal-recalibration'
+import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Overview' }
@@ -200,6 +202,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Fetch forecast summaries (non-blocking, after main data)
   const forecastSummaries = await getForecastSummaries(session.userId)
 
+  // Check if goal needs recalibration
+  const goalTargetData = userProfile?.goalTarget as GoalTarget | null
+  const recalibration = goalTargetData && userProfile?.primaryGoal
+    ? await checkRecalibration(session.userId, goalTargetData, userProfile.primaryGoal as PrimaryGoal)
+    : null
+
   // New users with no accounts: show streamlined "Get Started" flow
   if (accounts.length === 0) {
     return <GetStarted />
@@ -365,6 +373,9 @@ export default async function DashboardPage({ searchParams }: Props) {
           trueRemaining={trueRemaining}
         />
       )}
+
+      {/* Goal Recalibration Banner — shown when user is behind pace */}
+      {recalibration && <RecalibrationWrapper suggestion={recalibration} />}
 
       {/* Forecast summary — links to full forecast page */}
       {forecastSummaries && (

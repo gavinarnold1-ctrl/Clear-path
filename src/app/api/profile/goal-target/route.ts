@@ -31,15 +31,34 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { goalTarget: providedTarget } = body as { goalTarget?: GoalTarget }
+  const { goalTarget: providedTarget, targetDate, monthlyNeeded } = body as {
+    goalTarget?: GoalTarget
+    targetDate?: string
+    monthlyNeeded?: number
+  }
 
   const profile = await db.userProfile.findUnique({
     where: { userId: session.userId },
-    select: { primaryGoal: true, expectedMonthlyIncome: true },
+    select: { primaryGoal: true, expectedMonthlyIncome: true, goalTarget: true },
   })
 
   if (!profile?.primaryGoal) {
     return NextResponse.json({ error: 'Set a primary goal first' }, { status: 400 })
+  }
+
+  // Recalibration: partial update to existing target (targetDate or monthlyNeeded only)
+  const existingTarget = profile.goalTarget as unknown as GoalTarget | null
+  if (existingTarget && (targetDate || monthlyNeeded) && !providedTarget) {
+    const updated = {
+      ...existingTarget,
+      ...(targetDate ? { targetDate } : {}),
+      ...(monthlyNeeded ? { monthlyNeeded } : {}),
+    }
+    await db.userProfile.update({
+      where: { userId: session.userId },
+      data: { goalTarget: JSON.parse(JSON.stringify(updated)) },
+    })
+    return NextResponse.json({ goalTarget: updated, recalibrated: true })
   }
 
   let goalTarget: GoalTarget

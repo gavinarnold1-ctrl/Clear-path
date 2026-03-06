@@ -13,7 +13,8 @@ import GenerateButton from './GenerateButton'
 import MonthSelector from './MonthSelector'
 import { getGoalContext } from '@/lib/goal-context'
 import { projectedDate } from '@/lib/goal-targets'
-import type { GoalTarget } from '@/types'
+import { checkRecalibration } from '@/lib/goal-recalibration'
+import type { GoalTarget, PrimaryGoal } from '@/types'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
 
@@ -198,6 +199,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     ? activeSnapshot.totalIncome - activeSnapshot.totalExpenses
     : 0
 
+  // Recalibration check
+  const recalibration = goalTarget && goalProfile?.primaryGoal
+    ? await checkRecalibration(session.userId, goalTarget, goalProfile.primaryGoal as PrimaryGoal)
+    : null
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -258,6 +264,18 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                     <p className="text-lg font-bold text-fjord">{projectedDate(goalTarget)}</p>
                   </div>
                 </div>
+
+                {recalibration && recalibration.type !== 'celebrate_completion' && (
+                  <div className="mt-4 rounded-lg border border-ember/20 bg-ember/5 px-4 py-3">
+                    <p className="text-sm font-medium text-fjord">
+                      You&apos;ve been behind your target pace for {recalibration.monthsBehind} months.
+                      Consider adjusting your timeline or increasing your monthly contribution.
+                    </p>
+                    <a href="/settings" className="mt-2 inline-block text-sm text-pine hover:underline">
+                      Review your goal &rarr;
+                    </a>
+                  </div>
+                )}
               </div>
             </section>
           )}
