@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import { formatMonthName } from '@/lib/budget-engine'
 
 interface Category {
@@ -211,17 +212,17 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
           {error && <p className="text-sm text-ember">{error}</p>}
 
           <div className="flex justify-end gap-2">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={onClose}
-              className="btn-secondary px-4 py-2 text-sm"
               disabled={submitting}
             >
               Cancel
-            </button>
-            <button type="submit" className="btn-primary px-4 py-2 text-sm" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Add Expense'}
-            </button>
+            </Button>
+            <Button type="submit" disabled={submitting} loading={submitting} loadingText="Creating...">
+              Add Expense
+            </Button>
           </div>
         </form>
       </div>

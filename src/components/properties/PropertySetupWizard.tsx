@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import { pitiBreakdown } from '@/lib/engines/amortization'
 import type { PITIBreakdown } from '@/lib/engines/amortization'
 
@@ -558,19 +559,20 @@ export default function PropertySetupWizard({ isOpen, onClose, accounts, existin
 
             {/* Navigation */}
             <div className="mt-6 flex justify-between">
-              <button
+              <Button
+                variant="secondary"
                 onClick={step === 0 ? onClose : handleBack}
-                className="btn-secondary px-4 py-2 text-sm"
               >
                 {step === 0 ? 'Cancel' : 'Back'}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleNext}
-                disabled={!canProceed() || saving}
-                className="btn-primary px-5 py-2 text-sm disabled:opacity-50"
+                disabled={!canProceed()}
+                loading={saving}
+                loadingText="Saving..."
               >
-                {saving ? 'Saving...' : isLastStep ? 'Confirm & Save' : 'Continue'}
-              </button>
+                {isLastStep ? 'Confirm & Save' : 'Continue'}
+              </Button>
             </div>
           </>
         )}
@@ -1315,9 +1317,9 @@ function SuccessScreen({
         {name} has been set up successfully.
         {isMultiUnit && ' Individual unit properties have been created with split allocations.'}
       </p>
-      <button onClick={onClose} className="btn-primary px-6 py-2 text-sm">
+      <Button onClick={onClose}>
         Done
-      </button>
+      </Button>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import type { BudgetProposal } from '@/lib/budget-builder'
 
 export type BuilderMode = 'replace' | 'merge'
@@ -52,24 +53,17 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
   if (hasBudgets) {
     return (
       <div className="relative">
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={() => setShowMenu(prev => !prev)}
           disabled={generating}
-          className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+          loading={generating}
+          loadingText="Analyzing..."
         >
-          {generating ? (
-            <>
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <span>&#x2728;</span>
-              AI Budget Builder
-            </>
-          )}
-        </button>
+          <span>&#x2728;</span>
+          AI Budget Builder
+        </Button>
         {showMenu && !generating && (
           <div className="absolute right-0 z-10 mt-1 w-56 rounded-card border border-mist bg-snow shadow-lg">
             <button
@@ -124,24 +118,16 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
         </div>
       )}
 
-      <button
+      <Button
         type="button"
         onClick={() => handleGenerate('merge')}
         disabled={generating}
-        className="btn-primary flex items-center gap-2 disabled:opacity-50"
+        loading={generating}
+        loadingText="Analyzing your spending..."
       >
-        {generating ? (
-          <>
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            Analyzing your spending...
-          </>
-        ) : (
-          <>
-            <span>&#x2728;</span>
-            Generate budget proposal
-          </>
-        )}
-      </button>
+        <span>&#x2728;</span>
+        Generate budget proposal
+      </Button>
 
       {generating && (
         <p className="mt-3 text-xs text-stone">

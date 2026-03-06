@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import AccountManager from '@/components/accounts/AccountManager'
@@ -64,20 +65,18 @@ export default async function AccountsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fjord">Accounts</h1>
-        <Link href="/accounts/new" className="btn-primary">
+        <Button href="/accounts/new">
           + Add account
-        </Link>
+        </Button>
       </div>
 
       {accounts.length === 0 ? (
-        <div className="card py-16 text-center">
-          <p className="mb-2 text-sm font-medium text-stone">No accounts yet</p>
-          <p className="mb-4 text-xs text-stone">
-            Add a checking, savings, or credit account to start tracking.
-          </p>
-          <Link href="/accounts/new" className="btn-primary inline-block">
-            + Add account
-          </Link>
+        <div className="card">
+          <EmptyState
+            title="No accounts yet"
+            description="Add a checking, savings, or credit account to start tracking."
+            action={{ label: "+ Add account", href: "/accounts/new" }}
+          />
         </div>
       ) : (
         <>

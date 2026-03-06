@@ -3,6 +3,8 @@
 import { useActionState } from 'react'
 import Link from 'next/link'
 import { register } from '@/app/actions/auth'
+import { Button } from '@/components/ui/Button'
+import { FormInput } from '@/components/ui/FormInput'
 
 const initialState = { error: null }
 
@@ -17,49 +19,31 @@ export default function RegisterForm() {
         </p>
       )}
 
-      <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-fjord">
-          Name
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          autoComplete="name"
-          className="input"
-          placeholder="Your name"
-        />
-      </div>
+      <FormInput
+        label="Name"
+        name="name"
+        type="text"
+        autoComplete="name"
+        placeholder="Your name"
+      />
 
-      <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium text-fjord">
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          className="input"
-          placeholder="you@example.com"
-          required
-        />
-      </div>
+      <FormInput
+        label="Email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        placeholder="you@example.com"
+        required
+      />
 
-      <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium text-fjord">
-          Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          className="input"
-          placeholder="Min. 8 characters"
-          required
-        />
-      </div>
+      <FormInput
+        label="Password"
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        placeholder="Min. 8 characters"
+        required
+      />
 
       <div className="flex items-start gap-2">
         <input
@@ -91,9 +75,9 @@ export default function RegisterForm() {
         </label>
       </div>
 
-      <button type="submit" className="btn-primary w-full" disabled={isPending}>
-        {isPending ? 'Creating account…' : 'Create account'}
-      </button>
+      <Button type="submit" fullWidth disabled={isPending} loading={isPending} loadingText="Creating account…">
+        Create account
+      </Button>
 
       <p className="text-center text-sm text-stone">
         Already have an account?{' '}

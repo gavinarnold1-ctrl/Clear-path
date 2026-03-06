@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { GoalTarget, PrimaryGoal } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { monthsBetween, projectedDate } from '@/lib/goal-targets'
+import { Button } from '@/components/ui/Button'
 
 interface GoalProgressCardProps {
   goal: PrimaryGoal
@@ -177,12 +178,12 @@ function GoalTargetProposal({ goal, goalLabel }: { goal: PrimaryGoal; goalLabel:
           </p>
         )}
         <div className="mt-4 flex gap-3">
-          <button onClick={acceptTarget} className="btn-primary">
+          <Button onClick={acceptTarget}>
             Set This Target
-          </button>
-          <button onClick={() => setProposal(null)} className="btn-secondary">
+          </Button>
+          <Button variant="secondary" onClick={() => setProposal(null)}>
             Dismiss
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -196,9 +197,9 @@ function GoalTargetProposal({ goal, goalLabel }: { goal: PrimaryGoal; goalLabel:
       <p className="mt-1 text-sm text-stone">
         A concrete target turns your goal into a destination with visible progress.
       </p>
-      <button onClick={proposeTarget} className="btn-primary mt-4" disabled={proposing}>
-        {proposing ? 'Analyzing your spending...' : 'Suggest a Target'}
-      </button>
+      <Button onClick={proposeTarget} className="mt-4" disabled={proposing} loading={proposing} loadingText="Analyzing your spending...">
+        Suggest a Target
+      </Button>
     </div>
   )
 }

@@ -1,16 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import { ConfirmModal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 
 export default function ReimportPage() {
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   async function handleReimport() {
-    if (!confirm('This will DELETE all your transactions, accounts, categories, budgets, and debts, then reimport from the CSV. Are you sure?')) {
-      return
-    }
-
+    setConfirmOpen(false)
     setStatus('running')
     setResult(null)
 
@@ -41,17 +41,24 @@ export default function ReimportPage() {
         with proper category groups, classification, and household member mapping.
       </p>
 
-      <button
-        onClick={handleReimport}
-        disabled={status === 'running'}
-        className={`rounded-button px-6 py-3 font-semibold text-snow ${
-          status === 'running'
-            ? 'cursor-not-allowed bg-stone'
-            : 'bg-ember hover:bg-ember/90'
-        }`}
+      <Button
+        variant="danger"
+        onClick={() => setConfirmOpen(true)}
+        loading={status === 'running'}
+        loadingText="Reimporting... (this takes ~30s)"
       >
-        {status === 'running' ? 'Reimporting... (this takes ~30s)' : 'Nuke & Reimport'}
-      </button>
+        Nuke &amp; Reimport
+      </Button>
+
+      <ConfirmModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleReimport}
+        title="Nuke & Reimport?"
+        description="This will DELETE all your transactions, accounts, categories, budgets, and debts, then reimport from the CSV. Are you sure?"
+        confirmLabel="Yes, reimport"
+        variant="danger"
+      />
 
       {status === 'done' && result && (
         <div className="mt-6 rounded-card border border-pine/30 bg-frost p-4">

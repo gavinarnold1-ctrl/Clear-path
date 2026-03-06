@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 
 interface CategoryRow {
   id: string
@@ -207,9 +208,9 @@ export default function CategoryManager({ categories: initial }: Props) {
               </div>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setDeleteTarget(null); setReassignTo('') }} className="btn-secondary text-sm">
+              <Button variant="secondary" size="sm" onClick={() => { setDeleteTarget(null); setReassignTo('') }}>
                 Cancel
-              </button>
+              </Button>
               <button onClick={confirmDelete} className="rounded bg-ember px-3 py-1.5 text-sm font-medium text-snow hover:bg-ember/80">
                 Delete
               </button>
@@ -241,9 +242,9 @@ export default function CategoryManager({ categories: initial }: Props) {
               </select>
             </label>
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setMergeSource(null); setMergeTarget('') }} className="btn-secondary text-sm">
+              <Button variant="secondary" size="sm" onClick={() => { setMergeSource(null); setMergeTarget('') }}>
                 Cancel
-              </button>
+              </Button>
               <button
                 onClick={confirmMerge}
                 disabled={!mergeTarget}

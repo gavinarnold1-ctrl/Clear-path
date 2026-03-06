@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import CategoryManager from '@/components/categories/CategoryManager'
@@ -47,20 +48,18 @@ export default async function CategoriesPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fjord">Categories</h1>
-        <Link href="/categories/new" className="btn-primary">
+        <Button href="/categories/new">
           + New category
-        </Link>
+        </Button>
       </div>
 
       {categories.length === 0 ? (
-        <div className="card py-16 text-center">
-          <p className="mb-2 text-sm font-medium text-stone">No categories yet</p>
-          <p className="mb-4 text-xs text-stone">
-            Add categories to organise your transactions and budgets.
-          </p>
-          <Link href="/categories/new" className="btn-primary inline-block">
-            + New category
-          </Link>
+        <div className="card">
+          <EmptyState
+            title="No categories yet"
+            description="Add categories to organise your transactions and budgets."
+            action={{ label: "+ New category", href: "/categories/new" }}
+          />
         </div>
       ) : (
         <CategoryManager categories={serialized} />

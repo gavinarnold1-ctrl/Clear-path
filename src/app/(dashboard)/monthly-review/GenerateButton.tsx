@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 
 export default function GenerateButton({ hasTransactions }: { hasTransactions: boolean }) {
   const [loading, setLoading] = useState(false)
@@ -30,14 +31,15 @@ export default function GenerateButton({ hasTransactions }: { hasTransactions: b
   return (
     <div className="flex items-center gap-3">
       {error && <p className="text-sm text-expense">{error}</p>}
-      <button
+      <Button
         type="button"
         onClick={handleGenerate}
-        disabled={loading || !hasTransactions}
-        className="btn-primary disabled:cursor-not-allowed"
+        disabled={!hasTransactions}
+        loading={loading}
+        loadingText="Generating..."
       >
-        {loading ? 'Generating...' : 'Generate Review'}
-      </button>
+        Generate Review
+      </Button>
     </div>
   )
 }

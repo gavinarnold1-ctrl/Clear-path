@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import PropertySetupWizard from '@/components/properties/PropertySetupWizard'
 
 interface AccountOption {
@@ -15,9 +16,9 @@ export default function AddPropertyButton({ accounts }: { accounts: AccountOptio
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn-primary text-sm px-4 py-1.5">
+      <Button size="sm" onClick={() => setOpen(true)}>
         + Add Property
-      </button>
+      </Button>
       <PropertySetupWizard
         isOpen={open}
         onClose={() => setOpen(false)}

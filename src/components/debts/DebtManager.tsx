@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
+import { FormInput } from '@/components/ui/FormInput'
+import { FormSelect } from '@/components/ui/FormSelect'
 import { amortizationSchedule, effectiveRate as calcEffectiveRate } from '@/lib/engines/amortization'
 import type { AmortizationRow } from '@/lib/engines/amortization'
 
@@ -348,180 +350,127 @@ export default function DebtManager({ debts: initial, properties, categories }: 
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">Name</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="input"
-                  placeholder="e.g. Mortgage - 123 Main St"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">Type</label>
-                <select
-                  value={formType}
-                  onChange={(e) => setFormType(e.target.value)}
-                  className="input"
-                >
-                  {DEBT_TYPES.map(t => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
+              <FormInput
+                label="Name"
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g. Mortgage - 123 Main St"
+              />
+              <FormSelect
+                label="Type"
+                value={formType}
+                onChange={(e) => setFormType(e.target.value)}
+              >
+                {DEBT_TYPES.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </FormSelect>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">Current Balance</label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formBalance}
-                    onChange={(e) => setFormBalance(e.target.value)}
-                    className="input pl-7"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">Interest Rate (%)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={formRate}
-                  onChange={(e) => setFormRate(e.target.value)}
-                  className="input"
-                  placeholder="5.30"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">Total Monthly Payment</label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formPayment}
-                    onChange={(e) => setFormPayment(e.target.value)}
-                    className="input pl-7"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
+              <FormInput
+                label="Current Balance"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formBalance}
+                onChange={(e) => setFormBalance(e.target.value)}
+                startAdornment="$"
+                placeholder="0.00"
+              />
+              <FormInput
+                label="Interest Rate (%)"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={formRate}
+                onChange={(e) => setFormRate(e.target.value)}
+                placeholder="5.30"
+              />
+              <FormInput
+                label="Total Monthly Payment"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formPayment}
+                onChange={(e) => setFormPayment(e.target.value)}
+                startAdornment="$"
+                placeholder="0.00"
+              />
             </div>
 
             {formType === 'MORTGAGE' && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">
-                  Monthly Escrow (taxes &amp; insurance) <span className="font-normal text-stone">(optional)</span>
-                </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formEscrowAmount}
-                    onChange={(e) => setFormEscrowAmount(e.target.value)}
-                    className="input pl-7"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
+              <FormInput
+                label="Monthly Escrow (taxes & insurance) (optional)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formEscrowAmount}
+                onChange={(e) => setFormEscrowAmount(e.target.value)}
+                startAdornment="$"
+                placeholder="0.00"
+              />
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">
-                  Original Balance <span className="font-normal text-stone">(optional)</span>
-                </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formOriginalBalance}
-                    onChange={(e) => setFormOriginalBalance(e.target.value)}
-                    className="input pl-7"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">
-                  Payment Day <span className="font-normal text-stone">(optional)</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={formPaymentDay}
-                  onChange={(e) => setFormPaymentDay(e.target.value)}
-                  className="input"
-                  placeholder="15"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">
-                  Term (months) <span className="font-normal text-stone">(optional)</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formTermMonths}
-                  onChange={(e) => setFormTermMonths(e.target.value)}
-                  className="input"
-                  placeholder="360"
-                />
-              </div>
+              <FormInput
+                label="Original Balance (optional)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formOriginalBalance}
+                onChange={(e) => setFormOriginalBalance(e.target.value)}
+                startAdornment="$"
+                placeholder="0.00"
+              />
+              <FormInput
+                label="Payment Day (optional)"
+                type="number"
+                min="1"
+                max="31"
+                value={formPaymentDay}
+                onChange={(e) => setFormPaymentDay(e.target.value)}
+                placeholder="15"
+              />
+              <FormInput
+                label="Term (months) (optional)"
+                type="number"
+                min="1"
+                value={formTermMonths}
+                onChange={(e) => setFormTermMonths(e.target.value)}
+                placeholder="360"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {properties.length > 0 && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-fjord">
-                    Property <span className="font-normal text-stone">(optional)</span>
-                  </label>
-                  <select
-                    value={formPropertyId}
-                    onChange={(e) => setFormPropertyId(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">No property</option>
-                    {properties.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-fjord">
-                  Category <span className="font-normal text-stone">(optional)</span>
-                </label>
-                <select
-                  value={formCategoryId}
-                  onChange={(e) => setFormCategoryId(e.target.value)}
-                  className="input"
+                <FormSelect
+                  label="Property (optional)"
+                  value={formPropertyId}
+                  onChange={(e) => setFormPropertyId(e.target.value)}
                 >
-                  <option value="">No category</option>
-                  {Object.entries(groupedCategories).map(([group, cats]) => (
-                    <optgroup key={group} label={group}>
-                      {cats.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </optgroup>
+                  <option value="">No property</option>
+                  {properties.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
-                </select>
-              </div>
+                </FormSelect>
+              )}
+              <FormSelect
+                label="Category (optional)"
+                value={formCategoryId}
+                onChange={(e) => setFormCategoryId(e.target.value)}
+              >
+                <option value="">No category</option>
+                {Object.entries(groupedCategories).map(([group, cats]) => (
+                  <optgroup key={group} label={group}>
+                    {cats.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </FormSelect>
             </div>
           </div>
 

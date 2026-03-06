@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
@@ -433,9 +434,9 @@ export default async function BudgetsPage() {
         <h1 className="text-2xl font-bold text-fjord">Budgets</h1>
         <div className="flex items-center gap-2">
           {budgets.length > 0 && <BudgetBuilderFlow hasBudgets />}
-          <Link href="/budgets/new" className="btn-primary">
+          <Button href="/budgets/new">
             + New budget
-          </Link>
+          </Button>
         </div>
       </div>
 

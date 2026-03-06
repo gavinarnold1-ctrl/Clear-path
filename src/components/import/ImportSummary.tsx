@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 
 interface ImportSummaryProps {
   imported: number
@@ -35,12 +36,12 @@ export default function ImportSummary({ imported, duplicates, errors, total }: I
       </div>
 
       <div className="flex justify-center gap-3 pt-2">
-        <Link href="/transactions" className="btn-primary">
+        <Button href="/transactions">
           View transactions
-        </Link>
-        <Link href="/transactions/import" className="btn-secondary">
+        </Button>
+        <Button variant="secondary" href="/transactions/import">
           Import another
-        </Link>
+        </Button>
       </div>
     </div>
   )

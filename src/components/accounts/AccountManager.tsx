@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
 import { usePlaidLink } from 'react-plaid-link'
 
@@ -353,7 +354,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
               </p>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => setDeleteTarget(null)} className="btn-secondary text-sm">Cancel</button>
+              <Button variant="secondary" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
               <button onClick={confirmDelete} className="rounded bg-ember px-3 py-1.5 text-sm font-medium text-snow hover:bg-ember/80">
                 Delete
               </button>
@@ -377,20 +378,13 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
 
       {/* Connect Bank button */}
       <div className="mb-6">
-        <button
+        <Button
           onClick={fetchLinkToken}
-          disabled={plaidLoading}
-          className="btn-primary flex items-center gap-2 disabled:opacity-50"
+          loading={plaidLoading}
+          loadingText="Connecting..."
         >
-          {plaidLoading ? (
-            <>
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-snow border-t-transparent" />
-              Connecting...
-            </>
-          ) : (
-            'Connect Bank'
-          )}
-        </button>
+          Connect Bank
+        </Button>
       </div>
 
       {/* Grouped accounts */}

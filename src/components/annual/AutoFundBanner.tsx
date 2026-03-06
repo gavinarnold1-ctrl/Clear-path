@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
 
 interface FundableExpense {
@@ -106,13 +107,15 @@ export default function AutoFundBanner({ trueRemaining, monthlyBurden, expenses 
             )}
           </p>
         </div>
-        <button
+        <Button
           onClick={handleAutoFund}
-          disabled={loading || availableForAnnual <= 0}
-          className="btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-50"
+          disabled={availableForAnnual <= 0}
+          loading={loading}
+          loadingText="Funding..."
+          className="shrink-0"
         >
-          {loading ? 'Funding...' : canFullyFund ? 'Auto-Fund All' : 'Fund Available'}
-        </button>
+          {canFullyFund ? 'Auto-Fund All' : 'Fund Available'}
+        </Button>
       </div>
 
       {result && (

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useActionState } from 'react'
 import { createTransaction } from '@/app/actions/transactions'
 import { Button } from '@/components/ui/Button'
+import { FormInput } from '@/components/ui/FormInput'
+import { FormSelect } from '@/components/ui/FormSelect'
 // Minimal prop shapes — compatible with Prisma results without unsafe casts
 interface AccountOption {
   id: string
@@ -132,129 +134,96 @@ export default function TransactionForm({ accounts, categories, householdMembers
       )}
 
       {/* Amount */}
-      <div>
-        <label htmlFor="amount" className="mb-1 block text-sm font-medium text-fjord">
-          Amount
-        </label>
-        <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
-            $
-          </span>
-          <input
-            id="amount"
-            name="amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            className="input pl-7"
-            placeholder="0.00"
-            required
-            value={amountStr}
-            onChange={(e) => setAmountStr(e.target.value)}
-            onFocus={(e) => e.target.select()}
-          />
-        </div>
-        <p className="mt-1 text-xs text-stone">Enter a positive amount (minimum $0.01). The sign is set automatically by category.</p>
-      </div>
+      <FormInput
+        label="Amount"
+        name="amount"
+        type="number"
+        step="0.01"
+        min="0.01"
+        placeholder="0.00"
+        required
+        value={amountStr}
+        onChange={(e) => setAmountStr(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        startAdornment="$"
+        helperText="Enter a positive amount (minimum $0.01). The sign is set automatically by category."
+      />
 
       {/* Merchant */}
-      <div>
-        <label htmlFor="merchant" className="mb-1 block text-sm font-medium text-fjord">
-          Merchant
-        </label>
-        <input
-          id="merchant"
-          name="merchant"
-          type="text"
-          className="input"
-          placeholder="e.g. Whole Foods, Employer Inc."
-          required
-        />
-      </div>
+      <FormInput
+        label="Merchant"
+        name="merchant"
+        type="text"
+        placeholder="e.g. Whole Foods, Employer Inc."
+        required
+      />
 
       {/* Date */}
-      <div>
-        <label htmlFor="date" className="mb-1 block text-sm font-medium text-fjord">
-          Date
-        </label>
-        <input id="date" name="date" type="date" className="input text-left" defaultValue={today} required />
-      </div>
+      <FormInput
+        label="Date"
+        name="date"
+        type="date"
+        className="text-left"
+        defaultValue={today}
+        required
+      />
 
       {/* Account */}
-      <div>
-        <label htmlFor="accountId" className="mb-1 block text-sm font-medium text-fjord">
-          Account <span className="font-normal text-stone">(optional)</span>
-        </label>
-        <select id="accountId" name="accountId" className="input">
-          <option value="">No account</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FormSelect label="Account (optional)" name="accountId">
+        <option value="">No account</option>
+        {accounts.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+      </FormSelect>
 
       {/* Category */}
-      <div>
-        <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-fjord">
-          Category <span className="font-normal text-stone">(optional)</span>
-        </label>
-        <select id="categoryId" name="categoryId" className="input">
-          <option value="">No category</option>
-          {incomeCategories.length > 0 && (
-            <optgroup label="Income">
-              {incomeCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {expenseCategories.length > 0 && (
-            <optgroup label="Expense">
-              {expenseCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </div>
+      <FormSelect label="Category (optional)" name="categoryId">
+        <option value="">No category</option>
+        {incomeCategories.length > 0 && (
+          <optgroup label="Income">
+            {incomeCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {expenseCategories.length > 0 && (
+          <optgroup label="Expense">
+            {expenseCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </FormSelect>
 
       {/* Person (household member) */}
       {householdMembers.length > 0 && (
-        <div>
-          <label htmlFor="householdMemberId" className="mb-1 block text-sm font-medium text-fjord">
-            Person <span className="font-normal text-stone">(optional)</span>
-          </label>
-          <select
-            id="householdMemberId"
-            name="householdMemberId"
-            className="input"
-            defaultValue={defaultMember?.id ?? ''}
-          >
-            <option value="">No person</option>
-            {householdMembers.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FormSelect
+          label="Person (optional)"
+          name="householdMemberId"
+          defaultValue={defaultMember?.id ?? ''}
+        >
+          <option value="">No person</option>
+          {householdMembers.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </FormSelect>
       )}
 
       {/* Property */}
       {properties.length > 0 && (
         <div>
-          <label htmlFor="propertyId" className="mb-1 block text-sm font-medium text-fjord">
-            Property <span className="font-normal text-stone">(optional)</span>
-          </label>
-          <select
+          <FormSelect
+            label="Property (optional)"
             id="propertyId"
             name="propertyId"
-            className="input"
             value={selectedGroupId ? `group:${selectedGroupId}` : selectedPropertyId}
             onChange={(e) => handlePropertyChange(e.target.value)}
           >
@@ -293,7 +262,7 @@ export default function TransactionForm({ accounts, categories, householdMembers
                   {p.name}
                 </option>
               ))}
-          </select>
+          </FormSelect>
 
           {/* Split toggle — shown when selected property belongs to a group */}
           {groupForProperty && (

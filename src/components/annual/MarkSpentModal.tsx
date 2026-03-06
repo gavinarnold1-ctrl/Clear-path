@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
 
 interface MarkSpentExpense {
   name: string
@@ -125,12 +126,12 @@ export default function MarkSpentModal({ expense, isOpen, onClose, onSubmit }: P
           {error && <p className="text-xs text-ember">{error}</p>}
 
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="btn-secondary px-4 py-2 text-sm">
+            <Button variant="secondary" type="button" onClick={onClose}>
               Cancel
-            </button>
-            <button type="submit" className="btn-primary px-4 py-2 text-sm">
+            </Button>
+            <Button type="submit">
               Mark as Spent
-            </button>
+            </Button>
           </div>
         </form>
       </div>

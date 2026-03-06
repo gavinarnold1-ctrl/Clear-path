@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ProgressBar from '@/components/ui/ProgressBar'
+import { Button } from '@/components/ui/Button'
+import { ConfirmModal } from '@/components/ui/Modal'
 import { formatCurrency, budgetProgress } from '@/lib/utils'
 import { formatMonthName } from '@/lib/budget-engine'
 import FundExpenseModal from './FundExpenseModal'
@@ -62,6 +64,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
   const [spentOpen, setSpentOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false)
@@ -119,7 +122,6 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete "${expense.name}"? This cannot be undone.`)) return
     setLoading(true)
     try {
       const res = await fetch(`/api/budgets/annual/${expense.id}`, { method: 'DELETE' })
@@ -127,6 +129,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
       router.refresh()
     } finally {
       setLoading(false)
+      setDeleteOpen(false)
     }
   }
 
@@ -279,13 +282,15 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
               >
                 Cancel
               </button>
-              <button
+              <Button
+                size="sm"
                 onClick={handleEditSave}
                 disabled={editSaving}
-                className="btn-primary px-3 py-1 text-xs"
+                loading={editSaving}
+                loadingText="Saving..."
               >
-                {editSaving ? 'Saving...' : 'Save'}
-              </button>
+                Save
+              </Button>
             </div>
           </div>
         ) : (
@@ -458,27 +463,29 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                 <span className="text-xs font-medium text-pine">Completed &#x2713;</span>
               ) : (
                 <>
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => setFundOpen(true)}
                     disabled={loading}
-                    className="btn-primary px-3 py-1 text-xs"
                   >
                     Add Funds
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setLinkOpen(true)}
                     disabled={loading}
-                    className="btn-secondary px-3 py-1 text-xs"
                   >
                     Link Transaction
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setSpentOpen(true)}
                     disabled={loading}
-                    className="btn-secondary px-3 py-1 text-xs"
                   >
                     Mark as Spent
-                  </button>
+                  </Button>
                 </>
               )}
               <button
@@ -489,7 +496,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                 Edit
               </button>
               <button
-                onClick={handleDelete}
+                onClick={() => setDeleteOpen(true)}
                 disabled={loading}
                 className="ml-auto text-xs text-stone hover:text-ember"
               >
@@ -518,6 +525,16 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
         isOpen={linkOpen}
         onClose={() => setLinkOpen(false)}
         onLinked={() => router.refresh()}
+      />
+      <ConfirmModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title={`Delete "${expense.name}"?`}
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        loading={loading}
+        variant="danger"
       />
     </>
   )
