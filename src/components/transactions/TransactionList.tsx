@@ -663,6 +663,31 @@ export default function TransactionList({ transactions: initial, categories, acc
           </p>
         </div>
       )}
+      {/* Search input */}
+      <div className="relative mb-3">
+        <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search transactions..."
+          className="input w-full pl-9 pr-8 text-sm"
+        />
+        {searchText && (
+          <button
+            onClick={() => setSearchText('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone hover:text-fjord"
+            aria-label="Clear search"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {/* Active filter pills */}
       {hasAnyFilter && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -939,6 +964,13 @@ export default function TransactionList({ transactions: initial, categories, acc
             </tr>
           </thead>
           <tbody className="divide-y divide-mist">
+            {sortedTransactions.length === 0 && (
+              <tr>
+                <td colSpan={6 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)} className="px-4 py-8 text-center text-sm text-stone">
+                  No transactions match the current filters.
+                </td>
+              </tr>
+            )}
             {sortedTransactions.map((tx) =>
               editingId === tx.id ? (
                 <tr key={tx.id} className="bg-frost">
