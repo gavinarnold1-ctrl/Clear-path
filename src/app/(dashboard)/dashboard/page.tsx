@@ -369,6 +369,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           expectedIncome={userProfile?.expectedMonthlyIncome ?? prevIncome}
           fixedTotal={fixedTotal}
           flexibleSpent={flexibleSpent}
+          flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
           annualSetAside={annualSetAside}
         />
       ) : (
@@ -492,23 +493,20 @@ export default async function DashboardPage({ searchParams }: Props) {
           ) : (
             <ul className="space-y-3">
               {spendingByCategory.map((s) => (
-                <li key={s.name} className="flex items-center gap-3">
-                  <span className="inline-block h-5 w-5 shrink-0 text-center text-sm">
-                    {s.icon ?? ''}
-                  </span>
-                  <div className="flex-1">
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-fjord">{s.name}</span>
-                      <span className="text-stone">{formatCurrency(s.amount)}</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
-                      <div
-                        className="h-full rounded-full bg-fjord"
-                        style={{
-                          width: `${Math.round((s.amount / maxCategoryAmount) * 100)}%`,
-                        }}
-                      />
-                    </div>
+                <li key={s.name}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="font-medium text-fjord">
+                      {s.icon ? `${s.icon} ` : ''}{s.name}
+                    </span>
+                    <span className="text-stone">{formatCurrency(s.amount)}</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
+                    <div
+                      className="h-full rounded-full bg-fjord"
+                      style={{
+                        width: `${Math.round((s.amount / maxCategoryAmount) * 100)}%`,
+                      }}
+                    />
                   </div>
                 </li>
               ))}
