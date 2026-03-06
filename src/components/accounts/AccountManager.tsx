@@ -30,6 +30,8 @@ interface AccountRow {
 interface Props {
   accounts: AccountRow[]
   householdMembers: HouseholdMemberOption[]
+  propertyEquity?: number
+  linkedAccountIds?: string[]
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -65,7 +67,7 @@ function formatSyncTime(isoString: string): string {
   return `${diffDays}d ago`
 }
 
-export default function AccountManager({ accounts: initial, householdMembers }: Props) {
+export default function AccountManager({ accounts: initial, householdMembers, propertyEquity = 0, linkedAccountIds = [] }: Props) {
   const router = useRouter()
   const [accounts, setAccounts] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -295,11 +297,15 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
 
   // Liability account balances must be subtracted for correct net worth.
   // Credit cards, mortgages, and loans represent money owed, not owned.
+  // Skip accounts linked to properties with values to avoid double-counting.
   const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
-  const totalBalance = accounts.reduce((sum, a) => {
+  const linkedSet = new Set(linkedAccountIds)
+  const accountBalance = accounts.reduce((sum, a) => {
+    if (linkedSet.has(a.id)) return sum // Handled in property equity
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
+  const totalBalance = accountBalance + propertyEquity
 
   return (
     <div>
@@ -362,6 +368,11 @@ export default function AccountManager({ accounts: initial, householdMembers }: 
         <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-midnight' : 'text-expense'}`}>
           {formatCurrency(totalBalance)}
         </p>
+        {propertyEquity > 0 && (
+          <p className="mt-1 text-xs text-stone">
+            Accounts: {formatCurrency(accountBalance)} · Property Equity: {formatCurrency(propertyEquity)}
+          </p>
+        )}
       </div>
 
       {/* Connect Bank button */}

@@ -11,6 +11,9 @@ import SpendingComparison from '@/components/insights/SpendingComparison'
 import InsightsList from '@/components/insights/InsightsList'
 import GenerateButton from './GenerateButton'
 import MonthSelector from './MonthSelector'
+import { getGoalContext } from '@/lib/goal-context'
+import { projectedDate } from '@/lib/goal-targets'
+import type { GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
 
@@ -24,7 +27,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -47,10 +50,27 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     // Account balances for net worth (R7.9)
     db.account.findMany({
       where: { userId: session.userId },
-      select: { type: true, balance: true },
+      select: { id: true, type: true, balance: true },
     }),
     // Cumulative savings identified by AI insights
     getValueSummary(session.userId),
+    // Properties for net worth equity calculation
+    db.property.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true, currentValue: true, loanBalance: true, type: true },
+    }),
+    // Account-property links to avoid double-counting mortgage liabilities
+    db.accountPropertyLink.findMany({
+      where: { account: { userId: session.userId }, property: { currentValue: { not: null } } },
+      select: { accountId: true },
+    }),
+    // Goal context for monthly review goal section
+    getGoalContext(session.userId),
+    // Goal target from profile
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { goalTarget: true, primaryGoal: true },
+    }),
   ])
 
   // R7.8: Convert snapshot months (Date) to YYYY-MM strings
@@ -104,13 +124,23 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
   const firstDebt = firstSnapshot?.totalDebt ?? null
   const debtPaidDown = firstDebt !== null ? firstDebt - currentTotalDebt : null
 
-  // Net worth: assets minus liabilities (R7.9)
+  // Net worth: assets minus liabilities (R7.9), including property equity
   const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
-  const currentNetWorth = accounts.reduce((sum, a) => {
+  // Accounts linked to properties with values — skip these liabilities to avoid double-counting
+  // (property equity = currentValue - loanBalance already accounts for the mortgage)
+  const linkedAccountIdSet = new Set(linkedAccountLinks.map(l => l.accountId))
+  const accountNetWorth = accounts.reduce((sum, a) => {
+    if (linkedAccountIdSet.has(a.id)) return sum // Skip — handled in property equity
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
-  const hasAccounts = accounts.length > 0
+  // Property equity: currentValue minus loanBalance for properties with a value set
+  const propertyEquity = propertiesForNW.reduce((sum, p) => {
+    if (!p.currentValue) return sum
+    return sum + p.currentValue - (p.loanBalance ?? 0)
+  }, 0)
+  const currentNetWorth = accountNetWorth + propertyEquity
+  const hasAccounts = accounts.length > 0 || propertiesForNW.some(p => p.currentValue)
 
   // Net worth from active snapshot vs previous snapshot for delta
   const activeSnapshotIdx = activeSnapshot
@@ -134,6 +164,13 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   // R7.8: month param for clickable links
   const monthParam = selectedMonth || activeSnapshot?.month || ''
+
+  // Goal target for monthly review
+  const goalTarget = goalProfile?.goalTarget as GoalTarget | null
+  // Compute this month's contribution toward goal
+  const thisMonthContribution = activeSnapshot
+    ? activeSnapshot.totalIncome - activeSnapshot.totalExpenses
+    : 0
 
   return (
     <div>
@@ -159,6 +196,46 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Goal Progress Section — opens the review with goal context */}
+          {goalContext && goalTarget && (
+            <section>
+              <h2 className="mb-4 font-display text-xl text-fjord">Goal Progress</h2>
+              <div className="card">
+                <p className="text-lg font-semibold text-fjord">{goalTarget.description}</p>
+
+                {/* Progress bar */}
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-stone">
+                    <span>{formatCurrency(goalTarget.currentValue ?? 0)} achieved</span>
+                    <span>{formatCurrency(goalTarget.targetValue)} target</span>
+                  </div>
+                  <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-birch/30">
+                    <div
+                      className="h-full rounded-full bg-pine transition-all duration-700"
+                      style={{ width: `${Math.min(100, Math.round(((goalTarget.currentValue ?? 0) / (goalTarget.targetValue || 1)) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Month-over-month */}
+                <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <span className="text-xs text-stone">This month&apos;s contribution</span>
+                    <p className="text-lg font-bold text-pine">{formatCurrency(Math.max(0, thisMonthContribution))}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-stone">Monthly target</span>
+                    <p className="text-lg font-bold text-fjord">{formatCurrency(goalTarget.monthlyNeeded ?? 0)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-stone">Projected completion</span>
+                    <p className="text-lg font-bold text-fjord">{projectedDate(goalTarget)}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Cumulative value banner */}
           {valueSummary.totalIdentified > 0 && (
             <div className="rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
@@ -246,7 +323,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                   </p>
                 )}
               </div>
-              <p className="mt-1 text-xs text-stone">assets minus liabilities across all accounts</p>
+              <p className="mt-1 text-xs text-stone">
+                {propertyEquity > 0
+                  ? `Accounts: ${formatCurrency(accountNetWorth)} · Property Equity: ${formatCurrency(propertyEquity)}`
+                  : 'assets minus liabilities across all accounts'}
+              </p>
               {/* Mini trend from snapshots */}
               {snapshots.length >= 2 && (
                 <div className="mt-4 flex items-end gap-1">

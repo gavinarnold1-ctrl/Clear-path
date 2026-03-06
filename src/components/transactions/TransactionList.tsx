@@ -80,10 +80,14 @@ interface Props {
   initialAnnualExpenseId?: string
   initialAnnualExpenseName?: string
   initialUncategorized?: boolean
+  initialBudgetId?: string
+  initialTier?: string
+  initialCatchAll?: boolean
+  initialBudgetName?: string
   refundedTxIds?: string[]
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [] }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -99,6 +103,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [filterClassification, setFilterClassification] = useState<string>(initialClassification)
   const [filterUncategorized, setFilterUncategorized] = useState<boolean>(initialUncategorized)
   const [filterAnnualExpenseId, setFilterAnnualExpenseId] = useState<string>(initialAnnualExpenseId)
+  const [budgetTxIds, setBudgetTxIds] = useState<Set<string> | null>(null)
+  const [budgetFilterLoading, setBudgetFilterLoading] = useState(false)
+  const [budgetName, setBudgetName] = useState<string>(initialBudgetName)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -139,8 +146,45 @@ export default function TransactionList({ transactions: initial, categories, acc
     setTransactions(initial)
   }, [initial])
 
+  // Fetch budget-specific transaction IDs when budgetId or catchAll is active
+  useEffect(() => {
+    if (!initialBudgetId && !initialCatchAll) return
+
+    setBudgetFilterLoading(true)
+
+    const url = initialBudgetId
+      ? `/api/budgets/${initialBudgetId}/transactions?month=${filterMonth}`
+      : `/api/budgets/catch-all/transactions?month=${filterMonth}`
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        setBudgetTxIds(new Set(data.transactionIds))
+        if (data.budgetName && !initialBudgetName) setBudgetName(data.budgetName)
+        setBudgetFilterLoading(false)
+      })
+      .catch(() => setBudgetFilterLoading(false))
+  }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName])
+
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
+    // Budget-specific filter: when active, only show transactions the API computed for this budget
+    if (budgetTxIds !== null) {
+      if (!budgetTxIds.has(tx.id)) return false
+      // Still apply month filter for consistency
+      if (filterMonth) {
+        const txDate = new Date(tx.date)
+        const txMonth = `${txDate.getUTCFullYear()}-${String(txDate.getUTCMonth() + 1).padStart(2, '0')}`
+        if (txMonth !== filterMonth) return false
+      }
+      // Still apply search filter
+      if (searchText) {
+        const q = searchText.toLowerCase()
+        const haystack = [tx.merchant, tx.category?.name, tx.account?.name, tx.notes].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    }
     // Property filter (R4.4) — also match transactions with split allocations to this property
     // Supports group: prefix to filter by all properties in a PropertyGroup
     if (filterPropertyId) {
@@ -248,6 +292,16 @@ export default function TransactionList({ transactions: initial, categories, acc
     setSaving(true)
     setError(null)
 
+    // Resolve group: prefix to the first property in the group for split attribution
+    let resolvedPropertyId: string | null = editPropertyId || null
+    if (editPropertyId.startsWith('group:')) {
+      const groupId = editPropertyId.slice(6)
+      const group = propertyGroups.find(g => g.id === groupId)
+      if (group && group.propertyIds.length > 0) {
+        resolvedPropertyId = group.propertyIds[0]
+      }
+    }
+
     const body: Record<string, unknown> = {
       merchant,
       amount,
@@ -255,7 +309,7 @@ export default function TransactionList({ transactions: initial, categories, acc
       categoryId: editCategoryId || null,
       accountId: editAccountId || null,
       householdMemberId: editHouseholdMemberId || null,
-      propertyId: editPropertyId || null,
+      propertyId: resolvedPropertyId,
       notes: editNotes.trim() || null,
     }
 
@@ -449,6 +503,34 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   return (
     <div className="relative pb-16">
+      {/* Budget filter context header */}
+      {(initialBudgetId || initialCatchAll) && (
+        <div className="mb-4 flex items-center justify-between rounded-card border border-fjord/20 bg-fjord/5 px-4 py-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-fjord">
+              {budgetName || (initialCatchAll ? 'Unallocated Flexible' : 'Budget')}
+              {initialTier && (
+                <span className="ml-2 rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                  {initialTier.toLowerCase()}
+                </span>
+              )}
+            </h2>
+            <p className="text-sm text-stone">
+              {budgetFilterLoading
+                ? 'Loading budget transactions...'
+                : filteredTransactions.length === 0
+                  ? 'No transactions match this budget.'
+                  : `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} · ${formatCurrency(Math.abs(filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0)))} total`}
+            </p>
+          </div>
+          <a
+            href="/transactions"
+            className="text-xs text-stone hover:text-fjord"
+          >
+            Clear filter
+          </a>
+        </div>
+      )}
       {/* Annual plan context header */}
       {filterAnnualExpenseId && (
         <div className="mb-4 rounded-card border border-pine/20 bg-pine/5 px-4 py-3">
@@ -593,9 +675,9 @@ export default function TransactionList({ transactions: initial, categories, acc
             <button onClick={() => setFilterUncategorized(false)} className="ml-1 text-stone hover:text-fjord">&times;</button>
           </div>
         )}
-        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || filterUncategorized) && (
+        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || filterUncategorized || budgetTxIds !== null) && (
           <button
-            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId(''); setFilterUncategorized(false) }}
+            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId(''); setFilterUncategorized(false); setBudgetTxIds(null); setBudgetName('') }}
             className="text-xs text-stone hover:text-fjord"
           >
             Clear all
@@ -717,9 +799,20 @@ export default function TransactionList({ transactions: initial, categories, acc
                         className="input text-sm"
                       >
                         <option value="">— None —</option>
-                        {properties.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
+                        {propertyGroups.length > 0 && (
+                          <optgroup label="Property Groups">
+                            {propertyGroups.map(g => (
+                              <option key={`group-${g.id}`} value={`group:${g.id}`}>
+                                {g.name} (Split)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="Individual Properties">
+                          {properties.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </optgroup>
                       </select>
                     </td>
                   )}
@@ -846,7 +939,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
           )}
-          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId)
+          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || budgetTxIds !== null)
             ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
             : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
         </p>

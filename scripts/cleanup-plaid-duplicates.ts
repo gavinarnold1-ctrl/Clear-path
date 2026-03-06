@@ -49,6 +49,35 @@ async function cleanup() {
 
   console.log(`\nFound ${duplicateGroups} duplicate groups, ${duplicateIds.length} transactions to remove`)
 
+  // Also find potential duplicates without plaidTransactionId
+  // (same user, account, date, amount, merchant, importSource=plaid)
+  const nullIdTxs = await db.transaction.findMany({
+    where: { importSource: 'plaid', plaidTransactionId: null },
+    select: { id: true, userId: true, accountId: true, date: true, amount: true, merchant: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  const nullIdGroups = new Map<string, typeof nullIdTxs>()
+  for (const tx of nullIdTxs) {
+    const key = `${tx.userId}|${tx.accountId}|${tx.date.toISOString().split('T')[0]}|${tx.amount}|${tx.merchant.toLowerCase()}`
+    if (!nullIdGroups.has(key)) nullIdGroups.set(key, [])
+    nullIdGroups.get(key)!.push(tx)
+  }
+
+  let nullIdDupeGroups = 0
+  for (const [key, txs] of nullIdGroups) {
+    if (txs.length <= 1) continue
+    nullIdDupeGroups++
+    const [keep, ...dupes] = txs
+    console.log(`  Null-ID group ${key}: ${txs.length} copies — keeping ${keep.id}, removing ${dupes.length}`)
+    for (const dupe of dupes) {
+      duplicateIds.push(dupe.id)
+    }
+  }
+
+  console.log(`Found ${nullIdDupeGroups} potential duplicate groups without plaidTransactionId`)
+  console.log(`Total transactions to remove: ${duplicateIds.length}`)
+
   if (duplicateIds.length === 0) {
     console.log('No duplicates found. Database is clean.')
     return

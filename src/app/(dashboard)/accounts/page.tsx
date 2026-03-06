@@ -11,7 +11,7 @@ export default async function AccountsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [accounts, txCounts, householdMembers] = await Promise.all([
+  const [accounts, txCounts, householdMembers, propertiesForNW, linkedAccountLinks] = await Promise.all([
     db.account.findMany({
       where: { userId: session.userId },
       include: { owner: { select: { id: true, name: true } } },
@@ -26,6 +26,14 @@ export default async function AccountsPage() {
       where: { userId: session.userId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
+    }),
+    db.property.findMany({
+      where: { userId: session.userId, currentValue: { not: null } },
+      select: { id: true, name: true, currentValue: true, loanBalance: true },
+    }),
+    db.accountPropertyLink.findMany({
+      where: { account: { userId: session.userId }, property: { currentValue: { not: null } } },
+      select: { accountId: true },
     }),
   ])
 
@@ -71,7 +79,12 @@ export default async function AccountsPage() {
           </Link>
         </div>
       ) : (
-        <AccountManager accounts={serialized} householdMembers={householdMembers} />
+        <AccountManager
+          accounts={serialized}
+          householdMembers={householdMembers}
+          propertyEquity={propertiesForNW.reduce((sum, p) => sum + (p.currentValue ?? 0) - (p.loanBalance ?? 0), 0)}
+          linkedAccountIds={linkedAccountLinks.map(l => l.accountId)}
+        />
       )}
     </div>
   )

@@ -11,6 +11,9 @@ import ValueTracker from '@/components/dashboard/ValueTracker'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
 import { getValueSummary } from '@/lib/value-tracker'
+import { getGoalContext } from '@/lib/goal-context'
+import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
+import type { PrimaryGoal, GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -96,6 +99,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     chartData,
     userProfile,
     valueSummary,
+    goalContext,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     // R1.14: Income = classification "income"
@@ -181,13 +185,15 @@ export default async function DashboardPage({ searchParams }: Props) {
       },
       select: { date: true, amount: true, classification: true },
     }),
-    // User profile for expected income intelligence
+    // User profile for expected income + goal target
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { expectedMonthlyIncome: true },
+      select: { expectedMonthlyIncome: true, primaryGoal: true, goalTarget: true },
     }),
     // Value tracker — cumulative savings identified by AI insights
     getValueSummary(session.userId),
+    // Goal context for goal-driven dashboard
+    getGoalContext(session.userId),
   ])
 
   // New users with no accounts: show streamlined "Get Started" flow
@@ -332,6 +338,11 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   const hasBudgets = rawBudgets.length > 0
 
+  // Goal target for goal-driven dashboard
+  const goalTarget = userProfile?.goalTarget as GoalTarget | null
+  const hasGoal = !!goalContext && !!userProfile?.primaryGoal
+  const trueRemaining = (userProfile?.expectedMonthlyIncome ?? monthlyIncome) - fixedTotal - flexibleSpent - annualSetAside
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -341,7 +352,17 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
-      {/* True Remaining Hero — R8.1, R6.6 */}
+      {/* Goal Progress Hero — shown when user has a goal */}
+      {hasGoal && goalContext && (
+        <GoalProgressCard
+          goal={userProfile!.primaryGoal as PrimaryGoal}
+          goalLabel={goalContext.goalLabel}
+          target={goalTarget}
+          trueRemaining={trueRemaining}
+        />
+      )}
+
+      {/* True Remaining Hero — R8.1, R6.6 (secondary when goal is set, primary otherwise) */}
       {hasBudgets ? (
         <TrueRemainingBanner
           income={monthlyIncome}

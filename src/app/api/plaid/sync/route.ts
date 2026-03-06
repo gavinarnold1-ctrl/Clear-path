@@ -93,6 +93,27 @@ export async function POST(request: Request) {
             // R1.10: Sign flip — Plaid positive = money out, we use negative = money out
             const amount = -tx.amount
 
+            // Backfill: check for existing transaction without plaidTransactionId
+            // (created before the @unique constraint was added) to avoid duplicates
+            const backfillMatch = await db.transaction.findFirst({
+              where: {
+                userId: session.userId,
+                accountId: ourAccountId,
+                plaidTransactionId: null,
+                date: new Date(tx.date),
+                amount,
+                importSource: 'plaid',
+              },
+            })
+            if (backfillMatch) {
+              await db.transaction.update({
+                where: { id: backfillMatch.id },
+                data: { plaidTransactionId: tx.transaction_id },
+              })
+              totalAdded++
+              continue
+            }
+
             // R1.8: Auto-categorization hierarchy
             const rawMerchant = tx.merchant_name || tx.name
             const merchantName = normalizeMerchant(rawMerchant)
@@ -218,6 +239,8 @@ export async function POST(request: Request) {
                 : null
               const classification = classifyTransaction(cat?.group, cat?.type, amount)
 
+              // Update Plaid-controlled fields only
+              // PRESERVE user-set fields: categoryId, annualExpenseId, notes, propertyId, householdMemberId
               await db.transaction.update({
                 where: { id: existing.id },
                 data: {

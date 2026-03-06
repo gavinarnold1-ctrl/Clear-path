@@ -97,8 +97,9 @@ export async function POST(req: NextRequest) {
     seenIds.add(alloc.propertyId)
   }
 
-  // Validate allocations sum to 100
-  if (!totalPct.equals(new Decimal(100))) {
+  // Validate allocations sum to 100 (with floating-point tolerance for values like 33.33+33.33+33.34)
+  const diff = totalPct.minus(new Decimal(100)).abs()
+  if (diff.greaterThan(new Decimal('0.02'))) {
     return NextResponse.json(
       { error: `Allocations must sum to 100. Current sum: ${totalPct.toNumber()}` },
       { status: 400 }
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
         data: {
           propertyGroupId: groupId,
           propertyId: alloc.propertyId,
-          allocationPct: alloc.allocationPct,
+          allocationPct: new Decimal(alloc.allocationPct).toDecimalPlaces(2),
         },
       })
     ),
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
     ...allocations.map((alloc: { propertyId: string; allocationPct: number }) =>
       db.property.update({
         where: { id: alloc.propertyId },
-        data: { splitPct: alloc.allocationPct },
+        data: { splitPct: new Decimal(alloc.allocationPct).toDecimalPlaces(2) },
       })
     ),
   ]

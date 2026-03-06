@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
+import { applyPropertyAttribution } from '@/lib/apply-splits'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -251,6 +252,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // Non-critical
       }
     }
+  }
+
+  // Auto-apply property attribution splits when property changes
+  if (body.propertyId && body.propertyId !== existing.propertyId) {
+    // Clear existing splits first
+    await db.transactionSplit.deleteMany({ where: { transactionId: transaction.id } })
+    await applyPropertyAttribution(
+      transaction.id,
+      transaction.propertyId,
+      transaction.amount,
+      transaction.merchant,
+      transaction.category?.name ?? null,
+      null
+    )
   }
 
   revalidatePath('/dashboard')

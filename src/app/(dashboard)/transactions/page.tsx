@@ -9,7 +9,7 @@ import { findRefundPairs } from '@/lib/refund-detection'
 export const metadata: Metadata = { title: 'Transactions' }
 
 interface PageProps {
-  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string; uncategorized?: string }>
+  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string; uncategorized?: string; budgetId?: string; tier?: string; catchAll?: string; budgetName?: string }>
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps) {
@@ -27,6 +27,10 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const initialAnnualExpenseId = params.annualExpenseId ?? ''
   const initialAnnualExpenseName = params.annualExpenseName ?? ''
   const initialUncategorized = params.uncategorized === 'true'
+  const initialBudgetId = params.budgetId ?? ''
+  const initialTier = params.tier ?? ''
+  const initialCatchAll = params.catchAll === 'true'
+  const initialBudgetName = params.budgetName ?? ''
 
   const [transactions, categories, accounts, householdMembers, properties, propertyGroups] = await Promise.all([
     db.transaction.findMany({
@@ -149,6 +153,10 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           initialAnnualExpenseId={initialAnnualExpenseId}
           initialAnnualExpenseName={initialAnnualExpenseName}
           initialUncategorized={initialUncategorized}
+          initialBudgetId={initialBudgetId}
+          initialTier={initialTier}
+          initialCatchAll={initialCatchAll}
+          initialBudgetName={initialBudgetName}
           refundedTxIds={[...refundPairIds]}
         />
       )}

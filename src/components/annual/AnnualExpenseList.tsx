@@ -27,14 +27,21 @@ interface AnnualExpenseData {
   }
 }
 
+interface CategoryOption {
+  id: string
+  name: string
+  icon: string | null
+}
+
 interface Props {
   active: AnnualExpenseData[]
   completed: AnnualExpenseData[]
   trueRemaining?: number
   monthlyBurden?: number
+  categories?: CategoryOption[]
 }
 
-export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden }: Props) {
+export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden, categories = [] }: Props) {
   const [showCompleted, setShowCompleted] = useState(false)
 
   return (
@@ -62,6 +69,7 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
                   key={exp.id}
                   expense={exp}
                   affordableMonthly={affordable}
+                  categories={categories}
                 />
               )
             })}
@@ -78,7 +86,7 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
               {showCompleted && (
                 <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {completed.map((exp) => (
-                    <AnnualExpenseCard key={exp.id} expense={exp} />
+                    <AnnualExpenseCard key={exp.id} expense={exp} categories={categories} />
                   ))}
                 </div>
               )}

@@ -257,9 +257,65 @@ export async function generateAndStoreInsights(userId: string) {
     },
   })
 
+  // Goal milestone detection
+  await checkGoalMilestones(userId)
+
   return {
     insights,
     efficiencyScore: aiResponse.efficiencyScore,
     highlightStat: aiResponse.highlightStat,
+  }
+}
+
+async function checkGoalMilestones(userId: string) {
+  try {
+    const profile = await db.userProfile.findUnique({
+      where: { userId },
+      select: { goalTarget: true, primaryGoal: true },
+    })
+
+    if (!profile?.goalTarget || !profile.primaryGoal) return
+
+    const target = profile.goalTarget as { targetValue: number; currentValue?: number; description: string; startValue?: number }
+    if (!target.currentValue || target.targetValue <= 0) return
+
+    const progress = (target.currentValue / target.targetValue) * 100
+
+    // Check for existing milestone insights to avoid duplicates
+    const existingMilestones = await db.insight.findMany({
+      where: { userId, type: 'goal_milestone', status: 'active' },
+      select: { title: true },
+    })
+    const existingTitles = new Set(existingMilestones.map(i => i.title))
+
+    const milestones = [25, 50, 75, 100]
+    for (const m of milestones) {
+      if (progress >= m) {
+        const title = m === 100
+          ? 'Goal achieved!'
+          : `${m}% of your goal achieved!`
+        if (existingTitles.has(title)) continue
+
+        await db.insight.create({
+          data: {
+            userId,
+            category: 'goal',
+            type: 'goal_milestone',
+            priority: 'high',
+            title,
+            description: m < 100
+              ? `You've reached ${m}% of your target: ${target.description}. Keep going!`
+              : `Congratulations \u2014 you hit your goal: ${target.description}!`,
+            savingsAmount: 0,
+            actionItems: '[]',
+            metadata: JSON.stringify({ milestone: m }),
+            contextSnapshot: '',
+            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          },
+        })
+      }
+    }
+  } catch {
+    // Non-fatal — don't break insight generation if milestone check fails
   }
 }

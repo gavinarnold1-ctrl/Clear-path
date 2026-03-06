@@ -32,8 +32,8 @@ function getCurrentMonth(): string {
 export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, status }: Props) {
   const cfg = STATUS_CONFIG[status]
 
-  const href = categoryId
-    ? `/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`
+  const href = id
+    ? `/transactions?budgetId=${id}&tier=FIXED&month=${getCurrentMonth()}&budgetName=${encodeURIComponent(name)}`
     : null
 
   const content = (
