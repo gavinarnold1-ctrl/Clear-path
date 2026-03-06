@@ -1,0 +1,490 @@
+[
+  {
+    "issuer": "Chase",
+    "name": "Sapphire Preferred",
+    "tier": "MID",
+    "annualFee": 95,
+    "rewardsCurrency": "Ultimate Rewards",
+    "signUpBonus": "60,000 points after $4,000 in 3 months",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["sapphire preferred", "chase sapphire pref"],
+    "benefits": [
+      {
+        "name": "Travel Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 2,
+        "rewardUnit": "points_per_dollar",
+        "description": "2x points on travel"
+      },
+      {
+        "name": "Dining Rewards",
+        "type": "points_multiplier",
+        "category": "Dining",
+        "rewardRate": 3,
+        "rewardUnit": "points_per_dollar",
+        "description": "3x points on dining worldwide"
+      },
+      {
+        "name": "Online Grocery Rewards",
+        "type": "points_multiplier",
+        "category": "Groceries",
+        "rewardRate": 3,
+        "rewardUnit": "points_per_dollar",
+        "description": "3x points on online grocery (excludes Target, Walmart)"
+      },
+      {
+        "name": "Streaming Rewards",
+        "type": "points_multiplier",
+        "category": "Subscriptions",
+        "rewardRate": 3,
+        "rewardUnit": "points_per_dollar",
+        "description": "3x points on select streaming services"
+      },
+      {
+        "name": "Base Rewards",
+        "type": "points_multiplier",
+        "category": null,
+        "rewardRate": 1,
+        "rewardUnit": "points_per_dollar",
+        "description": "1x points on all other purchases"
+      },
+      {
+        "name": "Trip Cancellation Insurance",
+        "type": "insurance",
+        "category": null,
+        "description": "Up to $10,000 per person for trip cancellation/interruption"
+      },
+      {
+        "name": "Anniversary Points",
+        "type": "perk",
+        "category": null,
+        "creditAmount": 50,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "description": "10% anniversary point bonus on total purchases"
+      }
+    ]
+  },
+  {
+    "issuer": "Chase",
+    "name": "Sapphire Reserve",
+    "tier": "PREMIUM",
+    "annualFee": 550,
+    "rewardsCurrency": "Ultimate Rewards",
+    "signUpBonus": "60,000 points after $4,000 in 3 months",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["sapphire reserve", "chase sapphire res"],
+    "benefits": [
+      {
+        "name": "Travel Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 3,
+        "rewardUnit": "points_per_dollar",
+        "description": "3x points on travel worldwide after earning $300 travel credit"
+      },
+      {
+        "name": "Dining Rewards",
+        "type": "points_multiplier",
+        "category": "Dining",
+        "rewardRate": 3,
+        "rewardUnit": "points_per_dollar",
+        "description": "3x points on dining worldwide"
+      },
+      {
+        "name": "Base Rewards",
+        "type": "points_multiplier",
+        "category": null,
+        "rewardRate": 1,
+        "rewardUnit": "points_per_dollar",
+        "description": "1x points on all other purchases"
+      },
+      {
+        "name": "Annual Travel Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 300,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "description": "$300 annual travel credit applied automatically"
+      },
+      {
+        "name": "Priority Pass Lounge Access",
+        "type": "perk",
+        "category": null,
+        "description": "Complimentary Priority Pass Select airport lounge membership"
+      },
+      {
+        "name": "Global Entry / TSA PreCheck Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 100,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "description": "$100 credit for Global Entry or TSA PreCheck every 4 years"
+      }
+    ]
+  },
+  {
+    "issuer": "Chase",
+    "name": "Freedom Unlimited",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Ultimate Rewards",
+    "signUpBonus": "Additional 1.5% on everything up to $20,000 in first year",
+    "foreignTxFee": 0.03,
+    "plaidPatterns": ["freedom unlimited", "chase freedom unl"],
+    "benefits": [
+      {
+        "name": "Travel Rewards",
+        "type": "cashback",
+        "category": "Travel",
+        "rewardRate": 0.05,
+        "rewardUnit": "percent",
+        "description": "5% cash back on travel purchased through Chase Travel"
+      },
+      {
+        "name": "Dining Rewards",
+        "type": "cashback",
+        "category": "Dining",
+        "rewardRate": 0.03,
+        "rewardUnit": "percent",
+        "description": "3% on dining at restaurants"
+      },
+      {
+        "name": "Drugstore Rewards",
+        "type": "cashback",
+        "category": "Health",
+        "rewardRate": 0.03,
+        "rewardUnit": "percent",
+        "description": "3% on drugstore purchases"
+      },
+      {
+        "name": "Base Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.015,
+        "rewardUnit": "percent",
+        "description": "1.5% cash back on all other purchases"
+      }
+    ]
+  },
+  {
+    "issuer": "American Express",
+    "name": "Gold Card",
+    "tier": "PREMIUM",
+    "annualFee": 250,
+    "rewardsCurrency": "Membership Rewards",
+    "signUpBonus": "60,000 points after $6,000 in 6 months",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["amex gold", "american express gold"],
+    "benefits": [
+      {
+        "name": "Restaurant Rewards",
+        "type": "points_multiplier",
+        "category": "Dining",
+        "rewardRate": 4,
+        "rewardUnit": "points_per_dollar",
+        "description": "4x points at restaurants worldwide"
+      },
+      {
+        "name": "Grocery Rewards",
+        "type": "points_multiplier",
+        "category": "Groceries",
+        "rewardRate": 4,
+        "rewardUnit": "points_per_dollar",
+        "maxReward": 25000,
+        "description": "4x points at US supermarkets (up to $25,000/year)"
+      },
+      {
+        "name": "Flight Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 3,
+        "rewardUnit": "points_per_dollar",
+        "description": "3x points on flights booked directly with airlines"
+      },
+      {
+        "name": "Base Rewards",
+        "type": "points_multiplier",
+        "category": null,
+        "rewardRate": 1,
+        "rewardUnit": "points_per_dollar",
+        "description": "1x points on all other purchases"
+      },
+      {
+        "name": "Dining Credit",
+        "type": "statement_credit",
+        "category": "Dining",
+        "creditAmount": 120,
+        "creditCycle": "CALENDAR_YEAR",
+        "description": "$10/month dining credit at select restaurants (Grubhub, Cheesecake Factory, etc.)"
+      },
+      {
+        "name": "Uber Cash",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 120,
+        "creditCycle": "CALENDAR_YEAR",
+        "description": "$10/month Uber Cash for Uber Eats or Uber rides"
+      }
+    ]
+  },
+  {
+    "issuer": "American Express",
+    "name": "Platinum Card",
+    "tier": "ULTRA_PREMIUM",
+    "annualFee": 695,
+    "rewardsCurrency": "Membership Rewards",
+    "signUpBonus": "80,000 points after $8,000 in 6 months",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["amex platinum", "american express platinum"],
+    "benefits": [
+      {
+        "name": "Flight Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 5,
+        "rewardUnit": "points_per_dollar",
+        "description": "5x points on flights booked directly with airlines or through Amex Travel"
+      },
+      {
+        "name": "Prepaid Hotel Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 5,
+        "rewardUnit": "points_per_dollar",
+        "description": "5x points on prepaid hotels booked through Amex Travel"
+      },
+      {
+        "name": "Base Rewards",
+        "type": "points_multiplier",
+        "category": null,
+        "rewardRate": 1,
+        "rewardUnit": "points_per_dollar",
+        "description": "1x points on all other purchases"
+      },
+      {
+        "name": "Airline Fee Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 200,
+        "creditCycle": "CALENDAR_YEAR",
+        "description": "$200 annual airline fee credit for one selected airline"
+      },
+      {
+        "name": "Hotel Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 200,
+        "creditCycle": "CALENDAR_YEAR",
+        "description": "$200 hotel credit for Fine Hotels + Resorts or Hotel Collection bookings"
+      },
+      {
+        "name": "Digital Entertainment Credit",
+        "type": "statement_credit",
+        "category": "Subscriptions",
+        "creditAmount": 240,
+        "creditCycle": "CALENDAR_YEAR",
+        "description": "$20/month for Disney+, Hulu, ESPN+, Peacock, NYT, and more"
+      },
+      {
+        "name": "Uber Cash",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 200,
+        "creditCycle": "CALENDAR_YEAR",
+        "description": "$15/month Uber Cash plus $20 in December"
+      },
+      {
+        "name": "Centurion Lounge Access",
+        "type": "perk",
+        "category": null,
+        "description": "Complimentary access to Centurion Lounges and Priority Pass lounges"
+      },
+      {
+        "name": "Global Entry / TSA PreCheck Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 100,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "description": "$100 credit for Global Entry or TSA PreCheck"
+      }
+    ]
+  },
+  {
+    "issuer": "Capital One",
+    "name": "Venture X",
+    "tier": "PREMIUM",
+    "annualFee": 395,
+    "rewardsCurrency": "Miles",
+    "signUpBonus": "75,000 miles after $4,000 in 3 months",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["venture x", "capital one venture x"],
+    "benefits": [
+      {
+        "name": "Base Miles",
+        "type": "points_multiplier",
+        "category": null,
+        "rewardRate": 2,
+        "rewardUnit": "points_per_dollar",
+        "description": "2x miles on every purchase"
+      },
+      {
+        "name": "Capital One Travel Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 10,
+        "rewardUnit": "points_per_dollar",
+        "description": "10x miles on hotels and rental cars booked through Capital One Travel"
+      },
+      {
+        "name": "Travel Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 300,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "description": "$300 annual credit for bookings through Capital One Travel"
+      },
+      {
+        "name": "Anniversary Miles",
+        "type": "perk",
+        "category": null,
+        "creditAmount": 10000,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "description": "10,000 bonus miles on card anniversary"
+      },
+      {
+        "name": "Capital One Lounge Access",
+        "type": "perk",
+        "category": null,
+        "description": "Complimentary access to Capital One Lounges and Priority Pass"
+      }
+    ]
+  },
+  {
+    "issuer": "Capital One",
+    "name": "Savor One",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Cash Back",
+    "signUpBonus": "$200 cash back after $500 in 3 months",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["savorone", "savor one", "capital one savor"],
+    "benefits": [
+      {
+        "name": "Dining Cash Back",
+        "type": "cashback",
+        "category": "Dining",
+        "rewardRate": 0.03,
+        "rewardUnit": "percent",
+        "description": "3% cash back on dining and entertainment"
+      },
+      {
+        "name": "Grocery Cash Back",
+        "type": "cashback",
+        "category": "Groceries",
+        "rewardRate": 0.03,
+        "rewardUnit": "percent",
+        "description": "3% cash back at grocery stores"
+      },
+      {
+        "name": "Entertainment Cash Back",
+        "type": "cashback",
+        "category": "Entertainment",
+        "rewardRate": 0.03,
+        "rewardUnit": "percent",
+        "description": "3% cash back on popular streaming services"
+      },
+      {
+        "name": "Base Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.01,
+        "rewardUnit": "percent",
+        "description": "1% cash back on all other purchases"
+      }
+    ]
+  },
+  {
+    "issuer": "Citi",
+    "name": "Double Cash",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Cash Back",
+    "signUpBonus": "$200 cash back after $1,500 in 6 months",
+    "foreignTxFee": 0.03,
+    "plaidPatterns": ["double cash", "citi double"],
+    "benefits": [
+      {
+        "name": "Purchase Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.01,
+        "rewardUnit": "percent",
+        "description": "1% cash back on all purchases"
+      },
+      {
+        "name": "Payment Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.01,
+        "rewardUnit": "percent",
+        "description": "1% cash back when you pay your bill (effectively 2% total)"
+      }
+    ]
+  },
+  {
+    "issuer": "Discover",
+    "name": "it Cash Back",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Cash Back",
+    "signUpBonus": "Cashback Match — all cash back earned in first year automatically doubled",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["discover it", "discover card"],
+    "benefits": [
+      {
+        "name": "Rotating Category Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.05,
+        "rewardUnit": "percent",
+        "maxReward": 75,
+        "description": "5% cash back in rotating quarterly categories (up to $1,500/quarter)"
+      },
+      {
+        "name": "Base Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.01,
+        "rewardUnit": "percent",
+        "description": "1% cash back on all other purchases"
+      }
+    ]
+  },
+  {
+    "issuer": "Wells Fargo",
+    "name": "Active Cash",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Cash Back",
+    "signUpBonus": "$200 cash back after $500 in 3 months",
+    "foreignTxFee": 0.03,
+    "plaidPatterns": ["active cash", "wells fargo active"],
+    "benefits": [
+      {
+        "name": "Flat Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.02,
+        "rewardUnit": "percent",
+        "description": "2% cash back on all purchases"
+      },
+      {
+        "name": "Cell Phone Protection",
+        "type": "insurance",
+        "category": null,
+        "description": "Up to $600 per claim for cell phone damage/theft when you pay your bill with this card"
+      }
+    ]
+  }
+]

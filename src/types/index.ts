@@ -215,6 +215,75 @@ export interface GoalTarget {
   monthlyNeeded?: number    // computed: what monthly contribution keeps you on pace
 }
 
+// ─── Card benefits types ─────────────────────────────────────────────────────
+
+export type CardTier = 'BASIC' | 'MID' | 'PREMIUM' | 'ULTRA_PREMIUM'
+
+export type BenefitRefreshCycle = 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY' | 'CALENDAR_YEAR' | 'CARDMEMBER_YEAR'
+
+export interface CardProgram {
+  id: string
+  issuer: string
+  name: string
+  tier: CardTier
+  annualFee: number
+  rewardsCurrency: string | null
+  signUpBonus: string | null
+  foreignTxFee: number
+  isActive: boolean
+  plaidPatterns: string[] | null
+  benefits?: CardBenefit[]
+}
+
+export interface CardBenefit {
+  id: string
+  cardProgramId: string
+  name: string
+  type: string // "cashback" | "points_multiplier" | "statement_credit" | "insurance" | "perk"
+  category: string | null
+  rewardRate: number | null
+  rewardUnit: string | null
+  maxReward: number | null
+  creditAmount: number | null
+  creditCycle: BenefitRefreshCycle | null
+  description: string
+  terms: string | null
+  isActive: boolean
+}
+
+export interface UserCard {
+  id: string
+  userId: string
+  cardProgramId: string
+  accountId: string | null
+  nickname: string | null
+  lastFourDigits: string | null
+  openedDate: Date | null
+  isActive: boolean
+  cardProgram?: CardProgram
+  benefits?: UserCardBenefit[]
+}
+
+export interface UserCardBenefit {
+  id: string
+  userCardId: string
+  cardBenefitId: string
+  usedAmount: number
+  lastResetDate: Date | null
+  isOptedIn: boolean
+  notes: string | null
+  cardBenefit?: CardBenefit
+}
+
+export interface CardSuggestion {
+  accountId: string
+  accountName: string
+  institution: string | null
+  suggestedProgram: CardProgram
+  confidence: number // 0-1
+  matchReason: string
+}
+
 // ─── API response shapes ──────────────────────────────────────────────────────
 
 export interface ApiError {

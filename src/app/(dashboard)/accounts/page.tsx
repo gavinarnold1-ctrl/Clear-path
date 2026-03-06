@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import AccountManager from '@/components/accounts/AccountManager'
+import CardIdentification from '@/components/accounts/CardIdentification'
 
 export const metadata: Metadata = { title: 'Accounts' }
 
@@ -79,12 +80,15 @@ export default async function AccountsPage() {
           </Link>
         </div>
       ) : (
+        <>
+        <CardIdentification />
         <AccountManager
           accounts={serialized}
           householdMembers={householdMembers}
           propertyEquity={propertiesForNW.reduce((sum, p) => sum + (p.currentValue ?? 0) - (p.loanBalance ?? 0), 0)}
           linkedAccountIds={linkedAccountLinks.map(l => l.accountId)}
         />
+        </>
       )}
     </div>
   )
