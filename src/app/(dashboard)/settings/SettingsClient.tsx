@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { ConfirmModal } from '@/components/ui/Modal'
 
 interface Member {
   id: string
@@ -140,6 +142,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [newGroupDesc, setNewGroupDesc] = useState('')
   const [groupSaving, setGroupSaving] = useState(false)
   const [groupMsg, setGroupMsg] = useState<string | null>(null)
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null)
   const [allocMsg, setAllocMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   // Expanded group for editing
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
@@ -458,8 +461,8 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   }
 
   async function deleteGroup(id: string) {
-    if (!confirm('Delete this property group? Split rules will be removed and properties unlinked.')) return
     setGroups((prev) => prev.filter((g) => g.id !== id))
+    setDeleteGroupId(null)
     try {
       const res = await fetch(`/api/property-groups/${id}`, { method: 'DELETE' })
       if (!res.ok) loadGroups()
@@ -845,9 +848,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
               {profileMsg.text}
             </p>
           )}
-          <button onClick={saveProfile} disabled={profileSaving} className="btn-primary text-sm">
-            {profileSaving ? 'Saving...' : 'Save Profile'}
-          </button>
+          <Button size="sm" onClick={saveProfile} loading={profileSaving} loadingText="Saving...">
+            Save Profile
+          </Button>
         </div>
 
         <hr className="my-5 border-mist" />
@@ -873,13 +876,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
               {passwordMsg.text}
             </p>
           )}
-          <button
-            onClick={changePassword}
-            disabled={passwordSaving || !currentPassword || newPassword.length < 8}
-            className="btn-secondary text-sm disabled:opacity-50"
-          >
-            {passwordSaving ? 'Changing...' : 'Change Password'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={changePassword} disabled={passwordSaving || !currentPassword || newPassword.length < 8} loading={passwordSaving} loadingText="Changing...">
+            Change Password
+          </Button>
         </div>
       </section>
 
@@ -914,13 +913,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             {goalMsg.text}
           </p>
         )}
-        <button
-          onClick={saveGoal}
-          disabled={goalSaving || !goalChanged || !selectedGoal}
-          className="btn-primary mt-4 text-sm disabled:opacity-50"
-        >
-          {goalSaving ? 'Saving...' : 'Save Goal'}
-        </button>
+        <Button size="sm" className="mt-4" onClick={saveGoal} disabled={!goalChanged || !selectedGoal} loading={goalSaving} loadingText="Saving...">
+          Save Goal
+        </Button>
       </section>
 
       {/* R10.2: Household Members */}
@@ -970,9 +965,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             placeholder="Member name"
             onKeyDown={(e) => e.key === 'Enter' && addMember()}
           />
-          <button onClick={addMember} disabled={memberSaving || !newMemberName.trim()} className="btn-primary text-sm">
-            {memberSaving ? 'Adding...' : 'Add'}
-          </button>
+          <Button size="sm" onClick={addMember} disabled={!newMemberName.trim()} loading={memberSaving} loadingText="Adding...">
+            Add
+          </Button>
         </div>
       </section>
 
@@ -1062,9 +1057,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             >
               {showPropDetails ? 'Less' : 'More'}
             </button>
-            <button onClick={addProperty} disabled={propSaving || !newPropName.trim()} className="btn-primary text-sm">
-              {propSaving ? 'Adding...' : 'Add'}
-            </button>
+            <Button size="sm" onClick={addProperty} disabled={!newPropName.trim()} loading={propSaving} loadingText="Adding...">
+              Add
+            </Button>
           </div>
 
           {showPropDetails && (
@@ -1215,9 +1210,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         </p>
 
         {!groupsLoaded ? (
-          <button onClick={loadGroups} disabled={groupsLoading} className="btn-secondary text-sm mb-4">
-            {groupsLoading ? 'Loading...' : 'Load Property Groups'}
-          </button>
+          <Button variant="secondary" size="sm" className="mb-4" onClick={loadGroups} loading={groupsLoading} loadingText="Loading...">
+            Load Property Groups
+          </Button>
         ) : (
           <>
             {groups.length === 0 ? (
@@ -1253,7 +1248,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                         </div>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={(e) => { e.stopPropagation(); deleteGroup(group.id) }}
+                            onClick={(e) => { e.stopPropagation(); setDeleteGroupId(group.id) }}
                             className="text-xs text-stone hover:text-ember"
                           >
                             Delete
@@ -1305,13 +1300,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                     Total: {totalPct.toFixed(2)}%
                                   </span>
                                   {group.properties.length > 0 && (
-                                    <button
-                                      onClick={() => saveSplitAllocations(group.id)}
-                                      disabled={!pctValid}
-                                      className="btn-primary text-xs disabled:opacity-50"
-                                    >
+                                    <Button size="sm" onClick={() => saveSplitAllocations(group.id)} disabled={!pctValid}>
                                       Save Allocations
-                                    </button>
+                                    </Button>
                                   )}
                                 </div>
                                 {allocMsg && (
@@ -1336,13 +1327,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                       <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                   </select>
-                                  <button
-                                    onClick={() => addPropertyToGroup(group.id, addPropToGroupId)}
-                                    disabled={!addPropToGroupId}
-                                    className="btn-primary text-xs disabled:opacity-50"
-                                  >
+                                  <Button size="sm" onClick={() => addPropertyToGroup(group.id, addPropToGroupId)} disabled={!addPropToGroupId}>
                                     Add
-                                  </button>
+                                  </Button>
                                   <button
                                     onClick={() => { setAddPropGroupId(null); setAddPropToGroupId('') }}
                                     className="text-xs text-stone hover:text-fjord"
@@ -1471,13 +1458,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 pt-1">
-                                  <button
-                                    onClick={() => createMatchRule(group.id)}
-                                    disabled={mrSaving || !mrName.trim() || !mrMatchPattern.trim() || Math.abs(mrAllocations.reduce((s, a) => s + a.percentage, 0) - 100) >= 0.01}
-                                    className="btn-primary text-xs disabled:opacity-50"
-                                  >
-                                    {mrSaving ? 'Creating...' : 'Create Rule'}
-                                  </button>
+                                  <Button size="sm" onClick={() => createMatchRule(group.id)} disabled={!mrName.trim() || !mrMatchPattern.trim() || Math.abs(mrAllocations.reduce((s, a) => s + a.percentage, 0) - 100) >= 0.01} loading={mrSaving} loadingText="Creating...">
+                                    Create Rule
+                                  </Button>
                                   <button
                                     onClick={() => setShowMatchRuleForm(null)}
                                     className="text-xs text-stone hover:text-fjord"
@@ -1501,13 +1484,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                           {/* Backfill */}
                           {group.matchRules.some((r) => r.isActive) && (
                             <div>
-                              <button
-                                onClick={() => runBackfill(group.id)}
-                                disabled={backfillGroupId === group.id}
-                                className="btn-secondary text-xs disabled:opacity-50"
-                              >
-                                {backfillGroupId === group.id ? 'Running...' : 'Backfill Historical Transactions'}
-                              </button>
+                              <Button variant="secondary" size="sm" onClick={() => runBackfill(group.id)} loading={backfillGroupId === group.id} loadingText="Running...">
+                                Backfill Historical Transactions
+                              </Button>
                               {backfillMsg && backfillMsg.groupId === group.id && (
                                 <p className={`mt-1 text-xs ${backfillMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
                                   {backfillMsg.text}
@@ -1534,9 +1513,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                   placeholder="Group name"
                   onKeyDown={(e) => e.key === 'Enter' && createGroup()}
                 />
-                <button onClick={createGroup} disabled={groupSaving || !newGroupName.trim()} className="btn-primary text-sm">
-                  {groupSaving ? 'Creating...' : 'Create Group'}
-                </button>
+                <Button size="sm" onClick={createGroup} disabled={!newGroupName.trim()} loading={groupSaving} loadingText="Creating...">
+                  Create Group
+                </Button>
               </div>
             </div>
           </>
@@ -1562,9 +1541,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         <p className="mb-3 text-sm text-stone">
           Download all your transactions as a CSV file.
         </p>
-        <a href="/api/transactions/export" download className="btn-secondary inline-block text-sm">
+        <Button variant="secondary" size="sm" href="/api/transactions/export">
           Download Transactions CSV
-        </a>
+        </Button>
       </section>
 
       {/* Smart Category Learning */}
@@ -1575,13 +1554,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           from the same merchant. Mappings shown below.
         </p>
         {!mappingsLoaded ? (
-          <button
-            onClick={loadMappings}
-            disabled={mappingsLoading}
-            className="btn-secondary text-sm"
-          >
-            {mappingsLoading ? 'Loading...' : 'Show Learned Mappings'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={loadMappings} loading={mappingsLoading} loadingText="Loading...">
+            Show Learned Mappings
+          </Button>
         ) : mappings.length === 0 ? (
           <p className="text-sm text-stone">No learned mappings yet. Reclassify a transaction to start learning.</p>
         ) : (
@@ -1629,13 +1604,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           </p>
 
           {!acctPropLinksLoaded ? (
-            <button
-              onClick={loadAcctPropLinks}
-              disabled={acctPropLinksLoading}
-              className="btn-secondary text-sm disabled:opacity-50"
-            >
-              {acctPropLinksLoading ? 'Loading...' : 'Load Account-Property Links'}
-            </button>
+            <Button variant="secondary" size="sm" onClick={loadAcctPropLinks} loading={acctPropLinksLoading} loadingText="Loading...">
+              Load Account-Property Links
+            </Button>
           ) : (
             <>
               {/* Existing links */}
@@ -1691,13 +1662,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     ))}
                   </select>
                 </div>
-                <button
-                  onClick={createAcctPropLink}
-                  disabled={linkSaving || !newLinkAccountId || !newLinkPropertyId}
-                  className="btn-primary text-sm disabled:opacity-50"
-                >
-                  {linkSaving ? 'Linking...' : 'Link'}
-                </button>
+                <Button size="sm" onClick={createAcctPropLink} disabled={!newLinkAccountId || !newLinkPropertyId} loading={linkSaving} loadingText="Linking...">
+                  Link
+                </Button>
               </div>
             </>
           )}
@@ -1720,13 +1687,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
               {fixMsg.text}
             </p>
           )}
-          <button
-            onClick={fixClassifications}
-            disabled={fixingClassification}
-            className="btn-secondary text-sm disabled:opacity-50"
-          >
-            {fixingClassification ? 'Fixing...' : 'Fix Classifications'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={fixClassifications} loading={fixingClassification} loadingText="Fixing...">
+            Fix Classifications
+          </Button>
         </div>
 
         <hr className="my-5 border-mist" />
@@ -1745,12 +1708,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             </p>
           )}
           {!showResetConfirm ? (
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              className="btn-danger text-sm"
-            >
+            <Button variant="danger" size="sm" onClick={() => setShowResetConfirm(true)}>
               Reset All Data
-            </button>
+            </Button>
           ) : (
             <div className="rounded-lg border border-ember/30 bg-ember/5 p-4">
               <p className="mb-3 text-sm font-medium text-fjord">
@@ -1758,13 +1718,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                 transactions, accounts, budgets, debts, categories, and settings will be wiped clean.
               </p>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={resetAllData}
-                  disabled={resetting}
-                  className="btn-danger text-sm disabled:opacity-50"
-                >
-                  {resetting ? 'Resetting...' : 'Yes, Delete Everything'}
-                </button>
+                <Button variant="danger" size="sm" onClick={resetAllData} loading={resetting} loadingText="Resetting...">
+                  Yes, Delete Everything
+                </Button>
                 <button
                   onClick={() => { setShowResetConfirm(false); setResetMsg(null) }}
                   className="text-sm text-stone hover:text-fjord"
@@ -1784,12 +1740,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           Permanently delete your account and all associated data. This cannot be undone.
         </p>
         {!showDeleteConfirm ? (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="btn-danger text-sm"
-          >
+          <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)}>
             Delete My Account
-          </button>
+          </Button>
         ) : (
           <div className="rounded-lg border border-ember/30 bg-ember/5 p-4">
             <p className="mb-3 text-sm font-medium text-fjord">
@@ -1804,13 +1757,9 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             />
             {deleteMsg && <p className="mb-2 text-sm text-expense">{deleteMsg}</p>}
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleting || !deletePassword}
-                className="btn-danger text-sm disabled:opacity-50"
-              >
-                {deleting ? 'Deleting...' : 'Permanently Delete Account'}
-              </button>
+              <Button variant="danger" size="sm" onClick={handleDeleteAccount} disabled={!deletePassword} loading={deleting} loadingText="Deleting...">
+                Permanently Delete Account
+              </Button>
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteMsg(null) }}
                 className="text-sm text-stone hover:text-fjord"
@@ -1821,6 +1770,16 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           </div>
         )}
       </section>
+
+      <ConfirmModal
+        open={!!deleteGroupId}
+        onClose={() => setDeleteGroupId(null)}
+        onConfirm={() => deleteGroupId && deleteGroup(deleteGroupId)}
+        title="Delete property group?"
+        description="Split rules will be removed and properties unlinked."
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 import type { TaxSummary } from '@/lib/engines/tax'
 import { pitiBreakdown } from '@/lib/engines/amortization'
 import PropertySetupWizard from '@/components/properties/PropertySetupWizard'
@@ -502,9 +503,9 @@ function TaxReportView({
         <h2 className="text-sm font-medium text-stone uppercase tracking-wide">
           Tax Report — {monthLabel}
         </h2>
-        <button onClick={exportCsv} className="btn-secondary text-xs">
+        <Button variant="secondary" size="sm" onClick={exportCsv}>
           Export for CPA
-        </button>
+        </Button>
       </div>
 
       {/* Tax approximation notice */}

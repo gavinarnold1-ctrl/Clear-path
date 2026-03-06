@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
+import { Button } from '@/components/ui/Button'
 import { saveOnboardingStep, completeOnboarding, skipOnboarding } from '@/app/actions/onboarding'
 import type {
   OnboardingAnswers,
@@ -108,7 +110,7 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
       }
       const result = await completeOnboarding(allAnswers)
       if (result.error) {
-        alert(result.error)
+        toast.error(result.error)
         return
       }
       router.push('/dashboard')
@@ -167,30 +169,32 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
       {/* Navigation */}
       <div className="mt-6 flex items-center justify-between">
         {step > 0 ? (
-          <button type="button" onClick={handleBack} className="btn-secondary">
+          <Button variant="secondary" type="button" onClick={handleBack}>
             Back
-          </button>
+          </Button>
         ) : (
           <div />
         )}
         {isLastStep ? (
-          <button
+          <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!canProceed() || submitting}
-            className="btn-primary disabled:opacity-50"
+            disabled={!canProceed()}
+            loading={submitting}
+            loadingText="Setting up..."
           >
-            {submitting ? 'Setting up...' : 'Finish'}
-          </button>
+            Finish
+          </Button>
         ) : (
-          <button
+          <Button
             type="button"
             onClick={handleNext}
-            disabled={!canProceed() || saving}
-            className="btn-primary disabled:opacity-50"
+            disabled={!canProceed()}
+            loading={saving}
+            loadingText="Saving..."
           >
-            {saving ? 'Saving...' : 'Continue'}
-          </button>
+            Continue
+          </Button>
         )}
       </div>
     </div>

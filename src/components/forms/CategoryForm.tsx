@@ -1,8 +1,10 @@
 'use client'
 
 import { useActionState } from 'react'
-import Link from 'next/link'
 import { createCategory } from '@/app/actions/categories'
+import { Button } from '@/components/ui/Button'
+import { FormInput } from '@/components/ui/FormInput'
+import { FormSelect } from '@/components/ui/FormSelect'
 
 const initialState = { error: null }
 
@@ -17,81 +19,48 @@ export default function CategoryForm() {
         </p>
       )}
 
-      {/* Name */}
-      <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-fjord">
-          Category name
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          className="input"
-          placeholder="e.g. Groceries, Salary, Transport"
-          required
-        />
-      </div>
+      <FormInput
+        label="Category name"
+        name="name"
+        type="text"
+        placeholder="e.g. Groceries, Salary, Transport"
+        required
+      />
 
-      {/* Type */}
-      <div>
-        <label htmlFor="type" className="mb-1 block text-sm font-medium text-fjord">
-          Type
-        </label>
-        <select id="type" name="type" className="input" required>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-        </select>
-      </div>
+      <FormSelect label="Type" name="type" required>
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+      </FormSelect>
 
-      {/* Group */}
-      <div>
-        <label htmlFor="group" className="mb-1 block text-sm font-medium text-fjord">
-          Group <span className="font-normal text-stone">(optional)</span>
-        </label>
-        <input
-          id="group"
-          name="group"
-          type="text"
-          className="input"
-          placeholder="e.g. Food & Dining, Housing"
-        />
-      </div>
+      <FormInput
+        label="Group (optional)"
+        name="group"
+        type="text"
+        placeholder="e.g. Food & Dining, Housing"
+      />
 
-      {/* Icon (emoji shorthand) */}
-      <div>
-        <label htmlFor="icon" className="mb-1 block text-sm font-medium text-fjord">
-          Icon <span className="font-normal text-stone">(optional — use an emoji)</span>
-        </label>
-        <input
-          id="icon"
-          name="icon"
-          type="text"
-          className="input"
-          placeholder="🛒"
-          maxLength={4}
-        />
-      </div>
+      <FormInput
+        label="Icon (optional — use an emoji)"
+        name="icon"
+        type="text"
+        placeholder="🛒"
+        maxLength={4}
+      />
 
-      {/* Budget tier */}
-      <div>
-        <label htmlFor="budgetTier" className="mb-1 block text-sm font-medium text-fjord">
-          Default budget tier <span className="font-normal text-stone">(optional)</span>
-        </label>
-        <select id="budgetTier" name="budgetTier" className="input">
-          <option value="">None</option>
-          <option value="FIXED">Fixed</option>
-          <option value="FLEXIBLE">Flexible</option>
-          <option value="ANNUAL">Annual</option>
-        </select>
-      </div>
+      <FormSelect label="Default budget tier (optional)" name="budgetTier">
+        <option value="">None</option>
+        <option value="FIXED">Fixed</option>
+        <option value="FLEXIBLE">Flexible</option>
+        <option value="ANNUAL">Annual</option>
+      </FormSelect>
 
       <div className="flex gap-3 pt-1">
-        <button type="submit" className="btn-primary" disabled={isPending}>
-          {isPending ? 'Saving…' : 'Save category'}
-        </button>
-        <Link href="/categories" className="btn-secondary">
+        <Button type="submit" disabled={isPending} loading={isPending} loadingText="Saving…">
+          Save category
+        </Button>
+        <Button variant="secondary" href="/categories">
           Cancel
-        </Link>
+        </Button>
       </div>
     </form>
   )

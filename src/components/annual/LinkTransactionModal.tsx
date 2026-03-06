@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
 
 interface Transaction {
@@ -137,9 +138,9 @@ export default function LinkTransactionModal({
         </div>
 
         <div className="border-t border-mist p-3 text-right">
-          <button onClick={onClose} className="btn-secondary px-4 py-2 text-sm">
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
 
 interface FundExpense {
   name: string
@@ -77,41 +78,44 @@ export default function FundExpenseModal({ expense, isOpen, onClose, onSubmit }:
 
           <div className="flex flex-wrap gap-2">
             {expense.currentSetAside > 0 && (
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
                 onClick={() => quickFill(expense.currentSetAside)}
-                className="btn-secondary px-3 py-1 text-xs"
               >
                 This month ({formatCurrency(expense.currentSetAside)})
-              </button>
+              </Button>
             )}
             {catchUp > 0 && catchUp !== expense.currentSetAside && (
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
                 onClick={() => quickFill(catchUp)}
-                className="btn-secondary px-3 py-1 text-xs"
               >
                 Catch up ({formatCurrency(catchUp)})
-              </button>
+              </Button>
             )}
             {remaining > 0 && remaining !== expense.currentSetAside && (
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
                 onClick={() => quickFill(remaining)}
-                className="btn-secondary px-3 py-1 text-xs"
               >
                 Fund fully ({formatCurrency(remaining)})
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="btn-secondary px-4 py-2 text-sm">
+            <Button variant="secondary" type="button" onClick={onClose}>
               Cancel
-            </button>
-            <button type="submit" className="btn-primary px-4 py-2 text-sm">
+            </Button>
+            <Button type="submit">
               Add Funds
-            </button>
+            </Button>
           </div>
         </form>
       </div>

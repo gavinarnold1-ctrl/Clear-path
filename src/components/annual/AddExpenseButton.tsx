@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import AddAnnualExpenseForm from './AddAnnualExpenseForm'
 
 interface Category {
@@ -14,9 +15,9 @@ export default function AddExpenseButton({ categories }: { categories: Category[
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn-primary">
+      <Button onClick={() => setOpen(true)}>
         + Add Expense
-      </button>
+      </Button>
       <AddAnnualExpenseForm
         categories={categories}
         isOpen={open}

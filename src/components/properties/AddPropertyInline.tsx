@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
 import PropertySetupWizard from '@/components/properties/PropertySetupWizard'
 
 interface AccountOption {
@@ -25,12 +26,9 @@ export default function AddPropertyInline({ accounts }: Props) {
           Add your rental properties, primary home, or business to track income, expenses,
           tax deductions, and mortgage breakdown automatically.
         </p>
-        <button
-          onClick={() => setWizardOpen(true)}
-          className="btn-primary px-6 py-2 text-sm"
-        >
+        <Button onClick={() => setWizardOpen(true)}>
           + Add Property
-        </button>
+        </Button>
       </div>
 
       <PropertySetupWizard

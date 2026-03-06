@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import CsvUploader from '@/components/import/CsvUploader'
 import ColumnMapper from '@/components/import/ColumnMapper'
 import ImportPreview from '@/components/import/ImportPreview'
@@ -233,20 +234,19 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
               </select>
             </div>
             <div className="flex gap-3">
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setStep('upload')}
-                className="btn-secondary"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handlePreview}
-                className="btn-primary disabled:cursor-not-allowed"
               >
                 Preview import
-              </button>
+              </Button>
             </div>
           </div>
         </>
@@ -323,23 +323,22 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
             </label>
 
             <div className="flex gap-3">
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setStep(isMonarch ? 'upload' : 'map')}
-                className="btn-secondary"
               >
                 Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleImport}
-                disabled={loading || previewCount === 0}
-                className="btn-primary disabled:cursor-not-allowed"
+                disabled={previewCount === 0}
+                loading={loading}
+                loadingText="Importing..."
               >
-                {loading
-                  ? 'Importing...'
-                  : `Import ${previewCount} transaction${previewCount !== 1 ? 's' : ''}`}
-              </button>
+                {`Import ${previewCount} transaction${previewCount !== 1 ? 's' : ''}`}
+              </Button>
             </div>
           </div>
         </>

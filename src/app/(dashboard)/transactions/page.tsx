@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import TransactionList from '@/components/transactions/TransactionList'
@@ -114,22 +115,22 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fjord">Transactions</h1>
         <div className="flex gap-3">
-          <Link href="/transactions/import" className="btn-secondary">
+          <Button variant="secondary" href="/transactions/import">
             Import CSV
-          </Link>
-          <Link href="/transactions/new" className="btn-primary">
+          </Button>
+          <Button href="/transactions/new">
             + Add transaction
-          </Link>
+          </Button>
         </div>
       </div>
 
       {transactions.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="mb-1 text-sm font-medium text-stone">No transactions yet</p>
-          <p className="mb-4 text-xs text-stone">Add your first income or expense to get started.</p>
-          <Link href="/transactions/new" className="btn-primary inline-block">
-            + Add transaction
-          </Link>
+        <div className="card">
+          <EmptyState
+            title="No transactions yet"
+            description="Add your first income or expense to get started."
+            action={{ label: "+ Add transaction", href: "/transactions/new" }}
+          />
         </div>
       ) : (
         <TransactionList

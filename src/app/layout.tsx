@@ -35,6 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}>
       <body>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-fjord focus:px-4 focus:py-2 focus:text-snow">
+          Skip to content
+        </a>
         {children}
         <Analytics />
         <SpeedInsights />

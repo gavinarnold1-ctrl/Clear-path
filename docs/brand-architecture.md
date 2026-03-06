@@ -333,3 +333,92 @@ const config: Config = {
 ```
 
 Font CSS variables (`--font-fraunces`, `--font-dm-sans`, `--font-jetbrains`) are injected by Next.js `next/font` in `src/app/layout.tsx`.
+
+-----
+
+## 7. Component Library (`src/components/ui/`)
+
+All shared UI primitives live in `src/components/ui/` with a barrel export from `index.ts`.
+
+### Button
+
+`<Button variant="primary" size="md" loading={false} href="/path">`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| variant | `primary` \| `secondary` \| `success` \| `danger` \| `outline` \| `ghost` | `primary` | Visual style |
+| size | `sm` \| `md` \| `lg` | `md` | Button size |
+| loading | `boolean` | `false` | Shows spinner, disables interaction |
+| loadingText | `string` | — | Text shown during loading state |
+| href | `string` | — | Renders as Next.js `<Link>` instead of `<button>` |
+| fullWidth | `boolean` | `false` | Stretches to fill container |
+| leftIcon / rightIcon | `ReactNode` | — | Icon slots |
+
+### FormInput
+
+`<FormInput label="Email" name="email" type="email" startAdornment="$" helperText="..." error="..." />`
+
+Wraps `<input>` with label, error/helper text, and start/end adornments. Uses `className="input"` base styling.
+
+### FormSelect
+
+`<FormSelect label="Type" name="type" error="...">` + `<option>` children.
+
+Wraps `<select>` with label, error/helper text. Same pattern as FormInput.
+
+### Card / CardHeader / CardBody
+
+`<Card variant="frost" padding="standard">` — wrapper for content sections.
+
+| Prop | Values | Default |
+|------|--------|---------|
+| variant | `frost` \| `snow` \| `outline` | `frost` |
+| padding | `compact` \| `standard` \| `spacious` | `standard` |
+
+### EmptyState
+
+`<EmptyState icon={...} title="No items" description="..." action={{ label: "Add", href: "/new" }} />`
+
+Centered empty state with optional icon, title, description, and CTA button.
+
+### Modal / ConfirmModal
+
+`<Modal open={bool} onClose={fn} title="..." description="..." actions={...} variant="default">`
+
+Native `<dialog>` modal with backdrop. `ConfirmModal` is a convenience wrapper:
+
+`<ConfirmModal open={bool} onClose={fn} onConfirm={fn} title="Delete?" description="..." confirmLabel="Delete" variant="danger" />`
+
+### Badge
+
+`<Badge variant="success" size="sm">On Track</Badge>`
+
+| Variant | Colors |
+|---------|--------|
+| default | Frost bg, Fjord text |
+| success | Pine/10 bg, Pine text |
+| warning | Birch/30 bg, dark birch text |
+| info | Fjord/10 bg, Fjord text |
+
+### Skeleton / SkeletonGroup
+
+`<Skeleton className="h-4 w-32" />` — animated loading placeholder.
+
+`<SkeletonGroup count={3} />` — renders multiple skeleton lines.
+
+### Tooltip
+
+`<Tooltip content="Help text" position="top">` — CSS-only tooltip with 4 positions (top, bottom, left, right).
+
+### ProgressBar
+
+`<ProgressBar percentage={75} color="pine" />` — horizontal progress bar.
+
+### Shared CSS Classes (globals.css)
+
+| Class | Description |
+|-------|-------------|
+| `.card` | Frost bg, mist border, rounded-card, p-6 |
+| `.input` | Snow bg, mist border, fjord focus ring, rounded-button |
+| `.label-caps` | 11px uppercase tracking-widest Stone text |
+| `.btn-primary` | Legacy — use `<Button>` component instead |

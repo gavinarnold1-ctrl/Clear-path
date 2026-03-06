@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import type { BudgetProposal as BudgetProposalType } from '@/lib/budget-builder'
 import type { ProfileSummary, GoalSummary, BuilderMode } from './BudgetBuilderCTA'
 import ProposalFixedSection from './ProposalFixedSection'
@@ -59,9 +60,9 @@ export default function BudgetProposal({ initialProposal, profileSummary, goalSu
             </p>
           )}
         </div>
-        <button type="button" onClick={onCancel} className="btn-secondary">
+        <Button variant="secondary" type="button" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
 
       <div className="mb-6">
@@ -94,24 +95,18 @@ export default function BudgetProposal({ initialProposal, profileSummary, goalSu
           {totalItems} budget item{totalItems !== 1 ? 's' : ''} will be created
         </p>
         <div className="flex gap-3">
-          <button type="button" onClick={onCancel} className="btn-secondary">
+          <Button variant="secondary" type="button" onClick={onCancel}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={handleApply}
-            disabled={applying || totalItems === 0}
-            className="btn-primary flex items-center gap-2 disabled:opacity-50"
+            disabled={totalItems === 0}
+            loading={applying}
+            loadingText="Applying..."
           >
-            {applying ? (
-              <>
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Applying...
-              </>
-            ) : (
-              'Apply budget'
-            )}
-          </button>
+            Apply budget
+          </Button>
         </div>
       </div>
     </div>
