@@ -11,6 +11,7 @@ interface AccountOption {
   id: string
   name: string
   type: string
+  balance: number
 }
 
 interface ExistingPropertyData {
@@ -529,6 +530,9 @@ export default function PropertySetupWizard({ isOpen, onClose, accounts, existin
                 accounts={accounts}
                 linkedAccountIds={linkedAccountIds}
                 toggleAccountLink={toggleAccountLink}
+                propertyType={propertyType}
+                loanBalance={loanBalance ? parseFloat(loanBalance) : null}
+                propertyName={name}
               />
             )}
 
@@ -1001,11 +1005,85 @@ function StepAccountLinking({
   accounts,
   linkedAccountIds,
   toggleAccountLink,
+  propertyType,
+  loanBalance,
+  propertyName,
 }: {
   accounts: AccountOption[]
   linkedAccountIds: Set<string>
   toggleAccountLink: (id: string) => void
+  propertyType: PropertyTypeValue
+  loanBalance: number | null
+  propertyName: string
 }) {
+  // Smart detection: suggest accounts based on property type and balance
+  const LOAN_ACCOUNT_TYPES = new Set(['MORTGAGE', 'HOME_EQUITY', 'AUTO_LOAN'])
+  const nameLower = propertyName.toLowerCase()
+
+  const suggestedAccounts = accounts.filter(acct => {
+    // Suggest loan-type accounts for properties
+    if (LOAN_ACCOUNT_TYPES.has(acct.type)) return true
+    // For rentals, suggest accounts with "rental" or "property" in name
+    if (propertyType === 'RENTAL') {
+      const acctNameLower = acct.name.toLowerCase()
+      if (acctNameLower.includes('rental') || acctNameLower.includes('property')) return true
+    }
+    // Suggest accounts whose name overlaps with property name
+    if (nameLower && acct.name.toLowerCase().includes(nameLower)) return true
+    return false
+  })
+
+  const suggestedIds = new Set(suggestedAccounts.map(a => a.id))
+  const otherAccounts = accounts.filter(a => !suggestedIds.has(a.id))
+
+  // Check if a suggested account has a balance within 5% of the property's loan balance
+  function isBalanceMatch(acct: AccountOption): boolean {
+    if (!loanBalance || loanBalance <= 0) return false
+    const acctBal = Math.abs(acct.balance)
+    if (acctBal === 0) return false
+    const diff = Math.abs(acctBal - loanBalance) / loanBalance
+    return diff <= 0.05
+  }
+
+  function renderAccountButton(acct: AccountOption, isSuggested: boolean) {
+    const balanceMatch = isSuggested && isBalanceMatch(acct)
+    return (
+      <button
+        key={acct.id}
+        type="button"
+        onClick={() => toggleAccountLink(acct.id)}
+        className={`flex w-full items-center gap-3 rounded-button border p-3 text-left transition-colors ${
+          linkedAccountIds.has(acct.id)
+            ? 'border-pine bg-pine/5'
+            : 'border-mist bg-white hover:border-fjord'
+        }`}
+      >
+        <div
+          className={`flex h-5 w-5 items-center justify-center rounded border ${
+            linkedAccountIds.has(acct.id)
+              ? 'border-pine bg-pine text-snow'
+              : 'border-mist'
+          }`}
+        >
+          {linkedAccountIds.has(acct.id) && (
+            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          )}
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-fjord">{acct.name}</p>
+          <p className="text-xs text-stone">
+            {acct.type}
+            {balanceMatch && (
+              <span className="ml-1 text-pine">(Balance matches)</span>
+            )}
+          </p>
+        </div>
+      </button>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-stone">
@@ -1017,36 +1095,24 @@ function StepAccountLinking({
         </p>
       ) : (
         <div className="space-y-2">
-          {accounts.map((acct) => (
-            <button
-              key={acct.id}
-              type="button"
-              onClick={() => toggleAccountLink(acct.id)}
-              className={`flex w-full items-center gap-3 rounded-button border p-3 text-left transition-colors ${
-                linkedAccountIds.has(acct.id)
-                  ? 'border-pine bg-pine/5'
-                  : 'border-mist bg-white hover:border-fjord'
-              }`}
-            >
-              <div
-                className={`flex h-5 w-5 items-center justify-center rounded border ${
-                  linkedAccountIds.has(acct.id)
-                    ? 'border-pine bg-pine text-snow'
-                    : 'border-mist'
-                }`}
-              >
-                {linkedAccountIds.has(acct.id) && (
-                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
+          {suggestedAccounts.length > 0 && (
+            <div className="rounded-lg border border-pine/30 bg-pine/5 p-4">
+              <p className="mb-2 text-sm font-medium text-pine">
+                Suggested matches based on account type:
+              </p>
+              <div className="space-y-2">
+                {suggestedAccounts.map(acct => renderAccountButton(acct, true))}
               </div>
-              <div>
-                <p className="text-sm font-medium text-fjord">{acct.name}</p>
-                <p className="text-xs text-stone">{acct.type}</p>
-              </div>
-            </button>
-          ))}
+            </div>
+          )}
+          {otherAccounts.length > 0 && (
+            <>
+              {suggestedAccounts.length > 0 && (
+                <p className="text-xs font-medium text-stone">Other accounts</p>
+              )}
+              {otherAccounts.map(acct => renderAccountButton(acct, false))}
+            </>
+          )}
         </div>
       )}
     </div>

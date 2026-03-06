@@ -77,6 +77,19 @@ export function mapPlaidCategory(
     return { group: 'Housing', name: 'Mortgage', type: 'expense' }
   }
 
+  // Dividend and interest income detection
+  if (primary === 'INCOME' && detailed === 'INCOME_DIVIDENDS') {
+    return { group: 'Income', name: 'Dividends & Capital Gains', type: 'income' }
+  }
+  if (primary === 'INCOME' && detailed === 'INCOME_INTEREST_EARNED') {
+    return { group: 'Income', name: 'Interest', type: 'income' }
+  }
+
+  // Investment transfers
+  if (primary === 'TRANSFER_IN' && detailed === 'TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS') {
+    return { group: 'Transfers', name: 'Investment Transfer', type: 'transfer' }
+  }
+
   // Income detection from transfers
   if (primary === 'TRANSFER_IN') {
     if (detailed === 'TRANSFER_IN_DEPOSIT' || detailed === 'TRANSFER_IN_PAYROLL') {

@@ -24,7 +24,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -47,10 +47,20 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     // Account balances for net worth (R7.9)
     db.account.findMany({
       where: { userId: session.userId },
-      select: { type: true, balance: true },
+      select: { id: true, type: true, balance: true },
     }),
     // Cumulative savings identified by AI insights
     getValueSummary(session.userId),
+    // Properties for net worth equity calculation
+    db.property.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true, currentValue: true, loanBalance: true, type: true },
+    }),
+    // Account-property links to avoid double-counting mortgage liabilities
+    db.accountPropertyLink.findMany({
+      where: { account: { userId: session.userId }, property: { currentValue: { not: null } } },
+      select: { accountId: true },
+    }),
   ])
 
   // R7.8: Convert snapshot months (Date) to YYYY-MM strings
@@ -104,13 +114,23 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
   const firstDebt = firstSnapshot?.totalDebt ?? null
   const debtPaidDown = firstDebt !== null ? firstDebt - currentTotalDebt : null
 
-  // Net worth: assets minus liabilities (R7.9)
+  // Net worth: assets minus liabilities (R7.9), including property equity
   const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
-  const currentNetWorth = accounts.reduce((sum, a) => {
+  // Accounts linked to properties with values — skip these liabilities to avoid double-counting
+  // (property equity = currentValue - loanBalance already accounts for the mortgage)
+  const linkedAccountIdSet = new Set(linkedAccountLinks.map(l => l.accountId))
+  const accountNetWorth = accounts.reduce((sum, a) => {
+    if (linkedAccountIdSet.has(a.id)) return sum // Skip — handled in property equity
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
-  const hasAccounts = accounts.length > 0
+  // Property equity: currentValue minus loanBalance for properties with a value set
+  const propertyEquity = propertiesForNW.reduce((sum, p) => {
+    if (!p.currentValue) return sum
+    return sum + p.currentValue - (p.loanBalance ?? 0)
+  }, 0)
+  const currentNetWorth = accountNetWorth + propertyEquity
+  const hasAccounts = accounts.length > 0 || propertiesForNW.some(p => p.currentValue)
 
   // Net worth from active snapshot vs previous snapshot for delta
   const activeSnapshotIdx = activeSnapshot
@@ -246,7 +266,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                   </p>
                 )}
               </div>
-              <p className="mt-1 text-xs text-stone">assets minus liabilities across all accounts</p>
+              <p className="mt-1 text-xs text-stone">
+                {propertyEquity > 0
+                  ? `Accounts: ${formatCurrency(accountNetWorth)} · Property Equity: ${formatCurrency(propertyEquity)}`
+                  : 'assets minus liabilities across all accounts'}
+              </p>
               {/* Mini trend from snapshots */}
               {snapshots.length >= 2 && (
                 <div className="mt-4 flex items-end gap-1">

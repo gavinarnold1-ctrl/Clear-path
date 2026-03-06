@@ -7,6 +7,7 @@ interface AccountOption {
   id: string
   name: string
   type: string
+  balance: number
 }
 
 export default function AddPropertyButton({ accounts }: { accounts: AccountOption[] }) {

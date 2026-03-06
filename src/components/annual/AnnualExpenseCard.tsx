@@ -10,6 +10,12 @@ import FundExpenseModal from './FundExpenseModal'
 import MarkSpentModal from './MarkSpentModal'
 import LinkTransactionModal from './LinkTransactionModal'
 
+interface CategoryOption {
+  id: string
+  name: string
+  icon: string | null
+}
+
 interface AnnualExpenseData {
   id: string
   name: string
@@ -37,6 +43,7 @@ interface AnnualExpenseData {
 interface Props {
   expense: AnnualExpenseData
   affordableMonthly?: number
+  categories?: CategoryOption[]
 }
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
@@ -49,12 +56,24 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   overspent: { label: 'OVERSPENT', className: 'border-ember/30 bg-ember/10 text-ember' },
 }
 
-export default function AnnualExpenseCard({ expense, affordableMonthly }: Props) {
+export default function AnnualExpenseCard({ expense, affordableMonthly, categories = [] }: Props) {
   const router = useRouter()
   const [fundOpen, setFundOpen] = useState(false)
   const [spentOpen, setSpentOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(expense.name)
+  const [editAmount, setEditAmount] = useState(String(expense.annualAmount))
+  const [editCategoryId, setEditCategoryId] = useState(expense.budget.categoryId ?? '')
+  const [editDueMonth, setEditDueMonth] = useState(String(expense.dueMonth))
+  const [editDueYear, setEditDueYear] = useState(String(expense.dueYear))
+  const [editIsRecurring, setEditIsRecurring] = useState(expense.isRecurring)
+  const [editNotes, setEditNotes] = useState(expense.notes ?? '')
+  const [editError, setEditError] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
 
   const pct = budgetProgress(expense.funded, expense.annualAmount)
   const isCompleted = expense.status === 'spent' || expense.status === 'overspent'
@@ -111,177 +130,344 @@ export default function AnnualExpenseCard({ expense, affordableMonthly }: Props)
     }
   }
 
+  function startEdit() {
+    setEditName(expense.name)
+    setEditAmount(String(expense.annualAmount))
+    setEditCategoryId(expense.budget.categoryId ?? '')
+    setEditDueMonth(String(expense.dueMonth))
+    setEditDueYear(String(expense.dueYear))
+    setEditIsRecurring(expense.isRecurring)
+    setEditNotes(expense.notes ?? '')
+    setEditError('')
+    setIsEditing(true)
+  }
+
+  async function handleEditSave() {
+    if (!editName.trim()) { setEditError('Name is required'); return }
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount) || amount <= 0) { setEditError('Amount must be a positive number'); return }
+
+    setEditSaving(true)
+    setEditError('')
+
+    try {
+      const res = await fetch(`/api/budgets/annual/${expense.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit',
+          name: editName.trim(),
+          annualAmount: amount,
+          categoryId: editCategoryId || null,
+          dueMonth: parseInt(editDueMonth),
+          dueYear: parseInt(editDueYear),
+          isRecurring: editIsRecurring,
+          notes: editNotes.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to save')
+      }
+      setIsEditing(false)
+      router.refresh()
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const currentYear = new Date().getFullYear()
+
   return (
     <>
       <div className={`card ${isCompleted ? 'opacity-70' : ''}`}>
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 font-semibold text-fjord">
-              {icon && <span className="text-lg">{icon}</span>}
-              <Link
-                href={`/transactions?annualExpenseId=${expense.id}&annualExpenseName=${encodeURIComponent(expense.name)}`}
-                className={`hover:text-midnight hover:underline ${isCompleted ? 'line-through' : ''}`}
+        {isEditing ? (
+          /* Edit form */
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-fjord">Edit Annual Expense</h3>
+            <div>
+              <label className="block text-xs font-medium text-stone">Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="input mt-1 w-full text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-stone">Annual Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className="input mt-1 w-full text-sm"
+              />
+            </div>
+            {categories.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-stone">Category</label>
+                <select
+                  value={editCategoryId}
+                  onChange={(e) => setEditCategoryId(e.target.value)}
+                  className="input mt-1 w-full text-sm"
+                >
+                  <option value="">No category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-stone">Due Month</label>
+                <select
+                  value={editDueMonth}
+                  onChange={(e) => setEditDueMonth(e.target.value)}
+                  className="input mt-1 w-full text-sm"
+                >
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {formatMonthName(i + 1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-stone">Due Year</label>
+                <select
+                  value={editDueYear}
+                  onChange={(e) => setEditDueYear(e.target.value)}
+                  className="input mt-1 w-full text-sm"
+                >
+                  {[currentYear, currentYear + 1, currentYear + 2].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={editIsRecurring}
+                onChange={(e) => setEditIsRecurring(e.target.checked)}
+                className="rounded border-mist"
+              />
+              <span className="text-xs text-fjord">Repeat every year</span>
+            </label>
+            <div>
+              <label className="block text-xs font-medium text-stone">Notes</label>
+              <textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={2}
+                className="input mt-1 w-full text-sm"
+                placeholder="Any details about this expense..."
+              />
+            </div>
+            {editError && <p className="text-xs text-ember">{editError}</p>}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="px-3 py-1 text-xs text-stone hover:text-fjord"
+                disabled={editSaving}
               >
-                {expense.name}
-              </Link>
-              {expense.isRecurring && (
-                <span className="rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                  yearly
-                </span>
-              )}
-            </p>
-            <p className="mt-0.5 text-sm text-stone">
-              {formatCurrency(expense.annualAmount)} planned &middot; Due{' '}
-              {formatMonthName(expense.dueMonth)} {expense.dueYear}
-            </p>
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving}
+                className="btn-primary px-3 py-1 text-xs"
+              >
+                {editSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
-          <span
-            className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}
-          >
-            {badge.label}
-          </span>
-        </div>
+        ) : (
+          /* Normal display */
+          <>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 font-semibold text-fjord">
+                  {icon && <span className="text-lg">{icon}</span>}
+                  <Link
+                    href={`/transactions?annualExpenseId=${expense.id}&annualExpenseName=${encodeURIComponent(expense.name)}`}
+                    className={`hover:text-midnight hover:underline ${isCompleted ? 'line-through' : ''}`}
+                  >
+                    {expense.name}
+                  </Link>
+                  {expense.isRecurring && (
+                    <span className="rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                      yearly
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-sm text-stone">
+                  {formatCurrency(expense.annualAmount)} planned &middot; Due{' '}
+                  {formatMonthName(expense.dueMonth)} {expense.dueYear}
+                </p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.className}`}
+              >
+                {badge.label}
+              </span>
+            </div>
 
-        {/* Progress — dual bars: Funded (pine) + Spent (ember/birch) */}
-        <div className="mt-3">
-          {/* Funded bar (primary — manual set-asides) */}
-          <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
-            <span>Funded</span>
-            <span>{formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}</span>
-          </div>
-          <ProgressBar value={pct} />
-          <div className="mt-0.5 flex justify-between text-xs text-stone">
-            <span>{formatCurrency(Math.max(0, expense.annualAmount - expense.funded))} remaining</span>
-            <span className="font-medium">{pct}%</span>
-          </div>
+            {/* Progress — dual bars: Funded (pine) + Spent (ember/birch) */}
+            <div className="mt-3">
+              {/* Funded bar (primary — manual set-asides) */}
+              <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
+                <span>Funded</span>
+                <span>{formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}</span>
+              </div>
+              <ProgressBar value={pct} />
+              <div className="mt-0.5 flex justify-between text-xs text-stone">
+                <span>{formatCurrency(Math.max(0, expense.annualAmount - expense.funded))} remaining</span>
+                <span className="font-medium">{pct}%</span>
+              </div>
 
-          {/* Spent bar (from linked transactions — separate from funded) */}
-          {expense.linkedSpent !== undefined && expense.linkedSpent > 0 && (() => {
-            const spentPct = budgetProgress(expense.linkedSpent, expense.annualAmount)
-            const spentOverFunded = expense.linkedSpent > expense.funded
-            return (
-              <div className="mt-2">
-                <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
-                  <span>Spent</span>
-                  <span className={spentOverFunded ? 'text-ember' : ''}>
-                    {formatCurrency(expense.linkedSpent)}
-                  </span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-bar bg-mist">
-                  <div
-                    className={`h-full rounded-bar transition-all duration-300 ${spentOverFunded ? 'bg-ember' : 'bg-birch'}`}
-                    style={{ width: `${Math.min(spentPct, 100)}%` }}
-                  />
-                </div>
-                {spentOverFunded && (
-                  <p className="mt-1 text-xs font-medium text-ember">
-                    Spent {formatCurrency(expense.linkedSpent - expense.funded)} more than funded
+              {/* Spent bar (from linked transactions — separate from funded) */}
+              {expense.linkedSpent !== undefined && expense.linkedSpent > 0 && (() => {
+                const spentPct = budgetProgress(expense.linkedSpent, expense.annualAmount)
+                const spentOverFunded = expense.linkedSpent > expense.funded
+                return (
+                  <div className="mt-2">
+                    <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
+                      <span>Spent</span>
+                      <span className={spentOverFunded ? 'text-ember' : ''}>
+                        {formatCurrency(expense.linkedSpent)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-bar bg-mist">
+                      <div
+                        className={`h-full rounded-bar transition-all duration-300 ${spentOverFunded ? 'bg-ember' : 'bg-birch'}`}
+                        style={{ width: `${Math.min(spentPct, 100)}%` }}
+                      />
+                    </div>
+                    {spentOverFunded && (
+                      <p className="mt-1 text-xs font-medium text-ember">
+                        Spent {formatCurrency(expense.linkedSpent - expense.funded)} more than funded
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Details */}
+            {isCompleted ? (
+              <div className="mt-3 text-sm text-stone">
+                {expense.actualCost !== null && (
+                  <p>
+                    {formatCurrency(expense.actualCost)} actual
+                    {expense.actualCost !== expense.annualAmount && (
+                      <span>
+                        {' '}
+                        (vs {formatCurrency(expense.annualAmount)} planned &mdash;{' '}
+                        {expense.actualCost < expense.annualAmount ? (
+                          <span className="text-pine">
+                            saved {formatCurrency(expense.annualAmount - expense.actualCost)}
+                          </span>
+                        ) : (
+                          <span className="text-ember">
+                            over by {formatCurrency(expense.actualCost - expense.annualAmount)}
+                          </span>
+                        )}
+                        )
+                      </span>
+                    )}
+                  </p>
+                )}
+                {expense.actualDate && (
+                  <p className="text-xs text-stone">
+                    Completed{' '}
+                    {new Date(expense.actualDate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
                   </p>
                 )}
               </div>
-            )
-          })()}
-        </div>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-stone">
+                  {formatCurrency(expense.currentSetAside)}/mo needed &middot;{' '}
+                  {expense.monthsRemaining} month{expense.monthsRemaining !== 1 ? 's' : ''} remaining
+                </p>
+                {affordableMonthly !== undefined &&
+                  affordableMonthly < expense.currentSetAside &&
+                  expense.monthsRemaining > 0 && (() => {
+                    const remaining = expense.annualAmount - expense.funded
+                    const projectedFunding = affordableMonthly * expense.monthsRemaining
+                    const shortfall = remaining - projectedFunding
+                    return shortfall > 0 ? (
+                      <p className="mt-1 text-xs font-medium text-ember">
+                        At current pace, you&apos;ll be {formatCurrency(shortfall)} short by the due date
+                      </p>
+                    ) : null
+                  })()}
+              </>
+            )}
 
-        {/* Details */}
-        {isCompleted ? (
-          <div className="mt-3 text-sm text-stone">
-            {expense.actualCost !== null && (
-              <p>
-                {formatCurrency(expense.actualCost)} actual
-                {expense.actualCost !== expense.annualAmount && (
-                  <span>
-                    {' '}
-                    (vs {formatCurrency(expense.annualAmount)} planned &mdash;{' '}
-                    {expense.actualCost < expense.annualAmount ? (
-                      <span className="text-pine">
-                        saved {formatCurrency(expense.annualAmount - expense.actualCost)}
-                      </span>
-                    ) : (
-                      <span className="text-ember">
-                        over by {formatCurrency(expense.actualCost - expense.annualAmount)}
-                      </span>
-                    )}
-                    )
-                  </span>
-                )}
-              </p>
+            {/* Notes */}
+            {expense.notes && (
+              <p className="mt-2 text-xs text-stone italic">{expense.notes}</p>
             )}
-            {expense.actualDate && (
-              <p className="text-xs text-stone">
-                Completed{' '}
-                {new Date(expense.actualDate).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </p>
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="mt-2 text-sm text-stone">
-              {formatCurrency(expense.currentSetAside)}/mo needed &middot;{' '}
-              {expense.monthsRemaining} month{expense.monthsRemaining !== 1 ? 's' : ''} remaining
-            </p>
-            {affordableMonthly !== undefined &&
-              affordableMonthly < expense.currentSetAside &&
-              expense.monthsRemaining > 0 && (() => {
-                const remaining = expense.annualAmount - expense.funded
-                const projectedFunding = affordableMonthly * expense.monthsRemaining
-                const shortfall = remaining - projectedFunding
-                return shortfall > 0 ? (
-                  <p className="mt-1 text-xs font-medium text-ember">
-                    At current pace, you&apos;ll be {formatCurrency(shortfall)} short by the due date
-                  </p>
-                ) : null
-              })()}
+
+            {/* Actions */}
+            <div className="mt-3 flex items-center gap-2 border-t border-mist pt-3">
+              {isCompleted ? (
+                <span className="text-xs font-medium text-pine">Completed &#x2713;</span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setFundOpen(true)}
+                    disabled={loading}
+                    className="btn-primary px-3 py-1 text-xs"
+                  >
+                    Add Funds
+                  </button>
+                  <button
+                    onClick={() => setLinkOpen(true)}
+                    disabled={loading}
+                    className="btn-secondary px-3 py-1 text-xs"
+                  >
+                    Link Transaction
+                  </button>
+                  <button
+                    onClick={() => setSpentOpen(true)}
+                    disabled={loading}
+                    className="btn-secondary px-3 py-1 text-xs"
+                  >
+                    Mark as Spent
+                  </button>
+                </>
+              )}
+              <button
+                onClick={startEdit}
+                disabled={loading}
+                className="text-xs text-stone hover:text-fjord"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="ml-auto text-xs text-stone hover:text-ember"
+              >
+                Delete
+              </button>
+            </div>
           </>
         )}
-
-        {/* Notes */}
-        {expense.notes && (
-          <p className="mt-2 text-xs text-stone italic">{expense.notes}</p>
-        )}
-
-        {/* Actions */}
-        <div className="mt-3 flex items-center gap-2 border-t border-mist pt-3">
-          {isCompleted ? (
-            <span className="text-xs font-medium text-pine">Completed &#x2713;</span>
-          ) : (
-            <>
-              <button
-                onClick={() => setFundOpen(true)}
-                disabled={loading}
-                className="btn-primary px-3 py-1 text-xs"
-              >
-                Add Funds
-              </button>
-              <button
-                onClick={() => setLinkOpen(true)}
-                disabled={loading}
-                className="btn-secondary px-3 py-1 text-xs"
-              >
-                Link Transaction
-              </button>
-              <button
-                onClick={() => setSpentOpen(true)}
-                disabled={loading}
-                className="btn-secondary px-3 py-1 text-xs"
-              >
-                Mark as Spent
-              </button>
-            </>
-          )}
-          <button
-            onClick={handleDelete}
-            disabled={loading}
-            className="ml-auto text-xs text-stone hover:text-ember"
-          >
-            Delete
-          </button>
-        </div>
       </div>
 
       <FundExpenseModal

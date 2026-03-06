@@ -174,6 +174,7 @@ export default async function AnnualPlanningPage() {
         completed={completed}
         trueRemaining={trueRemaining}
         monthlyBurden={monthlyBurden}
+        categories={categoryOptions}
       />
 
       <YearEndProjection expenses={enriched} monthlyBurden={monthlyBurden} />

@@ -292,6 +292,16 @@ export default function TransactionList({ transactions: initial, categories, acc
     setSaving(true)
     setError(null)
 
+    // Resolve group: prefix to the first property in the group for split attribution
+    let resolvedPropertyId: string | null = editPropertyId || null
+    if (editPropertyId.startsWith('group:')) {
+      const groupId = editPropertyId.slice(6)
+      const group = propertyGroups.find(g => g.id === groupId)
+      if (group && group.propertyIds.length > 0) {
+        resolvedPropertyId = group.propertyIds[0]
+      }
+    }
+
     const body: Record<string, unknown> = {
       merchant,
       amount,
@@ -299,7 +309,7 @@ export default function TransactionList({ transactions: initial, categories, acc
       categoryId: editCategoryId || null,
       accountId: editAccountId || null,
       householdMemberId: editHouseholdMemberId || null,
-      propertyId: editPropertyId || null,
+      propertyId: resolvedPropertyId,
       notes: editNotes.trim() || null,
     }
 
@@ -789,9 +799,20 @@ export default function TransactionList({ transactions: initial, categories, acc
                         className="input text-sm"
                       >
                         <option value="">— None —</option>
-                        {properties.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
+                        {propertyGroups.length > 0 && (
+                          <optgroup label="Property Groups">
+                            {propertyGroups.map(g => (
+                              <option key={`group-${g.id}`} value={`group:${g.id}`}>
+                                {g.name} (Split)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="Individual Properties">
+                          {properties.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </optgroup>
                       </select>
                     </td>
                   )}

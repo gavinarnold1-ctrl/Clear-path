@@ -14,6 +14,7 @@ interface AccountOption {
   id: string
   name: string
   type: string
+  balance: number
 }
 
 export const metadata: Metadata = { title: 'Properties & Businesses — oversikt' }
@@ -52,7 +53,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
     }),
     db.account.findMany({
       where: { userId: session.userId },
-      select: { id: true, name: true, type: true },
+      select: { id: true, name: true, type: true, balance: true },
       orderBy: { name: 'asc' },
     }),
   ])
@@ -61,6 +62,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
     id: a.id,
     name: a.name,
     type: a.type,
+    balance: a.balance,
   }))
 
   if (properties.length === 0) {
