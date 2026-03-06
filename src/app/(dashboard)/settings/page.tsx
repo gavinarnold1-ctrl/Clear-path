@@ -32,7 +32,7 @@ export default async function SettingsPage() {
     }),
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { primaryGoal: true, goalSetAt: true },
+      select: { primaryGoal: true, goalSetAt: true, previousGoals: true },
     }),
   ])
 
@@ -48,6 +48,7 @@ export default async function SettingsPage() {
         initialAccounts={accounts}
         initialGoal={profile?.primaryGoal ?? null}
         goalSetAt={profile?.goalSetAt?.toISOString() ?? null}
+        previousGoals={(profile?.previousGoals as Array<{ goal: string; setAt: string; changedAt: string }>) ?? []}
       />
     </div>
   )

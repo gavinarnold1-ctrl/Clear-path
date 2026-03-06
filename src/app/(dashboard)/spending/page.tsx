@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
@@ -6,6 +7,8 @@ import { formatCurrency } from '@/lib/utils'
 import MonthPicker from '../dashboard/MonthPicker'
 import SpendingViews from './SpendingViews'
 import { findRefundPairs } from '@/lib/refund-detection'
+import { getGoalContext } from '@/lib/goal-context'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
 
 export const metadata: Metadata = { title: 'Spending Breakdown' }
 
@@ -39,7 +42,7 @@ export default async function SpendingPage({ searchParams }: Props) {
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
   // Fetch expense transactions with category, person, and property info (exclude transfers)
-  const [allExpenseTransactions, refundCandidates, prevExpenseAgg, householdMembers, properties] = await Promise.all([
+  const [allExpenseTransactions, refundCandidates, prevExpenseAgg, householdMembers, properties, goalContext, forecastSummaries] = await Promise.all([
     db.transaction.findMany({
       where: {
         userId: session.userId,
@@ -81,6 +84,8 @@ export default async function SpendingPage({ searchParams }: Props) {
       select: { id: true, name: true, type: true },
       orderBy: { name: 'asc' },
     }),
+    getGoalContext(session.userId),
+    getForecastSummaries(session.userId),
   ])
 
   // Detect refund pairs and exclude refunded expenses from spending
@@ -178,6 +183,25 @@ export default async function SpendingPage({ searchParams }: Props) {
         <h1 className="text-2xl font-bold text-fjord">Spending Breakdown</h1>
         <MonthPicker currentMonth={currentMonth} />
       </div>
+
+      {/* Goal-framed spending header */}
+      {goalContext && (
+        <div className="card mb-6 border-pine/20 bg-pine/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-wider text-stone">
+                Spending &harr; {goalContext.goalLabel}
+              </span>
+              <p className="mt-1 text-sm text-fjord">
+                {forecastSummaries?.spending
+                  ?? forecastSummaries?.transactions
+                  ?? `Your spending directly affects your ${goalContext.goalLabel} goal. Categories over budget slow your progress.`}
+              </p>
+            </div>
+            <Link href="/forecast" className="shrink-0 text-xs text-pine hover:underline">See forecast &rarr;</Link>
+          </div>
+        </div>
+      )}
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

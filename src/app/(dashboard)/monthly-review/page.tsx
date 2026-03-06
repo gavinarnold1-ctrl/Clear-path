@@ -13,7 +13,10 @@ import GenerateButton from './GenerateButton'
 import MonthSelector from './MonthSelector'
 import { getGoalContext } from '@/lib/goal-context'
 import { projectedDate } from '@/lib/goal-targets'
-import type { GoalTarget } from '@/types'
+import { checkRecalibration } from '@/lib/goal-recalibration'
+import { getForecastSummaries, getCachedForecast } from '@/lib/forecast-helpers'
+import { computeForecastAccuracy } from '@/lib/engines/forecast'
+import type { GoalTarget, PrimaryGoal } from '@/types'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
 
@@ -27,7 +30,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile, perkCredits] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile, perkCredits, forecastSummaries, forecastData] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -77,6 +80,9 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
       select: { id: true, merchant: true, amount: true, date: true, tags: true },
       orderBy: { date: 'desc' },
     }),
+    // Forecast summaries and accuracy for monthly review
+    getForecastSummaries(session.userId),
+    getCachedForecast(session.userId),
   ])
 
   // R7.8: Convert snapshot months (Date) to YYYY-MM strings
@@ -198,6 +204,16 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     ? activeSnapshot.totalIncome - activeSnapshot.totalExpenses
     : 0
 
+  // Recalibration check
+  const recalibration = goalTarget && goalProfile?.primaryGoal
+    ? await checkRecalibration(session.userId, goalTarget, goalProfile.primaryGoal as PrimaryGoal)
+    : null
+
+  // Forecast accuracy
+  const forecastAccuracy = forecastData
+    ? computeForecastAccuracy(forecastData.timeline)
+    : null
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -258,6 +274,34 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                     <p className="text-lg font-bold text-fjord">{projectedDate(goalTarget)}</p>
                   </div>
                 </div>
+
+                {recalibration && recalibration.type !== 'celebrate_completion' && (
+                  <div className="mt-4 rounded-lg border border-ember/20 bg-ember/5 px-4 py-3">
+                    <p className="text-sm font-medium text-fjord">
+                      You&apos;ve been behind your target pace for {recalibration.monthsBehind} months.
+                      Consider adjusting your timeline or increasing your monthly contribution.
+                    </p>
+                    <a href="/settings" className="mt-2 inline-block text-sm text-pine hover:underline">
+                      Review your goal &rarr;
+                    </a>
+                  </div>
+                )}
+
+                {/* Forecast summary for monthly review */}
+                {forecastSummaries?.monthlyReview && (
+                  <div className="mt-4 rounded-lg border border-mist bg-frost/50 px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-stone">Forecast Summary</p>
+                    <p className="mt-1 text-sm text-fjord">{forecastSummaries.monthlyReview}</p>
+                    {forecastAccuracy && forecastAccuracy.points.length > 0 && (
+                      <p className="mt-2 text-xs text-stone">
+                        Forecast accuracy: <span className={`font-medium ${forecastAccuracy.rating === 'excellent' || forecastAccuracy.rating === 'good' ? 'text-pine' : forecastAccuracy.rating === 'fair' ? 'text-birch' : 'text-ember'}`}>{forecastAccuracy.rating}</span> — {forecastAccuracy.ratingReason}
+                      </p>
+                    )}
+                    <Link href="/forecast" className="mt-2 inline-block text-xs text-pine hover:underline">
+                      View full forecast &rarr;
+                    </Link>
+                  </div>
+                )}
               </div>
             </section>
           )}

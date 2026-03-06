@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
+import GoalHistory from '@/components/settings/GoalHistory'
 
 interface Member {
   id: string
@@ -80,6 +81,12 @@ const GOAL_OPTIONS: { key: PrimaryGoal; label: string; description: string }[] =
   { key: 'build_wealth', label: 'Build Wealth', description: 'Grow your net worth over time' },
 ]
 
+interface GoalHistoryEntry {
+  goal: string
+  setAt: string
+  changedAt: string
+}
+
 interface Props {
   user: { name: string; email: string; createdAt: string }
   initialMembers: Member[]
@@ -87,9 +94,10 @@ interface Props {
   initialAccounts?: AccountOption[]
   initialGoal?: string | null
   goalSetAt?: string | null
+  previousGoals?: GoalHistoryEntry[]
 }
 
-export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt }: Props) {
+export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt, previousGoals = [] }: Props) {
   const router = useRouter()
 
   // Profile state
@@ -916,6 +924,13 @@ export default function SettingsClient({ user, initialMembers, initialProperties
         <Button size="sm" className="mt-4" onClick={saveGoal} disabled={!goalChanged || !selectedGoal} loading={goalSaving} loadingText="Saving...">
           Save Goal
         </Button>
+        {selectedGoal && (
+          <GoalHistory
+            currentGoal={selectedGoal}
+            goalSetAt={currentGoalSetAt}
+            previousGoals={previousGoals}
+          />
+        )}
       </section>
 
       {/* R10.2: Household Members */}

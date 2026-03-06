@@ -21,6 +21,8 @@ import type {
   ForecastPoint,
   AssetGrowthProjection,
   ForecastScenario,
+  ForecastAccuracy,
+  ForecastAccuracyPoint,
   DebtForForecast,
 } from '@/types'
 
@@ -779,12 +781,22 @@ function generateTabSummaries(
     ? `Your spending patterns support ${formatDollar(velocity)}/mo toward your goal.`
     : 'Review spending to find opportunities for goal progress.'
 
+  const monthlyReview = velocity > 0
+    ? `You're averaging ${formatDollar(velocity)}/mo toward your goal (${paceLabel}). ${budgetSurplus > 0 ? `${formatDollar(budgetSurplus)}/mo surplus supports continued progress.` : 'Consider finding budget cuts to accelerate.'}`
+    : `No measurable progress toward your goal yet. ${budgetSurplus > 0 ? `Your ${formatDollar(budgetSurplus)}/mo surplus is a foundation to build on.` : 'Review spending for opportunities.'}`
+
+  const spending = velocity > 0
+    ? `Current spending supports ${formatDollar(velocity)}/mo of goal progress. ${budgetSurplus > 0 ? 'Reducing flexible spending could accelerate your timeline.' : 'Spending is tight — small cuts make a big difference.'}`
+    : 'Spending patterns are not currently contributing to goal progress. Look for categories where you can cut back.'
+
   return {
     dashboard,
     budgets: budgetMsg,
     debts: debtMsg,
     annualPlan,
     transactions,
+    monthlyReview,
+    spending,
   }
 }
 
@@ -883,6 +895,71 @@ function buildDebtExtraScenario(
       budgetCategoriesAffected: [],
       annualExpensesAffected: [],
     },
+  }
+}
+
+// ── 3J: Forecast accuracy tracking ─────────────────────────────────────────
+
+export function computeForecastAccuracy(
+  timeline: ForecastPoint[],
+): ForecastAccuracy {
+  const points: ForecastAccuracyPoint[] = timeline
+    .filter((p) => p.isHistorical && p.actual != null)
+    .map((p) => {
+      const delta = p.actual! - p.projected
+      const deltaPct = p.projected !== 0 ? (delta / Math.abs(p.projected)) * 100 : 0
+      return {
+        month: p.month,
+        projected: round2(p.projected),
+        actual: round2(p.actual!),
+        delta: round2(delta),
+        deltaPct: round2(deltaPct),
+      }
+    })
+
+  if (points.length === 0) {
+    return {
+      points: [],
+      meanAbsoluteError: 0,
+      meanAbsolutePctError: 0,
+      bias: 0,
+      rating: 'fair',
+      ratingReason: 'No historical data to evaluate accuracy',
+    }
+  }
+
+  const totalAbsError = points.reduce((s, p) => s + Math.abs(p.delta), 0)
+  const totalAbsPctError = points.reduce((s, p) => s + Math.abs(p.deltaPct), 0)
+  const totalBias = points.reduce((s, p) => s + p.delta, 0)
+
+  const mae = round2(totalAbsError / points.length)
+  const mape = round2(totalAbsPctError / points.length)
+  const bias = round2(totalBias / points.length)
+
+  let rating: ForecastAccuracy['rating']
+  let ratingReason: string
+
+  if (mape <= 5) {
+    rating = 'excellent'
+    ratingReason = `Average error of ${mape.toFixed(1)}% — forecast is highly accurate`
+  } else if (mape <= 15) {
+    rating = 'good'
+    ratingReason = `Average error of ${mape.toFixed(1)}% — forecast is reasonably accurate`
+  } else if (mape <= 30) {
+    rating = 'fair'
+    ratingReason = `Average error of ${mape.toFixed(1)}% — forecast may improve with more data`
+  } else {
+    rating = 'poor'
+    ratingReason = `Average error of ${mape.toFixed(1)}% — consider revising your goal parameters`
+  }
+
+  return {
+    points,
+    meanAbsoluteError: mae,
+    meanAbsolutePctError: mape,
+    bias,
+    rating,
+    ratingReason,
   }
 }
 

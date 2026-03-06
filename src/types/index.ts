@@ -345,6 +345,8 @@ export interface Forecast {
     debts: string
     annualPlan: string
     transactions: string
+    monthlyReview: string
+    spending: string
   }
   assetGrowth: AssetGrowthProjection[]
 }
@@ -367,6 +369,23 @@ export interface AssetGrowthProjection {
   projectedBalance12mo: number
   expectedGrowth: number
   uncertaintyRange: { low: number; high: number }
+}
+
+export interface ForecastAccuracyPoint {
+  month: string           // "2026-01"
+  projected: number       // what was forecasted
+  actual: number          // what actually happened
+  delta: number           // actual - projected
+  deltaPct: number        // delta as % of projected
+}
+
+export interface ForecastAccuracy {
+  points: ForecastAccuracyPoint[]
+  meanAbsoluteError: number
+  meanAbsolutePctError: number
+  bias: number            // positive = consistently over-projecting
+  rating: 'excellent' | 'good' | 'fair' | 'poor'
+  ratingReason: string
 }
 
 export interface ForecastScenario {

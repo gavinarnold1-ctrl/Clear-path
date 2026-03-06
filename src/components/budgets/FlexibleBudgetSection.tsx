@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import FlexibleBudgetRow from './FlexibleBudgetRow'
+import BenchmarkBar from './BenchmarkBar'
 import ProgressBar from '@/components/ui/ProgressBar'
 import { budgetProgress } from '@/lib/utils'
+import type { BudgetBenchmarkComparison } from '@/lib/budget-benchmarks'
 
 interface FlexibleBudget {
   id: string
@@ -21,6 +23,9 @@ interface Props {
   unallocatedSpent?: number
   totalFlexibleBudget?: number
   totalFlexibleSpent?: number
+  benchmarks?: BudgetBenchmarkComparison[]
+  primaryGoal?: string
+  hasGoalTarget?: boolean
 }
 
 const CATCHALL_NAMES = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else', 'personal'])
@@ -51,7 +56,8 @@ function getCurrentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent }: Props) {
+export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent, benchmarks, primaryGoal, hasGoalTarget }: Props) {
+  const benchmarkMap = new Map((benchmarks ?? []).map(b => [b.categoryName, b]))
   // Filter out empty catch-all rows ($0 spent)
   const visibleBudgets = budgets.filter((b) => {
     if (CATCHALL_NAMES.has(b.name.toLowerCase()) && b.spent === 0) return false
@@ -130,18 +136,27 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
 
       {/* Individual flexible category cards */}
       <div className="divide-y divide-mist rounded-card border border-mist bg-snow">
-        {visibleBudgets.map((budget) => (
-          <FlexibleBudgetRow
-            key={budget.id}
-            id={budget.id}
-            name={budget.name}
-            amount={budget.amount}
-            spent={budget.spent}
-            categoryId={budget.resolvedCategoryId ?? budget.categoryId}
-            category={budget.category}
-            isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
-          />
-        ))}
+        {visibleBudgets.map((budget) => {
+          const bm = benchmarkMap.get(budget.category?.name ?? budget.name)
+          return (
+            <div key={budget.id}>
+              <FlexibleBudgetRow
+                id={budget.id}
+                name={budget.name}
+                amount={budget.amount}
+                spent={budget.spent}
+                categoryId={budget.resolvedCategoryId ?? budget.categoryId}
+                category={budget.category}
+                isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
+              />
+              {bm && (
+                <div className="px-3 pb-2">
+                  <BenchmarkBar benchmark={bm} goalAware={!!hasGoalTarget} primaryGoal={primaryGoal} />
+                </div>
+              )}
+            </div>
+          )
+        })}
 
         {/* Unallocated flexible at bottom */}
         {showUnallocated && (() => {
