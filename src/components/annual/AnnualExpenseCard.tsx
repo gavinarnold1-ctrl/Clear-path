@@ -322,9 +322,9 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
 
             {/* Progress — dual bars: Funded (pine) + Spent (ember/birch) */}
             <div className="mt-3">
-              {/* Funded bar (primary — manual set-asides) */}
+              {/* Set-aside bar (primary — manual set-asides) */}
               <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
-                <span>Funded</span>
+                <span>Set Aside</span>
                 <span>{formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}</span>
               </div>
               <ProgressBar value={pct} />
@@ -333,7 +333,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                 <span className="font-medium">{pct}%</span>
               </div>
 
-              {/* Spent bar (from linked transactions — separate from funded) */}
+              {/* Spent bar (from linked transactions — separate from set-aside) */}
               {expense.linkedSpent !== undefined && expense.linkedSpent > 0 && (() => {
                 const spentPct = budgetProgress(expense.linkedSpent, expense.annualAmount)
                 const spentOverFunded = expense.linkedSpent > expense.funded
@@ -353,12 +353,42 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                     </div>
                     {spentOverFunded && (
                       <p className="mt-1 text-xs font-medium text-ember">
-                        Spent {formatCurrency(expense.linkedSpent - expense.funded)} more than funded
+                        Spent {formatCurrency(expense.linkedSpent - expense.funded)} more than set aside
                       </p>
                     )}
                   </div>
                 )
               })()}
+
+              {/* Net position summary */}
+              <div className="mt-2 text-xs text-stone">
+                {expense.linkedSpent !== undefined && expense.linkedSpent > 0 ? (
+                  expense.linkedSpent >= expense.annualAmount ? (
+                    <span className="font-medium text-pine">Fully paid &mdash; {formatCurrency(expense.linkedSpent)} spent</span>
+                  ) : (
+                    <span>
+                      {formatCurrency(expense.annualAmount - expense.linkedSpent)} still owed
+                      {expense.funded > expense.linkedSpent && (
+                        <> &middot; {formatCurrency(expense.funded - expense.linkedSpent)} set aside for remaining</>
+                      )}
+                    </span>
+                  )
+                ) : (
+                  expense.funded > 0 ? (
+                    <span>{formatCurrency(expense.funded)} set aside &middot; no payments linked yet</span>
+                  ) : (
+                    <span>No funds set aside and no payments linked</span>
+                  )
+                )}
+              </div>
+
+              {/* Info banner when funds set aside but no transactions linked */}
+              {expense.funded > 0 && (!expense.linkedSpent || expense.linkedSpent === 0) && (
+                <div className="mt-2 rounded bg-birch/20 px-3 py-1.5 text-xs text-stone">
+                  You&apos;ve set aside {formatCurrency(expense.funded)} but no transactions are linked yet.
+                  Use &ldquo;Link Transaction&rdquo; to connect actual payments.
+                </div>
+              )}
             </div>
 
             {/* Details */}
