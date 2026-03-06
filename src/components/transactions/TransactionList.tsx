@@ -870,7 +870,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <button onClick={() => toggleFilter('person')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
                     Person
                     {hasPersonFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
-                    <span className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100">&#x25BE;</span>
+                    <span className="h-3 w-3 text-stone/50">&#x25BE;</span>
                   </button>
                   {activeFilter === 'person' && (
                     <ColumnFilterPopover onClose={() => setActiveFilter(null)}>
@@ -899,7 +899,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <button onClick={() => toggleFilter('property')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
                     Property
                     {hasPropertyFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
-                    <span className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100">&#x25BE;</span>
+                    <span className="h-3 w-3 text-stone/50">&#x25BE;</span>
                   </button>
                   {activeFilter === 'property' && (
                     <ColumnFilterPopover onClose={() => setActiveFilter(null)}>
@@ -1470,7 +1470,7 @@ function ColumnHeader({
         {hasFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
         <button
           onClick={(e) => { e.stopPropagation(); onToggle() }}
-          className="h-3 w-3 text-stone opacity-0 transition-opacity hover:text-fjord group-hover:opacity-100"
+          className="h-3 w-3 text-stone/50 transition-colors hover:text-fjord"
           aria-label={`Filter by ${label}`}
         >
           &#x25BE;
