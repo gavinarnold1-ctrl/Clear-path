@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import { piBreakdown } from '@/lib/engines/amortization'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
 import DebtManager from '@/components/debts/DebtManager'
 
 export const metadata: Metadata = { title: 'Debts' }
@@ -41,6 +42,8 @@ export default async function DebtsPage() {
       select: { id: true, name: true, group: true },
     }),
   ])
+
+  const forecastSummary = await getForecastSummaries(session.userId)
 
   // Compute summary
   const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0)
@@ -88,6 +91,14 @@ export default async function DebtsPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fjord">Debts</h1>
       </div>
+
+      {/* Forecast context */}
+      {forecastSummary && (
+        <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
+          <span className="text-xs font-medium uppercase text-stone">Debt ↔ Goal</span>
+          <p className="text-sm text-fjord">{forecastSummary.debts}</p>
+        </div>
+      )}
 
       {/* Summary card */}
       {debts.length > 0 && (

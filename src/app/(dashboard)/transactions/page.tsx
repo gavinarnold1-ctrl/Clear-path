@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import TransactionList from '@/components/transactions/TransactionList'
 import { findRefundPairs } from '@/lib/refund-detection'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
 
 export const metadata: Metadata = { title: 'Transactions' }
 
@@ -110,8 +111,16 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     })),
   }))
 
+  const forecastSummary = await getForecastSummaries(session.userId)
+
   return (
     <div>
+      {forecastSummary && (
+        <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
+          <span className="text-xs font-medium uppercase text-stone">Spending ↔ Goal</span>
+          <p className="text-sm text-fjord">{forecastSummary.transactions}</p>
+        </div>
+      )}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fjord">Transactions</h1>
         <div className="flex gap-3">

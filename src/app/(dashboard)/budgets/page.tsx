@@ -14,6 +14,7 @@ import UnbudgetedSection from '@/components/budgets/UnbudgetedSection'
 import UncategorizedReviewBanner from '@/components/budgets/UncategorizedReviewBanner'
 import { findRefundPairs } from '@/lib/refund-detection'
 import { getGoalContext } from '@/lib/goal-context'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
 import type { GoalTarget } from '@/types'
 
@@ -91,6 +92,8 @@ export default async function BudgetsPage() {
     // Goal context for budget-goal connection
     getGoalContext(session.userId),
   ])
+
+  const forecastSummary = await getForecastSummaries(session.userId)
 
   // Detect refund pairs and exclude refunded expenses from budget computation
   const allForPairing = [
@@ -439,6 +442,13 @@ export default async function BudgetsPage() {
           </Button>
         </div>
       </div>
+
+      {forecastSummary && (
+        <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
+          <span className="text-xs font-medium uppercase text-stone">Budget ↔ Goal</span>
+          <p className="text-sm text-fjord">{forecastSummary.budgets}</p>
+        </div>
+      )}
 
       {budgets.length === 0 ? (
         <BudgetBuilderFlow hasBudgets={false} />

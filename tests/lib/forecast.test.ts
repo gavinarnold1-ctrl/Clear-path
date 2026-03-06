@@ -1,0 +1,470 @@
+import {
+  ASSET_CLASS_DEFAULTS,
+  autoDetectAssetClass,
+  getAssetConfig,
+  computeMonthlyVelocity,
+  projectAssetGrowth,
+  projectPropertyEquity,
+  computeForecast,
+  generateDefaultScenarios,
+} from '@/lib/engines/forecast'
+import type {
+  AccountForForecast,
+  MonthlySnapshotData,
+  ForecastInput,
+  GoalTarget,
+  DebtForForecast,
+  BudgetSummaryForForecast,
+} from '@/types'
+
+// ── Helper factories ────────────────────────────────────────────────────────
+
+function makeSnapshot(overrides: Partial<MonthlySnapshotData> = {}): MonthlySnapshotData {
+  return {
+    month: '2026-01-01',
+    totalIncome: 8000,
+    totalExpenses: -5000,
+    netSurplus: 3000,
+    savingsRate: 0.375,
+    totalDebt: 50000,
+    debtPaidDown: 500,
+    netWorth: 100000,
+    trueRemaining: 2000,
+    ...overrides,
+  }
+}
+
+function makeAccount(overrides: Partial<AccountForForecast> = {}): AccountForForecast {
+  return {
+    id: 'acc-1',
+    name: 'Checking',
+    type: 'CHECKING',
+    balance: 5000,
+    assetClass: 'cash',
+    expectedReturn: null,
+    riskWeight: null,
+    ...overrides,
+  }
+}
+
+function makeGoal(overrides: Partial<GoalTarget> = {}): GoalTarget {
+  return {
+    archetype: 'save_more',
+    metric: 'savings_amount',
+    targetValue: 20000,
+    targetDate: '2027-01-01',
+    startValue: 5000,
+    startDate: '2026-01-01',
+    description: 'Save $20,000 by Jan 2027',
+    ...overrides,
+  }
+}
+
+function makeDebt(overrides: Partial<DebtForForecast> = {}): DebtForForecast {
+  return {
+    id: 'debt-1',
+    name: 'Credit Card',
+    type: 'CREDIT_CARD',
+    balance: 5000,
+    interestRate: 0.22,
+    minimumPayment: 150,
+    ...overrides,
+  }
+}
+
+function makeBudgets(overrides: Partial<BudgetSummaryForForecast> = {}): BudgetSummaryForForecast {
+  return {
+    fixedTotal: 2000,
+    flexibleTotal: 1500,
+    annualSetAside: 200,
+    expectedMonthlyIncome: 8000,
+    totalBudgeted: 3700,
+    projectedSurplus: 4300,
+    ...overrides,
+  }
+}
+
+function makeInput(overrides: Partial<ForecastInput> = {}): ForecastInput {
+  return {
+    goal: makeGoal(),
+    snapshots: [
+      makeSnapshot({ month: '2025-10-01', netSurplus: 2800, netWorth: 95000 }),
+      makeSnapshot({ month: '2025-11-01', netSurplus: 3000, netWorth: 97000 }),
+      makeSnapshot({ month: '2025-12-01', netSurplus: 3200, netWorth: 99000 }),
+      makeSnapshot({ month: '2026-01-01', netSurplus: 2900, netWorth: 100000 }),
+    ],
+    debts: [],
+    accounts: [makeAccount()],
+    budgets: makeBudgets(),
+    annualExpenses: [],
+    ...overrides,
+  }
+}
+
+// ── 9A: Asset class config tests ────────────────────────────────────────────
+
+describe('Asset class config', () => {
+  it('getAssetConfig returns defaults when no overrides', () => {
+    const account = makeAccount({ assetClass: 'index_fund' })
+    const config = getAssetConfig(account)
+    expect(config.expectedAnnualReturn).toBe(0.1)
+    expect(config.riskWeight).toBe(0.7)
+    expect(config.volatility).toBe(0.15)
+    expect(config.label).toBe('Index Funds')
+  })
+
+  it('getAssetConfig applies user overrides', () => {
+    const account = makeAccount({
+      assetClass: 'index_fund',
+      expectedReturn: 0.12,
+      riskWeight: 0.8,
+    })
+    const config = getAssetConfig(account)
+    expect(config.expectedAnnualReturn).toBe(0.12)
+    expect(config.riskWeight).toBe(0.8)
+    // Volatility should remain default (not overridable)
+    expect(config.volatility).toBe(0.15)
+  })
+
+  it('autoDetectAssetClass maps account types correctly', () => {
+    expect(autoDetectAssetClass('CHECKING')).toBe('cash')
+    expect(autoDetectAssetClass('SAVINGS')).toBe('high_yield_savings')
+    expect(autoDetectAssetClass('INVESTMENT')).toBe('index_fund')
+    expect(autoDetectAssetClass('CREDIT_CARD')).toBe('cash')
+    expect(autoDetectAssetClass('UNKNOWN')).toBe('cash')
+  })
+
+  it('ASSET_CLASS_DEFAULTS has all 9 asset classes', () => {
+    const keys = Object.keys(ASSET_CLASS_DEFAULTS)
+    expect(keys).toHaveLength(9)
+    expect(keys).toContain('cash')
+    expect(keys).toContain('high_yield_savings')
+    expect(keys).toContain('bonds')
+    expect(keys).toContain('index_fund')
+    expect(keys).toContain('mutual_fund')
+    expect(keys).toContain('individual_stock')
+    expect(keys).toContain('crypto')
+    expect(keys).toContain('real_estate')
+    expect(keys).toContain('other')
+  })
+})
+
+// ── 9B: Velocity computation tests ──────────────────────────────────────────
+
+describe('computeMonthlyVelocity', () => {
+  it('returns weighted moving average with 3 months of savings data', () => {
+    const snapshots = [
+      makeSnapshot({ month: '2025-11-01', netSurplus: 2000 }),
+      makeSnapshot({ month: '2025-12-01', netSurplus: 3000 }),
+      makeSnapshot({ month: '2026-01-01', netSurplus: 2500 }),
+    ]
+    const velocity = computeMonthlyVelocity(snapshots, 'savings_amount')
+    // Deltas: 1000, -500
+    // Weights: 1x, 3x (for 2nd delta since it's most recent in a 2-delta set... wait 2 deltas: idx 0 weight=2, idx 1 weight=3)
+    // Actually: recent = [1000, -500], fromEnd for idx 0 = 1 → weight 2, fromEnd for idx 1 = 0 → weight 3
+    // (1000 * 2 + -500 * 3) / (2 + 3) = (2000 - 1500) / 5 = 100
+    expect(velocity).toBeCloseTo(100, 0)
+  })
+
+  it('returns weighted moving average with 6 months of data', () => {
+    const snapshots = Array.from({ length: 7 }, (_, i) =>
+      makeSnapshot({ month: `2025-${String(7 + i).padStart(2, '0')}-01`, netSurplus: 2000 + i * 200 })
+    )
+    const velocity = computeMonthlyVelocity(snapshots, 'savings_amount')
+    // Each delta is 200, weighted average of 200s is 200
+    expect(velocity).toBeCloseTo(200, 0)
+  })
+
+  it('returns 0 when no snapshots', () => {
+    expect(computeMonthlyVelocity([], 'savings_amount')).toBe(0)
+  })
+
+  it('handles single-month data', () => {
+    const snapshots = [makeSnapshot({ netSurplus: 3000 })]
+    const velocity = computeMonthlyVelocity(snapshots, 'savings_amount')
+    // Single value, no deltas can be computed, returns the value itself
+    expect(velocity).toBe(3000)
+  })
+
+  it('computes debt reduction velocity', () => {
+    const snapshots = [
+      makeSnapshot({ month: '2025-11-01', debtPaidDown: 400 }),
+      makeSnapshot({ month: '2025-12-01', debtPaidDown: 500 }),
+      makeSnapshot({ month: '2026-01-01', debtPaidDown: 600 }),
+    ]
+    const velocity = computeMonthlyVelocity(snapshots, 'debt_payoff')
+    // Deltas: 100, 100 → weighted average of 100s = 100
+    expect(velocity).toBeCloseTo(100, 0)
+  })
+})
+
+// ── 9C: Asset growth projection tests ───────────────────────────────────────
+
+describe('projectAssetGrowth', () => {
+  it('cash account: 0% growth (balance unchanged)', () => {
+    const account = makeAccount({ balance: 10000, assetClass: 'cash' })
+    const projection = projectAssetGrowth(account, 12)
+    expect(projection.projectedBalance12mo).toBe(10000)
+    expect(projection.expectedGrowth).toBe(0)
+    expect(projection.uncertaintyRange.low).toBe(10000)
+    expect(projection.uncertaintyRange.high).toBe(10000)
+  })
+
+  it('HYSA: ~4.5% annual compound growth', () => {
+    const account = makeAccount({
+      balance: 10000,
+      assetClass: 'high_yield_savings',
+    })
+    const projection = projectAssetGrowth(account, 12)
+    // Risk-weighted: 4.5% * 0.98 ≈ 4.41% annual
+    // Monthly: 10000 * (1 + 0.0441/12)^12 ≈ 10450
+    expect(projection.projectedBalance12mo).toBeGreaterThan(10400)
+    expect(projection.projectedBalance12mo).toBeLessThan(10500)
+    expect(projection.expectedGrowth).toBeGreaterThan(400)
+  })
+
+  it('index fund: risk-weighted vs optimistic vs conservative', () => {
+    const account = makeAccount({
+      balance: 50000,
+      assetClass: 'index_fund',
+    })
+    const projection = projectAssetGrowth(account, 12)
+    // Risk-weighted: 10% * 0.7 = 7% annual
+    expect(projection.projectedBalance12mo).toBeGreaterThan(53000)
+    expect(projection.projectedBalance12mo).toBeLessThan(54000)
+    // Optimistic (full 10%): ~55000
+    expect(projection.uncertaintyRange.high).toBeGreaterThan(54500)
+    // Conservative: lower
+    expect(projection.uncertaintyRange.low).toBeLessThan(projection.projectedBalance12mo)
+  })
+
+  it('crypto: high volatility, wide uncertainty band', () => {
+    const account = makeAccount({
+      balance: 10000,
+      assetClass: 'crypto',
+    })
+    const projection = projectAssetGrowth(account, 12)
+    const range = projection.uncertaintyRange.high - projection.uncertaintyRange.low
+    // Crypto has 0.6 volatility — should create a very wide band
+    expect(range).toBeGreaterThan(1000)
+  })
+
+  it('12-month projection math is correct for known values', () => {
+    const account = makeAccount({
+      balance: 10000,
+      assetClass: 'bonds',
+      expectedReturn: 0.05,
+      riskWeight: 1.0, // full return, no risk weighting
+    })
+    const projection = projectAssetGrowth(account, 12)
+    // 10000 * (1 + 0.05/12)^12 ≈ 10511.62
+    expect(projection.projectedBalance12mo).toBeCloseTo(10511.62, 0)
+  })
+})
+
+// ── 9D: Property equity projection tests ────────────────────────────────────
+
+describe('projectPropertyEquity', () => {
+  it('appreciation: 3% annual on $400K', () => {
+    const property = {
+      id: 'prop-1',
+      name: 'Home',
+      currentValue: 400000,
+      loanBalance: null,
+      interestRate: null,
+      monthlyPayment: null,
+      appreciationRate: 0.03,
+    }
+    const result = projectPropertyEquity(property, 12)
+    // 400000 * (1 + 0.03/12)^12 ≈ 412,133
+    expect(result.appreciatedValue).toBeGreaterThan(412000)
+    expect(result.appreciatedValue).toBeLessThan(413000)
+    expect(result.equity).toBe(result.appreciatedValue) // No loan
+  })
+
+  it('combined equity = appreciated value - remaining balance', () => {
+    const property = {
+      id: 'prop-2',
+      name: 'Rental',
+      currentValue: 300000,
+      loanBalance: 200000,
+      interestRate: 0.065,
+      monthlyPayment: 1264,
+      appreciationRate: 0.03,
+    }
+    const result = projectPropertyEquity(property, 12)
+    expect(result.appreciatedValue).toBeGreaterThan(300000)
+    expect(result.remainingBalance).toBeLessThan(200000)
+    expect(result.equity).toBeCloseTo(result.appreciatedValue - result.remainingBalance, 0)
+  })
+})
+
+// ── 9E: Full forecast computation tests ─────────────────────────────────────
+
+describe('computeForecast', () => {
+  it('save_more goal with positive velocity produces valid forecast', () => {
+    const input = makeInput({
+      goal: makeGoal({
+        metric: 'savings_amount',
+        targetValue: 20000,
+        startValue: 5000,
+        currentValue: 10000,
+        targetDate: '2027-06-01',
+        startDate: '2025-06-01',
+      }),
+      snapshots: [
+        makeSnapshot({ month: '2025-10-01', netSurplus: 1200 }),
+        makeSnapshot({ month: '2025-11-01', netSurplus: 1300 }),
+        makeSnapshot({ month: '2025-12-01', netSurplus: 1400 }),
+        makeSnapshot({ month: '2026-01-01', netSurplus: 1500 }),
+        makeSnapshot({ month: '2026-02-01', netSurplus: 1600 }),
+        makeSnapshot({ month: '2026-03-01', netSurplus: 1700 }),
+      ],
+    })
+    const forecast = computeForecast(input)
+    // Velocity should be positive (surplus growing)
+    expect(forecast.monthlyVelocity).toBeGreaterThan(0)
+    expect(forecast.timeline.length).toBeGreaterThan(0)
+    expect(forecast.confidence).toBeDefined()
+    expect(forecast.progressPercent).toBeGreaterThan(0)
+  })
+
+  it('pay_off_debt goal using debt data', () => {
+    const input = makeInput({
+      goal: makeGoal({
+        archetype: 'pay_off_debt',
+        metric: 'debt_total',
+        targetValue: 0,
+        startValue: 10000,
+        currentValue: 8000,
+      }),
+      debts: [makeDebt({ balance: 8000, interestRate: 0.18, minimumPayment: 200 })],
+      snapshots: [
+        makeSnapshot({ month: '2025-11-01', debtPaidDown: 400, totalDebt: 9000 }),
+        makeSnapshot({ month: '2025-12-01', debtPaidDown: 500, totalDebt: 8500 }),
+        makeSnapshot({ month: '2026-01-01', debtPaidDown: 500, totalDebt: 8000 }),
+      ],
+    })
+    const forecast = computeForecast(input)
+    expect(forecast.currentValue).toBe(8000)
+    expect(forecast.progressPercent).toBeGreaterThan(0)
+  })
+
+  it('build_wealth goal combining savings + asset growth', () => {
+    const input = makeInput({
+      goal: makeGoal({
+        archetype: 'build_wealth',
+        metric: 'net_worth_target',
+        targetValue: 200000,
+        startValue: 100000,
+      }),
+      accounts: [
+        makeAccount({ balance: 50000, assetClass: 'index_fund' }),
+        makeAccount({ id: 'acc-2', name: 'HYSA', balance: 30000, assetClass: 'high_yield_savings' }),
+      ],
+    })
+    const forecast = computeForecast(input)
+    expect(forecast.assetGrowth.length).toBe(2)
+    expect(forecast.assetGrowth[0].expectedGrowth).toBeGreaterThan(0)
+  })
+
+  it('no snapshots → low confidence', () => {
+    const input = makeInput({ snapshots: [] })
+    const forecast = computeForecast(input)
+    expect(forecast.confidence).toBe('low')
+    expect(forecast.confidenceReason).toContain('No historical')
+  })
+
+  it('negative velocity → off_track pace', () => {
+    const input = makeInput({
+      snapshots: [
+        makeSnapshot({ month: '2025-11-01', netSurplus: 3000 }),
+        makeSnapshot({ month: '2025-12-01', netSurplus: 2000 }),
+        makeSnapshot({ month: '2026-01-01', netSurplus: 1000 }),
+      ],
+    })
+    const forecast = computeForecast(input)
+    // Velocity is negative (decreasing surplus)
+    expect(forecast.monthlyVelocity).toBeLessThan(0)
+    expect(forecast.pace).toMatch(/behind|at_risk|off_track/)
+  })
+})
+
+// ── 9F: Scenario impact tests ───────────────────────────────────────────────
+
+describe('generateDefaultScenarios', () => {
+  it('save_more generates cut-flexible scenario', () => {
+    const input = makeInput()
+    const scenarios = generateDefaultScenarios(input)
+    expect(scenarios.length).toBeGreaterThan(0)
+    const cutScenario = scenarios.find((s) => s.id === 'cut-flexible-10')
+    expect(cutScenario).toBeDefined()
+    expect(cutScenario!.type).toBe('cut')
+  })
+
+  it('pay_off_debt generates extra payment scenarios', () => {
+    const input = makeInput({
+      goal: makeGoal({ archetype: 'pay_off_debt', metric: 'debt_total' }),
+      debts: [makeDebt()],
+    })
+    const scenarios = generateDefaultScenarios(input)
+    const extra100 = scenarios.find((s) => s.id === 'extra-100')
+    expect(extra100).toBeDefined()
+    expect(extra100!.type).toBe('debt')
+    expect(extra100!.impact.daysSaved).toBeGreaterThan(0)
+  })
+
+  it('universal buy-car scenario when no AUTO debt', () => {
+    const input = makeInput({ debts: [] })
+    const scenarios = generateDefaultScenarios(input)
+    const buyCar = scenarios.find((s) => s.id === 'buy-car')
+    expect(buyCar).toBeDefined()
+    expect(buyCar!.type).toBe('debt')
+    expect(buyCar!.impact.newMonthlyPayment).toBeGreaterThan(0)
+    expect(buyCar!.impact.monthlyImpactOnTrueRemaining).toBeLessThan(0)
+  })
+
+  it('no buy-car scenario when AUTO debt exists', () => {
+    const input = makeInput({
+      debts: [makeDebt({ type: 'AUTO' })],
+    })
+    const scenarios = generateDefaultScenarios(input)
+    const buyCar = scenarios.find((s) => s.id === 'buy-car')
+    expect(buyCar).toBeUndefined()
+  })
+})
+
+// ── 9G: Tab summary tests ───────────────────────────────────────────────────
+
+describe('Tab summaries', () => {
+  it('each summary is a non-empty string', () => {
+    const input = makeInput()
+    const forecast = computeForecast(input)
+    const { tabSummaries } = forecast
+    expect(tabSummaries.dashboard).toBeTruthy()
+    expect(tabSummaries.budgets).toBeTruthy()
+    expect(tabSummaries.debts).toBeTruthy()
+    expect(tabSummaries.annualPlan).toBeTruthy()
+    expect(tabSummaries.transactions).toBeTruthy()
+  })
+
+  it('dashboard summary mentions goal progress', () => {
+    const input = makeInput()
+    const forecast = computeForecast(input)
+    expect(forecast.tabSummaries.dashboard).toMatch(/Goal|complete|progress/i)
+  })
+
+  it('debt summary mentions debts when they exist', () => {
+    const input = makeInput({
+      debts: [makeDebt()],
+    })
+    const forecast = computeForecast(input)
+    expect(forecast.tabSummaries.debts).toMatch(/debt|payoff|totaling/i)
+  })
+
+  it('debt summary says no debts when none exist', () => {
+    const input = makeInput({ debts: [] })
+    const forecast = computeForecast(input)
+    expect(forecast.tabSummaries.debts).toMatch(/No outstanding/i)
+  })
+})

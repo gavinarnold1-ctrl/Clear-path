@@ -124,6 +124,11 @@ model Account {
   plaidCursor       String?   // Cursor for transaction sync pagination
   plaidLastSynced   DateTime? // Last successful sync timestamp
 
+  // Forecast engine — asset classification
+  assetClass        String?   // 'cash' | 'high_yield_savings' | 'bonds' | 'index_fund' | 'mutual_fund' | 'individual_stock' | 'crypto' | 'real_estate' | 'other'
+  expectedReturn    Float?    // User override for annual return rate (decimal, e.g. 0.045 for 4.5%). Null = use asset class default
+  riskWeightOverride Float?   // User override for risk weight (0.0–1.0). Null = use asset class default
+
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   ownerId      String?       // R3.2a: Account owner — default person tag for transactions
@@ -403,6 +408,9 @@ model Property {
   interestRate       Float?      // Annual rate as decimal (e.g., 0.0485 for 4.85%)
   loanTermMonths     Int?        // Original term (e.g., 360 for 30-year)
   loanStartDate      DateTime?
+
+  // Forecast engine — appreciation
+  appreciationRate   Float?    @default(0.03) // Annual appreciation rate (decimal). Default 3%
 
   // Escrow breakdown (monthly amounts)
   monthlyPropertyTax Float?
