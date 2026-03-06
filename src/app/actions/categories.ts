@@ -9,7 +9,7 @@ interface CategoryState {
   error: string | null
 }
 
-const VALID_TYPES = ['income', 'expense', 'transfer'] as const
+const VALID_TYPES = ['income', 'expense', 'transfer', 'perk_reimbursement'] as const
 
 export async function createCategory(
   prevState: CategoryState,

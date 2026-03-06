@@ -16,6 +16,7 @@ interface RefundCandidate {
   amount: number
   date: string | Date
   accountId?: string | null
+  classification?: string | null
 }
 
 /**
@@ -93,7 +94,11 @@ export function findRefundPairs(transactions: RefundCandidate[]): Set<string> {
 
   // Split into expenses (negative) and potential refunds (positive, not payment/transfer)
   const expenses = transactions.filter((tx) => tx.amount < 0)
-  const refunds = transactions.filter((tx) => tx.amount > 0 && !isPaymentOrTransferMerchant(tx.merchant))
+  const refunds = transactions.filter(
+    (tx) => tx.amount > 0
+      && !isPaymentOrTransferMerchant(tx.merchant)
+      && tx.classification !== 'perk_reimbursement'
+  )
 
   // Index refunds by accountId + absolute amount for fast lookup
   const refundIndex = new Map<string, RefundCandidate[]>()

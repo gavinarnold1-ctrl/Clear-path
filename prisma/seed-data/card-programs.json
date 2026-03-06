@@ -105,7 +105,32 @@
         "category": "Travel",
         "creditAmount": 300,
         "creditCycle": "CARDMEMBER_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["airlines", "hotels", "airbnb", "vrbo"],
+        "creditMerchantPatterns": ["travel credit", "chase travel"],
         "description": "$300 annual travel credit applied automatically"
+      },
+      {
+        "name": "DoorDash DashPass",
+        "type": "statement_credit",
+        "category": "Dining",
+        "creditAmount": 60,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["doordash"],
+        "creditMerchantPatterns": ["doordash credit", "chase doordash"],
+        "description": "Complimentary DoorDash DashPass + credits"
+      },
+      {
+        "name": "Lyft Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 60,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["lyft"],
+        "creditMerchantPatterns": ["lyft credit", "chase lyft"],
+        "description": "Lyft Pink membership + ride credits"
       },
       {
         "name": "Priority Pass Lounge Access",
@@ -119,6 +144,9 @@
         "category": "Travel",
         "creditAmount": 100,
         "creditCycle": "CARDMEMBER_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["global entry", "tsa precheck", "clear"],
+        "creditMerchantPatterns": ["global entry credit", "tsa credit"],
         "description": "$100 credit for Global Entry or TSA PreCheck every 4 years"
       }
     ]
@@ -216,6 +244,9 @@
         "category": "Dining",
         "creditAmount": 120,
         "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["grubhub", "cheesecake factory", "goldbelly", "wine.com", "milk bar"],
+        "creditMerchantPatterns": ["amex dining", "dining credit", "grubhub credit"],
         "description": "$10/month dining credit at select restaurants (Grubhub, Cheesecake Factory, etc.)"
       },
       {
@@ -224,7 +255,32 @@
         "category": "Travel",
         "creditAmount": 120,
         "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["uber", "uber eats"],
+        "creditMerchantPatterns": ["uber cash", "amex uber"],
         "description": "$10/month Uber Cash for Uber Eats or Uber rides"
+      },
+      {
+        "name": "Dunkin'/Grubhub Credit",
+        "type": "statement_credit",
+        "category": "Dining",
+        "creditAmount": 84,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["dunkin", "grubhub"],
+        "creditMerchantPatterns": ["dunkin credit", "grubhub credit", "amex dining"],
+        "description": "$7/month Dunkin' or Grubhub credit"
+      },
+      {
+        "name": "Disney+ Credit",
+        "type": "statement_credit",
+        "category": "Subscriptions",
+        "creditAmount": 84,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["disney+", "disney plus"],
+        "creditMerchantPatterns": ["disney plus credit", "amex disney"],
+        "description": "$7/month Disney+ credit"
       }
     ]
   },
@@ -268,6 +324,9 @@
         "category": "Travel",
         "creditAmount": 200,
         "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["united", "delta", "american airlines", "southwest", "jetblue"],
+        "creditMerchantPatterns": ["airline fee credit", "amex airline"],
         "description": "$200 annual airline fee credit for one selected airline"
       },
       {
@@ -276,6 +335,9 @@
         "category": "Travel",
         "creditAmount": 200,
         "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["hilton", "marriott", "hyatt", "ihg"],
+        "creditMerchantPatterns": ["hotel credit", "amex hotel", "fine hotels credit"],
         "description": "$200 hotel credit for Fine Hotels + Resorts or Hotel Collection bookings"
       },
       {
@@ -284,6 +346,9 @@
         "category": "Subscriptions",
         "creditAmount": 240,
         "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["audible", "nytimes", "new york times", "sirius", "peacock", "espn+", "disney+", "disney plus", "hulu"],
+        "creditMerchantPatterns": ["amex entertainment", "digital entertainment credit", "nytimes credit", "new york times credit"],
         "description": "$20/month for Disney+, Hulu, ESPN+, Peacock, NYT, and more"
       },
       {
@@ -292,7 +357,54 @@
         "category": "Travel",
         "creditAmount": 200,
         "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["uber", "uber eats"],
+        "creditMerchantPatterns": ["uber cash", "amex uber"],
         "description": "$15/month Uber Cash plus $20 in December"
+      },
+      {
+        "name": "Walmart+ Credit",
+        "type": "statement_credit",
+        "category": "Shopping",
+        "creditAmount": 155,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["walmart"],
+        "creditMerchantPatterns": ["walmart+ credit", "amex walmart"],
+        "description": "$12.95/month Walmart+ membership credit"
+      },
+      {
+        "name": "Saks Credit",
+        "type": "statement_credit",
+        "category": "Shopping",
+        "creditAmount": 100,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["saks"],
+        "creditMerchantPatterns": ["saks credit", "amex saks"],
+        "description": "$50 Saks credit semi-annually"
+      },
+      {
+        "name": "Clear Plus Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 199,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["clear", "clearme"],
+        "creditMerchantPatterns": ["clear credit", "amex clear"],
+        "description": "Up to $199 CLEAR Plus credit"
+      },
+      {
+        "name": "Equinox Credit",
+        "type": "statement_credit",
+        "category": "Health",
+        "creditAmount": 300,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["equinox"],
+        "creditMerchantPatterns": ["equinox credit", "amex equinox"],
+        "description": "Up to $25/month Equinox credit"
       },
       {
         "name": "Centurion Lounge Access",
@@ -306,6 +418,9 @@
         "category": "Travel",
         "creditAmount": 100,
         "creditCycle": "CARDMEMBER_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["global entry", "tsa precheck"],
+        "creditMerchantPatterns": ["global entry credit", "tsa credit"],
         "description": "$100 credit for Global Entry or TSA PreCheck"
       }
     ]
@@ -342,6 +457,9 @@
         "category": "Travel",
         "creditAmount": 300,
         "creditCycle": "CARDMEMBER_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["airlines", "hotels", "airbnb", "vrbo"],
+        "creditMerchantPatterns": ["travel credit", "capital one travel"],
         "description": "$300 annual credit for bookings through Capital One Travel"
       },
       {

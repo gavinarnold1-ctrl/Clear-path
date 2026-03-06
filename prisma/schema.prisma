@@ -649,6 +649,16 @@ model CardBenefit {
   creditAmount    Float?    // e.g. 300 for $300 travel credit
   creditCycle     BenefitRefreshCycle? // When the credit resets
 
+  // Merchant matching for outgoing charges
+  eligibleMerchants      Json?     // String[]: ["uber", "uber eats"]
+  merchantMatchType      String    @default("contains") // "contains" | "exact" | "startsWith"
+
+  // Merchant matching for incoming credits (perk reimbursements)
+  creditMerchantPatterns Json?     // String[]: ["amex uber", "uber cash credit"]. Falls back to eligibleMerchants if empty.
+
+  // Whether this benefit's utilization can be tracked via transactions
+  isTransactionTrackable Boolean   @default(false)
+
   description     String    // Human-readable: "3x points on dining worldwide"
   terms           String?   // Fine print / conditions
   isActive        Boolean   @default(true)

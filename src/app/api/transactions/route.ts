@@ -5,8 +5,8 @@ import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
 import { applyPropertyAttribution } from '@/lib/apply-splits'
 import { createTransactionSchema, validateBody } from '@/lib/validation'
-const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer'])
-const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer'])
+const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer', 'perk_reimbursement'])
+const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer', 'perk_reimbursement'])
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
@@ -125,14 +125,18 @@ export async function POST(req: NextRequest) {
       resolvedCategory = category
       if (category.type === 'expense') finalAmount = -Math.abs(amount)
       else if (category.type === 'income') finalAmount = Math.abs(amount)
+      else if (category.type === 'perk_reimbursement') finalAmount = Math.abs(amount)
     }
   }
   // Derive classification from category group (deterministic hierarchy).
-  const classification = classifyTransaction(
-    resolvedCategory?.group,
-    resolvedCategory?.type,
-    finalAmount,
-  )
+  // Perk reimbursements bypass the normal hierarchy — classified directly from category type.
+  const classification = resolvedCategory?.type === 'perk_reimbursement'
+    ? 'perk_reimbursement'
+    : classifyTransaction(
+        resolvedCategory?.group,
+        resolvedCategory?.type,
+        finalAmount,
+      )
 
   // R3.2a: If no person tag provided, default to account owner
   let resolvedMemberId: string | null = householdMemberId ?? null

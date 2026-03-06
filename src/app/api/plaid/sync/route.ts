@@ -5,6 +5,8 @@ import { plaidClient, mapPlaidCategory, detectCreditCardPayment } from '@/lib/pl
 import { classifyTransaction } from '@/lib/category-groups'
 import { decrypt } from '@/lib/encryption'
 import { normalizeMerchant } from '@/lib/normalize-merchant'
+import { detectPerkCredit } from '@/lib/engines/perk-detection'
+import type { BenefitForMatching } from '@/lib/engines/perk-detection'
 import type { RemovedTransaction } from 'plaid'
 
 export async function POST(request: Request) {
@@ -64,6 +66,40 @@ export async function POST(request: Request) {
     const defaultProperty = await db.property.findFirst({
       where: { userId: session.userId, isDefault: true },
     })
+
+    // R3B: Load confirmed UserCards with benefits for perk credit detection
+    // Map accountId → benefits for fast lookup during transaction processing
+    const userCards = await db.userCard.findMany({
+      where: { userId: session.userId, isActive: true, accountId: { not: null } },
+      include: {
+        benefits: {
+          include: { cardBenefit: true },
+          where: { isOptedIn: true },
+        },
+      },
+    })
+    const accountBenefitsMap = new Map<string, BenefitForMatching[]>()
+    for (const card of userCards) {
+      if (!card.accountId) continue
+      const benefits: BenefitForMatching[] = card.benefits
+        .filter(b => b.cardBenefit.isTransactionTrackable && b.cardBenefit.isActive)
+        .map(b => ({
+          id: b.cardBenefit.id,
+          name: b.cardBenefit.name,
+          type: b.cardBenefit.type,
+          creditAmount: b.cardBenefit.creditAmount,
+          creditCycle: b.cardBenefit.creditCycle,
+          eligibleMerchants: b.cardBenefit.eligibleMerchants as string[] | null,
+          merchantMatchType: b.cardBenefit.merchantMatchType,
+          creditMerchantPatterns: b.cardBenefit.creditMerchantPatterns as string[] | null,
+          isTransactionTrackable: b.cardBenefit.isTransactionTrackable,
+        }))
+      if (benefits.length > 0) {
+        accountBenefitsMap.set(card.accountId, benefits)
+      }
+    }
+    // Get the "Card Perk Credits" category for perk reimbursement tagging
+    const perkCategory = categoryByName.get('card perk credits') ?? null
 
     let totalAdded = 0
     let totalModified = 0
@@ -131,6 +167,21 @@ export async function POST(request: Request) {
               }
             }
 
+            // 0.5. R3B: Perk credit detection — positive amount on credit card with confirmed card program
+            let perkBenefitTag: string | null = null
+            if (!categoryId && amount > 0 && perkCategory) {
+              const accountBenefits = accountBenefitsMap.get(ourAccountId)
+              if (accountBenefits) {
+                const perkMatch = detectPerkCredit(merchantName, amount, accountBenefits)
+                if (perkMatch && perkMatch.confidence >= 0.7) {
+                  categoryId = perkCategory.id
+                  resolvedGroup = perkCategory.group
+                  resolvedType = perkCategory.type
+                  perkBenefitTag = `card_benefit:${perkMatch.benefitName}`
+                }
+              }
+            }
+
             // 1. Merchant history — match to most recently categorized transaction
             if (!categoryId) {
               const merchantKey = merchantName.toLowerCase()
@@ -179,8 +230,10 @@ export async function POST(request: Request) {
               }
             }
 
-            // 3. Derive classification
-            const classification = classifyTransaction(resolvedGroup, resolvedType, amount)
+            // 3. Derive classification (perk_reimbursement bypasses normal hierarchy)
+            const classification = resolvedType === 'perk_reimbursement'
+              ? 'perk_reimbursement'
+              : classifyTransaction(resolvedGroup, resolvedType, amount)
 
             // Get account owner for person tagging
             const account = accounts.find(a => a.plaidAccountId === tx.account_id)
@@ -202,6 +255,7 @@ export async function POST(request: Request) {
                 plaidTransactionId: tx.transaction_id,
                 householdMemberId,
                 propertyId: defaultProperty?.id ?? null,
+                tags: perkBenefitTag,
               },
               update: {
                 // Only update fields Plaid controls — preserve user edits to category, notes, etc.

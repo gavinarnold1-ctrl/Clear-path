@@ -728,7 +728,7 @@ export default function TransactionList({ transactions: initial, categories, acc
             <FilterPill label={`Max: $${filterAmountMax}`} onRemove={() => setFilterAmountMax('')} />
           )}
           {filterClassification && (
-            <FilterPill label={filterClassification} onRemove={() => setFilterClassification('')} />
+            <FilterPill label={filterClassification === 'perk_reimbursement' ? 'Perk Credits' : filterClassification} onRemove={() => setFilterClassification('')} />
           )}
           {filterAnnualExpenseId && (
             <FilterPill label={`Annual Plan: ${initialAnnualExpenseName || 'Linked'}`} onRemove={() => setFilterAnnualExpenseId('')} />
@@ -948,15 +948,22 @@ export default function TransactionList({ transactions: initial, categories, acc
                     <span className="text-xs text-stone">to</span>
                     <input type="number" value={filterAmountMax} onChange={(e) => setFilterAmountMax(e.target.value)} className="input w-24 text-xs" placeholder="Max" step="0.01" />
                   </div>
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button onClick={() => { setFilterAmountMin(''); setFilterAmountMax('-0.01'); setFilterClassification('') }} className="rounded bg-frost px-2 py-1 text-xs text-fjord hover:bg-mist">Expenses only</button>
                     <button onClick={() => { setFilterAmountMin('0.01'); setFilterAmountMax(''); setFilterClassification('') }} className="rounded bg-frost px-2 py-1 text-xs text-fjord hover:bg-mist">Income only</button>
                   </div>
-                  {filterClassification && (
-                    <div className="mt-2">
-                      <p className="text-xs text-stone">Classification: {filterClassification}</p>
-                    </div>
-                  )}
+                  <p className="mb-1 mt-3 text-xs font-medium text-fjord">Classification</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['income', 'expense', 'transfer', 'perk_reimbursement'].map(cls => (
+                      <button
+                        key={cls}
+                        onClick={() => setFilterClassification(filterClassification === cls ? '' : cls)}
+                        className={`rounded px-2 py-1 text-xs ${filterClassification === cls ? 'bg-fjord text-snow' : 'bg-frost text-fjord hover:bg-mist'}`}
+                      >
+                        {cls === 'perk_reimbursement' ? 'Perk Credits' : cls.charAt(0).toUpperCase() + cls.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                   <button onClick={() => { setFilterAmountMin(''); setFilterAmountMax(''); setFilterClassification('') }} className="mt-2 text-xs text-stone hover:text-fjord">Clear</button>
                 </div>
               </ColumnHeader>
@@ -1109,6 +1116,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <td className="px-4 py-3 text-stone">{formatDate(new Date(tx.date))}</td>
                   <td className="px-4 py-3 font-medium text-fjord">
                     {tx.merchant}
+                    {tx.classification === 'perk_reimbursement' && (
+                      <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                        Card Perk
+                      </span>
+                    )}
                     {refundedSet.has(tx.id) && (
                       <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-birch">
                         Refunded

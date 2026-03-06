@@ -1,6 +1,6 @@
 // ─── Enum aliases (mirror the Prisma schema) ─────────────────────────────────
 
-export type CategoryType = 'income' | 'expense' | 'transfer'
+export type CategoryType = 'income' | 'expense' | 'transfer' | 'perk_reimbursement'
 
 export type AccountType =
   | 'CHECKING'
@@ -18,7 +18,7 @@ export type BudgetTier = 'FIXED' | 'FLEXIBLE' | 'ANNUAL'
 
 export type PropertyType = 'PERSONAL' | 'RENTAL' | 'BUSINESS'
 
-export type TransactionClassification = 'expense' | 'income' | 'transfer'
+export type TransactionClassification = 'expense' | 'income' | 'transfer' | 'perk_reimbursement'
 
 export type DebtType =
   | 'MORTGAGE'
@@ -93,7 +93,7 @@ export interface Property {
   createdAt: Date
 }
 
-export type Classification = 'income' | 'expense' | 'transfer'
+export type Classification = 'income' | 'expense' | 'transfer' | 'perk_reimbursement'
 
 export interface Transaction {
   id: string
@@ -417,6 +417,10 @@ export interface CardBenefit {
   maxReward: number | null
   creditAmount: number | null
   creditCycle: BenefitRefreshCycle | null
+  eligibleMerchants: string[] | null
+  merchantMatchType: string
+  creditMerchantPatterns: string[] | null
+  isTransactionTrackable: boolean
   description: string
   terms: string | null
   isActive: boolean

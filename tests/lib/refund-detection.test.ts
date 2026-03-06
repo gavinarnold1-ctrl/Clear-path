@@ -213,6 +213,65 @@ describe('Bug 2: Refund Detection — Investment Account False Positives', () =>
     // The far refund should NOT be used (closer match exists)
     expect(paired.has('refund-far')).toBe(false)
   })
+
+  it('should NOT pair perk_reimbursement transactions as refunds', () => {
+    const transactions = [
+      {
+        id: 'uber-charge',
+        merchant: 'Uber',
+        amount: -15,
+        date: '2026-02-01',
+        accountId: 'amex-plat',
+        classification: 'expense',
+      },
+      {
+        id: 'uber-perk',
+        merchant: 'AMEX Uber Cash Credit',
+        amount: 15,
+        date: '2026-02-05',
+        accountId: 'amex-plat',
+        classification: 'perk_reimbursement',
+      },
+    ]
+
+    const paired = findRefundPairs(transactions)
+    // The perk credit should NOT be treated as a refund
+    expect(paired.size).toBe(0)
+  })
+
+  it('should still pair actual refunds when perk credits also exist', () => {
+    const transactions = [
+      {
+        id: 'purchase-1',
+        merchant: 'Amazon',
+        amount: -50,
+        date: '2026-02-01',
+        accountId: 'amex-plat',
+        classification: 'expense',
+      },
+      {
+        id: 'refund-1',
+        merchant: 'Amazon Refund',
+        amount: 50,
+        date: '2026-02-05',
+        accountId: 'amex-plat',
+        classification: 'expense',
+      },
+      {
+        id: 'uber-perk',
+        merchant: 'AMEX Uber Cash Credit',
+        amount: 15,
+        date: '2026-02-05',
+        accountId: 'amex-plat',
+        classification: 'perk_reimbursement',
+      },
+    ]
+
+    const paired = findRefundPairs(transactions)
+    expect(paired.has('purchase-1')).toBe(true)
+    expect(paired.has('refund-1')).toBe(true)
+    expect(paired.has('uber-perk')).toBe(false)
+  })
 })
 
 describe('getRefundedExpenseIds', () => {

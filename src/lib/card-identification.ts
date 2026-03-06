@@ -67,6 +67,10 @@ interface ProgramWithBenefits {
     maxReward: number | null
     creditAmount: number | null
     creditCycle: string | null
+    eligibleMerchants: unknown
+    merchantMatchType: string
+    creditMerchantPatterns: unknown
+    isTransactionTrackable: boolean
     description: string
     terms: string | null
     isActive: boolean
@@ -166,6 +170,10 @@ function findBestMatch(
         description: b.description,
         terms: b.terms,
         isActive: b.isActive,
+        eligibleMerchants: b.eligibleMerchants as string[] | null,
+        merchantMatchType: b.merchantMatchType,
+        creditMerchantPatterns: b.creditMerchantPatterns as string[] | null,
+        isTransactionTrackable: b.isTransactionTrackable,
       })),
     },
     confidence: bestMatch.confidence,

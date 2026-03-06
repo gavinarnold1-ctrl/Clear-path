@@ -86,7 +86,7 @@ export const createBudgetSchema = z.object({
 
 export const createCategorySchema = z.object({
   name: safeString(100),
-  type: z.enum(['income', 'expense', 'transfer']),
+  type: z.enum(['income', 'expense', 'transfer', 'perk_reimbursement']),
   group: safeString(100).optional().nullable(),
   budgetTier: z.enum(budgetTiers).optional().nullable(),
 })

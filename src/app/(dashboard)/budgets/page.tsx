@@ -55,7 +55,7 @@ export default async function BudgetsPage() {
         date: { gte: startOfMonth, lte: endOfMonth },
         amount: { gt: 0 },
       },
-      select: { id: true, merchant: true, amount: true, date: true, accountId: true },
+      select: { id: true, merchant: true, amount: true, date: true, accountId: true, classification: true },
     }),
     // Current month's income for True Remaining (classification=income only)
     db.transaction.aggregate({
@@ -97,8 +97,8 @@ export default async function BudgetsPage() {
 
   // Detect refund pairs and exclude refunded expenses from budget computation
   const allForPairing = [
-    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId })),
-    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId })),
+    ...allExpenseTransactions.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId, classification: tx.classification })),
+    ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId, classification: tx.classification })),
   ]
   const refundPairIds = findRefundPairs(allForPairing)
   const transactions = allExpenseTransactions.filter((tx) => !refundPairIds.has(tx.id))
