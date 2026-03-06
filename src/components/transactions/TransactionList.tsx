@@ -109,6 +109,21 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Column header filter state
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
+  const [filterAmountMin, setFilterAmountMin] = useState('')
+  const [filterAmountMax, setFilterAmountMax] = useState('')
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set())
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set())
+  const [categorySearch, setCategorySearch] = useState('')
+  const [accountSearch, setAccountSearch] = useState('')
+
+  // Sort state
+  const [sortColumn, setSortColumn] = useState<'date' | 'merchant' | 'category' | 'account' | 'amount'>('date')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+
   // Edit form state
   const [editDate, setEditDate] = useState('')
   const [editMerchant, setEditMerchant] = useState('')
@@ -241,7 +256,44 @@ export default function TransactionList({ transactions: initial, categories, acc
       const haystack = [tx.merchant, tx.category?.name, tx.account?.name, tx.notes].filter(Boolean).join(' ').toLowerCase()
       if (!haystack.includes(q)) return false
     }
+    // Date range filter
+    if (filterDateFrom) {
+      const txDateStr = new Date(tx.date).toISOString().split('T')[0]
+      if (txDateStr < filterDateFrom) return false
+    }
+    if (filterDateTo) {
+      const txDateStr = new Date(tx.date).toISOString().split('T')[0]
+      if (txDateStr > filterDateTo) return false
+    }
+    // Amount range filter
+    if (filterAmountMin) {
+      if (tx.amount < parseFloat(filterAmountMin)) return false
+    }
+    if (filterAmountMax) {
+      if (tx.amount > parseFloat(filterAmountMax)) return false
+    }
+    // Multi-select category filter
+    if (selectedCategoryIds.size > 0) {
+      if (!tx.categoryId || !selectedCategoryIds.has(tx.categoryId)) return false
+    }
+    // Multi-select account filter
+    if (selectedAccountIds.size > 0) {
+      if (!tx.accountId || !selectedAccountIds.has(tx.accountId)) return false
+    }
     return true
+  })
+
+  // Sort filtered transactions
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    const dir = sortDirection === 'asc' ? 1 : -1
+    switch (sortColumn) {
+      case 'date': return dir * (new Date(a.date).getTime() - new Date(b.date).getTime())
+      case 'merchant': return dir * (a.merchant ?? '').localeCompare(b.merchant ?? '')
+      case 'category': return dir * (a.category?.name ?? '').localeCompare(b.category?.name ?? '')
+      case 'account': return dir * (a.account?.name ?? '').localeCompare(b.account?.name ?? '')
+      case 'amount': return dir * (a.amount - b.amount)
+      default: return 0
+    }
   })
 
   function startEdit(tx: TransactionRow) {
@@ -268,6 +320,37 @@ export default function TransactionList({ transactions: initial, categories, acc
     setEditingId(null)
     setError(null)
   }, [])
+
+  function handleSort(column: typeof sortColumn) {
+    if (sortColumn === column) {
+      setSortDirection(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection(column === 'amount' ? 'desc' : 'asc')
+    }
+  }
+
+  function toggleFilter(col: string) {
+    setActiveFilter(prev => prev === col ? null : col)
+  }
+
+  function toggleCategoryFilter(catId: string) {
+    setSelectedCategoryIds(prev => {
+      const next = new Set(prev)
+      if (next.has(catId)) next.delete(catId)
+      else next.add(catId)
+      return next
+    })
+  }
+
+  function toggleAccountFilter(accId: string) {
+    setSelectedAccountIds(prev => {
+      const next = new Set(prev)
+      if (next.has(accId)) next.delete(accId)
+      else next.add(accId)
+      return next
+    })
+  }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -501,6 +584,42 @@ export default function TransactionList({ transactions: initial, categories, acc
     return acc
   }, {})
 
+  // Category counts for filter popover
+  const categoryCounts: Record<string, number> = {}
+  for (const tx of transactions) {
+    if (tx.categoryId) categoryCounts[tx.categoryId] = (categoryCounts[tx.categoryId] ?? 0) + 1
+  }
+
+  // Account counts for filter popover
+  const accountCounts: Record<string, number> = {}
+  for (const tx of transactions) {
+    if (tx.accountId) accountCounts[tx.accountId] = (accountCounts[tx.accountId] ?? 0) + 1
+  }
+
+  // Filtered categories/accounts for search in popovers
+  const filteredCategoryOptions = categories.filter(c =>
+    !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase())
+  )
+  const filteredAccountOptions = accounts.filter(a =>
+    !accountSearch || a.name.toLowerCase().includes(accountSearch.toLowerCase())
+  )
+
+  // Check if any column filter is active (for pills bar)
+  const hasAnyFilter = !!(filterCategoryId || filterMonth || filterPersonId || filterPropertyId || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || filterUncategorized || budgetTxIds !== null || filterDateFrom || filterDateTo || filterAmountMin || filterAmountMax || selectedCategoryIds.size > 0 || selectedAccountIds.size > 0)
+
+  function clearAllFilters() {
+    setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId(''); setFilterUncategorized(false); setBudgetTxIds(null); setBudgetName(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterAmountMin(''); setFilterAmountMax(''); setSelectedCategoryIds(new Set()); setSelectedAccountIds(new Set())
+  }
+
+  // Active filter indicator for column headers
+  const hasDateFilter = !!(filterDateFrom || filterDateTo || filterMonth)
+  const hasMerchantFilter = !!searchText
+  const hasCategoryFilter = !!(filterCategoryId || selectedCategoryIds.size > 0 || filterUncategorized)
+  const hasAccountFilter = !!(filterAccountId || selectedAccountIds.size > 0)
+  const hasPersonFilter = !!filterPersonId
+  const hasPropertyFilter = !!filterPropertyId
+  const hasAmountFilter = !!(filterAmountMin || filterAmountMax || filterClassification)
+
   return (
     <div className="relative pb-16">
       {/* Budget filter context header */}
@@ -544,146 +663,59 @@ export default function TransactionList({ transactions: initial, categories, acc
           </p>
         </div>
       )}
-      {/* Filter bar (R4.4 + R6.8) */}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <label className="text-sm font-medium text-stone">Filter:</label>
-        <select
-          value={filterCategoryId}
-          onChange={(e) => setFilterCategoryId(e.target.value)}
-          className="input text-sm"
-        >
-          <option value="">All Categories</option>
-          {Object.entries(groupedCategories).map(([group, cats]) => (
-            <optgroup key={group} label={group}>
-              {cats.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <select
-          value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
-          className="input text-sm"
-        >
-          <option value="">All Months</option>
-          {(() => {
-            const months = new Set<string>()
-            for (const tx of transactions) {
-              const d = new Date(tx.date)
-              months.add(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
-            }
-            return [...months].sort().reverse().map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))
-          })()}
-        </select>
-        {householdMembers.length > 0 && (
-          <select
-            value={filterPersonId}
-            onChange={(e) => setFilterPersonId(e.target.value)}
-            className="input text-sm"
-          >
-            <option value="">All People</option>
-            <option value="__none__">No Person</option>
-            {householdMembers.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-        )}
-        {accounts.length > 0 && (
-          <select
-            value={filterAccountId}
-            onChange={(e) => setFilterAccountId(e.target.value)}
-            className="input text-sm"
-          >
-            <option value="">All Accounts</option>
-            <option value="__none__">No Account</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
-        )}
-        {properties.length > 0 && (
-          <select
-            value={filterPropertyId}
-            onChange={(e) => setFilterPropertyId(e.target.value)}
-            className="input text-sm"
-          >
-            <option value="">All Properties</option>
-            <option value="__none__">No Property</option>
-            {propertyGroups.length > 0 && (
-              <optgroup label="Property Groups">
-                {propertyGroups.map((g) => (
-                  <option key={`group-${g.id}`} value={`group:${g.id}`}>
-                    {g.name} (all units)
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {properties.filter(p => !p.groupId).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-            {propertyGroups.map((g) => {
-              const groupProps = properties.filter(p => g.propertyIds.includes(p.id))
-              if (groupProps.length === 0) return null
-              return (
-                <optgroup key={g.id} label={g.name}>
-                  {groupProps.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </optgroup>
-              )
-            })}
-          </select>
-        )}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search transactions..."
-            className="input pl-8 text-sm"
-          />
-          <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          {searchText && (
-            <button
-              onClick={() => setSearchText('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone hover:text-fjord"
-            >
-              &times;
-            </button>
+      {/* Active filter pills */}
+      {hasAnyFilter && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {filterMonth && (
+            <FilterPill label={`Month: ${filterMonth}`} onRemove={() => setFilterMonth('')} />
           )}
-        </div>
-        {filterClassification && (
-          <div className="rounded-badge bg-frost px-2 py-0.5 text-xs text-fjord">
-            {filterClassification}
-            <button onClick={() => setFilterClassification('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
-          </div>
-        )}
-        {filterAnnualExpenseId && (
-          <div className="flex items-center gap-1 rounded-full bg-pine/10 border border-pine/30 px-3 py-1 text-xs font-medium text-pine">
-            Annual Plan: {initialAnnualExpenseName || 'Linked'}
-            <button onClick={() => setFilterAnnualExpenseId('')} className="ml-1 text-stone hover:text-fjord">&times;</button>
-          </div>
-        )}
-        {filterUncategorized && (
-          <div className="flex items-center gap-1 rounded-full border border-birch/40 bg-birch/10 px-3 py-1 text-xs font-medium text-fjord">
-            Needs category
-            <button onClick={() => setFilterUncategorized(false)} className="ml-1 text-stone hover:text-fjord">&times;</button>
-          </div>
-        )}
-        {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || filterUncategorized || budgetTxIds !== null) && (
-          <button
-            onClick={() => { setFilterPropertyId(''); setFilterPersonId(''); setFilterCategoryId(''); setFilterMonth(''); setFilterAccountId(''); setSearchText(''); setFilterClassification(''); setFilterAnnualExpenseId(''); setFilterUncategorized(false); setBudgetTxIds(null); setBudgetName('') }}
-            className="text-xs text-stone hover:text-fjord"
-          >
+          {filterDateFrom && (
+            <FilterPill label={`From: ${filterDateFrom}`} onRemove={() => setFilterDateFrom('')} />
+          )}
+          {filterDateTo && (
+            <FilterPill label={`To: ${filterDateTo}`} onRemove={() => setFilterDateTo('')} />
+          )}
+          {searchText && (
+            <FilterPill label={`Search: ${searchText}`} onRemove={() => setSearchText('')} />
+          )}
+          {filterCategoryId && (
+            <FilterPill label={`Category: ${categories.find(c => c.id === filterCategoryId)?.name ?? filterCategoryId}`} onRemove={() => setFilterCategoryId('')} />
+          )}
+          {selectedCategoryIds.size > 0 && (
+            <FilterPill label={`${selectedCategoryIds.size} categories`} onRemove={() => setSelectedCategoryIds(new Set())} />
+          )}
+          {filterAccountId && (
+            <FilterPill label={`Account: ${accounts.find(a => a.id === filterAccountId)?.name ?? filterAccountId}`} onRemove={() => setFilterAccountId('')} />
+          )}
+          {selectedAccountIds.size > 0 && (
+            <FilterPill label={`${selectedAccountIds.size} accounts`} onRemove={() => setSelectedAccountIds(new Set())} />
+          )}
+          {filterPersonId && (
+            <FilterPill label={`Person: ${filterPersonId === '__none__' ? 'None' : householdMembers.find(m => m.id === filterPersonId)?.name ?? filterPersonId}`} onRemove={() => setFilterPersonId('')} />
+          )}
+          {filterPropertyId && (
+            <FilterPill label={`Property: ${filterPropertyId === '__none__' ? 'None' : filterPropertyId.startsWith('group:') ? propertyGroups.find(g => g.id === filterPropertyId.slice(6))?.name ?? 'Group' : properties.find(p => p.id === filterPropertyId)?.name ?? filterPropertyId}`} onRemove={() => setFilterPropertyId('')} />
+          )}
+          {filterAmountMin && (
+            <FilterPill label={`Min: $${filterAmountMin}`} onRemove={() => setFilterAmountMin('')} />
+          )}
+          {filterAmountMax && (
+            <FilterPill label={`Max: $${filterAmountMax}`} onRemove={() => setFilterAmountMax('')} />
+          )}
+          {filterClassification && (
+            <FilterPill label={filterClassification} onRemove={() => setFilterClassification('')} />
+          )}
+          {filterAnnualExpenseId && (
+            <FilterPill label={`Annual Plan: ${initialAnnualExpenseName || 'Linked'}`} onRemove={() => setFilterAnnualExpenseId('')} />
+          )}
+          {filterUncategorized && (
+            <FilterPill label="Needs category" onRemove={() => setFilterUncategorized(false)} />
+          )}
+          <button onClick={clearAllFilters} className="text-xs text-stone hover:text-fjord">
             Clear all
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="card overflow-hidden p-0">
         {error && (
@@ -705,22 +737,209 @@ export default function TransactionList({ transactions: initial, categories, acc
                   aria-label="Select all transactions"
                 />
               </th>
-              <th className="px-4 py-3 text-left font-medium text-stone">Date</th>
-              <th className="px-4 py-3 text-left font-medium text-stone">Merchant</th>
-              <th className="px-4 py-3 text-left font-medium text-stone">Category</th>
-              <th className="px-4 py-3 text-left font-medium text-stone">Account</th>
+              <ColumnHeader
+                label="Date"
+                column="date"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                hasFilter={hasDateFilter}
+                isOpen={activeFilter === 'date'}
+                onToggle={() => toggleFilter('date')}
+              >
+                <div className="p-3">
+                  <p className="mb-2 text-xs font-medium text-fjord">Date Range</p>
+                  <div className="flex gap-2">
+                    <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="input text-xs" />
+                    <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="input text-xs" />
+                  </div>
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs font-medium text-fjord">Month</p>
+                    <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="input w-full text-xs">
+                      <option value="">All Months</option>
+                      {(() => {
+                        const months = new Set<string>()
+                        for (const tx of transactions) {
+                          const d = new Date(tx.date)
+                          months.add(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
+                        }
+                        return [...months].sort().reverse().map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))
+                      })()}
+                    </select>
+                  </div>
+                  <button onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); setFilterMonth('') }} className="mt-2 text-xs text-stone hover:text-fjord">Clear</button>
+                </div>
+              </ColumnHeader>
+              <ColumnHeader
+                label="Merchant"
+                column="merchant"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                hasFilter={hasMerchantFilter}
+                isOpen={activeFilter === 'merchant'}
+                onToggle={() => toggleFilter('merchant')}
+              >
+                <div className="p-3">
+                  <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} className="input text-xs" placeholder="Search merchant..." autoFocus />
+                </div>
+              </ColumnHeader>
+              <ColumnHeader
+                label="Category"
+                column="category"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                hasFilter={hasCategoryFilter}
+                isOpen={activeFilter === 'category'}
+                onToggle={() => toggleFilter('category')}
+              >
+                <div className="p-3">
+                  <input type="text" value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} className="input mb-2 text-xs" placeholder="Search categories..." autoFocus />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredCategoryOptions.map(cat => (
+                      <label key={cat.id} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                        <input type="checkbox" checked={selectedCategoryIds.has(cat.id)} onChange={() => toggleCategoryFilter(cat.id)} className="rounded border-mist" />
+                        {cat.name}
+                        <span className="ml-auto text-stone">{categoryCounts[cat.id] ?? 0}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex justify-between">
+                    <button onClick={() => setSelectedCategoryIds(new Set(categories.map(c => c.id)))} className="text-xs text-pine hover:underline">Select all</button>
+                    <button onClick={() => { setSelectedCategoryIds(new Set()); setFilterCategoryId(''); setCategorySearch('') }} className="text-xs text-stone hover:text-fjord">Clear</button>
+                  </div>
+                </div>
+              </ColumnHeader>
+              <ColumnHeader
+                label="Account"
+                column="account"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                hasFilter={hasAccountFilter}
+                isOpen={activeFilter === 'account'}
+                onToggle={() => toggleFilter('account')}
+              >
+                <div className="p-3">
+                  <input type="text" value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} className="input mb-2 text-xs" placeholder="Search accounts..." autoFocus />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredAccountOptions.map(acct => (
+                      <label key={acct.id} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                        <input type="checkbox" checked={selectedAccountIds.has(acct.id)} onChange={() => toggleAccountFilter(acct.id)} className="rounded border-mist" />
+                        {acct.name}
+                        <span className="ml-auto text-stone">{accountCounts[acct.id] ?? 0}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex justify-between">
+                    <button onClick={() => setSelectedAccountIds(new Set(accounts.map(a => a.id)))} className="text-xs text-pine hover:underline">Select all</button>
+                    <button onClick={() => { setSelectedAccountIds(new Set()); setFilterAccountId(''); setAccountSearch('') }} className="text-xs text-stone hover:text-fjord">Clear</button>
+                  </div>
+                </div>
+              </ColumnHeader>
               {householdMembers.length > 0 && (
-                <th className="px-4 py-3 text-left font-medium text-stone">Person</th>
+                <th className="group relative px-4 py-3 text-left font-medium text-stone">
+                  <button onClick={() => toggleFilter('person')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
+                    Person
+                    {hasPersonFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
+                    <span className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100">&#x25BE;</span>
+                  </button>
+                  {activeFilter === 'person' && (
+                    <ColumnFilterPopover onClose={() => setActiveFilter(null)}>
+                      <div className="p-3">
+                        <label className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                          <input type="radio" name="person-filter" checked={!filterPersonId} onChange={() => setFilterPersonId('')} className="border-mist" />
+                          All People
+                        </label>
+                        <label className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                          <input type="radio" name="person-filter" checked={filterPersonId === '__none__'} onChange={() => setFilterPersonId('__none__')} className="border-mist" />
+                          No Person
+                        </label>
+                        {householdMembers.map(m => (
+                          <label key={m.id} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                            <input type="radio" name="person-filter" checked={filterPersonId === m.id} onChange={() => setFilterPersonId(m.id)} className="border-mist" />
+                            {m.name}
+                          </label>
+                        ))}
+                      </div>
+                    </ColumnFilterPopover>
+                  )}
+                </th>
               )}
               {properties.length > 0 && (
-                <th className="px-4 py-3 text-left font-medium text-stone">Property</th>
+                <th className="group relative px-4 py-3 text-left font-medium text-stone">
+                  <button onClick={() => toggleFilter('property')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
+                    Property
+                    {hasPropertyFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
+                    <span className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100">&#x25BE;</span>
+                  </button>
+                  {activeFilter === 'property' && (
+                    <ColumnFilterPopover onClose={() => setActiveFilter(null)}>
+                      <div className="p-3">
+                        <label className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                          <input type="radio" name="property-filter" checked={!filterPropertyId} onChange={() => setFilterPropertyId('')} className="border-mist" />
+                          All Properties
+                        </label>
+                        <label className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                          <input type="radio" name="property-filter" checked={filterPropertyId === '__none__'} onChange={() => setFilterPropertyId('__none__')} className="border-mist" />
+                          No Property
+                        </label>
+                        {propertyGroups.map(g => (
+                          <label key={`group-${g.id}`} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                            <input type="radio" name="property-filter" checked={filterPropertyId === `group:${g.id}`} onChange={() => setFilterPropertyId(`group:${g.id}`)} className="border-mist" />
+                            {g.name} (all units)
+                          </label>
+                        ))}
+                        {properties.map(p => (
+                          <label key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
+                            <input type="radio" name="property-filter" checked={filterPropertyId === p.id} onChange={() => setFilterPropertyId(p.id)} className="border-mist" />
+                            {p.name}
+                          </label>
+                        ))}
+                        <button onClick={() => setFilterPropertyId('')} className="mt-2 text-xs text-stone hover:text-fjord">Clear</button>
+                      </div>
+                    </ColumnFilterPopover>
+                  )}
+                </th>
               )}
-              <th className="px-4 py-3 text-right font-medium text-stone">Amount</th>
+              <ColumnHeader
+                label="Amount"
+                column="amount"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                hasFilter={hasAmountFilter}
+                isOpen={activeFilter === 'amount'}
+                onToggle={() => toggleFilter('amount')}
+                align="right"
+              >
+                <div className="p-3">
+                  <p className="mb-2 text-xs font-medium text-fjord">Amount Range</p>
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={filterAmountMin} onChange={(e) => setFilterAmountMin(e.target.value)} className="input w-24 text-xs" placeholder="Min" step="0.01" />
+                    <span className="text-xs text-stone">to</span>
+                    <input type="number" value={filterAmountMax} onChange={(e) => setFilterAmountMax(e.target.value)} className="input w-24 text-xs" placeholder="Max" step="0.01" />
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button onClick={() => { setFilterAmountMin(''); setFilterAmountMax('-0.01'); setFilterClassification('') }} className="rounded bg-frost px-2 py-1 text-xs text-fjord hover:bg-mist">Expenses only</button>
+                    <button onClick={() => { setFilterAmountMin('0.01'); setFilterAmountMax(''); setFilterClassification('') }} className="rounded bg-frost px-2 py-1 text-xs text-fjord hover:bg-mist">Income only</button>
+                  </div>
+                  {filterClassification && (
+                    <div className="mt-2">
+                      <p className="text-xs text-stone">Classification: {filterClassification}</p>
+                    </div>
+                  )}
+                  <button onClick={() => { setFilterAmountMin(''); setFilterAmountMax(''); setFilterClassification('') }} className="mt-2 text-xs text-stone hover:text-fjord">Clear</button>
+                </div>
+              </ColumnHeader>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-mist">
-            {filteredTransactions.map((tx) =>
+            {sortedTransactions.map((tx) =>
               editingId === tx.id ? (
                 <tr key={tx.id} className="bg-frost">
                   <td className="px-3 py-2">
@@ -1139,6 +1358,106 @@ export default function TransactionList({ transactions: initial, categories, acc
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Helper components ──────────────────────────────────────────────────────
+
+function ColumnFilterPopover({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [onClose])
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-mist bg-snow shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>
+  )
+}
+
+function ColumnHeader({
+  label,
+  column,
+  sortColumn,
+  sortDirection,
+  onSort,
+  hasFilter,
+  isOpen,
+  onToggle,
+  children,
+  align,
+}: {
+  label: string
+  column: 'date' | 'merchant' | 'category' | 'account' | 'amount'
+  sortColumn: string
+  sortDirection: 'asc' | 'desc'
+  onSort: (col: 'date' | 'merchant' | 'category' | 'account' | 'amount') => void
+  hasFilter: boolean
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+  align?: 'right'
+}) {
+  return (
+    <th className={`group relative px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium text-stone`}>
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+        <button
+          onClick={() => onSort(column)}
+          className="flex items-center gap-0.5 text-xs uppercase tracking-wider hover:text-fjord"
+        >
+          {label}
+          {sortColumn === column && (
+            <span className="text-fjord">{sortDirection === 'asc' ? '\u2191' : '\u2193'}</span>
+          )}
+        </button>
+        {hasFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle() }}
+          className="h-3 w-3 text-stone opacity-0 transition-opacity hover:text-fjord group-hover:opacity-100"
+          aria-label={`Filter by ${label}`}
+        >
+          &#x25BE;
+        </button>
+      </div>
+      {isOpen && (
+        <ColumnFilterPopover onClose={onToggle}>
+          {children}
+        </ColumnFilterPopover>
+      )}
+    </th>
+  )
+}
+
+function FilterPill({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-mist bg-frost px-3 py-1 text-xs font-medium text-fjord">
+      {label}
+      <button onClick={onRemove} className="ml-0.5 text-stone hover:text-fjord">&times;</button>
     </div>
   )
 }
