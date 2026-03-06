@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
-import { getCachedForecast } from '@/lib/forecast-helpers'
+import { getCachedForecast, getForecastAccuracy } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import ForecastTimeline from './ForecastTimeline'
@@ -37,7 +37,10 @@ export default async function ForecastPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const forecast = await getCachedForecast(session.userId)
+  const [forecast, accuracy] = await Promise.all([
+    getCachedForecast(session.userId),
+    getForecastAccuracy(session.userId),
+  ])
 
   if (!forecast) {
     return (
@@ -177,7 +180,69 @@ export default async function ForecastPage() {
         </div>
       </div>
 
-      {/* Section 3: Asset Growth Breakdown */}
+      {/* Section 3: Forecast Accuracy */}
+      {accuracy && accuracy.points.length > 0 && (
+        <div className="card mb-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-fjord">Forecast Accuracy</h2>
+            <span
+              className={`inline-flex items-center rounded-badge px-2 py-0.5 text-xs font-medium ${
+                accuracy.rating === 'excellent' || accuracy.rating === 'good'
+                  ? 'bg-pine/10 text-pine'
+                  : accuracy.rating === 'fair'
+                    ? 'bg-birch/20 text-midnight'
+                    : 'bg-ember/10 text-ember'
+              }`}
+            >
+              {accuracy.rating.charAt(0).toUpperCase() + accuracy.rating.slice(1)}
+            </span>
+          </div>
+          <p className="mb-4 text-xs text-stone">{accuracy.ratingReason}</p>
+          <div className="mb-4 grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs font-medium text-stone">Avg Error</p>
+              <p className="mt-0.5 font-mono text-lg font-medium text-fjord">{formatCurrency(accuracy.meanAbsoluteError)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-stone">Avg Error %</p>
+              <p className="mt-0.5 font-mono text-lg font-medium text-fjord">{accuracy.meanAbsolutePctError.toFixed(1)}%</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-stone">Bias</p>
+              <p className={`mt-0.5 font-mono text-lg font-medium ${accuracy.bias > 0 ? 'text-pine' : accuracy.bias < 0 ? 'text-ember' : 'text-fjord'}`}>
+                {accuracy.bias > 0 ? '+' : ''}{formatCurrency(accuracy.bias)}
+              </p>
+              <p className="text-[10px] text-stone">{accuracy.bias > 0 ? 'Over-projecting' : accuracy.bias < 0 ? 'Under-projecting' : 'No bias'}</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-mist text-left text-xs font-medium uppercase tracking-wider text-stone">
+                  <th className="pb-2 pr-4">Month</th>
+                  <th className="pb-2 pr-4 text-right">Projected</th>
+                  <th className="pb-2 pr-4 text-right">Actual</th>
+                  <th className="pb-2 text-right">Error</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-mist/50">
+                {accuracy.points.map((point) => (
+                  <tr key={point.month}>
+                    <td className="py-2 pr-4 text-fjord">{point.month}</td>
+                    <td className="py-2 pr-4 text-right font-mono text-stone">{formatCurrency(point.projected)}</td>
+                    <td className="py-2 pr-4 text-right font-mono text-fjord">{formatCurrency(point.actual)}</td>
+                    <td className={`py-2 text-right font-mono text-xs ${point.delta >= 0 ? 'text-pine' : 'text-ember'}`}>
+                      {point.delta >= 0 ? '+' : ''}{formatCurrency(point.delta)} ({point.deltaPct > 0 ? '+' : ''}{point.deltaPct.toFixed(1)}%)
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Section 4: Asset Growth Breakdown */}
       {assetGrowth.length > 0 && (
         <div className="card mb-6">
           <h2 className="mb-4 text-base font-semibold text-fjord">Asset Growth Projections (12mo)</h2>
@@ -213,7 +278,7 @@ export default async function ForecastPage() {
         </div>
       )}
 
-      {/* Section 4: Scenarios */}
+      {/* Section 5: Scenarios */}
       {scenarios.length > 0 && (
         <div className="card mb-6">
           <h2 className="mb-4 text-base font-semibold text-fjord">What-If Scenarios</h2>
@@ -221,7 +286,7 @@ export default async function ForecastPage() {
         </div>
       )}
 
-      {/* Section 5: Monthly Breakdown Table */}
+      {/* Section 6: Monthly Breakdown Table */}
       <div className="card">
         <h2 className="mb-4 text-base font-semibold text-fjord">Monthly Breakdown</h2>
         <div className="overflow-x-auto">

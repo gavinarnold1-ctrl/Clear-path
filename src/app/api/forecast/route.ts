@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { computeForecast, autoDetectAssetClass, computeScenarioImpact } from '@/lib/engines/forecast'
+import { computeForecast, autoDetectAssetClass, computeScenarioImpact, computeForecastAccuracy } from '@/lib/engines/forecast'
 import { monthlyPayment } from '@/lib/engines/amortization'
 import type {
   AssetClass,
@@ -25,7 +25,8 @@ export async function GET() {
   }
 
   const forecast = computeForecast(input)
-  return NextResponse.json({ forecast })
+  const accuracy = computeForecastAccuracy(forecast.timeline)
+  return NextResponse.json({ forecast, accuracy })
 }
 
 export async function POST(req: NextRequest) {

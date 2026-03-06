@@ -193,7 +193,8 @@ export default async function SpendingPage({ searchParams }: Props) {
                 Spending &harr; {goalContext.goalLabel}
               </span>
               <p className="mt-1 text-sm text-fjord">
-                {forecastSummaries?.transactions
+                {forecastSummaries?.spending
+                  ?? forecastSummaries?.transactions
                   ?? `Your spending directly affects your ${goalContext.goalLabel} goal. Categories over budget slow your progress.`}
               </p>
             </div>

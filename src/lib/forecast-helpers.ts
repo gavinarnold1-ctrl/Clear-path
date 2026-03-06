@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { computeForecast, autoDetectAssetClass } from '@/lib/engines/forecast'
+import { computeForecast, autoDetectAssetClass, computeForecastAccuracy } from '@/lib/engines/forecast'
 import type {
   AssetClass,
   GoalTarget,
@@ -11,6 +11,7 @@ import type {
   AnnualExpenseForForecast,
   PropertyForForecast,
   Forecast,
+  ForecastAccuracy,
 } from '@/types'
 
 // Simple in-memory cache: userId -> { forecast, timestamp }
@@ -22,6 +23,12 @@ export async function getForecastSummaries(
 ): Promise<Forecast['tabSummaries'] | null> {
   const forecast = await getCachedForecast(userId)
   return forecast?.tabSummaries ?? null
+}
+
+export async function getForecastAccuracy(userId: string): Promise<ForecastAccuracy | null> {
+  const forecast = await getCachedForecast(userId)
+  if (!forecast) return null
+  return computeForecastAccuracy(forecast.timeline)
 }
 
 export async function getCachedForecast(userId: string): Promise<Forecast | null> {
