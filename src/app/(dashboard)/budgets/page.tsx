@@ -481,6 +481,7 @@ export default async function BudgetsPage() {
             expectedIncome={expectedIncome}
             fixedTotal={fixedTotal}
             flexibleSpent={flexibleSpent}
+            flexibleBudget={flexibleBudgeted}
             annualSetAside={annualSetAside}
           />
 

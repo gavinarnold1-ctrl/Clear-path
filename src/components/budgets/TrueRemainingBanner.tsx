@@ -5,6 +5,7 @@ interface TrueRemainingProps {
   expectedIncome: number
   fixedTotal: number
   flexibleSpent: number
+  flexibleBudget: number
   annualSetAside: number
 }
 
@@ -13,11 +14,16 @@ export default function TrueRemainingBanner({
   expectedIncome,
   fixedTotal,
   flexibleSpent,
+  flexibleBudget,
   annualSetAside,
 }: TrueRemainingProps) {
   const displayIncome = expectedIncome > 0 ? expectedIncome : income
   const trueRemaining = displayIncome - fixedTotal - flexibleSpent - annualSetAside
   const incomeRatio = displayIncome > 0 ? trueRemaining / displayIncome : 0
+
+  // Flexible budget color: green if on track, ember if exceeding
+  const flexibleOnTrack = flexibleSpent <= flexibleBudget
+  const flexibleColorClass = flexibleOnTrack ? 'text-pine' : 'text-ember'
 
   // Color coding based on remaining percentage of income
   const colorClass =
@@ -45,12 +51,15 @@ export default function TrueRemainingBanner({
           )}
         </div>
         <div>
-          <p className="font-medium text-stone">Committed</p>
+          <p className="font-medium text-stone">Fixed</p>
           <p className="text-lg font-semibold text-fjord">{formatCurrency(fixedTotal)}</p>
         </div>
         <div>
-          <p className="font-medium text-stone">Flexible Spent</p>
-          <p className="text-lg font-semibold text-fjord">{formatCurrency(flexibleSpent)}</p>
+          <p className="font-medium text-stone">Flexible</p>
+          <p className={`text-lg font-semibold ${flexibleColorClass}`}>{formatCurrency(flexibleBudget)}</p>
+          <p className="text-xs text-stone">
+            {formatCurrency(flexibleSpent)} spent
+          </p>
         </div>
         <div>
           <p className="font-medium text-stone">Annual Set-Aside</p>
