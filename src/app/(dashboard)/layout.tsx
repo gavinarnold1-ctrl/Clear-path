@@ -22,7 +22,13 @@ function buildNavGroups(showProperties: boolean): NavGroup[] {
 
   return [
     { label: null, items: mainItems },
-    { label: 'Periodic', items: [{ href: '/monthly-review', label: 'Monthly Review' }] },
+    {
+      label: 'Periodic',
+      items: [
+        { href: '/monthly-review', label: 'Monthly Review' },
+        { href: '/spending-analytics', label: 'Analytics' },
+      ],
+    },
     {
       label: 'Setup',
       items: [

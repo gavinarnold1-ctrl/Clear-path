@@ -9,7 +9,7 @@ import {
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // Routes that require a valid session
-const PROTECTED = ['/dashboard', '/insights', '/monthly-review', '/transactions', '/budgets', '/accounts', '/categories', '/spending', '/debts', '/properties', '/settings', '/onboarding', '/reimport']
+const PROTECTED = ['/dashboard', '/insights', '/monthly-review', '/spending-analytics', '/transactions', '/budgets', '/accounts', '/categories', '/spending', '/debts', '/properties', '/settings', '/onboarding', '/reimport']
 // Routes that logged-in users should not see
 const AUTH_ROUTES = ['/login', '/register']
 
