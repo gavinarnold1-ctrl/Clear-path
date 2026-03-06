@@ -59,6 +59,21 @@ enum DebtType {
   OTHER
 }
 
+enum CardTier {
+  BASIC
+  MID
+  PREMIUM
+  ULTRA_PREMIUM
+}
+
+enum BenefitRefreshCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  CALENDAR_YEAR
+  CARDMEMBER_YEAR
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -86,6 +101,7 @@ model User {
   debts             Debt[]
   monthlySnapshots  MonthlySnapshot[]
   categoryMappings  UserCategoryMapping[]
+  userCards          UserCard[]
 }
 
 model Account {
@@ -115,6 +131,7 @@ model Account {
   transactions  Transaction[]
   debt          Debt?         // One-to-one: auto-populated debt for loan/credit accounts
   propertyLinks AccountPropertyLink[]
+  userCard      UserCard?     // One-to-one: identified card program
 
   @@index([ownerId])
   @@index([plaidItemId])
@@ -578,6 +595,107 @@ model MonthlySnapshot {
 
   @@unique([userId, month])
   @@index([userId])
+}
+
+// ─── Credit Card Programs & Benefits ────────────────────────────────────────
+
+model CardProgram {
+  id              String    @id @default(cuid())
+  issuer          String    // "Chase", "American Express", "Capital One"
+  name            String    // "Sapphire Preferred", "Gold Card"
+  tier            CardTier
+  annualFee       Float     @default(0)
+  rewardsCurrency String?   // "Ultimate Rewards", "Membership Rewards", "Miles"
+  signUpBonus     String?   // "60,000 points after $4,000 in 3 months"
+  foreignTxFee    Float     @default(0) // e.g. 0.03 = 3%
+  isActive        Boolean   @default(true) // Card still available to apply for
+
+  // Plaid matching hints
+  plaidPatterns   Json?     // Array of patterns: ["sapphire preferred", "chase sapphire"]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  benefits        CardBenefit[]
+  userCards       UserCard[]
+
+  @@unique([issuer, name])
+  @@index([issuer])
+}
+
+model CardBenefit {
+  id              String    @id @default(cuid())
+  cardProgramId   String
+  cardProgram     CardProgram @relation(fields: [cardProgramId], references: [id], onDelete: Cascade)
+
+  name            String    // "Dining Rewards", "Travel Credit"
+  type            String    // "cashback" | "points_multiplier" | "statement_credit" | "insurance" | "perk"
+  category        String?   // Spending category this applies to: "Dining", "Travel", "Groceries", etc.
+
+  // Reward details
+  rewardRate      Float?    // e.g. 0.03 = 3% back or 3x points
+  rewardUnit      String?   // "percent" | "points_per_dollar"
+  maxReward       Float?    // Annual cap on this benefit (dollars or points)
+
+  // Statement credit details
+  creditAmount    Float?    // e.g. 300 for $300 travel credit
+  creditCycle     BenefitRefreshCycle? // When the credit resets
+
+  description     String    // Human-readable: "3x points on dining worldwide"
+  terms           String?   // Fine print / conditions
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  userCardBenefits UserCardBenefit[]
+
+  @@index([cardProgramId])
+  @@index([type])
+}
+
+model UserCard {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardProgramId   String
+  cardProgram     CardProgram @relation(fields: [cardProgramId], references: [id], onDelete: Cascade)
+  accountId       String?   @unique // Links to user's Account (one card program per account)
+  account         Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  nickname        String?   // User's label: "My daily card"
+  lastFourDigits  String?   // "4242"
+  openedDate      DateTime? // When the card was opened
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  benefits        UserCardBenefit[]
+
+  @@unique([userId, cardProgramId])
+  @@index([userId])
+  @@index([accountId])
+}
+
+model UserCardBenefit {
+  id              String    @id @default(cuid())
+  userCardId      String
+  userCard        UserCard  @relation(fields: [userCardId], references: [id], onDelete: Cascade)
+  cardBenefitId   String
+  cardBenefit     CardBenefit @relation(fields: [cardBenefitId], references: [id], onDelete: Cascade)
+
+  // Tracking usage of credits/perks
+  usedAmount      Float     @default(0) // How much of a credit has been used
+  lastResetDate   DateTime? // When the credit last reset
+  isOptedIn       Boolean   @default(true) // User can opt out of tracking a benefit
+  notes           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@unique([userCardId, cardBenefitId])
+  @@index([userCardId])
 }
 
 // ─── Reference Databases ────────────────────────────────────────────────────
