@@ -772,3 +772,14 @@ model IncomeBenchmark {
 
   @@map("income_benchmarks")
 }
+
+// ─── Waitlist ─────────────────────────────────────────────────────────────────
+
+model WaitlistEntry {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String   @default("landing")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("waitlist_entries")
+}
