@@ -347,6 +347,7 @@ export interface Forecast {
     transactions: string
     monthlyReview: string
     spending: string
+    properties: string
   }
   assetGrowth: AssetGrowthProjection[]
 }

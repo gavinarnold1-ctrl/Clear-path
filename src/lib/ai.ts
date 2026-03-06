@@ -212,7 +212,14 @@ USER HISTORY:
     userPrompt += `
 
 PROPERTY/BUSINESS SUMMARY:
-${ctx.entitySummary}`
+${ctx.entitySummary}
+
+ENTITY ANALYSIS GUIDANCE:
+- For rental properties: Comment on net yield if below 5%, suggest expense reduction opportunities
+- For businesses: Comment on profit margin trends, flag if expenses growing faster than revenue
+- For depreciation: Alert if any property's depreciation will exhaust within 2 years
+- For property groups: Note if split allocations seem unbalanced relative to usage
+- Keep entity insights actionable — connect to specific dollar amounts or percentages`
   }
 
   if (ctx.goalContext) {

@@ -9,6 +9,8 @@ import { calculateDepreciation } from '@/lib/engines/tax'
 import { generateTaxSummary } from '@/lib/engines/tax'
 import AddPropertyInline from '@/components/properties/AddPropertyInline'
 import AddPropertyButton from '@/components/properties/AddPropertyButton'
+import { getForecastSummaries } from '@/lib/forecast-helpers'
+import { getGoalContext } from '@/lib/goal-context'
 
 interface AccountOption {
   id: string
@@ -45,8 +47,8 @@ export default async function PropertiesPage({ searchParams }: Props) {
   const monthLabel = startDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
   const monthParam = `${year}-${String(month + 1).padStart(2, '0')}`
 
-  // Fetch properties and accounts
-  const [properties, userAccounts] = await Promise.all([
+  // Fetch properties, accounts, forecast, and goal context
+  const [properties, userAccounts, forecastSummaries, goalContext] = await Promise.all([
     db.property.findMany({
       where: { userId: session.userId },
       orderBy: { name: 'asc' },
@@ -56,6 +58,8 @@ export default async function PropertiesPage({ searchParams }: Props) {
       select: { id: true, name: true, type: true, balance: true },
       orderBy: { name: 'asc' },
     }),
+    getForecastSummaries(session.userId),
+    getGoalContext(session.userId),
   ])
 
   const accountsForWizard: AccountOption[] = userAccounts.map((a) => ({
@@ -104,6 +108,38 @@ export default async function PropertiesPage({ searchParams }: Props) {
       },
     },
   })
+
+  // Prior year data for YoY comparison on tax report
+  const priorYearStart = new Date(year - 1, month, 1)
+  const priorYearEnd = new Date(year - 1, month + 1, 0, 23, 59, 59, 999)
+  const [priorDirectTransactions, priorSplits] = await Promise.all([
+    db.transaction.findMany({
+      where: {
+        userId: session.userId,
+        date: { gte: priorYearStart, lte: priorYearEnd },
+        propertyId: { not: null },
+      },
+      include: {
+        category: { select: { group: true, name: true, scheduleECategory: true } },
+      },
+    }),
+    db.transactionSplit.findMany({
+      where: {
+        transaction: {
+          userId: session.userId,
+          date: { gte: priorYearStart, lte: priorYearEnd },
+        },
+      },
+      include: {
+        transaction: {
+          include: {
+            category: { select: { group: true, name: true, scheduleECategory: true } },
+          },
+        },
+      },
+    }),
+  ])
+  const priorTxIdsWithSplits = new Set(priorSplits.map((s) => s.transaction.id))
 
   // Build a set of transaction IDs that have splits, to avoid double-counting
   const txIdsWithSplits = new Set(splits.map((s) => s.transaction.id))
@@ -250,6 +286,61 @@ export default async function PropertiesPage({ searchParams }: Props) {
     { start: startDate, end: endDate },
   )
 
+  // Prior year tax summary for YoY comparison
+  const propertyTaxData = properties.map((p) => ({
+    id: p.id,
+    name: p.name,
+    type: p.type,
+    taxSchedule: p.taxSchedule,
+    purchasePrice: p.purchasePrice ? Number(p.purchasePrice) : null,
+    purchaseDate: p.purchaseDate,
+    buildingValuePct: p.buildingValuePct ? Number(p.buildingValuePct) : null,
+    priorDepreciation: p.priorDepreciation ? Number(p.priorDepreciation) : null,
+    loanBalance: p.loanBalance,
+    interestRate: p.interestRate,
+    monthlyPayment: p.monthlyPayment,
+    monthlyPropertyTax: p.monthlyPropertyTax,
+    monthlyInsurance: p.monthlyInsurance,
+    monthlyHOA: p.monthlyHOA,
+    monthlyPMI: p.monthlyPMI,
+  }))
+
+  const hasPriorData = priorDirectTransactions.length > 0 || priorSplits.length > 0
+  const priorTaxSummaryData = hasPriorData
+    ? generateTaxSummary(
+        priorSplits.map((s) => ({
+          propertyId: s.propertyId,
+          amount: s.amount,
+          transaction: {
+            classification: s.transaction.classification,
+            category: s.transaction.category
+              ? {
+                  group: s.transaction.category.group,
+                  name: s.transaction.category.name,
+                  scheduleECategory: s.transaction.category.scheduleECategory,
+                }
+              : undefined,
+          },
+        })),
+        priorDirectTransactions
+          .filter((t) => !priorTxIdsWithSplits.has(t.id))
+          .map((t) => ({
+            propertyId: t.propertyId!,
+            amount: t.amount,
+            classification: t.classification,
+            category: t.category
+              ? {
+                  group: t.category.group,
+                  name: t.category.name,
+                  scheduleECategory: t.category.scheduleECategory,
+                }
+              : undefined,
+          })),
+        propertyTaxData,
+        { start: priorYearStart, end: priorYearEnd },
+      )
+    : null
+
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -275,6 +366,9 @@ export default async function PropertiesPage({ searchParams }: Props) {
         monthLabel={monthLabel}
         initialTab={params.tab ?? 'dashboard'}
         accounts={accountsForWizard}
+        forecastSummary={forecastSummaries?.properties ?? null}
+        goalArchetype={goalContext?.primaryGoal ?? null}
+        priorTaxSummary={priorTaxSummaryData}
       />
     </div>
   )

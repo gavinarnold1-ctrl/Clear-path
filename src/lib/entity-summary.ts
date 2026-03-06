@@ -22,6 +22,7 @@ export async function getEntitySummary(
       purchaseDate: true,
       buildingValuePct: true,
       priorDepreciation: true,
+      currentValue: true,
     },
   })
 
@@ -102,6 +103,16 @@ export async function getEntitySummary(
     line += `, Net $${net.toLocaleString()}`
     lines.push(line)
 
+    // Computed metrics for AI context
+    const metrics = computePropertyMetrics({
+      type: prop.type,
+      currentValue: prop.currentValue,
+      purchasePrice: prop.purchasePrice ? Number(prop.purchasePrice) : null,
+      purchaseDate: prop.purchaseDate,
+      buildingValuePct: prop.buildingValuePct ? Number(prop.buildingValuePct) : null,
+    }, income, expenses)
+    if (metrics) lines.push(`  Metrics: ${metrics}`)
+
     if (prop.type === 'RENTAL') totalRentalNet += net
     if (prop.type === 'BUSINESS') totalBusinessExpenses += expenses
   }
@@ -120,4 +131,47 @@ export async function getEntitySummary(
   }
 
   return lines.join('\n')
+}
+
+function computePropertyMetrics(
+  property: {
+    type: string
+    currentValue?: number | null
+    purchasePrice?: number | null
+    purchaseDate?: Date | null
+    buildingValuePct?: number | null
+  },
+  monthlyIncome: number,
+  monthlyExpenses: number,
+): string | null {
+  const parts: string[] = []
+
+  if (property.type === 'RENTAL' && property.currentValue && property.currentValue > 0) {
+    const annualRent = monthlyIncome * 12
+    const annualExpenses = monthlyExpenses * 12
+    if (annualRent > 0) {
+      const netYield = ((annualRent - annualExpenses) / property.currentValue * 100).toFixed(1)
+      parts.push(`Net rental yield: ${netYield}%`)
+      const noi = annualRent - annualExpenses
+      if (noi > 0) {
+        parts.push(`Cap rate: ${(noi / property.currentValue * 100).toFixed(1)}%`)
+      }
+    }
+  }
+
+  if (property.type === 'BUSINESS' && monthlyIncome > 0) {
+    const profitMargin = ((monthlyIncome - monthlyExpenses) / monthlyIncome * 100).toFixed(1)
+    parts.push(`Profit margin: ${profitMargin}%`)
+  }
+
+  // Depreciation exhaustion warning
+  if (property.purchasePrice && property.purchaseDate) {
+    const yearsElapsed = (Date.now() - new Date(property.purchaseDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+    const yearsRemaining = Math.max(0, 27.5 - yearsElapsed)
+    if (yearsRemaining < 3 && yearsRemaining > 0) {
+      parts.push(`Depreciation exhausted in ${yearsRemaining.toFixed(1)} years`)
+    }
+  }
+
+  return parts.length > 0 ? parts.join('. ') : null
 }
