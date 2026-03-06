@@ -17,6 +17,8 @@ import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
+import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
+import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 
 export const metadata: Metadata = { title: 'Overview' }
 
@@ -201,6 +203,49 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   // Fetch forecast summaries (non-blocking, after main data)
   const forecastSummaries = await getForecastSummaries(session.userId)
+
+  // Benefit alerts — expiring card credits
+  const userCards = await db.userCard.findMany({
+    where: { userId: session.userId, isActive: true },
+    select: {
+      id: true,
+      openedDate: true,
+      cardProgram: { select: { issuer: true, name: true } },
+      benefits: {
+        where: { isOptedIn: true },
+        select: {
+          id: true,
+          usedAmount: true,
+          lastResetDate: true,
+          isOptedIn: true,
+          cardBenefit: {
+            select: { id: true, name: true, creditAmount: true, creditCycle: true },
+          },
+        },
+      },
+    },
+  })
+
+  const alertInputs: BenefitAlertInput[] = []
+  for (const card of userCards) {
+    for (const ub of card.benefits) {
+      if (!ub.cardBenefit.creditAmount || !ub.cardBenefit.creditCycle) continue
+      alertInputs.push({
+        benefitId: ub.cardBenefit.id,
+        benefitName: ub.cardBenefit.name,
+        cardIssuer: card.cardProgram.issuer,
+        cardName: card.cardProgram.name,
+        userCardId: card.id,
+        creditAmount: ub.cardBenefit.creditAmount,
+        creditCycle: ub.cardBenefit.creditCycle,
+        usedAmount: ub.usedAmount,
+        lastResetDate: ub.lastResetDate,
+        isOptedIn: ub.isOptedIn,
+        openedDate: card.openedDate,
+      })
+    }
+  }
+  const benefitAlerts = computeBenefitAlerts(alertInputs)
 
   // Check if goal needs recalibration
   const goalTargetData = userProfile?.goalTarget as GoalTarget | null
@@ -540,6 +585,33 @@ export default async function DashboardPage({ searchParams }: Props) {
           )}
         </div>
       </div>
+
+      {/* Benefit alerts — expiring card credits */}
+      {benefitAlerts.length > 0 && (
+        <div className="mb-8 space-y-2">
+          {benefitAlerts.slice(0, 3).map((alert) => (
+            <Link
+              key={`${alert.benefitId}-${alert.userCardId}`}
+              href="/accounts/benefits"
+              className={`block rounded-card border px-4 py-3 transition-colors hover:bg-frost/60 ${
+                alert.severity === 'urgent'
+                  ? 'border-ember/40 bg-ember/5'
+                  : alert.severity === 'warning'
+                    ? 'border-birch/60 bg-birch/10'
+                    : 'border-mist bg-frost/30'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">
+                  {alert.severity === 'urgent' ? '⚠️' : alert.severity === 'warning' ? '⏰' : 'ℹ️'}
+                </span>
+                <p className="text-sm text-fjord">{alert.message}</p>
+              </div>
+              <p className="mt-0.5 pl-6 text-xs text-stone">{alert.cardLabel}</p>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Value tracker — cumulative savings identified */}
       <div className="mb-8">

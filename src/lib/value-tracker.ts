@@ -51,28 +51,54 @@ export interface ValueSummary {
   since: Date | null
   monthlySubscriptionCost: number
   roi: number
+  perkReimbursements: number
+  cardBenefitCreditsUsed: number
 }
 
 export async function getValueSummary(userId: string): Promise<ValueSummary> {
-  const insights = await db.insight.findMany({
-    where: {
-      userId,
-      savingsAmount: { not: null, gt: 0 },
-    },
-    select: {
-      savingsAmount: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: 'asc' },
-  })
+  const yearStart = new Date(new Date().getFullYear(), 0, 1)
+
+  const [insights, perkAgg, creditUsedAgg] = await Promise.all([
+    db.insight.findMany({
+      where: {
+        userId,
+        savingsAmount: { not: null, gt: 0 },
+      },
+      select: {
+        savingsAmount: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    // Sum of perk_reimbursement transactions this year (positive amounts = money back)
+    db.transaction.aggregate({
+      where: {
+        userId,
+        classification: 'perk_reimbursement',
+        date: { gte: yearStart },
+      },
+      _sum: { amount: true },
+    }),
+    // Sum of used credit from UserCardBenefits
+    db.userCardBenefit.aggregate({
+      where: {
+        userCard: { userId, isActive: true },
+        usedAmount: { gt: 0 },
+      },
+      _sum: { usedAmount: true },
+    }),
+  ])
 
   const totalIdentified = insights.reduce((sum: number, i: { savingsAmount: number | null }) => sum + (i.savingsAmount ?? 0), 0)
+  const perkReimbursements = Math.abs(perkAgg._sum.amount ?? 0)
+  const cardBenefitCreditsUsed = creditUsedAgg._sum.usedAmount ?? 0
   const earliest = insights.length > 0 ? insights[0].createdAt : null
   const monthsActive = earliest
     ? Math.max(1, Math.ceil((Date.now() - earliest.getTime()) / (30 * 24 * 60 * 60 * 1000)))
     : 1
   const monthlyCost = 9.99
-  const roi = totalIdentified / (monthsActive * monthlyCost)
+  const totalValue = totalIdentified + perkReimbursements
+  const roi = totalValue / (monthsActive * monthlyCost)
 
   return {
     totalIdentified: Math.round(totalIdentified * 100) / 100,
@@ -81,5 +107,7 @@ export async function getValueSummary(userId: string): Promise<ValueSummary> {
     since: earliest,
     monthlySubscriptionCost: monthlyCost,
     roi: Math.round(roi * 10) / 10,
+    perkReimbursements: Math.round(perkReimbursements * 100) / 100,
+    cardBenefitCreditsUsed: Math.round(cardBenefitCreditsUsed * 100) / 100,
   }
 }

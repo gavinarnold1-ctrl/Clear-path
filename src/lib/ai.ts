@@ -10,6 +10,21 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
+export interface BenefitAlertForAI {
+  cardLabel: string
+  benefitName: string
+  remaining: number
+  daysUntilReset: number | null
+  severity: string
+}
+
+export interface CardRenewalForAI {
+  cardLabel: string
+  annualFee: number
+  daysUntilRenewal: number
+  totalCreditValue: number
+}
+
 export interface InsightGenerationContext {
   summary: TransactionSummary
   temporal?: TemporalContext
@@ -18,6 +33,8 @@ export interface InsightGenerationContext {
   history?: InsightHistory
   entitySummary?: string
   goalContext?: GoalContext
+  benefitAlerts?: BenefitAlertForAI[]
+  cardRenewals?: CardRenewalForAI[]
 }
 
 function sanitizeForPrompt(value: string): string {
@@ -230,6 +247,23 @@ ${ctx.goalContext.guidanceForAI}
 Set since: ${ctx.goalContext.goalSetAt?.toLocaleDateString() ?? 'unknown'}
 Frame all insights through this lens. The user chose this goal — respect it.
 IMPORTANT: Rank your insights by relevance to this goal. The first 1-2 insights should directly address goal progress. Remaining insights can cover other financial health topics.`
+  }
+
+  if (ctx.benefitAlerts && ctx.benefitAlerts.length > 0) {
+    userPrompt += `
+
+CARD BENEFIT ALERTS:
+${ctx.benefitAlerts.map((a) => `- [${a.severity.toUpperCase()}] ${a.cardLabel}: $${Math.round(a.remaining)} remaining on ${sanitizeForPrompt(a.benefitName)}${a.daysUntilReset != null ? ` (resets in ${a.daysUntilReset} days)` : ''}`).join('\n')}
+- If urgent benefits are expiring, include a specific action item to use them before reset.`
+  }
+
+  if (ctx.cardRenewals && ctx.cardRenewals.length > 0) {
+    userPrompt += `
+
+UPCOMING CARD RENEWALS:
+${ctx.cardRenewals.map((r) => `- ${sanitizeForPrompt(r.cardLabel)}: $${Math.round(r.annualFee)}/yr fee renews in ${r.daysUntilRenewal} days. Total credit value: $${Math.round(r.totalCreditValue)}/yr. Net value: ${r.totalCreditValue >= r.annualFee ? '+' : ''}$${Math.round(r.totalCreditValue - r.annualFee)}/yr.`).join('\n')}
+- For cards with negative net value (fee > benefits used), suggest evaluating whether to keep or downgrade.
+- For cards with positive net value, confirm the card is worth keeping.`
   }
 
   userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'
