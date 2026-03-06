@@ -221,7 +221,8 @@ ${ctx.entitySummary}`
 USER'S PRIMARY GOAL: ${ctx.goalContext.goalLabel}
 ${ctx.goalContext.guidanceForAI}
 Set since: ${ctx.goalContext.goalSetAt?.toLocaleDateString() ?? 'unknown'}
-Frame all insights through this lens. The user chose this goal — respect it.`
+Frame all insights through this lens. The user chose this goal — respect it.
+IMPORTANT: Rank your insights by relevance to this goal. The first 1-2 insights should directly address goal progress. Remaining insights can cover other financial health topics.`
   }
 
   userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'

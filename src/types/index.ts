@@ -202,6 +202,19 @@ export interface OnboardingAnswers {
   incomeRange: IncomeRange | null
 }
 
+// ─── Goal target ─────────────────────────────────────────────────────────────
+
+export interface GoalTarget {
+  metric: 'savings_amount' | 'savings_rate' | 'debt_payoff' | 'category_spend' | 'categorization_pct' | 'net_worth_increase'
+  targetValue: number       // e.g., 20000 (dollars) or 20 (percent)
+  targetDate: string        // ISO date — when user wants to hit target
+  startValue: number        // value when goal was set (baseline)
+  startDate: string         // ISO date — when tracking began
+  currentValue?: number     // latest computed value (updated on each dashboard load)
+  description: string       // human-readable: "Save $20,000 by December 2026"
+  monthlyNeeded?: number    // computed: what monthly contribution keeps you on pace
+}
+
 // ─── API response shapes ──────────────────────────────────────────────────────
 
 export interface ApiError {

@@ -12,6 +12,9 @@ import BudgetBuilderFlow from '@/components/budget-builder/BudgetBuilderFlow'
 import UnbudgetedSection from '@/components/budgets/UnbudgetedSection'
 import UncategorizedReviewBanner from '@/components/budgets/UncategorizedReviewBanner'
 import { findRefundPairs } from '@/lib/refund-detection'
+import { getGoalContext } from '@/lib/goal-context'
+import { formatCurrency } from '@/lib/utils'
+import type { GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
@@ -27,7 +30,7 @@ export default async function BudgetsPage() {
   const prev1Start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
   const prev1End = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount] = await Promise.all([
+  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount, goalContext] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true },
@@ -70,10 +73,10 @@ export default async function BudgetsPage() {
       },
       _sum: { amount: true },
     }),
-    // User profile for expected income setting
+    // User profile for expected income + goal target
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { expectedMonthlyIncome: true },
+      select: { expectedMonthlyIncome: true, primaryGoal: true, goalTarget: true },
     }),
     // Count of uncategorized transactions this month (for review banner)
     db.transaction.count({
@@ -84,6 +87,8 @@ export default async function BudgetsPage() {
         amount: { lt: 0 },
       },
     }),
+    // Goal context for budget-goal connection
+    getGoalContext(session.userId),
   ])
 
   // Detect refund pairs and exclude refunded expenses from budget computation
@@ -418,6 +423,10 @@ export default async function BudgetsPage() {
   const flexOverBudget = flexible.filter((b) => b.spent > b.amount).length
   const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
 
+  // Goal-budget connection
+  const goalTarget = userProfile?.goalTarget as GoalTarget | null
+  const projectedMonthlySurplus = expectedIncome - fixedTotal - flexibleBudgeted - annualSetAside
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -434,6 +443,28 @@ export default async function BudgetsPage() {
         <BudgetBuilderFlow hasBudgets={false} />
       ) : (
         <>
+          {/* Budget ↔ Goal Connection */}
+          {goalContext && goalTarget && (
+            <div className="card mb-6 border-pine/20 bg-pine/5">
+              <div>
+                <span className="text-xs font-medium uppercase tracking-wider text-stone">
+                  Budget &harr; Goal Connection
+                </span>
+                <p className="mt-1 text-sm text-fjord">
+                  Your current budget allocation leaves{' '}
+                  <strong>{formatCurrency(projectedMonthlySurplus)}/month</strong> toward your goal.
+                  {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? (
+                    <span className="text-pine"> You&apos;re on track for {goalTarget.description}.</span>
+                  ) : (
+                    <span className="text-ember">
+                      {' '}You need {formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)} more/month to stay on pace.
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
           <TrueRemainingBanner
             income={income}
             expectedIncome={expectedIncome}

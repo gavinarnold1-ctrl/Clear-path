@@ -11,6 +11,9 @@ import SpendingComparison from '@/components/insights/SpendingComparison'
 import InsightsList from '@/components/insights/InsightsList'
 import GenerateButton from './GenerateButton'
 import MonthSelector from './MonthSelector'
+import { getGoalContext } from '@/lib/goal-context'
+import { projectedDate } from '@/lib/goal-targets'
+import type { GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
 
@@ -24,7 +27,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -60,6 +63,13 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     db.accountPropertyLink.findMany({
       where: { account: { userId: session.userId }, property: { currentValue: { not: null } } },
       select: { accountId: true },
+    }),
+    // Goal context for monthly review goal section
+    getGoalContext(session.userId),
+    // Goal target from profile
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { goalTarget: true, primaryGoal: true },
     }),
   ])
 
@@ -155,6 +165,13 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
   // R7.8: month param for clickable links
   const monthParam = selectedMonth || activeSnapshot?.month || ''
 
+  // Goal target for monthly review
+  const goalTarget = goalProfile?.goalTarget as GoalTarget | null
+  // Compute this month's contribution toward goal
+  const thisMonthContribution = activeSnapshot
+    ? activeSnapshot.totalIncome - activeSnapshot.totalExpenses
+    : 0
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -179,6 +196,46 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Goal Progress Section — opens the review with goal context */}
+          {goalContext && goalTarget && (
+            <section>
+              <h2 className="mb-4 font-display text-xl text-fjord">Goal Progress</h2>
+              <div className="card">
+                <p className="text-lg font-semibold text-fjord">{goalTarget.description}</p>
+
+                {/* Progress bar */}
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-stone">
+                    <span>{formatCurrency(goalTarget.currentValue ?? 0)} achieved</span>
+                    <span>{formatCurrency(goalTarget.targetValue)} target</span>
+                  </div>
+                  <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-birch/30">
+                    <div
+                      className="h-full rounded-full bg-pine transition-all duration-700"
+                      style={{ width: `${Math.min(100, Math.round(((goalTarget.currentValue ?? 0) / (goalTarget.targetValue || 1)) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Month-over-month */}
+                <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <span className="text-xs text-stone">This month&apos;s contribution</span>
+                    <p className="text-lg font-bold text-pine">{formatCurrency(Math.max(0, thisMonthContribution))}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-stone">Monthly target</span>
+                    <p className="text-lg font-bold text-fjord">{formatCurrency(goalTarget.monthlyNeeded ?? 0)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-stone">Projected completion</span>
+                    <p className="text-lg font-bold text-fjord">{projectedDate(goalTarget)}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Cumulative value banner */}
           {valueSummary.totalIdentified > 0 && (
             <div className="rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
