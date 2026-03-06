@@ -16,6 +16,7 @@ interface BenefitInfo {
   creditCycle: string | null
   description: string
   terms: string | null
+  isTransactionTrackable: boolean
 }
 
 interface BenefitTracking {
@@ -51,8 +52,21 @@ interface CardData {
   benefitTracking: BenefitTracking[]
 }
 
+interface CardNetValueData {
+  userCardId: string
+  cardLabel: string
+  annualFee: number
+  totalBenefitValue: number
+  creditValue: number
+  estimatedRewardsValue: number
+  netValue: number
+  isPositiveValue: boolean
+  breakdown: { label: string; value: number }[]
+}
+
 interface Props {
   cards: CardData[]
+  netValues?: Record<string, CardNetValueData>
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -85,12 +99,14 @@ const BENEFIT_TYPE_ICONS: Record<string, string> = {
   perk: 'Perk',
 }
 
-export default function BenefitsDashboard({ cards }: Props) {
+export default function BenefitsDashboard({ cards, netValues }: Props) {
   const router = useRouter()
   const [expandedCard, setExpandedCard] = useState<string | null>(
     cards.length === 1 ? cards[0].id : null
   )
   const [removing, setRemoving] = useState<string | null>(null)
+  const [togglingBenefit, setTogglingBenefit] = useState<string | null>(null)
+  const [markingUsed, setMarkingUsed] = useState<string | null>(null)
 
   // Summary stats
   const totalAnnualFees = cards.reduce((sum, c) => sum + c.program.annualFee, 0)
@@ -115,10 +131,42 @@ export default function BenefitsDashboard({ cards }: Props) {
     }
   }
 
+  async function toggleBenefitOptIn(trackingId: string, currentOptIn: boolean) {
+    setTogglingBenefit(trackingId)
+    try {
+      const res = await fetch(`/api/cards/benefits/${trackingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOptedIn: !currentOptIn }),
+      })
+      if (res.ok) router.refresh()
+    } catch {
+      // silent
+    } finally {
+      setTogglingBenefit(null)
+    }
+  }
+
+  async function markBenefitUsed(trackingId: string, creditAmount: number) {
+    setMarkingUsed(trackingId)
+    try {
+      const res = await fetch(`/api/cards/benefits/${trackingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usedAmount: creditAmount }),
+      })
+      if (res.ok) router.refresh()
+    } catch {
+      // silent
+    } finally {
+      setMarkingUsed(null)
+    }
+  }
+
   return (
     <div>
       {/* Summary */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="card text-center">
           <p className="text-xs text-stone">Cards Tracked</p>
           <p className="text-2xl font-bold text-fjord">{cards.length}</p>
@@ -140,6 +188,20 @@ export default function BenefitsDashboard({ cards }: Props) {
             </p>
           )}
         </div>
+        {netValues && (
+          <div className="card text-center">
+            <p className="text-xs text-stone">Total Net Value</p>
+            {(() => {
+              const totalNet = Object.values(netValues).reduce((s, v) => s + v.netValue, 0)
+              return (
+                <p className={`text-2xl font-bold ${totalNet >= 0 ? 'text-pine' : 'text-ember'}`}>
+                  {totalNet >= 0 ? '+' : ''}{formatCurrency(totalNet)}
+                </p>
+              )
+            })()}
+            <p className="text-[10px] text-stone">benefits minus fees</p>
+          </div>
+        )}
       </div>
 
       {/* Card list */}
@@ -336,6 +398,26 @@ export default function BenefitsDashboard({ cards }: Props) {
                                   </div>
                                 </div>
                               )}
+                              {tracking && (
+                                <div className="mt-2 flex items-center justify-between">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleBenefitOptIn(tracking.id, tracking.isOptedIn) }}
+                                    disabled={togglingBenefit === tracking.id}
+                                    className="text-[10px] text-stone hover:text-fjord disabled:opacity-50"
+                                  >
+                                    {togglingBenefit === tracking.id ? '...' : tracking.isOptedIn ? 'Opt out of tracking' : 'Opt in to tracking'}
+                                  </button>
+                                  {!b.isTransactionTrackable && remaining > 0 && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); markBenefitUsed(tracking.id, creditAmt) }}
+                                      disabled={markingUsed === tracking.id}
+                                      className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine hover:bg-pine/20 disabled:opacity-50"
+                                    >
+                                      {markingUsed === tracking.id ? '...' : 'Mark as used'}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -350,24 +432,51 @@ export default function BenefitsDashboard({ cards }: Props) {
                         Perks & Insurance
                       </h4>
                       <div className="space-y-1">
-                        {perkBenefits.map((b) => (
-                          <div
-                            key={b.id}
-                            className="flex items-center justify-between rounded-lg bg-frost px-3 py-2"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-fjord">
-                                {b.name}
-                              </p>
-                              <p className="text-xs text-stone">
-                                {b.description}
-                              </p>
+                        {perkBenefits.map((b) => {
+                          const tracking = card.benefitTracking.find(
+                            (t) => t.cardBenefitId === b.id
+                          )
+                          return (
+                            <div
+                              key={b.id}
+                              className="rounded-lg bg-frost px-3 py-2"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-fjord">
+                                    {b.name}
+                                  </p>
+                                  <p className="text-xs text-stone">
+                                    {b.description}
+                                  </p>
+                                </div>
+                                <span className="rounded-badge bg-birch/30 px-1.5 py-0.5 text-[10px] text-fjord">
+                                  {BENEFIT_TYPE_ICONS[b.type] ?? b.type}
+                                </span>
+                              </div>
+                              {tracking && (
+                                <div className="mt-1 flex items-center justify-between">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleBenefitOptIn(tracking.id, tracking.isOptedIn) }}
+                                    disabled={togglingBenefit === tracking.id}
+                                    className="text-[10px] text-stone hover:text-fjord disabled:opacity-50"
+                                  >
+                                    {togglingBenefit === tracking.id ? '...' : tracking.isOptedIn ? 'Opt out' : 'Opt in'}
+                                  </button>
+                                  {!b.isTransactionTrackable && b.creditAmount && b.creditAmount > 0 && (tracking.usedAmount ?? 0) < b.creditAmount && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); markBenefitUsed(tracking.id, b.creditAmount!) }}
+                                      disabled={markingUsed === tracking.id}
+                                      className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine hover:bg-pine/20 disabled:opacity-50"
+                                    >
+                                      {markingUsed === tracking.id ? '...' : 'Mark as used'}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <span className="rounded-badge bg-birch/30 px-1.5 py-0.5 text-[10px] text-fjord">
-                              {BENEFIT_TYPE_ICONS[b.type] ?? b.type}
-                            </span>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}
@@ -379,6 +488,31 @@ export default function BenefitsDashboard({ cards }: Props) {
                       <p className="text-lg font-bold text-expense">
                         {formatCurrency(Math.abs(card.accountBalance))}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Net Value */}
+                  {netValues && netValues[card.id] && (
+                    <div className="rounded-lg border border-mist bg-snow px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-stone">Annual Net Value</p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <span className={`font-mono text-lg font-bold ${netValues[card.id].isPositiveValue ? 'text-pine' : 'text-ember'}`}>
+                          {netValues[card.id].netValue >= 0 ? '+' : ''}{formatCurrency(netValues[card.id].netValue)}
+                        </span>
+                        <span className="text-[10px] text-stone">per year</span>
+                      </div>
+                      {netValues[card.id].breakdown.length > 0 && (
+                        <div className="mt-2 space-y-0.5">
+                          {netValues[card.id].breakdown.map((item, i) => (
+                            <div key={i} className="flex justify-between text-[10px]">
+                              <span className="text-stone">{item.label}</span>
+                              <span className={`font-mono ${item.value >= 0 ? 'text-pine' : 'text-ember'}`}>
+                                {item.value >= 0 ? '+' : ''}{formatCurrency(item.value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 

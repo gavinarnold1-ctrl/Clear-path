@@ -3,7 +3,10 @@ import type { ValueSummary } from '@/lib/value-tracker'
 import { formatCurrency } from '@/lib/utils'
 
 export default function ValueTracker({ value }: { value: ValueSummary }) {
-  if (value.totalIdentified === 0) {
+  const totalValue = value.totalIdentified + value.perkReimbursements
+  const hasCardBenefits = value.perkReimbursements > 0 || value.cardBenefitCreditsUsed > 0
+
+  if (totalValue === 0) {
     return (
       <div className="card flex items-center justify-between">
         <div>
@@ -30,10 +33,10 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
     <div className="card">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-fjord">Savings identified by Oversikt</p>
+          <p className="text-sm font-medium text-fjord">Value delivered by Oversikt</p>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-mono text-xl font-semibold text-pine">
-              {formatCurrency(value.totalIdentified)}
+              {formatCurrency(totalValue)}
             </span>
             {sinceLabel && (
               <span className="text-xs text-stone">since {sinceLabel}</span>
@@ -47,10 +50,22 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
           View details
         </Link>
       </div>
-      <div className="mt-3 flex items-center gap-4 text-xs text-stone">
-        <span>
-          {value.insightCount} insight{value.insightCount !== 1 ? 's' : ''} with estimated savings
-        </span>
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-stone">
+        {value.totalIdentified > 0 && (
+          <span>
+            {formatCurrency(value.totalIdentified)} from {value.insightCount} insight{value.insightCount !== 1 ? 's' : ''}
+          </span>
+        )}
+        {hasCardBenefits && (
+          <Link href="/accounts/benefits" className="hover:text-fjord">
+            {value.perkReimbursements > 0 && (
+              <span>{formatCurrency(value.perkReimbursements)} in card perks (YTD)</span>
+            )}
+            {value.cardBenefitCreditsUsed > 0 && value.perkReimbursements === 0 && (
+              <span>{formatCurrency(value.cardBenefitCreditsUsed)} in credits used</span>
+            )}
+          </Link>
+        )}
         {value.roi > 0 && (
           <span className="font-medium text-pine">
             {value.roi}x your subscription cost

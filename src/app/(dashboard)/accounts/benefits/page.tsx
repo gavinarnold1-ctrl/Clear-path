@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import BenefitsDashboard from '@/components/accounts/BenefitsDashboard'
+import { computeCardNetValues } from '@/lib/engines/card-value'
+import type { CardForValueCalc } from '@/lib/engines/card-value'
 
 export const metadata: Metadata = { title: 'Card Benefits' }
 
@@ -26,6 +28,54 @@ export default async function BenefitsPage() {
     },
     orderBy: { createdAt: 'desc' },
   })
+
+  // Compute annual spend per card account for rewards estimation
+  const yearStart = new Date(new Date().getFullYear(), 0, 1)
+  const accountIds = userCards
+    .map((c) => c.accountId)
+    .filter((id): id is string => id !== null)
+  const annualSpendByAccount = new Map<string, number>()
+  if (accountIds.length > 0) {
+    const spendAgg = await db.transaction.groupBy({
+      by: ['accountId'],
+      where: {
+        userId: session.userId,
+        accountId: { in: accountIds },
+        date: { gte: yearStart },
+        classification: 'expense',
+        amount: { lt: 0 },
+      },
+      _sum: { amount: true },
+    })
+    for (const row of spendAgg) {
+      if (row.accountId) {
+        annualSpendByAccount.set(row.accountId, Math.abs(row._sum.amount ?? 0))
+      }
+    }
+  }
+
+  // Compute net card values
+  const cardValueInputs: CardForValueCalc[] = userCards.map((card) => ({
+    userCardId: card.id,
+    cardLabel: `${card.cardProgram.issuer} ${card.cardProgram.name}`,
+    annualFee: card.cardProgram.annualFee,
+    annualSpendOnCard: card.accountId ? (annualSpendByAccount.get(card.accountId) ?? 0) : 0,
+    benefits: card.cardProgram.benefits.map((b) => {
+      const tracking = card.benefits.find((ub) => ub.cardBenefitId === b.id)
+      return {
+        type: b.type,
+        creditAmount: b.creditAmount,
+        creditCycle: b.creditCycle,
+        rewardRate: b.rewardRate,
+        rewardUnit: b.rewardUnit,
+        maxReward: b.maxReward,
+        isOptedIn: tracking?.isOptedIn ?? true,
+        usedAmount: tracking?.usedAmount ?? 0,
+      }
+    }),
+  }))
+  const cardNetValues = computeCardNetValues(cardValueInputs)
+  const netValueMap = Object.fromEntries(cardNetValues.map((v) => [v.userCardId, v]))
 
   // Serialize dates for client component
   const serialized = userCards.map((card) => ({
@@ -56,6 +106,7 @@ export default async function BenefitsPage() {
         creditCycle: b.creditCycle,
         description: b.description,
         terms: b.terms,
+        isTransactionTrackable: b.isTransactionTrackable,
       })),
     },
     benefitTracking: card.benefits.map((ub) => ({
@@ -96,7 +147,7 @@ export default async function BenefitsPage() {
           </Link>
         </div>
       ) : (
-        <BenefitsDashboard cards={serialized} />
+        <BenefitsDashboard cards={serialized} netValues={netValueMap} />
       )}
     </div>
   )

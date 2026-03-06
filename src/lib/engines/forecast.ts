@@ -682,15 +682,33 @@ function projectTimeline(
   let monthIndex = 0
   const startValue = goal.startValue
 
+  // For net-worth-related goals, compute monthly property equity growth
+  // Use a 0.3 blending factor since snapshot velocity already partially captures equity gains
+  const isNetWorthGoal = goal.metric === 'net_worth_target' || goal.metric === 'net_worth_increase'
+  let monthlyEquityGrowth = 0
+  if (isNetWorthGoal && properties && properties.length > 0) {
+    monthlyEquityGrowth = properties.reduce((sum, prop) => {
+      const monthlyAppreciation = (prop.appreciationRate ?? 0.03) / 12
+      const appreciation = prop.currentValue * monthlyAppreciation
+      let principalPaydown = 0
+      if (prop.loanBalance && prop.interestRate != null && prop.monthlyPayment) {
+        const monthlyInterest = prop.loanBalance * (prop.interestRate / 12)
+        principalPaydown = Math.max(0, prop.monthlyPayment - monthlyInterest)
+      }
+      return sum + appreciation + principalPaydown
+    }, 0) * 0.3 // blending factor to avoid double-counting with snapshot velocity
+  }
+
   while (current <= endDate) {
     const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
     const isHistorical = current <= now
     const snapshot = snapshotMap.get(key)
 
     const onPlan = startValue + requiredVelocity * monthIndex
-    const projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex
-    const optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex
-    const conservative = startValue + velocity * 0.8 * monthIndex
+    const equityAdj = monthlyEquityGrowth * monthIndex
+    const projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj
+    const optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2
+    const conservative = startValue + velocity * 0.8 * monthIndex + equityAdj * 0.6
 
     const point: ForecastPoint = {
       month: key,
@@ -789,6 +807,10 @@ function generateTabSummaries(
     ? `Current spending supports ${formatDollar(velocity)}/mo of goal progress. ${budgetSurplus > 0 ? 'Reducing flexible spending could accelerate your timeline.' : 'Spending is tight — small cuts make a big difference.'}`
     : 'Spending patterns are not currently contributing to goal progress. Look for categories where you can cut back.'
 
+  const properties = velocity > 0
+    ? `Your properties contribute to ${formatDollar(velocity)}/mo goal progress through equity growth and rental income.`
+    : 'Track property values and rental income to see their impact on your goal.'
+
   return {
     dashboard,
     budgets: budgetMsg,
@@ -797,6 +819,7 @@ function generateTabSummaries(
     transactions,
     monthlyReview,
     spending,
+    properties,
   }
 }
 

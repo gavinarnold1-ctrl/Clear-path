@@ -7,6 +7,8 @@ import { buildInsightHistory } from './insight-history'
 import { getEntitySummary } from './entity-summary'
 import { getGoalContext } from './goal-context'
 import type { TransactionSummary, RecurringCharge, MonthOverMonthItem } from '@/types/insights'
+import { computeBenefitAlerts } from './engines/benefit-alerts'
+import type { BenefitAlertInput } from './engines/benefit-alerts'
 
 export async function buildTransactionSummary(
   userId: string,
@@ -175,7 +177,7 @@ function calculateMoMChange(expenses: TransactionWithCategory[]): MonthOverMonth
 
 export async function generateAndStoreInsights(userId: string) {
   const now = new Date()
-  const [summary, temporal, velocity, budget, history, entitySummary, goalContext] =
+  const [summary, temporal, velocity, budget, history, entitySummary, goalContext, userCards] =
     await Promise.all([
       buildTransactionSummary(userId, 3),
       Promise.resolve(buildTemporalContext()),
@@ -184,7 +186,77 @@ export async function generateAndStoreInsights(userId: string) {
       buildInsightHistory(userId),
       getEntitySummary(userId, now.getFullYear(), now.getMonth()),
       getGoalContext(userId),
+      db.userCard.findMany({
+        where: { userId, isActive: true },
+        select: {
+          id: true,
+          openedDate: true,
+          cardProgram: { select: { issuer: true, name: true, annualFee: true } },
+          benefits: {
+            where: { isOptedIn: true },
+            select: {
+              id: true,
+              usedAmount: true,
+              lastResetDate: true,
+              isOptedIn: true,
+              cardBenefit: {
+                select: { id: true, name: true, creditAmount: true, creditCycle: true },
+              },
+            },
+          },
+        },
+      }),
     ])
+
+  // Build benefit alerts for AI context
+  const alertInputs: BenefitAlertInput[] = []
+  for (const card of userCards) {
+    for (const ub of card.benefits) {
+      if (!ub.cardBenefit.creditAmount || !ub.cardBenefit.creditCycle) continue
+      alertInputs.push({
+        benefitId: ub.cardBenefit.id,
+        benefitName: ub.cardBenefit.name,
+        cardIssuer: card.cardProgram.issuer,
+        cardName: card.cardProgram.name,
+        userCardId: card.id,
+        creditAmount: ub.cardBenefit.creditAmount,
+        creditCycle: ub.cardBenefit.creditCycle,
+        usedAmount: ub.usedAmount,
+        lastResetDate: ub.lastResetDate,
+        isOptedIn: ub.isOptedIn,
+        openedDate: card.openedDate,
+      })
+    }
+  }
+  const benefitAlerts = computeBenefitAlerts(alertInputs)
+
+  // Detect upcoming card renewals (within 60 days of anniversary)
+  const cardRenewals: { cardLabel: string; annualFee: number; daysUntilRenewal: number; totalCreditValue: number }[] = []
+  for (const card of userCards) {
+    if (!card.openedDate || card.cardProgram.annualFee <= 0) continue
+    const opened = new Date(card.openedDate)
+    const nextAnniversary = new Date(now.getFullYear(), opened.getMonth(), opened.getDate())
+    if (nextAnniversary <= now) {
+      nextAnniversary.setFullYear(nextAnniversary.getFullYear() + 1)
+    }
+    const daysUntil = Math.ceil((nextAnniversary.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+    if (daysUntil <= 60) {
+      const totalCreditValue = card.benefits.reduce((sum, ub) => {
+        if (!ub.cardBenefit.creditAmount) return sum
+        const cycle = ub.cardBenefit.creditCycle
+        const annual = cycle === 'MONTHLY' ? ub.cardBenefit.creditAmount * 12
+          : cycle === 'QUARTERLY' ? ub.cardBenefit.creditAmount * 4
+          : ub.cardBenefit.creditAmount
+        return sum + annual
+      }, 0)
+      cardRenewals.push({
+        cardLabel: `${card.cardProgram.issuer} ${card.cardProgram.name}`,
+        annualFee: card.cardProgram.annualFee,
+        daysUntilRenewal: daysUntil,
+        totalCreditValue,
+      })
+    }
+  }
 
   const aiResponse = await generateInsights({
     summary,
@@ -194,6 +266,16 @@ export async function generateAndStoreInsights(userId: string) {
     history,
     entitySummary: entitySummary ?? undefined,
     goalContext: goalContext ?? undefined,
+    benefitAlerts: benefitAlerts.length > 0
+      ? benefitAlerts.map((a) => ({
+          cardLabel: a.cardLabel,
+          benefitName: a.benefitName,
+          remaining: a.remaining,
+          daysUntilReset: a.daysUntilReset,
+          severity: a.severity,
+        }))
+      : undefined,
+    cardRenewals: cardRenewals.length > 0 ? cardRenewals : undefined,
   })
 
   // Build context snapshot for storage

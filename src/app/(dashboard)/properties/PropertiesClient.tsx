@@ -48,6 +48,9 @@ interface Props {
   monthLabel: string
   initialTab: string
   accounts: AccountOption[]
+  forecastSummary: string | null
+  goalArchetype: string | null
+  priorTaxSummary: TaxSummary | null
 }
 
 function formatCurrency(n: number): string {
@@ -94,6 +97,9 @@ export default function PropertiesClient({
   monthLabel,
   initialTab,
   accounts,
+  forecastSummary,
+  goalArchetype,
+  priorTaxSummary,
 }: Props) {
   const [tab, setTab] = useState<'dashboard' | 'tax'>(
     initialTab === 'tax' ? 'tax' : 'dashboard',
@@ -133,12 +139,15 @@ export default function PropertiesClient({
           totalDepreciation={totalDepreciation}
           monthParam={monthParam}
           accounts={accounts}
+          forecastSummary={forecastSummary}
+          goalArchetype={goalArchetype}
         />
       ) : (
         <TaxReportView
           taxSummary={taxSummary}
           monthLabel={monthLabel}
           monthParam={monthParam}
+          priorTaxSummary={priorTaxSummary}
         />
       )}
     </div>
@@ -152,6 +161,8 @@ function DashboardView({
   totalDepreciation,
   monthParam,
   accounts,
+  forecastSummary,
+  goalArchetype,
 }: {
   properties: PropertyCardData[]
   totalRentalNet: number
@@ -159,11 +170,26 @@ function DashboardView({
   totalDepreciation: number
   monthParam: string
   accounts: AccountOption[]
+  forecastSummary: string | null
+  goalArchetype: string | null
 }) {
   const [editingProperty, setEditingProperty] = useState<PropertyCardData | null>(null)
 
   return (
     <>
+      {/* Forecast banner */}
+      {forecastSummary && (
+        <div className="mb-4 rounded-card border border-pine/20 bg-pine/5 px-5 py-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium uppercase tracking-wider text-stone">Properties &amp; Your Goal</span>
+            <Link href="/forecast" className="text-xs text-pine hover:underline">
+              See forecast &rarr;
+            </Link>
+          </div>
+          <p className="mt-1 text-sm text-fjord">{forecastSummary}</p>
+        </div>
+      )}
+
       {/* Entity Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {properties.map((prop) => (
@@ -172,6 +198,7 @@ function DashboardView({
             prop={prop}
             monthParam={monthParam}
             onEdit={() => setEditingProperty(prop)}
+            goalArchetype={goalArchetype}
           />
         ))}
       </div>
@@ -229,10 +256,12 @@ function PropertyCard({
   prop,
   monthParam,
   onEdit,
+  goalArchetype,
 }: {
   prop: PropertyCardData
   monthParam: string
   onEdit: () => void
+  goalArchetype: string | null
 }) {
   const hasFinancials = prop.loanBalance != null && prop.loanBalance > 0
   const hasPiti = hasFinancials &&
@@ -378,6 +407,18 @@ function PropertyCard({
         </div>
       )}
 
+      {/* Goal-connection callouts */}
+      {goalArchetype && prop.type === 'RENTAL' && prop.income > 0 && (goalArchetype === 'save_more' || goalArchetype === 'build_wealth') && (
+        <p className="mt-2 text-xs text-pine">
+          This property generates {formatCurrency(prop.net)}/mo net — contributing to your {goalArchetype === 'save_more' ? 'savings' : 'wealth-building'} goal.
+        </p>
+      )}
+      {goalArchetype === 'pay_off_debt' && prop.loanBalance != null && prop.loanBalance > 0 && piti && (
+        <p className="mt-2 text-xs text-stone">
+          {formatCurrency(piti.principal)}/mo in principal paydown contributing to your debt goal.
+        </p>
+      )}
+
       <div className="mt-3 flex items-center justify-between">
         <Link
           href={`/transactions?propertyId=${prop.id}&month=${monthParam}`}
@@ -398,14 +439,26 @@ function PropertyCard({
   )
 }
 
+function YoYChange({ current, prior }: { current: number; prior: number }) {
+  if (prior === 0) return null
+  const changePct = ((current - prior) / Math.abs(prior)) * 100
+  return (
+    <span className={`text-xs font-mono ${changePct > 0 ? 'text-pine' : 'text-ember'}`}>
+      {changePct > 0 ? '\u2191' : '\u2193'} {Math.abs(changePct).toFixed(1)}% vs prior year
+    </span>
+  )
+}
+
 function TaxReportView({
   taxSummary,
   monthLabel,
   monthParam,
+  priorTaxSummary,
 }: {
   taxSummary: TaxSummary
   monthLabel: string
   monthParam: string
+  priorTaxSummary: TaxSummary | null
 }) {
   const hasScheduleE = taxSummary.scheduleE.properties.length > 0
   const hasScheduleC = taxSummary.scheduleC.businesses.length > 0
@@ -585,6 +638,41 @@ function TaxReportView({
               {formatCurrency(taxSummary.scheduleE.totalNetIncome)}
             </span>
           </div>
+
+          {/* Schedule E Year-over-Year */}
+          {priorTaxSummary && priorTaxSummary.scheduleE.properties.length > 0 && (
+            <div className="mt-3 rounded-card bg-frost/50 p-3">
+              <p className="text-xs font-medium text-stone mb-2">Year-over-Year Comparison</p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-stone">Net Rental Income</p>
+                  <p className="font-mono text-fjord">
+                    {formatCurrency(taxSummary.scheduleE.totalNetIncome)}
+                  </p>
+                  <YoYChange
+                    current={taxSummary.scheduleE.totalNetIncome}
+                    prior={priorTaxSummary.scheduleE.totalNetIncome}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-stone">Depreciation</p>
+                  <p className="font-mono text-fjord">
+                    {formatCurrency(taxSummary.scheduleE.properties.reduce((s, p) => s + p.depreciation, 0))}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-stone">Rental Income</p>
+                  <p className="font-mono text-fjord">
+                    {formatCurrency(taxSummary.scheduleE.properties.reduce((s, p) => s + p.income, 0))}
+                  </p>
+                  <YoYChange
+                    current={taxSummary.scheduleE.properties.reduce((s, p) => s + p.income, 0)}
+                    prior={priorTaxSummary.scheduleE.properties.reduce((s, p) => s + p.income, 0)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -648,6 +736,41 @@ function TaxReportView({
               {formatCurrency(taxSummary.scheduleC.totalNetIncome)}
             </span>
           </div>
+
+          {/* Schedule C Year-over-Year */}
+          {priorTaxSummary && priorTaxSummary.scheduleC.businesses.length > 0 && (
+            <div className="mt-3 rounded-card bg-frost/50 p-3">
+              <p className="text-xs font-medium text-stone mb-2">Year-over-Year Comparison</p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-stone">Net Business Income</p>
+                  <p className="font-mono text-fjord">
+                    {formatCurrency(taxSummary.scheduleC.totalNetIncome)}
+                  </p>
+                  <YoYChange
+                    current={taxSummary.scheduleC.totalNetIncome}
+                    prior={priorTaxSummary.scheduleC.totalNetIncome}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-stone">Business Revenue</p>
+                  <p className="font-mono text-fjord">
+                    {formatCurrency(taxSummary.scheduleC.businesses.reduce((s, b) => s + b.income, 0))}
+                  </p>
+                  <YoYChange
+                    current={taxSummary.scheduleC.businesses.reduce((s, b) => s + b.income, 0)}
+                    prior={priorTaxSummary.scheduleC.businesses.reduce((s, b) => s + b.income, 0)}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-stone">Business Expenses</p>
+                  <p className="font-mono text-fjord">
+                    {formatCurrency(taxSummary.scheduleC.businesses.reduce((s, b) => s + b.expenses.reduce((se, e) => se + e.amount, 0), 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
