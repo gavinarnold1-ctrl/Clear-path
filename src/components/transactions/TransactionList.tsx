@@ -88,9 +88,10 @@ interface Props {
   initialBudgetName?: string
   refundedTxIds?: string[]
   initialTotal?: number
+  isInsightView?: boolean
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [], initialTotal = 0 }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [], initialTotal = 0, isInsightView = false }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -845,6 +846,18 @@ export default function TransactionList({ transactions: initial, categories, acc
         </div>
       )}
 
+      {isInsightView && sortedTransactions.length >= 2 && (
+        <div className="mb-4 rounded-card border border-ember/20 bg-ember/5 p-3">
+          <p className="text-sm font-medium text-fjord">
+            Potential duplicates detected
+          </p>
+          <p className="mt-1 text-xs text-stone">
+            These transactions have the same amount on the same date from similar merchants.
+            Review and delete the duplicate if confirmed.
+          </p>
+        </div>
+      )}
+
       <div className="card relative overflow-hidden p-0">
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-snow/60">
@@ -1216,7 +1229,7 @@ export default function TransactionList({ transactions: initial, categories, acc
               ) : (
                 <React.Fragment key={tx.id}>
                 <tr
-                  className={`cursor-pointer hover:bg-snow ${selected.has(tx.id) ? 'bg-fjord/5' : ''}`}
+                  className={`cursor-pointer hover:bg-snow ${selected.has(tx.id) ? 'bg-fjord/5' : ''} ${isInsightView ? 'border-l-2 border-l-ember bg-ember/5' : ''}`}
                   onClick={(e) => {
                     // On small screens, toggle mobile detail instead of inline edit
                     if (window.innerWidth < 768) {

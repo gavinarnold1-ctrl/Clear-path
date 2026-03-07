@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { trackInsightDismissed, trackInsightCompleted } from '@/lib/analytics'
 
@@ -14,6 +15,8 @@ interface InsightCardProps {
   savingsAmount: number | null
   actionItems: string
   metadata: string | null
+  relatedTransactionIds?: unknown
+  relatedQuery?: unknown
   onDismiss: (id: string) => void
   onComplete: (id: string) => void
 }
@@ -47,6 +50,17 @@ const DISMISS_REASONS = [
   { value: 'other', label: 'Other reason' },
 ]
 
+function buildInsightLink(relatedTransactionIds?: unknown, relatedQuery?: unknown): string {
+  if (Array.isArray(relatedTransactionIds) && relatedTransactionIds.length > 0) {
+    return `/transactions?ids=${relatedTransactionIds.join(',')}`
+  }
+  if (relatedQuery && typeof relatedQuery === 'object' && !Array.isArray(relatedQuery)) {
+    const params = new URLSearchParams(relatedQuery as Record<string, string>)
+    return `/transactions?${params}`
+  }
+  return '/transactions'
+}
+
 export default function InsightCard({
   id,
   category,
@@ -57,6 +71,8 @@ export default function InsightCard({
   savingsAmount,
   actionItems,
   metadata,
+  relatedTransactionIds,
+  relatedQuery,
   onDismiss,
   onComplete,
 }: InsightCardProps) {
@@ -142,6 +158,17 @@ export default function InsightCard({
           </div>
           <h3 className="text-sm font-semibold text-fjord">{title}</h3>
           <p className="mt-1 text-sm text-stone">{description}</p>
+          {((Array.isArray(relatedTransactionIds) && relatedTransactionIds.length > 0) || (relatedQuery != null && typeof relatedQuery === 'object')) ? (
+            <Link
+              href={buildInsightLink(relatedTransactionIds, relatedQuery)}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-fjord transition-colors hover:text-pine"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              View {Array.isArray(relatedTransactionIds) && relatedTransactionIds.length > 0 ? `${relatedTransactionIds.length} transactions` : 'transactions'}
+            </Link>
+          ) : null}
         </div>
 
         {savingsAmount != null && savingsAmount > 0 && (

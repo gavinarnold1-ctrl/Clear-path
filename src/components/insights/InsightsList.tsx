@@ -13,6 +13,8 @@ interface InsightData {
   savingsAmount: number | null
   actionItems: string
   metadata: string | null
+  relatedTransactionIds?: unknown
+  relatedQuery?: unknown
 }
 
 interface InsightsListProps {

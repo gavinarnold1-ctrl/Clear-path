@@ -24,6 +24,8 @@ export interface Insight {
   actionItems: string // JSON array
   status: InsightStatus
   metadata: string | null // JSON blob
+  relatedTransactionIds: unknown // JSON: string[] of transaction IDs
+  relatedQuery: unknown // JSON: Record<string, string> query params
   generatedAt: Date
   expiresAt: Date | null
   createdAt: Date

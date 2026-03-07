@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
   // Build where clause
   const where: Record<string, unknown> = { userId: session.userId }
 
+  // ID filter: show specific transactions (used by insight drill-down)
+  const ids = searchParams.get('ids')?.split(',').filter(Boolean)
+  if (ids?.length) {
+    where.id = { in: ids }
+  }
+
   if (categoryType) where.category = { type: categoryType }
   if (accountId) {
     where.accountId = accountId === '__none__' ? null : accountId
