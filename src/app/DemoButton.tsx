@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { trackLogin, trackCtaClicked } from '@/lib/analytics'
 
 export function DemoButton() {
   const router = useRouter()
@@ -9,9 +10,11 @@ export function DemoButton() {
 
   async function handleDemo() {
     setLoading(true)
+    trackCtaClicked('Try the demo', 'hero')
     try {
       const res = await fetch('/api/auth/demo', { method: 'POST' })
       if (res.ok) {
+        trackLogin('demo')
         router.push('/dashboard')
         return
       }

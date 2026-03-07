@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { trackDebtCreated } from '@/lib/analytics'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { FormInput } from '@/components/ui/FormInput'
@@ -181,6 +182,7 @@ export default function DebtManager({ debts: initial, properties, categories }: 
       // R5.7: Add the new debt to local state immediately so it appears without page refresh
       const newDebt = await res.json()
       setDebts(prev => [...prev, newDebt])
+      trackDebtCreated(formType, currentBalance, interestRate)
       resetForm()
       setShowForm(false)
       toast.success('Debt added')

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ForecastScenario } from '@/types'
+import { trackScenarioCustomized } from '@/lib/analytics'
 
 interface Props {
   scenarios: ForecastScenario[]
@@ -80,6 +81,7 @@ export default function ForecastScenarios({ scenarios }: Props) {
       if (res.ok) {
         const data = await res.json()
         setCustomScenarios((prev) => [...prev, data.scenario])
+        trackScenarioCustomized(customType, customLabel || customType)
         setShowForm(false)
         setCustomLabel('')
         setCustomAmount('')

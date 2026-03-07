@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
+import { trackInsightsGenerated } from '@/lib/analytics'
 
 export default function GenerateButton({ hasTransactions }: { hasTransactions: boolean }) {
   const [loading, setLoading] = useState(false)
@@ -20,6 +21,7 @@ export default function GenerateButton({ hasTransactions }: { hasTransactions: b
         setError(data.error ?? 'Failed to generate insights')
         return
       }
+      trackInsightsGenerated(0, 'unknown')
       router.refresh()
     } catch {
       setError('Network error. Please try again.')

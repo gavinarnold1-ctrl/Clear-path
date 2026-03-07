@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { trackWaitlistSignup } from '@/lib/analytics'
 
 export function WaitlistForm() {
   const [email, setEmail] = useState('')
@@ -24,6 +25,7 @@ export function WaitlistForm() {
         setStatus('success')
         setMessage(data.message)
         setEmail('')
+        trackWaitlistSignup()
       } else if (res.status === 409) {
         setStatus('duplicate')
         setMessage(data.message)

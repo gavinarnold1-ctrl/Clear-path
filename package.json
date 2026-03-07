@@ -30,6 +30,7 @@
     "jose": "^5.9.6",
     "next": "^15.1.0",
     "plaid": "^41.3.0",
+    "posthog-js": "^1.359.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.6.0",

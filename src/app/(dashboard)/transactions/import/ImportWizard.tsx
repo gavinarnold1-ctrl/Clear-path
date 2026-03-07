@@ -8,6 +8,7 @@ import ColumnMapper from '@/components/import/ColumnMapper'
 import ImportPreview from '@/components/import/ImportPreview'
 import ImportSummary from '@/components/import/ImportSummary'
 import { transformRows, parseCSV } from '@/lib/csv-parser'
+import { trackTransactionImported } from '@/lib/analytics'
 import type { AppField } from '@/lib/column-mapping'
 import type { ParsedTransaction } from '@/lib/csv-parser'
 
@@ -160,6 +161,7 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
 
       const data = await res.json()
       setImportResult(data)
+      trackTransactionImported('csv', data.imported ?? 0)
       setStep('done')
       // Invalidate client-side Router Cache so dashboard/transactions show fresh data
       router.refresh()

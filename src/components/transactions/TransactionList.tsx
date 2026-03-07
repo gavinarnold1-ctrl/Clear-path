@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { trackTransactionsSorted, trackTransactionsSearched, trackTransactionUpdated, trackTransactionsFiltered } from '@/lib/analytics'
 
 interface CategoryOption {
   id: string
@@ -160,6 +161,20 @@ export default function TransactionList({ transactions: initial, categories, acc
   useEffect(() => {
     setTransactions(initial)
   }, [initial])
+
+  // Track search with debounce
+  useEffect(() => {
+    if (!searchText) return
+    const timeout = setTimeout(() => {
+      const q = searchText.toLowerCase()
+      const hasResults = transactions.some(tx =>
+        tx.merchant.toLowerCase().includes(q) || tx.notes?.toLowerCase().includes(q)
+      )
+      trackTransactionsSearched(hasResults)
+    }, 800)
+    return () => clearTimeout(timeout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText])
 
   // Fetch budget-specific transaction IDs when budgetId or catchAll is active
   useEffect(() => {
@@ -322,12 +337,16 @@ export default function TransactionList({ transactions: initial, categories, acc
   }, [])
 
   function handleSort(column: typeof sortColumn) {
+    let newDirection: 'asc' | 'desc'
     if (sortColumn === column) {
-      setSortDirection(d => d === 'asc' ? 'desc' : 'asc')
+      newDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+      setSortDirection(newDirection)
     } else {
+      newDirection = column === 'amount' ? 'desc' : 'asc'
       setSortColumn(column)
-      setSortDirection(column === 'amount' ? 'desc' : 'asc')
+      setSortDirection(newDirection)
     }
+    trackTransactionsSorted(column, newDirection)
   }
 
   function toggleFilter(col: string) {
@@ -423,6 +442,7 @@ export default function TransactionList({ transactions: initial, categories, acc
       })
     )
     setEditingId(null)
+    trackTransactionUpdated(Object.keys(body))
 
     try {
       const res = await fetch(`/api/transactions/${txId}`, {
