@@ -87,6 +87,14 @@ interface GoalHistoryEntry {
   changedAt: string
 }
 
+interface IncomeTransitionData {
+  id: string
+  date: string
+  monthlyIncome: number
+  label: string
+  annualIncome?: number
+}
+
 interface Props {
   user: { name: string; email: string; createdAt: string }
   initialMembers: Member[]
@@ -95,9 +103,10 @@ interface Props {
   initialGoal?: string | null
   goalSetAt?: string | null
   previousGoals?: GoalHistoryEntry[]
+  initialIncomeTransitions?: IncomeTransitionData[]
 }
 
-export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt, previousGoals = [] }: Props) {
+export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt, previousGoals = [], initialIncomeTransitions = [] }: Props) {
   const router = useRouter()
 
   // Profile state
@@ -113,6 +122,16 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [currentGoalSetAt, setCurrentGoalSetAt] = useState<string | null>(goalSetAt ?? null)
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalMsg, setGoalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Income transitions state
+  const [incomeTransitions, setIncomeTransitions] = useState<IncomeTransitionData[]>(initialIncomeTransitions)
+  const [showAddTransition, setShowAddTransition] = useState(false)
+  const [transitionLabel, setTransitionLabel] = useState('')
+  const [transitionDate, setTransitionDate] = useState('')
+  const [transitionMonthly, setTransitionMonthly] = useState('')
+  const [transitionAnnual, setTransitionAnnual] = useState('')
+  const [transitionSaving, setTransitionSaving] = useState(false)
+  const [transitionMsg, setTransitionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -728,6 +747,66 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     } catch {
       loadMappings()
     }
+  }
+
+  // ─── Income Transitions ─────────────────────────────────────────────────
+
+  async function saveIncomeTransitions(updated: IncomeTransitionData[]) {
+    setTransitionSaving(true)
+    setTransitionMsg(null)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incomeTransitions: updated }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setTransitionMsg({ type: 'error', text: data.error ?? 'Failed to save.' })
+        return false
+      }
+      setIncomeTransitions(updated)
+      setTransitionMsg({ type: 'success', text: 'Income transitions saved.' })
+      router.refresh()
+      return true
+    } catch {
+      setTransitionMsg({ type: 'error', text: 'Network error.' })
+      return false
+    } finally {
+      setTransitionSaving(false)
+    }
+  }
+
+  async function addTransition() {
+    const monthly = transitionAnnual
+      ? Math.round(parseFloat(transitionAnnual) / 12 * 100) / 100
+      : parseFloat(transitionMonthly)
+    if (!transitionLabel.trim() || !transitionDate || isNaN(monthly) || monthly < 0) return
+
+    const newTransition: IncomeTransitionData = {
+      id: `it_${Date.now()}`,
+      date: transitionDate,
+      monthlyIncome: monthly,
+      label: transitionLabel.trim(),
+      ...(transitionAnnual ? { annualIncome: parseFloat(transitionAnnual) } : {}),
+    }
+
+    const updated = [...incomeTransitions, newTransition].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
+    const ok = await saveIncomeTransitions(updated)
+    if (ok) {
+      setTransitionLabel('')
+      setTransitionDate('')
+      setTransitionMonthly('')
+      setTransitionAnnual('')
+      setShowAddTransition(false)
+    }
+  }
+
+  async function removeTransition(id: string) {
+    const updated = incomeTransitions.filter((t) => t.id !== id)
+    await saveIncomeTransitions(updated)
   }
 
   // ─── Data Tools ─────────────────────────────────────────────────────────
@@ -1548,6 +1627,128 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           and{' '}
           <a href="/transactions/import" className="font-medium text-fjord hover:text-midnight underline">CSV import</a>.
         </p>
+      </section>
+
+      {/* Income Transitions */}
+      <section className="card">
+        <h2 className="mb-2 text-base font-semibold text-fjord">Planned Income Changes</h2>
+        <p className="mb-4 text-sm text-stone">
+          Add expected income changes (new job, raise, leave) so the forecast engine can project their impact.
+        </p>
+
+        {transitionMsg && (
+          <p className={`mb-3 text-sm ${transitionMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
+            {transitionMsg.text}
+          </p>
+        )}
+
+        {incomeTransitions.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {incomeTransitions.map((t) => (
+              <div key={t.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-fjord">{t.label}</span>
+                  <span className="mx-2 text-xs text-stone">
+                    {new Date(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </span>
+                  <span className="text-sm font-mono text-fjord">
+                    ${t.monthlyIncome.toLocaleString()}/mo
+                  </span>
+                  {t.annualIncome != null && (
+                    <span className="ml-1 text-[10px] text-stone">
+                      (${t.annualIncome.toLocaleString()}/yr)
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeTransition(t.id)}
+                  disabled={transitionSaving}
+                  className="ml-2 shrink-0 text-xs text-stone hover:text-ember disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAddTransition ? (
+          <div className="rounded-lg border border-mist bg-frost/30 p-4">
+            <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone">Label</label>
+                <input
+                  type="text"
+                  value={transitionLabel}
+                  onChange={(e) => setTransitionLabel(e.target.value)}
+                  placeholder="e.g. New job at Acme Corp"
+                  className="input w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone">Effective Date</label>
+                <input
+                  type="date"
+                  value={transitionDate}
+                  onChange={(e) => setTransitionDate(e.target.value)}
+                  className="input w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone">Annual Income ($)</label>
+                <input
+                  type="number"
+                  value={transitionAnnual}
+                  onChange={(e) => {
+                    setTransitionAnnual(e.target.value)
+                    if (e.target.value) {
+                      setTransitionMonthly(String(Math.round(parseFloat(e.target.value) / 12 * 100) / 100))
+                    }
+                  }}
+                  placeholder="e.g. 120000"
+                  className="input w-full text-sm"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone">Monthly Income ($)</label>
+                <input
+                  type="number"
+                  value={transitionMonthly}
+                  onChange={(e) => {
+                    setTransitionMonthly(e.target.value)
+                    setTransitionAnnual('')
+                  }}
+                  placeholder="e.g. 10000"
+                  className="input w-full text-sm"
+                  min={0}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={addTransition} loading={transitionSaving} loadingText="Saving..." disabled={!transitionLabel.trim() || !transitionDate || (!transitionMonthly && !transitionAnnual)}>
+                Add Transition
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddTransition(false)
+                  setTransitionLabel('')
+                  setTransitionDate('')
+                  setTransitionMonthly('')
+                  setTransitionAnnual('')
+                }}
+                className="text-xs text-stone hover:text-fjord"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="secondary" size="sm" onClick={() => setShowAddTransition(true)}>
+            + Add Income Change
+          </Button>
+        )}
       </section>
 
       {/* R10.5: Data Export */}

@@ -32,7 +32,7 @@ export default async function SettingsPage() {
     }),
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { primaryGoal: true, goalSetAt: true, previousGoals: true },
+      select: { primaryGoal: true, goalSetAt: true, previousGoals: true, incomeTransitions: true },
     }),
   ])
 
@@ -49,6 +49,7 @@ export default async function SettingsPage() {
         initialGoal={profile?.primaryGoal ?? null}
         goalSetAt={profile?.goalSetAt?.toISOString() ?? null}
         previousGoals={(profile?.previousGoals as Array<{ goal: string; setAt: string; changedAt: string }>) ?? []}
+        initialIncomeTransitions={(profile?.incomeTransitions as Array<{ id: string; date: string; monthlyIncome: number; label: string; annualIncome?: number }>) ?? []}
       />
     </div>
   )

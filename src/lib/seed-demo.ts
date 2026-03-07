@@ -75,6 +75,22 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
           householdType: 'single',
           incomeRange: '100k_150k',
           goalSetAt: new Date(),
+          incomeTransitions: [
+            {
+              id: 'it_demo_raise',
+              date: new Date(new Date().getFullYear(), new Date().getMonth() + 3, 1).toISOString().slice(0, 10),
+              monthlyIncome: 11667,
+              label: 'Annual raise (5%)',
+              annualIncome: 140000,
+            },
+            {
+              id: 'it_demo_newjob',
+              date: new Date(new Date().getFullYear() + 1, new Date().getMonth(), 1).toISOString().slice(0, 10),
+              monthlyIncome: 14583,
+              label: 'New role at TechCo',
+              annualIncome: 175000,
+            },
+          ],
         },
       },
     },

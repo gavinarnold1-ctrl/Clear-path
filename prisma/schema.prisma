@@ -368,6 +368,9 @@ model UserProfile {
   // Concrete goal target (proposed by AI, confirmed/adjusted by user)
   goalTarget            Json?     // GoalTarget shape — see src/types/index.ts
 
+  // Income transitions — planned future income changes
+  incomeTransitions     Json?     // IncomeTransition[] — see src/types/index.ts
+
   // In-progress answers not yet materialized into records (JSON)
   pendingSetup          String?   // JSON: { partnerName? }
 

@@ -3,6 +3,7 @@ import { computeForecast, autoDetectAssetClass, computeForecastAccuracy } from '
 import type {
   AssetClass,
   GoalTarget,
+  IncomeTransition,
   ForecastInput,
   MonthlySnapshotData,
   DebtForForecast,
@@ -48,7 +49,7 @@ export async function getCachedForecast(userId: string): Promise<Forecast | null
 async function buildForecastInput(userId: string): Promise<ForecastInput | null> {
   const profile = await db.userProfile.findUnique({
     where: { userId },
-    select: { primaryGoal: true, goalTarget: true, expectedMonthlyIncome: true },
+    select: { primaryGoal: true, goalTarget: true, expectedMonthlyIncome: true, incomeTransitions: true },
   })
 
   if (!profile?.goalTarget) return null
@@ -142,6 +143,10 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     appreciationRate: p.appreciationRate ?? 0.03,
   }))
 
+  const incomeTransitionData: IncomeTransition[] = Array.isArray(profile.incomeTransitions)
+    ? (profile.incomeTransitions as unknown as IncomeTransition[])
+    : []
+
   return {
     goal: goalTarget,
     snapshots: snapshotData,
@@ -150,5 +155,6 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     budgets: budgetSummary,
     annualExpenses: annualExpenseData,
     properties: propertyData,
+    incomeTransitions: incomeTransitionData,
   }
 }
