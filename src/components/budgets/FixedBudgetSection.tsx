@@ -5,6 +5,7 @@ import type { FixedStatus } from './FixedBudgetRow'
 interface Transaction {
   id: string
   categoryId: string | null
+  annualExpenseId: string | null
   amount: number
   merchant: string
   category?: { id: string; name: string } | null
@@ -23,41 +24,43 @@ interface FixedBudget {
 }
 
 function getFixedStatus(budget: FixedBudget, transactions: Transaction[]): { status: FixedStatus; matchedAmount: number } {
-  // R1.2: Match by categoryId first, then fall back to name matching
-  let matches = budget.categoryId
-    ? transactions.filter((t) => t.categoryId === budget.categoryId)
-    : []
+  // FIRST gate: exclude annual-linked transactions from the candidate pool
+  const nonAnnualTxs = transactions.filter(tx => !tx.annualExpenseId)
 
-  // Fallback: name-based matching when no categoryId or no category matches
-  if (matches.length === 0) {
+  let bestMatch: Transaction | undefined
+
+  if (budget.categoryId) {
+    // Priority 1: exact category match (source of truth for linked budgets)
+    const categoryMatches = nonAnnualTxs.filter(t => t.categoryId === budget.categoryId)
+    if (categoryMatches.length > 0) {
+      bestMatch = categoryMatches.reduce((best, t) =>
+        Math.abs(Math.abs(t.amount) - budget.amount) < Math.abs(Math.abs(best.amount) - budget.amount)
+          ? t : best
+      )
+    }
+  }
+
+  // Priority 2: merchant name fallback (ONLY for unlinked budgets)
+  if (!bestMatch && !budget.categoryId) {
     const budgetNameLower = budget.name.toLowerCase()
-    matches = transactions.filter((t) => {
+    bestMatch = nonAnnualTxs.find(t => {
       const merchant = t.merchant.toLowerCase()
       return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
     })
   }
 
-  if (matches.length === 0) {
+  // Priority 3: amount match (ONLY for unlinked budgets)
+  if (!bestMatch && !budget.categoryId && nonAnnualTxs.length > 0) {
+    bestMatch = nonAnnualTxs.reduce((best, t) =>
+      Math.abs(Math.abs(t.amount) - budget.amount) < Math.abs(Math.abs(best.amount) - budget.amount)
+        ? t : best
+    )
+  }
+
+  if (!bestMatch) {
     const today = new Date().getDate()
     if (budget.dueDay && today > budget.dueDay) return { status: 'missed', matchedAmount: 0 }
     return { status: 'pending', matchedAmount: 0 }
-  }
-
-  // Find the BEST matching transaction (not sum of all)
-  // Priority 1: merchant name matches budget name
-  const budgetNameLower = budget.name.toLowerCase()
-  let bestMatch = matches.find((t) => {
-    const merchant = t.merchant.toLowerCase()
-    return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
-  })
-
-  // Priority 2: closest amount to budgeted amount
-  if (!bestMatch) {
-    bestMatch = matches.reduce((best, t) =>
-      Math.abs(Math.abs(t.amount) - budget.amount) < Math.abs(Math.abs(best.amount) - budget.amount)
-        ? t
-        : best
-    )
   }
 
   const matchedAmount = Math.abs(bestMatch.amount)

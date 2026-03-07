@@ -108,11 +108,11 @@ export default function SidebarNav({ navGroups, userName, userEmail, logoutActio
           <span className="font-display text-base tracking-tight text-snow">oversikt</span>
         </Link>
 
-        <nav className="space-y-4">
+        <nav className="space-y-3">
           {navGroups.map((group, gi) => (
             <div key={gi}>
               {group.label && (
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-snow/30">
+                <p className="mb-1 border-b border-snow/10 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-snow/40">
                   {group.label}
                 </p>
               )}

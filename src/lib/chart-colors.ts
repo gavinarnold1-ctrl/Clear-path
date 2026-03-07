@@ -41,3 +41,13 @@ export const CATEGORY_COLORS = [
   BRAND_COLORS.birch,
   BRAND_COLORS.stone,
 ] as const
+
+export const GOAL_COLORS = {
+  contributing: '#2D5F3E',    // pine — spending/behavior that advances the goal
+  neutral: '#8B9A8E',         // stone — no goal impact
+  threatening: '#C4704B',     // ember — spending/behavior that works against the goal
+  target: '#1B3A4B',          // fjord — goal reference line/marker
+  onTrack: '#2D5F3E',         // pine — pace is good
+  behind: '#C4704B',          // ember — pace is behind
+  ahead: '#A3B8A0',           // lichen — ahead of pace
+} as const

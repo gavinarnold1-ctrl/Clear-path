@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
@@ -121,6 +122,24 @@ export default async function DebtsPage() {
       )}
 
       <DebtManager debts={serializedDebts} properties={properties} categories={categories} />
+
+      {/* Cross-links */}
+      {debts.length > 0 && (
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/forecast"
+            className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
+          >
+            See payoff timeline →
+          </Link>
+          <Link
+            href="/budgets"
+            className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
+          >
+            Free up budget for debt payments →
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

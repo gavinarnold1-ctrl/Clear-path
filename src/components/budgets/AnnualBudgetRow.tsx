@@ -91,6 +91,17 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
   )
 
   return (
-    <Link href={href} className="block rounded-lg px-3 py-3 hover:bg-snow">{content}</Link>
+    <div className="flex items-center gap-2 rounded-lg px-3 py-3 hover:bg-snow">
+      <Link href={href} className="block min-w-0 flex-1">{content}</Link>
+      {categoryId && (
+        <Link
+          href={`/transactions?categoryId=${categoryId}`}
+          className="shrink-0 text-xs text-stone hover:text-fjord"
+          title={`View all transactions in ${category?.name ?? name} (across all budgets)`}
+        >
+          All {category?.name ?? name}
+        </Link>
+      )}
+    </div>
   )
 }

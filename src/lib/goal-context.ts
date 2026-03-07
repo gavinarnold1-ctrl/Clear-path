@@ -5,6 +5,12 @@ export interface GoalContext {
   goalLabel: string
   goalSetAt: Date | null
   guidanceForAI: string
+  goalTarget?: {
+    description: string
+    monthlyNeeded?: number
+    targetValue?: number
+    metric?: string
+  } | null
 }
 
 const GOAL_GUIDANCE: Record<string, { label: string; guidance: string }> = {
@@ -38,7 +44,7 @@ const GOAL_GUIDANCE: Record<string, { label: string; guidance: string }> = {
 export async function getGoalContext(userId: string): Promise<GoalContext | null> {
   const profile = await db.userProfile.findUnique({
     where: { userId },
-    select: { primaryGoal: true, goalSetAt: true },
+    select: { primaryGoal: true, goalSetAt: true, goalTarget: true },
   })
 
   if (!profile?.primaryGoal) return null
@@ -46,10 +52,18 @@ export async function getGoalContext(userId: string): Promise<GoalContext | null
   const config = GOAL_GUIDANCE[profile.primaryGoal]
   if (!config) return null
 
+  const gt = profile.goalTarget as { description?: string; monthlyNeeded?: number; targetValue?: number; metric?: string } | null
+
   return {
     primaryGoal: profile.primaryGoal,
     goalLabel: config.label,
     goalSetAt: profile.goalSetAt,
     guidanceForAI: config.guidance,
+    goalTarget: gt?.description ? {
+      description: gt.description,
+      monthlyNeeded: gt.monthlyNeeded,
+      targetValue: gt.targetValue,
+      metric: gt.metric,
+    } : null,
   }
 }

@@ -18,6 +18,8 @@ import { formatCurrency } from '@/lib/utils'
 import { getBudgetBenchmarks } from '@/lib/budget-benchmarks'
 import BenchmarkBar from '@/components/budgets/BenchmarkBar'
 import type { GoalTarget } from '@/types'
+import { claimTransactions, CATCHALL_NAMES } from '@/lib/budget-claiming'
+import type { ClaimableTransaction } from '@/lib/budget-claiming'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
@@ -197,47 +199,58 @@ export default async function BudgetsPage() {
     // SKIP all reconciliation for ANNUAL tier — annual budgets get their categoryId
     // at creation time and should never be auto-reconciled.
     if (spent === 0 && !b.categoryId && b.tier !== 'ANNUAL') {
-      // Try budget's category name (if somehow category relation exists without categoryId — unlikely but safe)
-      const catName = b.category?.name?.toLowerCase()
-      if (catName && spentByCategoryName.has(catName)) {
-        spent = spentByCategoryName.get(catName)!
-        const matchedCatId = categoryNameToId.get(catName)
-        if (matchedCatId) {
-          resolvedCategoryId = matchedCatId
-          budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
-        }
-      }
-      // Try budget name as category name (e.g. budget "Groceries" → category "Groceries")
-      if (spent === 0) {
-        const budgetNameKey = b.name.toLowerCase()
+      if (b.tier === 'FIXED') {
+        // FIXED tier: exact name match only (case-insensitive)
+        const budgetNameKey = b.name.toLowerCase().trim()
         if (spentByCategoryName.has(budgetNameKey)) {
-          spent = spentByCategoryName.get(budgetNameKey)!
           const matchedCatId = categoryNameToId.get(budgetNameKey)
           if (matchedCatId) {
             resolvedCategoryId = matchedCatId
             budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
           }
         }
-      }
-      // Fuzzy: word-overlap match. Requires at least 2 overlapping words to prevent
-      // single-word budget names (e.g. "Services") from matching unrelated categories
-      // (e.g. "Financial & Legal Services").
-      if (spent === 0) {
-        const budgetWords = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
-        if (budgetWords.length >= 2) {
-          for (const [catName, catSpent] of spentByCategoryName) {
-            const catWords = catName.split(/[\s&,]+/).filter((w) => w.length > 2)
-            if (catWords.length < 2) continue
-            const overlap = budgetWords.filter((w) => catWords.some((cw) => cw === w)).length
-            const shorterLen = Math.min(budgetWords.length, catWords.length)
-            if (overlap >= shorterLen && overlap >= 2) {
-              spent = catSpent
-              const matchedCatId = categoryNameToId.get(catName)
-              if (matchedCatId) {
-                resolvedCategoryId = matchedCatId
-                budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
+      } else {
+        // FLEXIBLE tier: try exact name, then fuzzy word-overlap
+        // Try budget's category name
+        const catName = b.category?.name?.toLowerCase()
+        if (catName && spentByCategoryName.has(catName)) {
+          spent = spentByCategoryName.get(catName)!
+          const matchedCatId = categoryNameToId.get(catName)
+          if (matchedCatId) {
+            resolvedCategoryId = matchedCatId
+            budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
+          }
+        }
+        // Try budget name as category name
+        if (spent === 0) {
+          const budgetNameKey = b.name.toLowerCase()
+          if (spentByCategoryName.has(budgetNameKey)) {
+            spent = spentByCategoryName.get(budgetNameKey)!
+            const matchedCatId = categoryNameToId.get(budgetNameKey)
+            if (matchedCatId) {
+              resolvedCategoryId = matchedCatId
+              budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
+            }
+          }
+        }
+        // Fuzzy: word-overlap match (flexible only)
+        if (spent === 0) {
+          const budgetWords = b.name.toLowerCase().split(/[\s&,]+/).filter((w) => w.length > 2)
+          if (budgetWords.length >= 2) {
+            for (const [catNameKey, catSpent] of spentByCategoryName) {
+              const catWords = catNameKey.split(/[\s&,]+/).filter((w) => w.length > 2)
+              if (catWords.length < 2) continue
+              const overlap = budgetWords.filter((w) => catWords.some((cw) => cw === w)).length
+              const shorterLen = Math.min(budgetWords.length, catWords.length)
+              if (overlap >= shorterLen && overlap >= 2) {
+                spent = catSpent
+                const matchedCatId = categoryNameToId.get(catNameKey)
+                if (matchedCatId) {
+                  resolvedCategoryId = matchedCatId
+                  budgetsToReconcile.push({ id: b.id, categoryId: matchedCatId })
+                }
+                break
               }
-              break
             }
           }
         }
@@ -315,97 +328,35 @@ export default async function BudgetsPage() {
   // Sort by spend descending
   unbudgetedCategories.sort((x, y) => y.spent - x.spent)
 
-  // For FIXED budgets: compute per-bill spent by matching the best transaction,
-  // not summing the entire category. This prevents inflated amounts when multiple
-  // bills share a category (e.g. auto + health insurance both in "Insurance").
-  const claimedTxIds = new Set<string>()
+  // Use shared claiming logic for FIXED, FLEXIBLE, and catch-all budgets.
+  // This ensures the budget page, API routes, and transaction list all use
+  // identical claiming priority: annual → fixed (exact category) → flexible → catch-all.
+  const claimableTxs: ClaimableTransaction[] = transactions.map(tx => ({
+    id: tx.id,
+    amount: tx.amount,
+    merchant: tx.merchant,
+    categoryId: tx.categoryId,
+    annualExpenseId: tx.annualExpenseId,
+    category: tx.category,
+  }))
+  const claimResult = claimTransactions(budgetsWithSpent, claimableTxs)
+
+  // Apply shared claiming results to fixed budgets
   for (const b of fixed) {
-    // Get candidate transactions: by categoryId first, then by name
-    // Exclude annual-linked transactions — they belong to the annual plan, not fixed bills
-    let candidates = b.categoryId
-      ? transactions.filter((tx) => tx.categoryId === b.categoryId && !claimedTxIds.has(tx.id) && !tx.annualExpenseId)
-      : []
-
-    // Fallback: name-based matching when no categoryId or no category matches
-    if (candidates.length === 0) {
-      const budgetNameLower = b.name.toLowerCase()
-      candidates = transactions.filter((tx) => {
-        if (claimedTxIds.has(tx.id) || tx.annualExpenseId) return false
-        const merchant = (tx.merchant ?? '').toLowerCase()
-        return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
-      })
-    }
-
-    if (candidates.length === 0) {
-      b.spent = 0
-      continue
-    }
-
-    // Priority 1: merchant name matches budget name
-    const budgetNameLower = b.name.toLowerCase()
-    let match = candidates.find((tx) => {
-      const merchant = (tx.merchant ?? '').toLowerCase()
-      return merchant.includes(budgetNameLower) || budgetNameLower.includes(merchant)
-    })
-
-    // Priority 2: closest amount to budget
-    if (!match) {
-      match = candidates.reduce((best, tx) =>
-        Math.abs(Math.abs(tx.amount) - b.amount) < Math.abs(Math.abs(best.amount) - b.amount)
-          ? tx
-          : best
-      )
-    }
-
-    b.spent = Math.abs(match.amount)
-    claimedTxIds.add(match.id)
+    b.spent = claimResult.spentByBudget.get(b.id) ?? 0
   }
+  const claimedTxIds = claimResult.fixedClaimedTxIds
 
-  // Bug 3: Catch-all flexible budgets (Miscellaneous, Uncategorized, Other) absorb
-  // expense transactions not claimed by any specific budget.
-  const CATCHALL_NAMES = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else'])
+  // Apply shared claiming results to catch-all budgets
   const catchAllBudgets = flexible.filter((b) => CATCHALL_NAMES.has(b.name.toLowerCase()))
   if (catchAllBudgets.length > 0) {
-    // Collect all categoryIds claimed by non-catch-all budgets
-    const claimedCategoryIds = new Set<string>()
-    for (const b of budgetsWithSpent) {
-      if (!CATCHALL_NAMES.has(b.name.toLowerCase()) && b.categoryId) {
-        claimedCategoryIds.add(b.categoryId)
-      }
-    }
-    // Also claim categories matched by name/fuzzy in non-catch-all budgets
-    for (const b of budgetsWithSpent) {
-      if (CATCHALL_NAMES.has(b.name.toLowerCase())) continue
-      const bNameKey = b.name.toLowerCase()
-      const matchedId = categoryNameToId.get(bNameKey)
-      if (matchedId) claimedCategoryIds.add(matchedId)
-      if (b.category?.name) {
-        const catId = categoryNameToId.get(b.category.name.toLowerCase())
-        if (catId) claimedCategoryIds.add(catId)
-      }
-    }
-
-    // Sum unclaimed expense spending (exclude annual-linked transactions)
-    // Include both: transactions in non-budgeted categories AND transactions with no category at all
-    let unclaimedSpend = 0
-    for (const tx of nonAnnualTransactions) {
-      if (claimedTxIds.has(tx.id)) continue
-      if (!tx.categoryId || !claimedCategoryIds.has(tx.categoryId)) {
-        unclaimedSpend += Math.abs(tx.amount)
-      }
-    }
-
-    // Distribute to first catch-all budget (typically there's only one)
-    if (unclaimedSpend > 0) {
-      catchAllBudgets[0].spent = (catchAllBudgets[0].spent || 0) + unclaimedSpend
-    }
+    catchAllBudgets[0].spent = claimResult.spentByBudget.get(catchAllBudgets[0].id) ?? 0
   }
 
   // Compute unallocated flexible budget: total unbudgeted spending that isn't claimed
   // by any specific budget (fixed, flexible, or annual). The unallocated pool is implicit —
   // it's the leftover spending that no named budget covers.
-  const CATCHALL_NAMES_CHECK = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else'])
-  const namedFlexible = flexible.filter((b) => !CATCHALL_NAMES_CHECK.has(b.name.toLowerCase()))
+  const namedFlexible = flexible.filter((b) => !CATCHALL_NAMES.has(b.name.toLowerCase()))
   const namedFlexibleTotal = namedFlexible.reduce((sum, b) => sum + b.amount, 0)
   const totalUnbudgetedSpend = unbudgetedCategories.reduce((sum, c) => sum + c.spent, 0)
 
@@ -483,20 +434,40 @@ export default async function BudgetsPage() {
             monthLabel={monthLabel}
           />
 
-          {/* Compact goal surplus row */}
+          {/* Goal alignment banner */}
           {goalContext && goalTarget && (
-            <div className="mb-6 flex items-center justify-between px-4 py-2 bg-frost/50 rounded-button text-sm">
-              <span className="text-stone">
-                Monthly surplus after budgets:{' '}
-                <span className={projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? 'text-pine font-medium' : 'text-ember font-medium'}>
-                  {formatCurrency(projectedMonthlySurplus)}
-                </span>
-                {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0)
-                  ? ' — on track for goal'
-                  : ` — need ${formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)} more/mo`
-                }
-              </span>
-              <Link href="/forecast" className="text-pine hover:underline text-sm">Forecast →</Link>
+            <div className={`mb-6 rounded-card border px-5 py-4 ${
+              projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0)
+                ? 'border-pine/20 bg-pine/5'
+                : 'border-birch/30 bg-birch/10'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-stone">
+                    {goalContext.goalLabel} — Budget Alignment
+                  </p>
+                  <p className="mt-1 text-sm text-fjord">
+                    {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? (
+                      <>
+                        Your budgets leave{' '}
+                        <span className="font-semibold text-pine">{formatCurrency(projectedMonthlySurplus)}/mo</span>
+                        {' '}surplus — on track to reach your goal.
+                      </>
+                    ) : (
+                      <>
+                        Your budgets leave{' '}
+                        <span className="font-semibold text-ember">{formatCurrency(projectedMonthlySurplus)}/mo</span>
+                        {' '}surplus. You need{' '}
+                        <span className="font-medium">{formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)}/mo</span>
+                        {' '}more to stay on pace.
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Link href="/forecast" className="shrink-0 text-sm font-medium text-pine hover:underline">
+                  Forecast →
+                </Link>
+              </div>
             </div>
           )}
 
