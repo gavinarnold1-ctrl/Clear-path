@@ -1,11 +1,18 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { WaitlistForm } from './WaitlistForm'
 import { DemoButton } from './DemoButton'
 
+export const metadata: Metadata = {
+  title: 'Oversikt — Budget with purpose',
+  description:
+    'Start with your goal. Oversikt builds a budget that gets you there, tracks your progress, and shows you what\u2019s left to spend. Free to start.',
+}
+
 export default function HomePage() {
   return (
     <main>
-      {/* ── Section 1: Hero ────────────────────────────────────────────────── */}
+      {/* ── Section 1: Hero + Email Capture ──────────────────────────────── */}
       <section className="relative flex min-h-[90vh] flex-col items-center justify-center bg-gradient-to-br from-fjord to-midnight px-6 py-20 text-center">
         {/* Brand lockup */}
         <div className="mb-8 flex items-center justify-center gap-3">
@@ -16,15 +23,15 @@ export default function HomePage() {
         </div>
 
         <h1 className="mx-auto max-w-2xl font-display text-4xl leading-tight tracking-tight text-snow sm:text-5xl md:text-6xl">
-          Your money. Your goals.
+          Your money has a purpose.
           <br />
-          One clear view.
+          Oversikt helps you see it.
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-lichen/90">
-          Oversikt connects your accounts, tracks your real spending, and shows you
-          exactly what&apos;s left after every commitment. No guessing. No spreadsheets.
-          Just clarity.
+          Start with your goal &mdash; saving, paying off debt, optimizing spending &mdash;
+          and Oversikt builds a budget that gets you there. Then it tracks your
+          progress, shows what&apos;s working, and tells you what&apos;s left to spend.
         </p>
 
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -37,15 +44,24 @@ export default function HomePage() {
           <DemoButton />
         </div>
 
-        <p className="mt-6 text-xs text-snow/40">No credit card required.</p>
+        {/* Inline waitlist */}
+        <div className="mx-auto mt-10 w-full max-w-md">
+          <p className="mb-3 text-sm text-snow/60">
+            Not ready yet? Get notified when we launch.
+          </p>
+          <WaitlistForm />
+          <p className="mt-3 text-xs text-snow/40">
+            No credit card required. We&apos;ll never spam you.
+          </p>
+        </div>
 
-        {/* Definition — bottom of hero */}
+        {/* Norwegian etymology */}
         <div className="mt-auto pt-16 text-center">
           <p className="font-display text-2xl tracking-tight text-snow/70">
             oversikt{' '}
-            <span className="font-mono text-xs font-normal text-snow/40">/ˈoː.vər.sɪkt/</span>
+            <span className="font-mono text-xs font-normal text-snow/40">/&#x2C8;o&#x2D0;.v&#x259;r.s&#x26A;kt/</span>
           </p>
-          <p className="mt-0.5 text-xs text-snow/40">noun — Norwegian</p>
+          <p className="mt-0.5 text-xs text-snow/40">noun &mdash; Norwegian</p>
           <p className="mt-2 text-sm leading-snug text-snow/50">
             A clear, comprehensive view of the whole;
             <br />
@@ -54,47 +70,32 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 2: Problem Statement ───────────────────────────────────── */}
+      {/* ── Section 2: The Five Goals ────────────────────────────────────── */}
       <section className="bg-frost px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-4 text-center font-display text-3xl tracking-tight text-fjord sm:text-4xl">
-            The $200K household problem
+            Start with why you&apos;re budgeting
           </h2>
           <p className="mx-auto mb-12 max-w-2xl text-center text-stone">
-            You earn well. You&apos;re not irresponsible. But your finances are genuinely complex
-            — and no tool was built for that.
+            Every budget should serve a purpose. Pick yours, and Oversikt
+            orients everything &mdash; your dashboard, your budgets, your insights &mdash;
+            toward making it happen.
           </p>
 
-          <div className="grid gap-6 sm:grid-cols-3">
-            <div className="card">
-              <div className="mb-3 text-3xl">&#x1F3E6;</div>
-              <h3 className="mb-2 font-display text-lg text-fjord">Multiple accounts, no single view</h3>
-              <p className="text-sm leading-relaxed text-stone">
-                Checking, savings, credit cards, mortgage, student loans — and no single view
-                of what&apos;s actually available to spend.
-              </p>
-            </div>
-            <div className="card">
-              <div className="mb-3 text-3xl">&#x1F4B3;</div>
-              <h3 className="mb-2 font-display text-lg text-fjord">Premium cards gathering dust</h3>
-              <p className="text-sm leading-relaxed text-stone">
-                You pay $1,500+/yr in annual fees but forfeit 30–60% of the benefits
-                you&apos;re paying for. Nobody tracks that.
-              </p>
-            </div>
-            <div className="card">
-              <div className="mb-3 text-3xl">&#x1F4C9;</div>
-              <h3 className="mb-2 font-display text-lg text-fjord">Monthly surprises</h3>
-              <p className="text-sm leading-relaxed text-stone">
-                &ldquo;Where did my money go?&rdquo; isn&apos;t a question anyone earning six figures
-                should still be asking.
-              </p>
-            </div>
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {GOALS.map((goal) => (
+              <div key={goal.name} className="card flex flex-col">
+                <div className="mb-3 text-2xl">{goal.icon}</div>
+                <h3 className="mb-2 font-display text-lg text-fjord">{goal.name}</h3>
+                <p className="mb-3 text-sm leading-relaxed text-stone">{goal.description}</p>
+                <p className="mt-auto font-mono text-xs text-pine">{goal.example}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── Section 3: How It Works ────────────────────────────────────────── */}
+      {/* ── Section 3: How It Works ──────────────────────────────────────── */}
       <section className="bg-snow px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-4xl">
           <h2 className="mb-12 text-center font-display text-3xl tracking-tight text-fjord sm:text-4xl">
@@ -105,24 +106,26 @@ export default function HomePage() {
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-pine/10">
                 <svg className="h-7 w-7 text-pine" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.131l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
                 </svg>
               </div>
-              <h3 className="mb-2 font-display text-lg text-fjord">Connect your banks</h3>
+              <h3 className="mb-2 font-display text-lg text-fjord">Pick your goal</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Plaid securely links your accounts in seconds. Checking, savings, credit cards, loans — all in one place.
+                Save more, pay off debt, spend smarter &mdash; you choose the destination.
+                Oversikt builds a budget oriented toward getting you there.
               </p>
             </div>
 
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-pine/10">
                 <svg className="h-7 w-7 text-pine" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-3.131l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
                 </svg>
               </div>
-              <h3 className="mb-2 font-display text-lg text-fjord">Set your goal</h3>
+              <h3 className="mb-2 font-display text-lg text-fjord">Connect your accounts</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Save more, pay off debt, spend smarter — you choose. We&apos;ll build a budget oriented toward what matters to you.
+                Plaid securely links your banks, credit cards, and loans in seconds.
+                Everything in one place &mdash; no spreadsheets, no manual entry.
               </p>
             </div>
 
@@ -135,52 +138,56 @@ export default function HomePage() {
               </div>
               <h3 className="mb-2 font-display text-lg text-fjord">See what&apos;s true</h3>
               <p className="text-sm leading-relaxed text-stone">
-                True Remaining shows your real spending power — after every fixed bill, flexible budget, and annual set-aside.
+                True Remaining shows your real spending power &mdash; after every fixed bill,
+                flexible budget, and annual set-aside. Not your balance. Not your budget.
+                What you can actually spend and still hit your goal.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Section 4: Key Features ────────────────────────────────────────── */}
+      {/* ── Section 4: Key Features ──────────────────────────────────────── */}
       <section className="bg-frost px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-4 text-center font-display text-3xl tracking-tight text-fjord sm:text-4xl">
             Built for how money actually works
           </h2>
           <p className="mx-auto mb-12 max-w-2xl text-center text-stone">
-            Not another envelope app. Oversikt handles the complexity that real households deal with.
+            Not another envelope app. Oversikt handles the complexity
+            that real financial lives involve.
           </p>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <div className="card">
               <h3 className="mb-2 font-display text-lg text-fjord">True Remaining</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Not your balance. Not your budget. The actual money you can spend after every
-                fixed bill, flexible budget, and annual set-aside.
+                The money you can spend after every bill, budget, and set-aside &mdash;
+                contextualized for your goal. Not a balance. Not a guess.
               </p>
             </div>
 
             <div className="card">
               <h3 className="mb-2 font-display text-lg text-fjord">Goal-Driven Budgets</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Tell us what you&apos;re working toward. We&apos;ll build a budget that gets
-                you there — and show you if you&apos;re on pace.
+                Your goal determines your budget, not the other way around. Change a budget
+                and see the impact: &ldquo;Cutting dining by $100 gets you to your target
+                one month sooner.&rdquo;
               </p>
             </div>
 
             <div className="card">
               <h3 className="mb-2 font-display text-lg text-fjord">Credit Card Benefits Tracker</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Stop leaving money on the table. Track every statement credit, travel perk,
-                and subscription reimbursement across all your cards.
+                Stop leaving money on the table. Track statement credits, travel perks,
+                and subscription reimbursements across all your cards.
               </p>
             </div>
 
             <div className="card">
               <h3 className="mb-2 font-display text-lg text-fjord">Three-Tier Budgets</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Fixed bills, flexible spending, and annual expenses — each tracked the way
+                Fixed bills, flexible spending, and annual expenses &mdash; each tracked the way
                 they actually work, not crammed into one view.
               </p>
             </div>
@@ -188,15 +195,15 @@ export default function HomePage() {
             <div className="card">
               <h3 className="mb-2 font-display text-lg text-fjord">AI Financial Insights</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Personalized observations about your spending, oriented toward your specific
-                goal. Not generic tips — real analysis of your money.
+                Personalized observations oriented toward your specific goal. Not generic
+                tips &mdash; real analysis of your money and what it means for your progress.
               </p>
             </div>
 
             <div className="card">
               <h3 className="mb-2 font-display text-lg text-fjord">Property &amp; Entity Tracking</h3>
               <p className="text-sm leading-relaxed text-stone">
-                Rental properties, business expenses, split allocations — all connected
+                Rental properties, business expenses, split allocations &mdash; all connected
                 to your budget and tax picture.
               </p>
             </div>
@@ -204,43 +211,57 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 5: Competitive Positioning ─────────────────────────────── */}
+      {/* ── Section 5: Competitive Positioning ───────────────────────────── */}
       <section className="bg-snow px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="mb-6 font-display text-3xl tracking-tight text-fjord sm:text-4xl">
-            Built for financial complexity
+            A different kind of budgeting app
           </h2>
           <p className="text-lg leading-relaxed text-stone">
-            YNAB tells you what to do. Mint is gone. Copilot only works on Apple.
-            Monarch doesn&apos;t track your card benefits.
+            Most budgeting apps are built around categories and rules.
+            Oversikt is built around your goal. You tell us what you&apos;re
+            working toward, and we show you whether your money is getting
+            you there. That&apos;s it. No prescriptive systems. No judgment.
+            Just clarity &mdash; and the freedom to decide what to do with it.
           </p>
-          <p className="mt-6 text-lg font-medium leading-relaxed text-fjord">
-            Oversikt shows what&apos;s true and what it means.
-            <br />
-            You decide what to do about it.
+          <p className="mx-auto mt-6 max-w-lg text-sm text-stone/70">
+            Works on any device. Connects via Plaid. Tracks what others don&apos;t &mdash;
+            credit card benefits, property equity, annual expenses.
           </p>
         </div>
       </section>
 
-      {/* ── Section 6: Waitlist ─────────────────────────────────────────────── */}
+      {/* ── Section 6: Final CTA + Waitlist ──────────────────────────────── */}
       <section className="bg-gradient-to-br from-fjord to-midnight px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-lg text-center">
           <h2 className="mb-4 font-display text-3xl tracking-tight text-snow sm:text-4xl">
-            Join the waitlist
+            Ready to budget with purpose?
           </h2>
           <p className="mb-8 text-lichen/80">
-            Be first to know when Oversikt opens to new users.
+            Join thousands who are done guessing and ready to see what&apos;s true.
           </p>
 
-          <WaitlistForm />
+          <div className="mb-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/register"
+              className="rounded-button bg-snow px-8 py-3 text-center text-sm font-medium text-fjord hover:bg-frost"
+            >
+              Get started free
+            </Link>
+            <DemoButton />
+          </div>
 
+          <p className="mb-3 text-sm text-snow/60">
+            Want to follow along? Drop your email and we&apos;ll keep you posted.
+          </p>
+          <WaitlistForm />
           <p className="mt-4 text-xs text-snow/40">
             We&apos;ll never spam you. Just one email when it&apos;s your turn.
           </p>
         </div>
       </section>
 
-      {/* ── Section 7: Footer ──────────────────────────────────────────────── */}
+      {/* ── Section 7: Footer ────────────────────────────────────────────── */}
       <footer className="bg-midnight px-6 py-10">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 text-center">
           <span className="font-display text-xl tracking-tight text-snow/70">oversikt</span>
@@ -267,3 +288,41 @@ export default function HomePage() {
     </main>
   )
 }
+
+const GOALS = [
+  {
+    icon: '\u{1F4B0}',
+    name: 'Save More',
+    description:
+      'Build an emergency fund, save for a house, or just stop living paycheck to paycheck.',
+    example: '"Save $20,000 by December"',
+  },
+  {
+    icon: '\u{1F4C9}',
+    name: 'Pay Off Debt',
+    description:
+      'See your payoff timeline, find extra cash in your budget, and watch balances drop.',
+    example: '"Pay off Chase Visa by March"',
+  },
+  {
+    icon: '\u{1F6D2}',
+    name: 'Spend Smarter',
+    description:
+      'Find where you\u2019re overspending compared to people like you, and redirect the difference.',
+    example: '"Get dining under $600/month"',
+  },
+  {
+    icon: '\u{1F50D}',
+    name: 'Gain Visibility',
+    description:
+      'Finally understand where your money goes. No judgments \u2014 just clarity.',
+    example: '"Categorize 95% of transactions"',
+  },
+  {
+    icon: '\u{1F4C8}',
+    name: 'Build Wealth',
+    description:
+      'Track net worth across accounts, properties, and investments. See the full picture.',
+    example: '"Grow net worth by $30K this year"',
+  },
+]
