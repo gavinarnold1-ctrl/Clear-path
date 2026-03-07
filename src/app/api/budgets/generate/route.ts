@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
-import { db } from '@/lib/db'
+import { db, withDbRetry } from '@/lib/db'
 import { analyzeSpendingProfile, generateBudgetProposal } from '@/lib/budget-builder'
 import { getGoalContext } from '@/lib/goal-context'
 import { getGeneration, setGeneration } from '@/lib/budget-generation-store'
@@ -30,10 +30,16 @@ export async function POST() {
   // Fire and forget — don't await
   generateAsync(session.userId).catch((err) => {
     console.error('Budget generation failed:', err)
+    const errMessage = err instanceof Error ? err.message : String(err)
     const status = (err as { status?: number })?.status
-    const message = status === 529 || status === 503
-      ? 'The AI service is temporarily overloaded. Please try again in a minute.'
-      : err instanceof Error ? err.message : 'Failed to generate budget proposal'
+    let message: string
+    if (errMessage.includes("Can't reach database server") || errMessage.includes('connect ETIMEDOUT')) {
+      message = 'Unable to reach the database. The server may be waking up — please try again in a moment.'
+    } else if (status === 529 || status === 503) {
+      message = 'The AI service is temporarily overloaded. Please try again in a minute.'
+    } else {
+      message = errMessage || 'Failed to generate budget proposal'
+    }
     setGeneration(session.userId, { status: 'error', error: message, createdAt: Date.now() })
   })
 
@@ -42,28 +48,32 @@ export async function POST() {
 
 async function generateAsync(userId: string) {
   const [profile, goalContext, userProfile] = await Promise.all([
-    analyzeSpendingProfile(userId),
-    getGoalContext(userId),
-    db.userProfile.findUnique({
-      where: { userId },
-      select: { incomeRange: true, householdType: true },
-    }),
+    withDbRetry(() => analyzeSpendingProfile(userId)),
+    withDbRetry(() => getGoalContext(userId)),
+    withDbRetry(() =>
+      db.userProfile.findUnique({
+        where: { userId },
+        select: { incomeRange: true, householdType: true },
+      }),
+    ),
   ])
 
   // Fetch BLS benchmarks for the user's income range
   const bracketLow = INCOME_RANGE_TO_LOW[userProfile?.incomeRange ?? ''] ?? null
   let benchmarks = null
   if (bracketLow !== null) {
-    benchmarks = await db.spendingBenchmark.findMany({
-      where: { incomeRangeLow: bracketLow },
-      select: {
-        category: true,
-        appCategory: true,
-        monthlyMean: true,
-        annualMedian: true,
-        shareOfTotal: true,
-      },
-    })
+    benchmarks = await withDbRetry(() =>
+      db.spendingBenchmark.findMany({
+        where: { incomeRangeLow: bracketLow },
+        select: {
+          category: true,
+          appCategory: true,
+          monthlyMean: true,
+          annualMedian: true,
+          shareOfTotal: true,
+        },
+      }),
+    )
   }
 
   const proposal = await generateBudgetProposal(profile, goalContext, benchmarks)
