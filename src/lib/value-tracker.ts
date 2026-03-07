@@ -48,6 +48,7 @@ export interface ValueSummary {
   totalIdentified: number
   totalActioned: number
   insightCount: number
+  actionedCount: number
   since: Date | null
   monthlySubscriptionCost: number
   roi: number
@@ -66,6 +67,7 @@ export async function getValueSummary(userId: string): Promise<ValueSummary> {
       },
       select: {
         savingsAmount: true,
+        status: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'asc' },
@@ -90,6 +92,8 @@ export async function getValueSummary(userId: string): Promise<ValueSummary> {
   ])
 
   const totalIdentified = insights.reduce((sum: number, i: { savingsAmount: number | null }) => sum + (i.savingsAmount ?? 0), 0)
+  const completedInsights = insights.filter((i) => i.status === 'completed')
+  const totalActioned = completedInsights.reduce((sum: number, i: { savingsAmount: number | null }) => sum + (i.savingsAmount ?? 0), 0)
   const perkReimbursements = Math.abs(perkAgg._sum.amount ?? 0)
   const cardBenefitCreditsUsed = creditUsedAgg._sum.usedAmount ?? 0
   const earliest = insights.length > 0 ? insights[0].createdAt : null
@@ -97,13 +101,15 @@ export async function getValueSummary(userId: string): Promise<ValueSummary> {
     ? Math.max(1, Math.ceil((Date.now() - earliest.getTime()) / (30 * 24 * 60 * 60 * 1000)))
     : 1
   const monthlyCost = 9.99
-  const totalValue = totalIdentified + perkReimbursements
-  const roi = totalValue / (monthsActive * monthlyCost)
+  // ROI based on realized savings + perk reimbursements
+  const realizedValue = totalActioned + perkReimbursements
+  const roi = realizedValue > 0 ? realizedValue / (monthsActive * monthlyCost) : 0
 
   return {
     totalIdentified: Math.round(totalIdentified * 100) / 100,
-    totalActioned: 0,
+    totalActioned: Math.round(totalActioned * 100) / 100,
     insightCount: insights.length,
+    actionedCount: completedInsights.length,
     since: earliest,
     monthlySubscriptionCost: monthlyCost,
     roi: Math.round(roi * 10) / 10,

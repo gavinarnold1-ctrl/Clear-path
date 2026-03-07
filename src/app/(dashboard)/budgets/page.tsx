@@ -14,7 +14,6 @@ import UnbudgetedSection from '@/components/budgets/UnbudgetedSection'
 import UncategorizedReviewBanner from '@/components/budgets/UncategorizedReviewBanner'
 import { findRefundPairs } from '@/lib/refund-detection'
 import { getGoalContext } from '@/lib/goal-context'
-import { getForecastSummaries } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
 import { getBudgetBenchmarks } from '@/lib/budget-benchmarks'
 import BenchmarkBar from '@/components/budgets/BenchmarkBar'
@@ -94,8 +93,6 @@ export default async function BudgetsPage() {
     // Goal context for budget-goal connection
     getGoalContext(session.userId),
   ])
-
-  const forecastSummary = await getForecastSummaries(session.userId)
 
   // Detect refund pairs and exclude refunded expenses from budget computation
   const allForPairing = [
@@ -460,39 +457,10 @@ export default async function BudgetsPage() {
         </div>
       </div>
 
-      {forecastSummary && (
-        <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
-          <span className="text-xs font-medium uppercase text-stone">Budget ↔ Goal</span>
-          <p className="text-sm text-fjord">{forecastSummary.budgets}</p>
-        </div>
-      )}
-
       {budgets.length === 0 ? (
         <BudgetBuilderFlow hasBudgets={false} />
       ) : (
         <>
-          {/* Budget ↔ Goal Connection */}
-          {goalContext && goalTarget && (
-            <div className="card mb-6 border-pine/20 bg-pine/5">
-              <div>
-                <span className="text-xs font-medium uppercase tracking-wider text-stone">
-                  Budget &harr; Goal Connection
-                </span>
-                <p className="mt-1 text-sm text-fjord">
-                  Your current budget allocation leaves{' '}
-                  <strong>{formatCurrency(projectedMonthlySurplus)}/month</strong> toward your goal.
-                  {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? (
-                    <span className="text-pine"> You&apos;re on track for {goalTarget.description}.</span>
-                  ) : (
-                    <span className="text-ember">
-                      {' '}You need {formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)} more/month to stay on pace.
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
-
           <TrueRemainingBanner
             income={income}
             expectedIncome={expectedIncome}
@@ -514,6 +482,23 @@ export default async function BudgetsPage() {
             flexOverBudget={flexOverBudget}
             monthLabel={monthLabel}
           />
+
+          {/* Compact goal surplus row */}
+          {goalContext && goalTarget && (
+            <div className="mb-6 flex items-center justify-between px-4 py-2 bg-frost/50 rounded-button text-sm">
+              <span className="text-stone">
+                Monthly surplus after budgets:{' '}
+                <span className={projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? 'text-pine font-medium' : 'text-ember font-medium'}>
+                  {formatCurrency(projectedMonthlySurplus)}
+                </span>
+                {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0)
+                  ? ' — on track for goal'
+                  : ` — need ${formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)} more/mo`
+                }
+              </span>
+              <Link href="/forecast" className="text-pine hover:underline text-sm">Forecast →</Link>
+            </div>
+          )}
 
           {uncategorizedCount > 0 && (
             <UncategorizedReviewBanner count={uncategorizedCount} />
