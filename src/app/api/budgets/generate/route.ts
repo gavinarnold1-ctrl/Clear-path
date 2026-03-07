@@ -62,6 +62,13 @@ export async function POST() {
         : null,
     })
   } catch (err) {
+    const status = (err as { status?: number })?.status
+    if (status === 529 || status === 503) {
+      return NextResponse.json(
+        { error: 'The AI service is temporarily overloaded. Please try again in a minute.' },
+        { status: 503 }
+      )
+    }
     const message = err instanceof Error ? err.message : 'Failed to generate budget proposal'
     return NextResponse.json({ error: message }, { status: 400 })
   }

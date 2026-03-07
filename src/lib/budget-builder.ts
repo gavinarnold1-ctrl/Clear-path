@@ -521,19 +521,36 @@ ARCHETYPE-SPECIFIC BUDGET INSTRUCTIONS:`
 
 Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Annual). For categories with limited data, use your judgment and mark with lower confidence. Include 2-3 suggested annual expenses even if not in the data — common ones most households have.`
 
-  // Retry up to 2 attempts in case the model returns non-JSON on the first try
+  // Retry up to 3 attempts for transient API errors (overloaded, rate limit)
+  // and non-JSON responses
   let lastError: Error | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
-      system: systemPrompt,
-      messages: [
-        { role: 'user', content: userPrompt },
-        // Prefill forces the model to continue with JSON instead of markdown/text
-        { role: 'assistant', content: '{' },
-      ],
-    })
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      // Exponential backoff: 2s, 4s
+      await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt - 1)))
+    }
+
+    let response
+    try {
+      response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [
+          { role: 'user', content: userPrompt },
+          // Prefill forces the model to continue with JSON instead of markdown/text
+          { role: 'assistant', content: '{' },
+        ],
+      })
+    } catch (apiError: unknown) {
+      lastError = apiError instanceof Error ? apiError : new Error(String(apiError))
+      // Retry on overloaded/rate-limit/server errors
+      const status = (apiError as { status?: number })?.status
+      if (status === 529 || status === 429 || status === 500 || status === 503) {
+        continue
+      }
+      throw apiError
+    }
 
     // Prepend the '{' from our prefill since it's not included in the response
     const responseText = response.content
@@ -554,7 +571,7 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
   }
 
   throw new Error(
-    `Failed to parse AI budget response as JSON after 2 attempts: ${lastError?.message}`
+    `Failed to generate AI budget after 3 attempts: ${lastError?.message}`
   )
 }
 
