@@ -229,6 +229,8 @@ model Budget {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
+  sortOrder     Int      @default(0) // User-defined ordering within tier
+
   // FIXED tier fields
   isAutoPay     Boolean? // Is this bill auto-paid?
   dueDay        Int?     // Day of month bill is due (1-31)
@@ -424,8 +426,9 @@ model Property {
   loanTermMonths     Int?        // Original term (e.g., 360 for 30-year)
   loanStartDate      DateTime?
 
-  // Forecast engine — appreciation
-  appreciationRate   Float?    @default(0.03) // Annual appreciation rate (decimal). Default 3%
+  // Forecast engine — appreciation & rental income
+  appreciationRate      Float?    @default(0.03) // Annual appreciation rate (decimal). Default 3%
+  monthlyRentalIncome   Float?    // Expected monthly rental income (for RENTAL properties)
 
   // Escrow breakdown (monthly amounts)
   monthlyPropertyTax Float?

@@ -533,8 +533,8 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
     let response
     try {
       response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 6000,
         system: systemPrompt,
         messages: [
           { role: 'user', content: userPrompt },

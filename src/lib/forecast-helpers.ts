@@ -141,6 +141,7 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     interestRate: p.interestRate,
     monthlyPayment: p.monthlyPayment,
     appreciationRate: p.appreciationRate ?? 0.03,
+    monthlyRentalIncome: (p as Record<string, unknown>).monthlyRentalIncome as number ?? 0,
   }))
 
   const incomeTransitionData: IncomeTransition[] = Array.isArray(profile.incomeTransitions)

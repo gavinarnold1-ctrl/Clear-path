@@ -62,6 +62,7 @@ interface TransactionRow {
   classification?: string
   annualExpenseId?: string | null
   isPending?: boolean
+  tags?: string | null
   splits?: SplitRow[]
 }
 
@@ -155,6 +156,10 @@ export default function TransactionList({ transactions: initial, categories, acc
   // Bulk delete confirmation state
   const [showBulkDelete, setShowBulkDelete] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+
+  // Quick-categorize confirmation toast
+  const [quickCatToast, setQuickCatToast] = useState<string | null>(null)
+  const quickCatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Split sub-row expansion state
   const [expandedSplitId, setExpandedSplitId] = useState<string | null>(null)
@@ -419,6 +424,55 @@ export default function TransactionList({ transactions: initial, categories, acc
     setEditingId(null)
     setError(null)
   }, [])
+
+  // Quick-categorize: assign a category to an uncategorized transaction without full edit mode
+  async function quickCategorize(txId: string, categoryId: string) {
+    const cat = categories.find(c => c.id === categoryId)
+    if (!cat) return
+
+    // Optimistic update
+    setTransactions(txs =>
+      txs.map(tx =>
+        tx.id === txId
+          ? { ...tx, categoryId, category: { id: cat.id, name: cat.name } }
+          : tx
+      )
+    )
+
+    // Show toast
+    if (quickCatTimerRef.current) clearTimeout(quickCatTimerRef.current)
+    setQuickCatToast(`Categorized as "${cat.name}"`)
+    quickCatTimerRef.current = setTimeout(() => setQuickCatToast(null), 2500)
+
+    try {
+      const res = await fetch(`/api/transactions/${txId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId }),
+      })
+      if (!res.ok) {
+        // Revert on failure
+        setTransactions(txs =>
+          txs.map(tx =>
+            tx.id === txId
+              ? { ...tx, categoryId: null, category: null }
+              : tx
+          )
+        )
+        setQuickCatToast(null)
+      }
+    } catch {
+      // Revert on error
+      setTransactions(txs =>
+        txs.map(tx =>
+          tx.id === txId
+            ? { ...tx, categoryId: null, category: null }
+            : tx
+        )
+      )
+      setQuickCatToast(null)
+    }
+  }
 
   function handleSort(column: typeof sortColumn) {
     let newDirection: 'asc' | 'desc'
@@ -1261,6 +1315,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                         Card Perk
                       </span>
                     )}
+                    {tx.tags?.includes('perk_covered') && (
+                      <span className="ml-1.5 rounded-badge bg-lichen/20 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                        Covered by perk
+                      </span>
+                    )}
                     {refundedSet.has(tx.id) && (
                       <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-birch">
                         Refunded
@@ -1276,7 +1335,27 @@ export default function TransactionList({ transactions: initial, categories, acc
                       </button>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
+                  <td className="px-4 py-3 text-stone" onClick={(e) => { if (!tx.categoryId) e.stopPropagation() }}>
+                    {tx.category?.name ? (
+                      tx.category.name
+                    ) : (
+                      <select
+                        value=""
+                        onChange={(e) => { if (e.target.value) quickCategorize(tx.id, e.target.value) }}
+                        className="w-full max-w-[140px] rounded-badge border border-birch/40 bg-birch/10 px-1.5 py-0.5 text-xs text-stone hover:border-fjord/40 focus:border-fjord focus:outline-none"
+                        title="Quick categorize"
+                      >
+                        <option value="">+ Category</option>
+                        {Object.entries(groupedCategories).map(([group, cats]) => (
+                          <optgroup key={group} label={group}>
+                            {cats.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td className="hidden px-4 py-3 text-stone md:table-cell">{tx.account?.name ?? '—'}</td>
                   {householdMembers.length > 0 && (
                     <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.householdMember?.name ?? '—'}</td>
@@ -1358,7 +1437,27 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <tr className="bg-frost/50 md:hidden">
                     <td colSpan={5} className="space-y-1 px-4 py-2 text-xs">
                       {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
-                      {tx.category && <div><span className="text-stone">Category:</span> <span className="text-fjord">{tx.category.name}</span></div>}
+                      {tx.category ? (
+                        <div><span className="text-stone">Category:</span> <span className="text-fjord">{tx.category.name}</span></div>
+                      ) : (
+                        <div>
+                          <span className="text-stone">Category:</span>{' '}
+                          <select
+                            value=""
+                            onChange={(e) => { if (e.target.value) quickCategorize(tx.id, e.target.value) }}
+                            className="ml-1 rounded-badge border border-birch/40 bg-birch/10 px-1.5 py-0.5 text-xs text-stone"
+                          >
+                            <option value="">+ Assign</option>
+                            {Object.entries(groupedCategories).map(([group, cats]) => (
+                              <optgroup key={group} label={group}>
+                                {cats.map(c => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
                       {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
                       {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
@@ -1606,6 +1705,13 @@ export default function TransactionList({ transactions: initial, categories, acc
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Quick-categorize toast */}
+      {quickCatToast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-button bg-fjord px-4 py-2 text-sm font-medium text-snow shadow-lg">
+          {quickCatToast}
         </div>
       )}
     </div>

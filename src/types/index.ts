@@ -332,6 +332,7 @@ export interface PropertyForForecast {
   interestRate: number | null
   monthlyPayment: number | null
   appreciationRate: number
+  monthlyRentalIncome: number
 }
 
 // ─── Forecast Output ─────────────────────────────────────────────────────────

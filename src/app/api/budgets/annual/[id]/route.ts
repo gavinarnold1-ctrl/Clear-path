@@ -193,10 +193,11 @@ export async function PATCH(
         include: { budget: { include: { category: true } } },
       })
 
-      // Also update parent budget if amount, category, or name changed
+      // Also update parent budget if name, category, or set-aside changed.
+      // budget.amount for ANNUAL tier = monthlySetAside (consistent with fund/auto-fund).
       const budgetUpdate: Record<string, unknown> = {}
       if (name !== undefined) budgetUpdate.name = name.trim()
-      if (annualAmount !== undefined) budgetUpdate.amount = annualAmount
+      if (updateData.monthlySetAside !== undefined) budgetUpdate.amount = updateData.monthlySetAside
       if (categoryId !== undefined) budgetUpdate.categoryId = categoryId || null
 
       if (Object.keys(budgetUpdate).length > 0) {

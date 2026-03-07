@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import type { BudgetProposal } from '@/lib/budget-builder'
 
@@ -31,8 +31,60 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const modeRef = useRef<BuilderMode>('merge')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [])
+
+  const pollStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/budgets/generate/status')
+      if (!res.ok) return
+      const data = await res.json()
+
+      if (data.status === 'complete') {
+        stopPolling()
+        setGenerating(false)
+        onProposalReady(data.proposal, data.profile, data.goalContext ?? null, modeRef.current)
+      } else if (data.status === 'error') {
+        stopPolling()
+        setGenerating(false)
+        setError(data.error || 'Something went wrong')
+      }
+      // If 'pending' or 'idle', keep polling
+    } catch {
+      // Network error — keep polling
+    }
+  }, [onProposalReady, stopPolling])
+
+  // On mount, check if there's already a pending generation (user navigated away and came back)
+  useEffect(() => {
+    async function checkPending() {
+      try {
+        const res = await fetch('/api/budgets/generate/status')
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.status === 'pending') {
+          setGenerating(true)
+          pollRef.current = setInterval(pollStatus, 3000)
+        } else if (data.status === 'complete') {
+          onProposalReady(data.proposal, data.profile, data.goalContext ?? null, modeRef.current)
+        }
+      } catch {
+        // Ignore
+      }
+    }
+    checkPending()
+    return stopPolling
+  }, [pollStatus, onProposalReady, stopPolling])
 
   async function handleGenerate(selectedMode: BuilderMode = 'merge') {
+    modeRef.current = selectedMode
     setGenerating(true)
     setError(null)
     try {
@@ -41,12 +93,11 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
         const data = await res.json()
         throw new Error(data.error || 'Failed to generate budget')
       }
-      const data = await res.json()
-      onProposalReady(data.proposal, data.profile, data.goalContext ?? null, selectedMode)
+      // Start polling
+      pollRef.current = setInterval(pollStatus, 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
       setGenerating(false)
+      setError(err instanceof Error ? err.message : 'Something went wrong')
     }
   }
 
@@ -59,7 +110,7 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
           onClick={() => setShowMenu(prev => !prev)}
           disabled={generating}
           loading={generating}
-          loadingText="Analyzing..."
+          loadingText="AI Budget Builder (working...)"
         >
           <span>&#x2728;</span>
           AI Budget Builder
@@ -123,15 +174,15 @@ export default function BudgetBuilderCTA({ hasBudgets, onProposalReady }: Budget
         onClick={() => handleGenerate('merge')}
         disabled={generating}
         loading={generating}
-        loadingText="Analyzing your spending..."
+        loadingText="AI Budget Builder is working..."
       >
         <span>&#x2728;</span>
         Generate budget proposal
       </Button>
 
       {generating && (
-        <p className="mt-3 text-xs text-stone">
-          This may take 15-30 seconds while we analyze your transactions...
+        <p className="mt-3 text-xs text-stone animate-pulse">
+          Analyzing your transactions with AI... You can navigate away and come back.
         </p>
       )}
     </div>
