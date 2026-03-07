@@ -7,6 +7,7 @@ export interface DuplicateGroup {
   canonicalMerchant: string
   amount: number
   date: string
+  dismissKey: string
   transactions: {
     id: string
     merchant: string
@@ -34,6 +35,17 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    // Load dismissed signatures from UserProfile
+    const profile = await db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { dismissedDuplicates: true },
+    })
+    const dismissedSet = new Set<string>(
+      Array.isArray(profile?.dismissedDuplicates)
+        ? (profile.dismissedDuplicates as string[])
+        : []
+    )
+
     // Load recent transactions (last 90 days)
     const since = new Date()
     since.setDate(since.getDate() - 90)
@@ -97,6 +109,17 @@ export async function GET() {
             continue
           }
 
+          // Same-account filter: if ALL transactions are from the same account
+          // AND all have distinct Plaid IDs, they're legitimate repeat purchases
+          // from the same card (e.g., two coffees at Starbucks)
+          const accountIds = cluster.map(tx => tx.accountId).filter(Boolean)
+          if (accountIds.length === cluster.length) {
+            const uniqueAccounts = new Set(accountIds)
+            if (uniqueAccounts.size === 1 && uniquePlaidIds.size === cluster.length && plaidIds.length === cluster.length) {
+              continue
+            }
+          }
+
           // If every transaction has a distinct originalStatement (raw bank
           // description), they are confirmed-different — skip this cluster
           const origStatements = cluster
@@ -107,10 +130,21 @@ export async function GET() {
             continue
           }
 
+          // Build stable dismiss key (no transaction IDs — survives re-syncs)
+          const dateISO = cluster[0].date.toISOString().split('T')[0]
+          const canonical = canonicalizeMerchant(cluster[0].merchant)
+          const dismissKey = `${canonical}|${cluster[0].amount.toFixed(2)}|${dateISO}`
+
+          // Skip if previously dismissed
+          if (dismissedSet.has(dismissKey)) {
+            continue
+          }
+
           duplicateGroups.push({
-            canonicalMerchant: canonicalizeMerchant(cluster[0].merchant),
+            canonicalMerchant: canonical,
             amount: cluster[0].amount,
-            date: cluster[0].date.toISOString().split('T')[0],
+            date: dateISO,
+            dismissKey,
             transactions: cluster.map(tx => ({
               id: tx.id,
               merchant: tx.merchant,

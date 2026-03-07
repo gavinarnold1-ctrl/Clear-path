@@ -18,6 +18,7 @@ function buildNavGroups(hasIdentifiedCards: boolean): NavGroup[] {
       label: 'Plan',
       items: [
         { href: '/budgets', label: 'Budgets' },
+        { href: '/budgets/annual', label: 'Annual Plan' },
         { href: '/spending', label: 'Spending' },
         { href: '/transactions', label: 'Transactions' },
       ],

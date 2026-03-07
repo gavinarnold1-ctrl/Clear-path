@@ -256,7 +256,13 @@ export function computeForecast(input: ForecastInput): Forecast {
   const currentValue = computeCurrentValue(goal, snapshots, debts, accounts, properties)
 
   // 2. Compute monthly velocity from snapshots
-  const monthlyVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+  const snapshotVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+
+  // 2b. Adjust velocity for rental income (snapshots may not capture it)
+  const rentalIncomeAdj = (properties ?? []).reduce(
+    (sum, prop) => sum + (prop.monthlyRentalIncome ?? 0), 0
+  )
+  const monthlyVelocity = snapshotVelocity + rentalIncomeAdj
 
   // 3. Compute required velocity
   const now = new Date()
@@ -265,7 +271,7 @@ export function computeForecast(input: ForecastInput): Forecast {
   const remaining = goal.targetValue - currentValue
   const requiredVelocity = monthsToTarget > 0 ? remaining / monthsToTarget : remaining
 
-  // 4. Determine pace
+  // 4. Determine pace (uses rental-adjusted velocity)
   const { pace, paceDetail, daysAhead } = determinePace(
     monthlyVelocity,
     requiredVelocity,
@@ -274,13 +280,13 @@ export function computeForecast(input: ForecastInput): Forecast {
     monthsToTarget,
   )
 
-  // 5. Project timeline
-  const timeline = projectTimeline(goal, snapshots, monthlyVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
+  // 5. Project timeline (uses snapshotVelocity — projectTimeline adds rental internally)
+  const timeline = projectTimeline(goal, snapshots, snapshotVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
 
-  // 6. Compute projected date
+  // 6. Compute projected date (uses rental-adjusted velocity)
   const projectedDate = computeProjectedDate(currentValue, goal.targetValue, monthlyVelocity, now)
 
-  // 7. Projected value at target date
+  // 7. Projected value at target date (uses rental-adjusted velocity)
   const projectedValue = currentValue + monthlyVelocity * Math.max(0, monthsToTarget)
 
   // 8. Asset growth projections (non-liability accounts only)
@@ -881,7 +887,11 @@ function generateTabSummaries(
 function computeForecastLight(input: ForecastInput): Pick<Forecast, 'projectedDate' | 'monthlyVelocity' | 'requiredVelocity'> {
   const { goal, snapshots, debts, accounts, properties } = input
   const currentValue = computeCurrentValue(goal, snapshots, debts, accounts, properties)
-  const monthlyVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+  const snapshotVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+  const rentalIncomeAdj = (properties ?? []).reduce(
+    (sum, prop) => sum + (prop.monthlyRentalIncome ?? 0), 0
+  )
+  const monthlyVelocity = snapshotVelocity + rentalIncomeAdj
   const now = new Date()
   const targetDate = new Date(goal.targetDate)
   const monthsToTarget = monthsBetween(now, targetDate)
