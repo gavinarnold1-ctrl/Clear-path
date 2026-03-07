@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { getSession, setSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { incomeTransitionsArraySchema } from '@/lib/validation'
 
 // GET current user profile
 export async function GET() {
@@ -23,7 +25,9 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { name, email, expectedMonthlyIncome } = body as { name?: string; email?: string; expectedMonthlyIncome?: number | null }
+  const { name, email, expectedMonthlyIncome, incomeTransitions } = body as {
+    name?: string; email?: string; expectedMonthlyIncome?: number | null; incomeTransitions?: unknown
+  }
 
   // Handle expectedMonthlyIncome update via UserProfile
   if (expectedMonthlyIncome !== undefined) {
@@ -31,6 +35,22 @@ export async function PATCH(req: NextRequest) {
       where: { userId: session.userId },
       create: { userId: session.userId, expectedMonthlyIncome: expectedMonthlyIncome },
       update: { expectedMonthlyIncome: expectedMonthlyIncome },
+    })
+    if (name === undefined && email === undefined && incomeTransitions === undefined) {
+      return NextResponse.json({ success: true })
+    }
+  }
+
+  // Handle incomeTransitions update via UserProfile
+  if (incomeTransitions !== undefined) {
+    const parsed = incomeTransitionsArraySchema.safeParse(incomeTransitions)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid income transitions data' }, { status: 400 })
+    }
+    await db.userProfile.upsert({
+      where: { userId: session.userId },
+      create: { userId: session.userId, incomeTransitions: parsed.data },
+      update: { incomeTransitions: parsed.data.length > 0 ? parsed.data : Prisma.JsonNull },
     })
     if (name === undefined && email === undefined) {
       return NextResponse.json({ success: true })

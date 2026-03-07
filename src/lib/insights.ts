@@ -9,11 +9,31 @@ import { getGoalContext } from './goal-context'
 import type { TransactionSummary, RecurringCharge, MonthOverMonthItem } from '@/types/insights'
 import { computeBenefitAlerts } from './engines/benefit-alerts'
 import type { BenefitAlertInput } from './engines/benefit-alerts'
+import { canonicalizeMerchant } from './normalize-merchant'
+
+/** Transaction references detected during summary building, used to attach to insights */
+interface TransactionRefs {
+  potentialDuplicates: {
+    merchant: string
+    date: string
+    amount: number
+    transactionIds: string[]
+  }[]
+  largeTransactions: {
+    id: string
+    merchant: string
+    amount: number
+    date: string
+  }[]
+  categoryTransactionIds: Record<string, string[]>
+  periodStart: string
+  periodEnd: string
+}
 
 export async function buildTransactionSummary(
   userId: string,
   months: number = 3
-): Promise<TransactionSummary> {
+): Promise<TransactionSummary & { _refs: TransactionRefs }> {
   const startDate = new Date()
   startDate.setMonth(startDate.getMonth() - months)
 
@@ -87,6 +107,62 @@ export async function buildTransactionSummary(
   const recurringCharges = detectRecurring(expenses)
   const monthOverMonthChange = calculateMoMChange(expenses)
 
+  // --- Build transaction references for insight drill-down ---
+
+  // Duplicate detection: group by [canonical merchant, date, |amount|]
+  const dupeGroups = new Map<string, { ids: string[]; merchant: string; date: string; amount: number }>()
+  for (const tx of transactions) {
+    const key = `${canonicalizeMerchant(tx.merchant)}|${tx.date.toISOString().slice(0, 10)}|${Math.abs(tx.amount)}`
+    const existing = dupeGroups.get(key)
+    if (existing) {
+      existing.ids.push(tx.id)
+    } else {
+      dupeGroups.set(key, {
+        ids: [tx.id],
+        merchant: tx.merchant,
+        date: tx.date.toISOString().slice(0, 10),
+        amount: Math.abs(tx.amount),
+      })
+    }
+  }
+  const potentialDuplicates = [...dupeGroups.values()]
+    .filter(g => g.ids.length > 1)
+    .map(g => ({
+      merchant: g.merchant,
+      date: g.date,
+      amount: g.amount,
+      transactionIds: g.ids,
+    }))
+
+  // Large transaction detection: expenses > 2x category average
+  const categoryAvg = new Map<string, number>()
+  for (const [catName, txns] of categoryMap) {
+    const avg = txns.reduce((sum, t) => sum + Math.abs(t.amount), 0) / txns.length
+    categoryAvg.set(catName, avg)
+  }
+  const largeTransactions = expenses
+    .filter(tx => {
+      const catName = tx.category?.name ?? 'Uncategorized'
+      const avg = categoryAvg.get(catName) ?? 0
+      return avg > 0 && Math.abs(tx.amount) > avg * 2
+    })
+    .slice(0, 50)
+    .map(tx => ({
+      id: tx.id,
+      merchant: tx.merchant,
+      amount: tx.amount,
+      date: tx.date.toISOString().slice(0, 10),
+    }))
+
+  // Category → transaction ID mapping
+  const categoryTransactionIds: Record<string, string[]> = {}
+  for (const [catName, txns] of categoryMap) {
+    categoryTransactionIds[catName] = txns.map(t => t.id)
+  }
+
+  const periodStart = startDate.toISOString().split('T')[0]
+  const periodEnd = new Date().toISOString().split('T')[0]
+
   return {
     totalIncome,
     totalExpenses,
@@ -97,9 +173,16 @@ export async function buildTransactionSummary(
     recurringCharges,
     monthOverMonthChange,
     period: {
-      start: startDate.toISOString().split('T')[0],
-      end: new Date().toISOString().split('T')[0],
+      start: periodStart,
+      end: periodEnd,
       months,
+    },
+    _refs: {
+      potentialDuplicates,
+      largeTransactions,
+      categoryTransactionIds,
+      periodStart,
+      periodEnd,
     },
   }
 }
@@ -173,6 +256,52 @@ function calculateMoMChange(expenses: TransactionWithCategory[]): MonthOverMonth
 
     return { category, currentMonth: current, previousMonth: previous, changePercent }
   })
+}
+
+/** Match an AI-generated insight to transaction references from the summary */
+function attachTransactionRefs(
+  insight: { category: string; type: string; title: string; description: string },
+  refs: TransactionRefs
+): { relatedTransactionIds?: string[]; relatedQuery?: Record<string, string> } {
+  const titleLower = insight.title.toLowerCase()
+  const descLower = insight.description.toLowerCase()
+
+  // Duplicate insights → attach duplicate group IDs
+  if (titleLower.includes('duplicate') || descLower.includes('duplicate')) {
+    const matchingDupes = refs.potentialDuplicates.filter(d =>
+      descLower.includes(d.merchant.toLowerCase())
+    )
+    if (matchingDupes.length > 0) {
+      return { relatedTransactionIds: matchingDupes.flatMap(d => d.transactionIds) }
+    }
+    // Fallback: return all duplicate IDs if we can't match a specific merchant
+    if (refs.potentialDuplicates.length > 0) {
+      return { relatedTransactionIds: refs.potentialDuplicates.flatMap(d => d.transactionIds) }
+    }
+  }
+
+  // Large/unusual purchase insights → attach specific IDs
+  if (insight.category === 'unusual_spending' || titleLower.includes('unusual') || titleLower.includes('large')) {
+    if (refs.largeTransactions.length > 0) {
+      return { relatedTransactionIds: refs.largeTransactions.map(t => t.id) }
+    }
+  }
+
+  // Category-specific insights → attach category query
+  if (insight.category === 'spending_optimization' || insight.category === 'spending' || insight.category === 'subscription') {
+    // Try to match a category name from the insight text
+    for (const [catName, ids] of Object.entries(refs.categoryTransactionIds)) {
+      if (descLower.includes(catName.toLowerCase()) || titleLower.includes(catName.toLowerCase())) {
+        // For large categories, use a query filter instead of IDs
+        if (ids.length > 20) {
+          return { relatedQuery: { category: catName, dateFrom: refs.periodStart, dateTo: refs.periodEnd } }
+        }
+        return { relatedTransactionIds: ids }
+      }
+    }
+  }
+
+  return {}
 }
 
 export async function generateAndStoreInsights(userId: string) {
@@ -293,10 +422,11 @@ export async function generateAndStoreInsights(userId: string) {
     data: { status: 'dismissed', dismissReason: 'auto_replaced' },
   })
 
-  // Store new insights
+  // Store new insights with transaction references
   const insights = await Promise.all(
-    aiResponse.insights.map((insight) =>
-      db.insight.create({
+    aiResponse.insights.map((insight) => {
+      const txRefs = attachTransactionRefs(insight, summary._refs)
+      return db.insight.create({
         data: {
           userId,
           category: insight.category,
@@ -311,10 +441,12 @@ export async function generateAndStoreInsights(userId: string) {
             savingsFrequency: insight.savingsFrequency,
           }),
           contextSnapshot,
+          relatedTransactionIds: txRefs.relatedTransactionIds ?? undefined,
+          relatedQuery: txRefs.relatedQuery ?? undefined,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         },
       })
-    )
+    })
   )
 
   // Store efficiency score

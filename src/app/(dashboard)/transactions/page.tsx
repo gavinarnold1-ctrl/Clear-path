@@ -12,7 +12,7 @@ import { getForecastSummaries } from '@/lib/forecast-helpers'
 export const metadata: Metadata = { title: 'Transactions' }
 
 interface PageProps {
-  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string; uncategorized?: string; budgetId?: string; tier?: string; catchAll?: string; budgetName?: string }>
+  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string; uncategorized?: string; budgetId?: string; tier?: string; catchAll?: string; budgetName?: string; ids?: string; category?: string; dateFrom?: string; dateTo?: string }>
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps) {
@@ -34,12 +34,31 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const initialTier = params.tier ?? ''
   const initialCatchAll = params.catchAll === 'true'
   const initialBudgetName = params.budgetName ?? ''
+  const insightIds = params.ids?.split(',').filter(Boolean) ?? []
+  const insightCategory = params.category ?? ''
+  const insightDateFrom = params.dateFrom ?? ''
+  const insightDateTo = params.dateTo ?? ''
 
   const isBudgetMode = !!(initialBudgetId || initialCatchAll)
+  const isInsightView = insightIds.length > 0 || !!(insightCategory && insightDateFrom)
   const PAGE_SIZE = 50
 
   // Build where clause from URL params for server-side filtering
   const txWhere: Record<string, unknown> = { userId: session.userId }
+
+  // Insight drill-down: filter by specific IDs
+  if (insightIds.length > 0) {
+    txWhere.id = { in: insightIds }
+  }
+
+  // Insight drill-down: filter by category name + date range
+  if (insightCategory && insightDateFrom) {
+    txWhere.category = { name: insightCategory }
+    txWhere.date = {
+      gte: new Date(insightDateFrom),
+      ...(insightDateTo ? { lte: new Date(insightDateTo + 'T23:59:59.999Z') } : {}),
+    }
+  }
   if (initialCategoryId) txWhere.categoryId = initialCategoryId
   if (initialMonth) {
     const [y, m] = initialMonth.split('-').map(Number)
@@ -167,6 +186,25 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
       <DuplicateReview />
 
+      {isInsightView && (
+        <div className="mb-4 flex items-center justify-between rounded-card border border-fjord/20 bg-fjord/5 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-fjord">
+              Showing transactions related to insight
+            </p>
+            {insightIds.length > 0 && (
+              <p className="text-xs text-stone">{insightIds.length} transaction{insightIds.length !== 1 ? 's' : ''} linked</p>
+            )}
+            {insightCategory && (
+              <p className="text-xs text-stone">Category: {insightCategory}{insightDateFrom ? ` · ${insightDateFrom} to ${insightDateTo || 'now'}` : ''}</p>
+            )}
+          </div>
+          <a href="/transactions" className="text-xs text-stone hover:text-fjord">
+            Clear filter
+          </a>
+        </div>
+      )}
+
       {txTotal === 0 ? (
         <div className="card">
           <EmptyState
@@ -203,6 +241,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           initialCatchAll={initialCatchAll}
           initialBudgetName={initialBudgetName}
           refundedTxIds={[...refundPairIds]}
+          isInsightView={isInsightView}
         />
       )}
     </div>

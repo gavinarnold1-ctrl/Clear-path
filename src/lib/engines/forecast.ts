@@ -13,6 +13,7 @@ import type {
   GoalMetric,
   GoalTarget,
   ForecastInput,
+  IncomeTransition,
   MonthlySnapshotData,
   AccountForForecast,
   PropertyForForecast,
@@ -274,7 +275,7 @@ export function computeForecast(input: ForecastInput): Forecast {
   )
 
   // 5. Project timeline
-  const timeline = projectTimeline(goal, snapshots, monthlyVelocity, requiredVelocity, accounts, properties)
+  const timeline = projectTimeline(goal, snapshots, monthlyVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
 
   // 6. Compute projected date
   const projectedDate = computeProjectedDate(currentValue, goal.targetValue, monthlyVelocity, now)
@@ -303,6 +304,7 @@ export function computeForecast(input: ForecastInput): Forecast {
     projectedDate,
     debts,
     budgets,
+    input.incomeTransitions,
   )
 
   // 12. Compute progress percent
@@ -652,6 +654,8 @@ function projectTimeline(
   requiredVelocity: number,
   accounts: AccountForForecast[],
   properties?: PropertyForForecast[],
+  budgets?: BudgetSummaryForForecast,
+  incomeTransitions?: IncomeTransition[],
 ): ForecastPoint[] {
   const points: ForecastPoint[] = []
   const startDate = new Date(goal.startDate)
@@ -681,6 +685,12 @@ function projectTimeline(
   const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
   let monthIndex = 0
   const startValue = goal.startValue
+  const baseIncome = budgets?.expectedMonthlyIncome ?? 0
+
+  // Pre-sort income transitions by date for efficient lookup
+  const sortedTransitions = (incomeTransitions ?? [])
+    .filter((t) => t.date && t.monthlyIncome >= 0)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   // For net-worth-related goals, compute monthly property equity growth
   // Use a 0.3 blending factor since snapshot velocity already partially captures equity gains
@@ -699,16 +709,41 @@ function projectTimeline(
     }, 0) * 0.3 // blending factor to avoid double-counting with snapshot velocity
   }
 
+  // Accumulator for income-adjusted projection (cumulative velocity adjustments)
+  let cumulativeIncomeAdj = 0
+
   while (current <= endDate) {
     const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
     const isHistorical = current <= now
     const snapshot = snapshotMap.get(key)
 
+    // Compute income adjustment for this month based on transitions
+    // For future months, if an income transition applies, adjust velocity proportionally
+    let incomeAdj = 0
+    if (!isHistorical && sortedTransitions.length > 0 && baseIncome > 0) {
+      // Find the active transition for this month (latest transition on or before this date)
+      const monthStart = current.getTime()
+      let activeTransition: IncomeTransition | null = null
+      for (const t of sortedTransitions) {
+        if (new Date(t.date).getTime() <= monthStart) {
+          activeTransition = t
+        } else {
+          break
+        }
+      }
+      if (activeTransition) {
+        // Income delta as fraction of velocity adjustment
+        const incomeDelta = activeTransition.monthlyIncome - baseIncome
+        incomeAdj = incomeDelta
+      }
+    }
+    cumulativeIncomeAdj += incomeAdj
+
     const onPlan = startValue + requiredVelocity * monthIndex
     const equityAdj = monthlyEquityGrowth * monthIndex
-    const projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj
-    const optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2
-    const conservative = startValue + velocity * 0.8 * monthIndex + equityAdj * 0.6
+    const projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj + cumulativeIncomeAdj
+    const optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2 + cumulativeIncomeAdj * 1.1
+    const conservative = startValue + velocity * 0.8 * monthIndex + equityAdj * 0.6 + cumulativeIncomeAdj * 0.8
 
     const point: ForecastPoint = {
       month: key,
@@ -769,6 +804,7 @@ function generateTabSummaries(
   projectedDate: string | null,
   debts: DebtForForecast[],
   budgets: BudgetSummaryForForecast,
+  incomeTransitions?: IncomeTransition[],
 ): Forecast['tabSummaries'] {
   const progressPct = goal.targetValue !== goal.startValue
     ? Math.round(((currentValue - goal.startValue) / (goal.targetValue - goal.startValue)) * 100)
@@ -779,7 +815,17 @@ function generateTabSummaries(
     pace === 'behind' ? 'slightly behind' :
     pace === 'at_risk' ? 'at risk' : 'off track'
 
-  const dashboard = `Goal is ${progressPct}% complete and ${paceLabel}. ${velocity > 0 ? `Averaging ${formatDollar(velocity)}/mo progress.` : 'No measurable progress yet.'}`
+  // Build income transition context string
+  const now = new Date()
+  const futureTransitions = (incomeTransitions ?? []).filter((t) => new Date(t.date) > now)
+  const nextTransition = futureTransitions.length > 0
+    ? futureTransitions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
+    : null
+  const transitionNote = nextTransition
+    ? ` Upcoming income change: "${nextTransition.label}" in ${new Date(nextTransition.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} (${formatDollar(nextTransition.monthlyIncome)}/mo).`
+    : ''
+
+  const dashboard = `Goal is ${progressPct}% complete and ${paceLabel}. ${velocity > 0 ? `Averaging ${formatDollar(velocity)}/mo progress.` : 'No measurable progress yet.'}${transitionNote}`
 
   const budgetSurplus = budgets.projectedSurplus
   const budgetMsg = budgetSurplus > 0
@@ -795,9 +841,10 @@ function generateTabSummaries(
     ? `Setting aside ${formatDollar(budgets.annualSetAside)}/mo for annual expenses.`
     : 'No annual expense set-asides configured.'
 
-  const transactions = velocity > 0
+  const transactionsBase = velocity > 0
     ? `Your spending patterns support ${formatDollar(velocity)}/mo toward your goal.`
     : 'Review spending to find opportunities for goal progress.'
+  const transactions = transactionsBase + transitionNote
 
   const monthlyReview = velocity > 0
     ? `You're averaging ${formatDollar(velocity)}/mo toward your goal (${paceLabel}). ${budgetSurplus > 0 ? `${formatDollar(budgetSurplus)}/mo surplus supports continued progress.` : 'Consider finding budget cuts to accelerate.'}`

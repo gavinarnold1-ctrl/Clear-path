@@ -5,9 +5,10 @@ import { getSession } from '@/lib/session'
 import { getCachedForecast, getForecastAccuracy } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
+import { db } from '@/lib/db'
 import ForecastTimeline from './ForecastTimeline'
 import ForecastScenarios from './ForecastScenarios'
-import type { Forecast, AssetClass } from '@/types'
+import type { Forecast, AssetClass, IncomeTransition } from '@/types'
 
 export const metadata: Metadata = { title: 'Forecast' }
 
@@ -37,10 +38,18 @@ export default async function ForecastPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [forecast, accuracy] = await Promise.all([
+  const [forecast, accuracy, profile] = await Promise.all([
     getCachedForecast(session.userId),
     getForecastAccuracy(session.userId),
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { incomeTransitions: true, expectedMonthlyIncome: true },
+    }),
   ])
+
+  const incomeTransitions: IncomeTransition[] = Array.isArray(profile?.incomeTransitions)
+    ? (profile.incomeTransitions as unknown as IncomeTransition[])
+    : []
 
   if (!forecast) {
     return (
@@ -114,7 +123,7 @@ export default async function ForecastPage() {
 
       {/* Section 1: Hero Timeline Chart */}
       <div className="card mb-6">
-        <ForecastTimeline timeline={timeline} targetValue={forecast.projectedValue} />
+        <ForecastTimeline timeline={timeline} targetValue={forecast.projectedValue} incomeTransitions={incomeTransitions} />
       </div>
 
       {/* Section 2: Pace Summary Cards */}
@@ -274,6 +283,43 @@ export default async function ForecastPage() {
                 +{formatCurrency(assetGrowth.reduce((s, a) => s + a.expectedGrowth, 0))}
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 4.5: Income Transitions */}
+      {incomeTransitions.length > 0 && (
+        <div className="card mb-6">
+          <h2 className="mb-4 text-base font-semibold text-fjord">Planned Income Changes</h2>
+          <div className="space-y-2">
+            {incomeTransitions
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+              .map((t) => {
+                const transitionDate = new Date(t.date)
+                const isPast = transitionDate <= new Date()
+                const incomeDelta = t.monthlyIncome - (profile?.expectedMonthlyIncome ?? 0)
+                return (
+                  <div key={t.id} className={`flex items-center justify-between rounded-lg border px-4 py-3 ${isPast ? 'border-mist bg-frost/30' : 'border-pine/20 bg-pine/5'}`}>
+                    <div>
+                      <p className="text-sm font-medium text-fjord">{t.label}</p>
+                      <p className="text-xs text-stone">
+                        {transitionDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        {isPast && <span className="ml-1 text-stone">(active)</span>}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-sm font-medium text-fjord">
+                        {formatCurrency(t.monthlyIncome)}/mo
+                      </p>
+                      {incomeDelta !== 0 && (
+                        <p className={`text-xs font-medium ${incomeDelta > 0 ? 'text-pine' : 'text-ember'}`}>
+                          {incomeDelta > 0 ? '+' : ''}{formatCurrency(incomeDelta)}/mo
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </div>
       )}

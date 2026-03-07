@@ -146,6 +146,18 @@ export const createPropertySchema = z.object({
   isDefault: z.boolean().optional(),
 })
 
+// ── Income Transition Schemas ─────────────────────────────────────────────
+
+export const incomeTransitionSchema = z.object({
+  id: z.string().min(1).max(50),
+  date: dateString,
+  monthlyIncome: z.number().finite().min(0).max(10_000_000),
+  label: safeString(200),
+  annualIncome: z.number().finite().min(0).max(120_000_000).optional(),
+})
+
+export const incomeTransitionsArraySchema = z.array(incomeTransitionSchema).max(20)
+
 // ── Helper ─────────────────────────────────────────────────────────────────
 
 /**

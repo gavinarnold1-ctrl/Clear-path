@@ -293,6 +293,10 @@ model Insight {
   completionNotes String? // User notes when marking as completed
   contextSnapshot String? // JSON snapshot of budget/temporal context at generation time
 
+  // Transaction reference fields for drill-down
+  relatedTransactionIds Json?  // String[] of transaction IDs that triggered this insight
+  relatedQuery          Json?  // Serialized query params to reproduce the transaction filter
+
   feedback InsightFeedback[]
 
   @@index([userId, status])
@@ -363,6 +367,9 @@ model UserProfile {
 
   // Concrete goal target (proposed by AI, confirmed/adjusted by user)
   goalTarget            Json?     // GoalTarget shape — see src/types/index.ts
+
+  // Income transitions — planned future income changes
+  incomeTransitions     Json?     // IncomeTransition[] — see src/types/index.ts
 
   // In-progress answers not yet materialized into records (JSON)
   pendingSetup          String?   // JSON: { partnerName? }

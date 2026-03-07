@@ -249,6 +249,16 @@ export interface GoalTarget {
   linkedCategoryId?: string
 }
 
+// ─── Income Transitions ─────────────────────────────────────────────────
+
+export interface IncomeTransition {
+  id: string
+  date: string           // ISO date — when income change takes effect
+  monthlyIncome: number  // new monthly income after transition
+  label: string          // e.g. "New job at Acme Corp", "Raise", "Leave of absence"
+  annualIncome?: number  // optional: annual figure (monthlyIncome = annualIncome / 12 if set)
+}
+
 // ─── Forecast Engine Input/Output ────────────────────────────────────────────
 
 export interface ForecastInput {
@@ -259,6 +269,7 @@ export interface ForecastInput {
   budgets: BudgetSummaryForForecast
   annualExpenses: AnnualExpenseForForecast[]
   properties?: PropertyForForecast[]
+  incomeTransitions?: IncomeTransition[]
 }
 
 export interface MonthlySnapshotData {

@@ -11,11 +11,12 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import type { ForecastPoint } from '@/types'
+import type { ForecastPoint, IncomeTransition } from '@/types'
 
 interface Props {
   timeline: ForecastPoint[]
   targetValue: number
+  incomeTransitions?: IncomeTransition[]
 }
 
 function formatCompact(value: number): string {
@@ -24,7 +25,7 @@ function formatCompact(value: number): string {
   return `$${value.toFixed(0)}`
 }
 
-export default function ForecastTimeline({ timeline, targetValue }: Props) {
+export default function ForecastTimeline({ timeline, targetValue, incomeTransitions = [] }: Props) {
   if (timeline.length === 0) {
     return <p className="py-8 text-center text-sm text-stone">No timeline data available.</p>
   }
@@ -133,6 +134,27 @@ export default function ForecastTimeline({ timeline, targetValue }: Props) {
               fontSize: 11,
             }}
           />
+
+          {/* Income transition markers */}
+          {incomeTransitions.map((t) => {
+            const d = new Date(t.date)
+            const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+            return (
+              <ReferenceLine
+                key={t.id}
+                x={monthKey}
+                stroke="#D4C5A9"
+                strokeDasharray="4 2"
+                strokeWidth={1.5}
+                label={{
+                  value: t.label.length > 15 ? t.label.slice(0, 14) + '…' : t.label,
+                  position: 'top',
+                  fill: '#8B9A8E',
+                  fontSize: 10,
+                }}
+              />
+            )
+          })}
         </ComposedChart>
       </ResponsiveContainer>
 
@@ -152,6 +174,11 @@ export default function ForecastTimeline({ timeline, targetValue }: Props) {
         <span className="flex items-center gap-1">
           <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-ember" /> Target
         </span>
+        {incomeTransitions.length > 0 && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-3 w-0 border-l-2 border-dashed border-birch" /> Income Change
+          </span>
+        )}
       </div>
     </div>
   )
