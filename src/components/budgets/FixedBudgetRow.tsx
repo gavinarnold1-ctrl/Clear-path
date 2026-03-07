@@ -73,9 +73,22 @@ export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAuto
 
   const className = "flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-snow"
 
-  return href ? (
-    <Link href={href} className={className}>{content}</Link>
-  ) : (
-    <div className={className}>{content}</div>
+  return (
+    <div className="flex items-center gap-2">
+      {href ? (
+        <Link href={href} className={`min-w-0 flex-1 ${className}`}>{content}</Link>
+      ) : (
+        <div className={`min-w-0 flex-1 ${className}`}>{content}</div>
+      )}
+      {categoryId && (
+        <Link
+          href={`/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`}
+          className="shrink-0 text-xs text-stone hover:text-fjord"
+          title={`View all transactions in this category (across all budgets)`}
+        >
+          All {category?.name ?? name}
+        </Link>
+      )}
+    </div>
   )
 }
