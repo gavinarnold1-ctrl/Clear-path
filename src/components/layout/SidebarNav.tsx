@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
+import { trackSidebarNavClicked, trackLogout } from '@/lib/analytics'
 
 export interface NavGroup {
   label: string | null
@@ -120,6 +121,7 @@ export default function SidebarNav({ navGroups, userName, userEmail, logoutActio
                   <Link
                     key={href}
                     href={href}
+                    onClick={() => trackSidebarNavClicked(href)}
                     className={`block rounded-md px-3 py-2 text-[13px] font-medium ${
                       pathname === href
                         ? 'bg-frost/15 text-snow'
@@ -141,6 +143,7 @@ export default function SidebarNav({ navGroups, userName, userEmail, logoutActio
           <form action={logoutAction}>
             <button
               type="submit"
+              onClick={() => trackLogout()}
               className="w-full rounded-button border border-white/20 bg-transparent px-3 py-2 text-xs font-medium text-snow/60 hover:bg-frost/10 hover:text-snow"
             >
               Sign out

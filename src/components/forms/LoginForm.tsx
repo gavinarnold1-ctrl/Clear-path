@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { login } from '@/app/actions/auth'
 import { Button } from '@/components/ui/Button'
 import { FormInput } from '@/components/ui/FormInput'
+import { trackLogin } from '@/lib/analytics'
 
 const initialState = { error: null }
 
@@ -24,6 +25,7 @@ export default function LoginForm() {
         const data = await res.json()
         throw new Error(data.error ?? 'Demo login failed')
       }
+      trackLogin('demo')
       router.push('/dashboard')
     } catch (err) {
       setDemoError(err instanceof Error ? err.message : 'Demo login failed')

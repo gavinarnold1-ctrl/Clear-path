@@ -31,7 +31,9 @@ export async function GET(_req: NextRequest) {
     orderBy: { name: 'asc' },
   })
 
-  return NextResponse.json(accounts)
+  return NextResponse.json(accounts, {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+  })
 }
 
 export async function POST(req: NextRequest) {

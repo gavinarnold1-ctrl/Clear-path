@@ -21,6 +21,7 @@ import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 
 export const metadata: Metadata = { title: 'Overview' }
+export const revalidate = 60
 
 function StatCard({
   label,

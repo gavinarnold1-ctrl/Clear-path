@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { plaidClient, mapPlaidCategory, detectCreditCardPayment } from '@/lib/plaid'
 import { classifyTransaction } from '@/lib/category-groups'
 import { decrypt } from '@/lib/encryption'
-import { normalizeMerchant } from '@/lib/normalize-merchant'
+import { normalizeMerchant, canonicalizeMerchant } from '@/lib/normalize-merchant'
 import type { RemovedTransaction } from 'plaid'
 
 export async function GET(req: NextRequest) {
@@ -105,13 +105,89 @@ export async function GET(req: NextRequest) {
             const amount = -tx.amount
             const rawMerchant = tx.merchant_name || tx.name
             const merchantName = normalizeMerchant(rawMerchant)
+            const isPending = tx.pending ?? false
             let categoryId: string | null = null
             let resolvedGroup: string | null = null
             let resolvedType: string | null = null
 
+            // Pending → posted continuity: check if this posted transaction
+            // replaces a previously-synced pending one (via pending_transaction_id)
+            let pendingPlaidId: string | null = null
+            let inheritedFromPending: {
+              categoryId: string | null
+              householdMemberId: string | null
+              propertyId: string | null
+              notes: string | null
+              tags: string | null
+              debtId: string | null
+              annualExpenseId: string | null
+            } | null = null
+
+            if (!isPending && tx.pending_transaction_id) {
+              // Plaid tells us which pending transaction this posted one replaces
+              const pendingTx = await db.transaction.findUnique({
+                where: { plaidTransactionId: tx.pending_transaction_id },
+              })
+              if (pendingTx) {
+                pendingPlaidId = tx.pending_transaction_id
+                // Inherit user edits from the pending transaction
+                inheritedFromPending = {
+                  categoryId: pendingTx.categoryId,
+                  householdMemberId: pendingTx.householdMemberId,
+                  propertyId: pendingTx.propertyId,
+                  notes: pendingTx.notes,
+                  tags: pendingTx.tags,
+                  debtId: pendingTx.debtId,
+                  annualExpenseId: pendingTx.annualExpenseId,
+                }
+                // Delete the pending transaction — the posted one replaces it
+                await db.transaction.delete({ where: { id: pendingTx.id } })
+              }
+            }
+
+            // If we didn't find via pending_transaction_id, try fuzzy match
+            // (same account, similar amount within 10%, date within 4 days, same merchant)
+            if (!isPending && !inheritedFromPending) {
+              const fuzzyPending = await db.transaction.findFirst({
+                where: {
+                  userId,
+                  accountId: ourAccountId,
+                  isPending: true,
+                  merchant: merchantName,
+                  date: {
+                    gte: new Date(new Date(tx.date).getTime() - 4 * 24 * 60 * 60 * 1000),
+                    lte: new Date(new Date(tx.date).getTime() + 4 * 24 * 60 * 60 * 1000),
+                  },
+                },
+              })
+              if (fuzzyPending && Math.abs(fuzzyPending.amount - amount) <= Math.abs(amount) * 0.1) {
+                pendingPlaidId = fuzzyPending.plaidTransactionId
+                inheritedFromPending = {
+                  categoryId: fuzzyPending.categoryId,
+                  householdMemberId: fuzzyPending.householdMemberId,
+                  propertyId: fuzzyPending.propertyId,
+                  notes: fuzzyPending.notes,
+                  tags: fuzzyPending.tags,
+                  debtId: fuzzyPending.debtId,
+                  annualExpenseId: fuzzyPending.annualExpenseId,
+                }
+                await db.transaction.delete({ where: { id: fuzzyPending.id } })
+              }
+            }
+
+            // Use inherited category from pending if available
+            if (inheritedFromPending?.categoryId) {
+              categoryId = inheritedFromPending.categoryId
+              const cat = allCategories.find(c => c.id === categoryId)
+              if (cat) {
+                resolvedGroup = cat.group
+                resolvedType = cat.type
+              }
+            }
+
             // Tier 0: Credit card payment detection
             const merchantKey = merchantName.toLowerCase()
-            if (detectCreditCardPayment(rawMerchant)) {
+            if (!categoryId && detectCreditCardPayment(rawMerchant)) {
               const ccCat = categoryByName.get('credit card payment')
               if (ccCat) {
                 categoryId = ccCat.id
@@ -139,6 +215,7 @@ export async function GET(req: NextRequest) {
                 tx.personal_finance_category.primary,
                 tx.personal_finance_category.detailed ?? null,
                 amount,
+                rawMerchant,
               )
               const existing = categoryByName.get(mapped.name.toLowerCase())
               if (existing) {
@@ -166,6 +243,29 @@ export async function GET(req: NextRequest) {
             const classification = classifyTransaction(resolvedGroup, resolvedType, amount)
             const account = accounts.find(a => a.plaidAccountId === tx.account_id)
 
+            // Cross-source dedup: skip if a CSV transaction already exists
+            // with the same canonical merchant, amount, and date (±1 day)
+            const canonicalKey = canonicalizeMerchant(merchantName)
+            const csvDuplicate = await db.transaction.findFirst({
+              where: {
+                userId,
+                importSource: 'csv',
+                amount,
+                date: {
+                  gte: new Date(new Date(tx.date).getTime() - 24 * 60 * 60 * 1000),
+                  lte: new Date(new Date(tx.date).getTime() + 24 * 60 * 60 * 1000),
+                },
+              },
+            })
+            if (csvDuplicate && canonicalizeMerchant(csvDuplicate.merchant) === canonicalKey) {
+              // Plaid duplicate of CSV — skip but adopt plaidTransactionId onto the CSV record
+              await db.transaction.update({
+                where: { id: csvDuplicate.id },
+                data: { plaidTransactionId: tx.transaction_id, importSource: 'plaid' },
+              })
+              continue
+            }
+
             // Upsert by plaidTransactionId — prevents duplicates on re-sync
             await db.transaction.upsert({
               where: { plaidTransactionId: tx.transaction_id },
@@ -176,18 +276,26 @@ export async function GET(req: NextRequest) {
                 merchant: merchantName,
                 amount,
                 classification,
-                categoryId,
+                categoryId: categoryId ?? inheritedFromPending?.categoryId ?? null,
                 originalStatement: tx.name,
                 importSource: 'plaid',
                 plaidTransactionId: tx.transaction_id,
-                householdMemberId: account?.ownerId ?? null,
-                propertyId: defaultProperty?.id ?? null,
+                isPending,
+                pendingPlaidId,
+                householdMemberId: inheritedFromPending?.householdMemberId ?? account?.ownerId ?? null,
+                propertyId: inheritedFromPending?.propertyId ?? defaultProperty?.id ?? null,
+                notes: inheritedFromPending?.notes ?? null,
+                tags: inheritedFromPending?.tags ?? null,
+                debtId: inheritedFromPending?.debtId ?? null,
+                annualExpenseId: inheritedFromPending?.annualExpenseId ?? null,
               },
               update: {
                 date: new Date(tx.date),
                 merchant: merchantName,
                 amount,
                 originalStatement: tx.name,
+                isPending,
+                pendingPlaidId,
               },
             })
 

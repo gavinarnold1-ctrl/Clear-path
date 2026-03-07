@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import { trackInsightDismissed, trackInsightCompleted } from '@/lib/analytics'
 
 interface InsightCardProps {
   id: string
@@ -91,7 +92,10 @@ export default function InsightCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'dismissed', dismissReason: reason }),
       })
-      if (res.ok) onDismiss(id)
+      if (res.ok) {
+        trackInsightDismissed(type, reason)
+        onDismiss(id)
+      }
     } finally {
       setUpdating(false)
       setShowDismissOptions(false)
@@ -109,7 +113,10 @@ export default function InsightCard({
           completionNotes: completionNotes.trim() || undefined,
         }),
       })
-      if (res.ok) onComplete(id)
+      if (res.ok) {
+        trackInsightCompleted(type, category, savingsAmount ?? 0)
+        onComplete(id)
+      }
     } finally {
       setUpdating(false)
       setShowCompleteForm(false)

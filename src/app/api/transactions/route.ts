@@ -13,35 +13,145 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
+
+  // Pagination params
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '50', 10) || 50, 1), 200)
+  const offset = Math.max(parseInt(searchParams.get('offset') ?? '0', 10) || 0, 0)
+  const sortBy = searchParams.get('sortBy') ?? 'date'
+  const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' as const : 'desc' as const
+
+  // Filter params
   const categoryType = searchParams.get('categoryType') ?? undefined
   const accountId = searchParams.get('accountId') ?? undefined
+  const categoryId = searchParams.get('categoryId') ?? undefined
+  const householdMemberId = searchParams.get('householdMemberId') ?? undefined
+  const propertyId = searchParams.get('propertyId') ?? undefined
+  const classification = searchParams.get('classification') ?? undefined
+  const search = searchParams.get('search') ?? undefined
+  const dateFrom = searchParams.get('dateFrom') ?? undefined
+  const dateTo = searchParams.get('dateTo') ?? undefined
+  const amountMin = searchParams.get('amountMin') ?? undefined
+  const amountMax = searchParams.get('amountMax') ?? undefined
+  const uncategorized = searchParams.get('uncategorized') === 'true'
+  const annualExpenseId = searchParams.get('annualExpenseId') ?? undefined
+  const month = searchParams.get('month') ?? undefined
 
   if (categoryType && !VALID_CATEGORY_TYPES.has(categoryType)) {
     return NextResponse.json({ error: 'Invalid category type filter' }, { status: 400 })
   }
-
-  const householdMemberId = searchParams.get('householdMemberId') ?? undefined
-  const propertyId = searchParams.get('propertyId') ?? undefined
-  const classification = searchParams.get('classification') ?? undefined
-
   if (classification && !VALID_CLASSIFICATIONS.has(classification)) {
     return NextResponse.json({ error: 'Invalid classification filter' }, { status: 400 })
   }
 
-  const transactions = await db.transaction.findMany({
-    where: {
-      userId: session.userId,
-      ...(categoryType && { category: { type: categoryType } }),
-      ...(accountId && { accountId }),
-      ...(householdMemberId && { householdMemberId }),
-      ...(propertyId && { propertyId }),
-      ...(classification && { classification }),
-    },
-    include: { account: true, category: true, householdMember: true, property: true, debt: true },
-    orderBy: { date: 'desc' },
-  })
+  // Build where clause
+  const where: Record<string, unknown> = { userId: session.userId }
 
-  return NextResponse.json(transactions)
+  if (categoryType) where.category = { type: categoryType }
+  if (accountId) {
+    where.accountId = accountId === '__none__' ? null : accountId
+  }
+  if (categoryId) where.categoryId = categoryId
+  if (householdMemberId) {
+    where.householdMemberId = householdMemberId === '__none__' ? null : householdMemberId
+  }
+  if (propertyId) {
+    where.propertyId = propertyId === '__none__' ? null : propertyId
+  }
+  if (classification) where.classification = classification
+  if (uncategorized) where.categoryId = null
+  if (annualExpenseId) where.annualExpenseId = annualExpenseId
+
+  // Month filter: parse YYYY-MM into date range
+  if (month) {
+    const [y, m] = month.split('-').map(Number)
+    if (y && m) {
+      const start = new Date(Date.UTC(y, m - 1, 1))
+      const end = new Date(Date.UTC(y, m, 1))
+      where.date = { ...(where.date as Record<string, unknown> ?? {}), gte: start, lt: end }
+    }
+  }
+
+  // Date range filter
+  if (dateFrom) {
+    where.date = { ...(where.date as Record<string, unknown> ?? {}), gte: new Date(dateFrom) }
+  }
+  if (dateTo) {
+    where.date = { ...(where.date as Record<string, unknown> ?? {}), lte: new Date(dateTo + 'T23:59:59.999Z') }
+  }
+
+  // Amount range filter
+  if (amountMin) {
+    where.amount = { ...(where.amount as Record<string, unknown> ?? {}), gte: parseFloat(amountMin) }
+  }
+  if (amountMax) {
+    where.amount = { ...(where.amount as Record<string, unknown> ?? {}), lte: parseFloat(amountMax) }
+  }
+
+  // Search filter: merchant ILIKE
+  if (search) {
+    where.merchant = { contains: search, mode: 'insensitive' }
+  }
+
+  // Build orderBy
+  const VALID_SORT_COLUMNS: Record<string, unknown> = {
+    date: { date: sortDir },
+    merchant: { merchant: sortDir },
+    amount: { amount: sortDir },
+  }
+  const orderBy = VALID_SORT_COLUMNS[sortBy] ?? { date: sortDir }
+
+  // Run count + paginated query in parallel
+  const [total, transactions] = await Promise.all([
+    db.transaction.count({ where }),
+    db.transaction.findMany({
+      where,
+      select: {
+        id: true,
+        date: true,
+        merchant: true,
+        amount: true,
+        notes: true,
+        categoryId: true,
+        accountId: true,
+        householdMemberId: true,
+        propertyId: true,
+        classification: true,
+        annualExpenseId: true,
+        isPending: true,
+        category: { select: { id: true, name: true } },
+        account: { select: { id: true, name: true } },
+        householdMember: { select: { id: true, name: true } },
+        property: { select: { id: true, name: true } },
+        splits: {
+          select: {
+            id: true,
+            propertyId: true,
+            amount: true,
+            property: { select: { id: true, name: true, taxSchedule: true } },
+          },
+          orderBy: { amount: 'desc' },
+        },
+      },
+      orderBy,
+      skip: offset,
+      take: limit,
+    }),
+  ])
+
+  return NextResponse.json({
+    transactions: transactions.map(tx => ({
+      ...tx,
+      date: tx.date.toISOString(),
+      amount: Number(tx.amount),
+      splits: tx.splits.map(s => ({ ...s, amount: Number(s.amount) })),
+    })),
+    total,
+    limit,
+    offset,
+    hasMore: offset + limit < total,
+  }, {
+    headers: { 'Cache-Control': 'private, max-age=10, stale-while-revalidate=30' },
+  })
 }
 
 export async function POST(req: NextRequest) {

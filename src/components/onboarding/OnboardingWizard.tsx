@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { saveOnboardingStep, completeOnboarding, skipOnboarding } from '@/app/actions/onboarding'
+import { trackOnboardingStep, trackOnboardingComplete, trackGoalSet, trackSignup } from '@/lib/analytics'
 import type {
   OnboardingAnswers,
   PrimaryGoal,
@@ -53,6 +54,14 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  // Track signup for new users landing on onboarding
+  useEffect(() => {
+    if (initialStep === 0 && !initialAnswers.primaryGoal) {
+      trackSignup('email')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Q1: Goal
   const [primaryGoal, setPrimaryGoal] = useState<PrimaryGoal | null>(initialAnswers.primaryGoal)
   // Q2: Household
@@ -86,6 +95,11 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
     setSaving(true)
     try {
       await saveOnboardingStep(step + 1, currentAnswers())
+      const stepNames = ['goal', 'household', 'income']
+      trackOnboardingStep(step + 1, stepNames[step] ?? `step_${step}`, currentAnswers())
+      if (step === 0 && primaryGoal) {
+        trackGoalSet(primaryGoal, 'onboarding')
+      }
       if (step < TOTAL_STEPS - 1) {
         setStep(step + 1)
       }
@@ -113,6 +127,7 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
         toast.error(result.error)
         return
       }
+      trackOnboardingComplete(0, primaryGoal ?? 'none')
       router.push('/dashboard')
     } finally {
       setSubmitting(false)

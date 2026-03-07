@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { trackTransactionsSorted, trackTransactionsSearched, trackTransactionUpdated, trackTransactionsFiltered } from '@/lib/analytics'
 
 interface CategoryOption {
   id: string
@@ -60,6 +61,7 @@ interface TransactionRow {
   property: { id: string; name: string } | null
   classification?: string
   annualExpenseId?: string | null
+  isPending?: boolean
   splits?: SplitRow[]
 }
 
@@ -85,9 +87,10 @@ interface Props {
   initialCatchAll?: boolean
   initialBudgetName?: string
   refundedTxIds?: string[]
+  initialTotal?: number
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [], initialTotal = 0 }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -108,6 +111,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [budgetName, setBudgetName] = useState<string>(initialBudgetName)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   // Column header filter state
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
@@ -154,12 +158,40 @@ export default function TransactionList({ transactions: initial, categories, acc
   // Split sub-row expansion state
   const [expandedSplitId, setExpandedSplitId] = useState<string | null>(null)
 
+  // Mobile detail row expansion
+  const [mobileDetailId, setMobileDetailId] = useState<string | null>(null)
+
+  // Pagination state
+  const [page, setPage] = useState(0)
+  const [totalCount, setTotalCount] = useState(initialTotal)
+  const [loading, setLoading] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText)
+  const PAGE_SIZE = 50
+  const isBudgetMode = !!(initialBudgetId || initialCatchAll)
+  const isInitialMount = useRef(true)
+  const fetchIdRef = useRef(0)
+
   const merchantRef = useRef<HTMLInputElement>(null)
 
   // Sync transactions when parent re-renders with new data
   useEffect(() => {
     setTransactions(initial)
-  }, [initial])
+    setTotalCount(initialTotal)
+  }, [initial, initialTotal])
+
+  // Track search with debounce
+  useEffect(() => {
+    if (!searchText) return
+    const timeout = setTimeout(() => {
+      const q = searchText.toLowerCase()
+      const hasResults = transactions.some(tx =>
+        tx.merchant.toLowerCase().includes(q) || tx.notes?.toLowerCase().includes(q)
+      )
+      trackTransactionsSearched(hasResults)
+    }, 800)
+    return () => clearTimeout(timeout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText])
 
   // Fetch budget-specific transaction IDs when budgetId or catchAll is active
   useEffect(() => {
@@ -180,6 +212,72 @@ export default function TransactionList({ transactions: initial, categories, acc
       })
       .catch(() => setBudgetFilterLoading(false))
   }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName])
+
+  // Debounce search text for server-side filtering (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // Compute filter hash to detect filter changes and reset page
+  const filterHash = [
+    sortColumn, sortDirection, filterCategoryId, filterMonth, filterAccountId,
+    filterPersonId, filterPropertyId, filterClassification, debouncedSearch,
+    filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax,
+    String(filterUncategorized), filterAnnualExpenseId,
+  ].join('|')
+
+  const prevFilterHash = useRef(filterHash)
+  if (filterHash !== prevFilterHash.current) {
+    prevFilterHash.current = filterHash
+    if (page !== 0) setPage(0)
+  }
+
+  // Fetch paginated data from API when filters or page change
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    if (isBudgetMode) return
+
+    const fetchId = ++fetchIdRef.current
+    setLoading(true)
+
+    const params = new URLSearchParams()
+    params.set('limit', String(PAGE_SIZE))
+    params.set('offset', String(page * PAGE_SIZE))
+    if (sortColumn !== 'category' && sortColumn !== 'account') {
+      params.set('sortBy', sortColumn)
+      params.set('sortDir', sortDirection)
+    }
+    if (filterCategoryId) params.set('categoryId', filterCategoryId)
+    if (filterMonth) params.set('month', filterMonth)
+    if (filterAccountId) params.set('accountId', filterAccountId)
+    if (filterPersonId) params.set('householdMemberId', filterPersonId)
+    if (filterPropertyId && !filterPropertyId.startsWith('group:')) params.set('propertyId', filterPropertyId)
+    if (filterClassification) params.set('classification', filterClassification)
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (filterDateFrom) params.set('dateFrom', filterDateFrom)
+    if (filterDateTo) params.set('dateTo', filterDateTo)
+    if (filterAmountMin) params.set('amountMin', filterAmountMin)
+    if (filterAmountMax) params.set('amountMax', filterAmountMax)
+    if (filterUncategorized) params.set('uncategorized', 'true')
+    if (filterAnnualExpenseId) params.set('annualExpenseId', filterAnnualExpenseId)
+
+    fetch(`/api/transactions?${params}`)
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        if (fetchId !== fetchIdRef.current) return
+        setTransactions(data.transactions)
+        setTotalCount(data.total)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (fetchId === fetchIdRef.current) setLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterHash, isBudgetMode])
 
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
@@ -322,12 +420,16 @@ export default function TransactionList({ transactions: initial, categories, acc
   }, [])
 
   function handleSort(column: typeof sortColumn) {
+    let newDirection: 'asc' | 'desc'
     if (sortColumn === column) {
-      setSortDirection(d => d === 'asc' ? 'desc' : 'asc')
+      newDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+      setSortDirection(newDirection)
     } else {
+      newDirection = column === 'amount' ? 'desc' : 'asc'
       setSortColumn(column)
-      setSortDirection(column === 'amount' ? 'desc' : 'asc')
+      setSortDirection(newDirection)
     }
+    trackTransactionsSorted(column, newDirection)
   }
 
   function toggleFilter(col: string) {
@@ -423,6 +525,7 @@ export default function TransactionList({ transactions: initial, categories, acc
       })
     )
     setEditingId(null)
+    trackTransactionUpdated(Object.keys(body))
 
     try {
       const res = await fetch(`/api/transactions/${txId}`, {
@@ -742,14 +845,23 @@ export default function TransactionList({ transactions: initial, categories, acc
         </div>
       )}
 
-      <div className="card overflow-hidden p-0">
+      <div className="card relative overflow-hidden p-0">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-snow/60">
+            <div className="flex items-center gap-2 rounded-card bg-frost px-4 py-2 shadow-sm">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-mist border-t-fjord" />
+              <span className="text-xs text-stone">Loading...</span>
+            </div>
+          </div>
+        )}
         {error && (
           <div className="border-b border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
             {error}
             <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
           </div>
         )}
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm md:min-w-0">
           <thead className="border-b border-mist bg-snow">
             <tr>
               <th className="w-10 px-3 py-3">
@@ -847,6 +959,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 hasFilter={hasAccountFilter}
                 isOpen={activeFilter === 'account'}
                 onToggle={() => toggleFilter('account')}
+                className="hidden md:table-cell"
               >
                 <div className="p-3">
                   <input type="text" value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} className="input mb-2 text-xs" placeholder="Search accounts..." autoFocus />
@@ -866,7 +979,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </div>
               </ColumnHeader>
               {householdMembers.length > 0 && (
-                <th className="group relative px-4 py-3 text-left font-medium text-stone">
+                <th className="group relative hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
                   <button onClick={() => toggleFilter('person')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
                     Person
                     {hasPersonFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
@@ -895,7 +1008,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </th>
               )}
               {properties.length > 0 && (
-                <th className="group relative px-4 py-3 text-left font-medium text-stone">
+                <th className="group relative hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
                   <button onClick={() => toggleFilter('property')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
                     Property
                     {hasPropertyFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
@@ -1023,7 +1136,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="hidden px-4 py-2 md:table-cell">
                     <select
                       value={editAccountId}
                       onChange={(e) => setEditAccountId(e.target.value)}
@@ -1036,7 +1149,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     </select>
                   </td>
                   {householdMembers.length > 0 && (
-                    <td className="px-4 py-2">
+                    <td className="hidden px-4 py-2 lg:table-cell">
                       <select
                         value={editHouseholdMemberId}
                         onChange={(e) => setEditHouseholdMemberId(e.target.value)}
@@ -1050,7 +1163,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     </td>
                   )}
                   {properties.length > 0 && (
-                    <td className="px-4 py-2">
+                    <td className="hidden px-4 py-2 lg:table-cell">
                       <select
                         value={editPropertyId}
                         onChange={(e) => setEditPropertyId(e.target.value)}
@@ -1078,6 +1191,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     <input
                       type="number"
                       step="0.01"
+                      inputMode="decimal"
                       value={editAmount}
                       onChange={(e) => setEditAmount(e.target.value)}
                       className="input text-right text-sm"
@@ -1103,7 +1217,15 @@ export default function TransactionList({ transactions: initial, categories, acc
                 <React.Fragment key={tx.id}>
                 <tr
                   className={`cursor-pointer hover:bg-snow ${selected.has(tx.id) ? 'bg-fjord/5' : ''}`}
-                  onClick={() => startEdit(tx)}
+                  onClick={(e) => {
+                    // On small screens, toggle mobile detail instead of inline edit
+                    if (window.innerWidth < 768) {
+                      e.preventDefault()
+                      setMobileDetailId(mobileDetailId === tx.id ? null : tx.id)
+                    } else {
+                      startEdit(tx)
+                    }
+                  }}
                 >
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
@@ -1116,6 +1238,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <td className="px-4 py-3 text-stone">{formatDate(new Date(tx.date))}</td>
                   <td className="px-4 py-3 font-medium text-fjord">
                     {tx.merchant}
+                    {tx.isPending && (
+                      <span className="ml-1.5 rounded-badge bg-mist/40 px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                        Pending
+                      </span>
+                    )}
                     {tx.classification === 'perk_reimbursement' && (
                       <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">
                         Card Perk
@@ -1137,12 +1264,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                     )}
                   </td>
                   <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-stone">{tx.account?.name ?? '—'}</td>
+                  <td className="hidden px-4 py-3 text-stone md:table-cell">{tx.account?.name ?? '—'}</td>
                   {householdMembers.length > 0 && (
-                    <td className="px-4 py-3 text-stone">{tx.householdMember?.name ?? '—'}</td>
+                    <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.householdMember?.name ?? '—'}</td>
                   )}
                   {properties.length > 0 && (
-                    <td className="px-4 py-3 text-stone">{tx.property?.name ?? '—'}</td>
+                    <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.property?.name ?? '—'}</td>
                   )}
                   <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {(() => {
@@ -1162,14 +1289,34 @@ export default function TransactionList({ transactions: initial, categories, acc
                       )
                     })()}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(tx.id) }}
-                      className="text-xs text-stone hover:text-ember"
-                      aria-label={`Delete ${tx.merchant}`}
-                    >
-                      Delete
-                    </button>
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    {deleteConfirmId === tx.id ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => { handleDelete(tx.id); setDeleteConfirmId(null) }}
+                          onTouchEnd={(e) => { e.preventDefault(); handleDelete(tx.id); setDeleteConfirmId(null) }}
+                          className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          onTouchEnd={(e) => { e.preventDefault(); setDeleteConfirmId(null) }}
+                          className="text-xs text-stone hover:text-fjord"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(tx.id)}
+                        onTouchEnd={(e) => { e.preventDefault(); setDeleteConfirmId(tx.id) }}
+                        className="min-h-[44px] min-w-[44px] text-xs text-stone hover:text-ember md:min-h-0 md:min-w-0"
+                        aria-label={`Delete ${tx.merchant}`}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
                 {/* Split sub-rows */}
@@ -1193,19 +1340,65 @@ export default function TransactionList({ transactions: initial, categories, acc
                     )
                   })
                 )}
+                {/* Mobile detail row — shows hidden columns on small screens */}
+                {mobileDetailId === tx.id && (
+                  <tr className="bg-frost/50 md:hidden">
+                    <td colSpan={5} className="space-y-1 px-4 py-2 text-xs">
+                      {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
+                      {tx.category && <div><span className="text-stone">Category:</span> <span className="text-fjord">{tx.category.name}</span></div>}
+                      {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
+                      {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
+                      {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
+                        className="mt-1 rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                )}
                 </React.Fragment>
               )
             )}
           </tbody>
         </table>
-        <p className="border-t border-mist px-4 py-2 text-right text-xs text-stone">
-          {selected.size > 0 && (
-            <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
+        </div>
+        <div className="flex items-center justify-between border-t border-mist px-4 py-2">
+          <p className="text-xs text-stone">
+            {selected.size > 0 && (
+              <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
+            )}
+            {isBudgetMode
+              ? (hasAnyFilter
+                ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
+                : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`)
+              : totalCount === 0
+                ? 'No transactions'
+                : `${page * PAGE_SIZE + 1}\u2013${Math.min((page + 1) * PAGE_SIZE, totalCount)} of ${totalCount}`}
+          </p>
+          {!isBudgetMode && totalCount > PAGE_SIZE && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0 || loading}
+                className="rounded-button border border-mist bg-snow px-3 py-1 text-xs font-medium text-fjord hover:bg-frost disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-stone">
+                Page {page + 1} of {Math.ceil(totalCount / PAGE_SIZE)}
+              </span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={(page + 1) * PAGE_SIZE >= totalCount || loading}
+                className="rounded-button border border-mist bg-snow px-3 py-1 text-xs font-medium text-fjord hover:bg-frost disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           )}
-          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || budgetTxIds !== null)
-            ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
-            : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
-        </p>
+        </div>
       </div>
 
       {/* Bulk action bar */}
@@ -1241,8 +1434,8 @@ export default function TransactionList({ transactions: initial, categories, acc
 
       {/* Bulk edit modal */}
       {showBulkEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-midnight/50 p-4">
-          <div className="w-full max-w-md rounded-card bg-frost p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-midnight/50 p-0 md:items-center md:p-4">
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-card bg-frost p-6 shadow-xl md:max-w-md md:rounded-card">
             <h2 className="mb-1 text-lg font-semibold text-fjord">
               Edit {selected.size} transaction{selected.size !== 1 ? 's' : ''}
             </h2>
@@ -1355,8 +1548,8 @@ export default function TransactionList({ transactions: initial, categories, acc
 
       {/* Bulk delete confirmation */}
       {showBulkDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-midnight/50 p-4">
-          <div className="w-full max-w-md rounded-card bg-frost p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-midnight/50 p-0 md:items-center md:p-4">
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-card bg-frost p-6 shadow-xl md:max-w-md md:rounded-card">
             <h2 className="mb-1 text-lg font-semibold text-fjord">
               Delete {selected.size} transaction{selected.size !== 1 ? 's' : ''}?
             </h2>
@@ -1455,6 +1648,7 @@ function ColumnHeader({
   onToggle,
   children,
   align,
+  className: extraClassName,
 }: {
   label: string
   column: 'date' | 'merchant' | 'category' | 'account' | 'amount'
@@ -1466,9 +1660,10 @@ function ColumnHeader({
   onToggle: () => void
   children: React.ReactNode
   align?: 'right'
+  className?: string
 }) {
   return (
-    <th className={`group relative px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium text-stone`}>
+    <th className={`group relative px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium text-stone ${extraClassName ?? ''}`}>
       <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
         <button
           onClick={() => onSort(column)}

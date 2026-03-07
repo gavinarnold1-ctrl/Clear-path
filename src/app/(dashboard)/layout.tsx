@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { DEMO_USER_ID } from '@/lib/demo'
 import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
+import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
 
 function buildNavGroups(showProperties: boolean): NavGroup[] {
   const mainItems = [
@@ -47,10 +48,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // Auto-create profile for new users instead of redirecting to onboarding wizard.
   // The dashboard shows the GetStarted flow inline when accounts.length === 0.
   const isDemo = session?.userId === DEMO_USER_ID
+  let profileData: { primaryGoal: string | null; householdType: string | null; incomeRange: string | null } | null = null
+  let accountCount = 0
+  let hasPlaid = false
+  let hasProperties = false
   if (session) {
     const profile = await db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { onboardingCompleted: true },
+      select: { onboardingCompleted: true, primaryGoal: true, householdType: true, incomeRange: true },
     })
     if (!profile) {
       await db.userProfile.create({
@@ -60,6 +65,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           onboardingStep: 0,
         },
       })
+    }
+    profileData = profile ? { primaryGoal: profile.primaryGoal, householdType: profile.householdType, incomeRange: profile.incomeRange } : null
+
+    const [acctCount, propCount] = await Promise.all([
+      db.account.count({ where: { userId: session.userId } }),
+      db.property.count({ where: { userId: session.userId } }),
+    ])
+    accountCount = acctCount
+    hasProperties = propCount > 0
+    if (acctCount > 0) {
+      const plaidCount = await db.account.count({
+        where: { userId: session.userId, plaidAccessToken: { not: null } },
+      })
+      hasPlaid = plaidCount > 0
     }
   }
 
@@ -76,6 +95,21 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         userEmail={session?.email ?? ''}
         logoutAction={logout}
       />
+
+      {session && (
+        <PostHogIdentify
+          userId={session.userId}
+          email={session.email}
+          name={session.name ?? undefined}
+          goal={profileData?.primaryGoal ?? null}
+          householdType={profileData?.householdType ?? null}
+          incomeRange={profileData?.incomeRange ?? null}
+          accountCount={accountCount}
+          hasPlaid={hasPlaid}
+          hasProperties={hasProperties}
+          isDemo={isDemo}
+        />
+      )}
 
       {/* Main content — Snow background */}
       <main id="main-content" className="flex-1 overflow-y-auto bg-snow p-4 pt-16 md:p-8 md:pt-8">

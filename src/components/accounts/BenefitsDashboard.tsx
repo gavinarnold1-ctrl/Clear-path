@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
+import { trackBenefitsViewed } from '@/lib/analytics'
 
 interface BenefitInfo {
   id: string
@@ -107,6 +108,10 @@ export default function BenefitsDashboard({ cards, netValues }: Props) {
   const [removing, setRemoving] = useState<string | null>(null)
   const [togglingBenefit, setTogglingBenefit] = useState<string | null>(null)
   const [markingUsed, setMarkingUsed] = useState<string | null>(null)
+
+  useEffect(() => {
+    trackBenefitsViewed(cards.length)
+  }, [cards.length])
 
   // Summary stats
   const totalAnnualFees = cards.reduce((sum, c) => sum + c.program.annualFee, 0)
