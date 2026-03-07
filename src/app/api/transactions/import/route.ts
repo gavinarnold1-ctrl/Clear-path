@@ -338,9 +338,12 @@ export async function POST(request: Request) {
         }
 
         // Cross-source dedup: CSV transaction may match a Plaid transaction
-        // with a different merchant name variant (e.g., "STARBUCKS #123" vs "Starbucks")
+        // with a different merchant name variant (e.g., "STARBUCKS #123" vs "Starbucks").
+        // Count how many Plaid transactions match this pattern — only skip if
+        // there are more Plaid matches than already-imported CSV matches
+        // (handles 2 legitimate purchases at same merchant/amount/day).
         const canonicalKey = canonicalizeMerchant(tx.merchant)
-        const crossSourceMatch = await db.transaction.findFirst({
+        const plaidMatches = await db.transaction.findMany({
           where: {
             userId: session.userId,
             date: {
@@ -351,9 +354,27 @@ export async function POST(request: Request) {
             importSource: 'plaid',
           },
         })
-        if (crossSourceMatch && canonicalizeMerchant(crossSourceMatch.merchant) === canonicalKey) {
-          duplicateCount++
-          continue
+        const matchingPlaid = plaidMatches.filter(
+          m => canonicalizeMerchant(m.merchant) === canonicalKey
+        )
+        if (matchingPlaid.length > 0) {
+          // Count CSV rows already imported for this same pattern
+          const alreadyImportedCsv = await db.transaction.count({
+            where: {
+              userId: session.userId,
+              date: {
+                gte: new Date(txDate.getTime() - 24 * 60 * 60 * 1000),
+                lte: new Date(txDate.getTime() + 24 * 60 * 60 * 1000),
+              },
+              amount: tx.amount,
+              importSource: 'csv',
+            },
+          })
+          // Only skip if there are still unmatched Plaid transactions
+          if (matchingPlaid.length > alreadyImportedCsv) {
+            duplicateCount++
+            continue
+          }
         }
       }
 
