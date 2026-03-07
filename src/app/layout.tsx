@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { DM_Sans, JetBrains_Mono, Fraunces } from 'next/font/google'
 import { Suspense } from 'react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -26,12 +26,29 @@ const fraunces = Fraunces({
   variable: '--font-fraunces',
 })
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
   title: {
     default: 'oversikt — See your whole financial picture',
     template: '%s | oversikt',
   },
   description: 'See your whole financial picture. Simple, honest budgeting with true remaining clarity.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Oversikt',
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

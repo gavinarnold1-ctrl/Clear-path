@@ -91,3 +91,51 @@
     transition: width 0.6s ease;
   }
 }
+
+/* Mobile: prevent iOS zoom on focus + ensure touch targets */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* WCAG 2.1 AA: minimum 44px touch targets */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Table buttons can be smaller — they have row padding */
+  table button,
+  table a {
+    min-height: 36px;
+  }
+
+  /* Full-width form elements on mobile */
+  .input,
+  select {
+    width: 100%;
+  }
+
+  /* Full-width primary/secondary buttons on mobile */
+  .btn-primary,
+  .btn-secondary,
+  .btn-success,
+  .btn-danger {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Safe area padding for notched iPhones */
+@supports (padding: env(safe-area-inset-bottom)) {
+  aside {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .fixed.bottom-0 {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

@@ -110,6 +110,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [budgetName, setBudgetName] = useState<string>(initialBudgetName)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   // Column header filter state
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
@@ -155,6 +156,9 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   // Split sub-row expansion state
   const [expandedSplitId, setExpandedSplitId] = useState<string | null>(null)
+
+  // Mobile detail row expansion
+  const [mobileDetailId, setMobileDetailId] = useState<string | null>(null)
 
   const merchantRef = useRef<HTMLInputElement>(null)
 
@@ -770,7 +774,8 @@ export default function TransactionList({ transactions: initial, categories, acc
             <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
           </div>
         )}
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm md:min-w-0">
           <thead className="border-b border-mist bg-snow">
             <tr>
               <th className="w-10 px-3 py-3">
@@ -868,6 +873,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 hasFilter={hasAccountFilter}
                 isOpen={activeFilter === 'account'}
                 onToggle={() => toggleFilter('account')}
+                className="hidden md:table-cell"
               >
                 <div className="p-3">
                   <input type="text" value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} className="input mb-2 text-xs" placeholder="Search accounts..." autoFocus />
@@ -887,7 +893,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </div>
               </ColumnHeader>
               {householdMembers.length > 0 && (
-                <th className="group relative px-4 py-3 text-left font-medium text-stone">
+                <th className="group relative hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
                   <button onClick={() => toggleFilter('person')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
                     Person
                     {hasPersonFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
@@ -916,7 +922,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </th>
               )}
               {properties.length > 0 && (
-                <th className="group relative px-4 py-3 text-left font-medium text-stone">
+                <th className="group relative hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
                   <button onClick={() => toggleFilter('property')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
                     Property
                     {hasPropertyFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
@@ -1044,7 +1050,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="hidden px-4 py-2 md:table-cell">
                     <select
                       value={editAccountId}
                       onChange={(e) => setEditAccountId(e.target.value)}
@@ -1057,7 +1063,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     </select>
                   </td>
                   {householdMembers.length > 0 && (
-                    <td className="px-4 py-2">
+                    <td className="hidden px-4 py-2 lg:table-cell">
                       <select
                         value={editHouseholdMemberId}
                         onChange={(e) => setEditHouseholdMemberId(e.target.value)}
@@ -1071,7 +1077,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     </td>
                   )}
                   {properties.length > 0 && (
-                    <td className="px-4 py-2">
+                    <td className="hidden px-4 py-2 lg:table-cell">
                       <select
                         value={editPropertyId}
                         onChange={(e) => setEditPropertyId(e.target.value)}
@@ -1099,6 +1105,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     <input
                       type="number"
                       step="0.01"
+                      inputMode="decimal"
                       value={editAmount}
                       onChange={(e) => setEditAmount(e.target.value)}
                       className="input text-right text-sm"
@@ -1124,7 +1131,15 @@ export default function TransactionList({ transactions: initial, categories, acc
                 <React.Fragment key={tx.id}>
                 <tr
                   className={`cursor-pointer hover:bg-snow ${selected.has(tx.id) ? 'bg-fjord/5' : ''}`}
-                  onClick={() => startEdit(tx)}
+                  onClick={(e) => {
+                    // On small screens, toggle mobile detail instead of inline edit
+                    if (window.innerWidth < 768) {
+                      e.preventDefault()
+                      setMobileDetailId(mobileDetailId === tx.id ? null : tx.id)
+                    } else {
+                      startEdit(tx)
+                    }
+                  }}
                 >
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
@@ -1163,12 +1178,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                     )}
                   </td>
                   <td className="px-4 py-3 text-stone">{tx.category?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-stone">{tx.account?.name ?? '—'}</td>
+                  <td className="hidden px-4 py-3 text-stone md:table-cell">{tx.account?.name ?? '—'}</td>
                   {householdMembers.length > 0 && (
-                    <td className="px-4 py-3 text-stone">{tx.householdMember?.name ?? '—'}</td>
+                    <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.householdMember?.name ?? '—'}</td>
                   )}
                   {properties.length > 0 && (
-                    <td className="px-4 py-3 text-stone">{tx.property?.name ?? '—'}</td>
+                    <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.property?.name ?? '—'}</td>
                   )}
                   <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {(() => {
@@ -1188,14 +1203,34 @@ export default function TransactionList({ transactions: initial, categories, acc
                       )
                     })()}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(tx.id) }}
-                      className="text-xs text-stone hover:text-ember"
-                      aria-label={`Delete ${tx.merchant}`}
-                    >
-                      Delete
-                    </button>
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    {deleteConfirmId === tx.id ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => { handleDelete(tx.id); setDeleteConfirmId(null) }}
+                          onTouchEnd={(e) => { e.preventDefault(); handleDelete(tx.id); setDeleteConfirmId(null) }}
+                          className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          onTouchEnd={(e) => { e.preventDefault(); setDeleteConfirmId(null) }}
+                          className="text-xs text-stone hover:text-fjord"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(tx.id)}
+                        onTouchEnd={(e) => { e.preventDefault(); setDeleteConfirmId(tx.id) }}
+                        className="min-h-[44px] min-w-[44px] text-xs text-stone hover:text-ember md:min-h-0 md:min-w-0"
+                        aria-label={`Delete ${tx.merchant}`}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
                 {/* Split sub-rows */}
@@ -1219,11 +1254,30 @@ export default function TransactionList({ transactions: initial, categories, acc
                     )
                   })
                 )}
+                {/* Mobile detail row — shows hidden columns on small screens */}
+                {mobileDetailId === tx.id && (
+                  <tr className="bg-frost/50 md:hidden">
+                    <td colSpan={5} className="space-y-1 px-4 py-2 text-xs">
+                      {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
+                      {tx.category && <div><span className="text-stone">Category:</span> <span className="text-fjord">{tx.category.name}</span></div>}
+                      {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
+                      {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
+                      {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
+                        className="mt-1 rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                )}
                 </React.Fragment>
               )
             )}
           </tbody>
         </table>
+        </div>
         <p className="border-t border-mist px-4 py-2 text-right text-xs text-stone">
           {selected.size > 0 && (
             <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
@@ -1267,8 +1321,8 @@ export default function TransactionList({ transactions: initial, categories, acc
 
       {/* Bulk edit modal */}
       {showBulkEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-midnight/50 p-4">
-          <div className="w-full max-w-md rounded-card bg-frost p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-midnight/50 p-0 md:items-center md:p-4">
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-card bg-frost p-6 shadow-xl md:max-w-md md:rounded-card">
             <h2 className="mb-1 text-lg font-semibold text-fjord">
               Edit {selected.size} transaction{selected.size !== 1 ? 's' : ''}
             </h2>
@@ -1381,8 +1435,8 @@ export default function TransactionList({ transactions: initial, categories, acc
 
       {/* Bulk delete confirmation */}
       {showBulkDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-midnight/50 p-4">
-          <div className="w-full max-w-md rounded-card bg-frost p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-midnight/50 p-0 md:items-center md:p-4">
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-card bg-frost p-6 shadow-xl md:max-w-md md:rounded-card">
             <h2 className="mb-1 text-lg font-semibold text-fjord">
               Delete {selected.size} transaction{selected.size !== 1 ? 's' : ''}?
             </h2>
@@ -1481,6 +1535,7 @@ function ColumnHeader({
   onToggle,
   children,
   align,
+  className: extraClassName,
 }: {
   label: string
   column: 'date' | 'merchant' | 'category' | 'account' | 'amount'
@@ -1492,9 +1547,10 @@ function ColumnHeader({
   onToggle: () => void
   children: React.ReactNode
   align?: 'right'
+  className?: string
 }) {
   return (
-    <th className={`group relative px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium text-stone`}>
+    <th className={`group relative px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} font-medium text-stone ${extraClassName ?? ''}`}>
       <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
         <button
           onClick={() => onSort(column)}
