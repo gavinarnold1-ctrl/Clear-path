@@ -3,14 +3,16 @@ import type { ValueSummary } from '@/lib/value-tracker'
 import { formatCurrency } from '@/lib/utils'
 
 export default function ValueTracker({ value }: { value: ValueSummary }) {
-  const totalValue = value.totalIdentified + value.perkReimbursements
   const hasCardBenefits = value.perkReimbursements > 0 || value.cardBenefitCreditsUsed > 0
+  const hasAnySavings = value.totalActioned > 0 || value.perkReimbursements > 0
+  const hasPotential = value.totalIdentified > value.totalActioned
 
-  if (totalValue === 0) {
+  // Nothing at all — prompt to generate first review
+  if (value.totalIdentified === 0 && !hasCardBenefits) {
     return (
       <div className="card flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-fjord">Savings identified by Oversikt</p>
+          <p className="text-sm font-medium text-fjord">Savings confirmed</p>
           <p className="mt-1 text-xs text-stone">
             Generate your first AI review to discover savings opportunities.
           </p>
@@ -33,15 +35,29 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
     <div className="card">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-fjord">Value delivered by Oversikt</p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-mono text-xl font-semibold text-pine">
-              {formatCurrency(totalValue)}
-            </span>
-            {sinceLabel && (
-              <span className="text-xs text-stone">since {sinceLabel}</span>
-            )}
-          </div>
+          <p className="text-sm font-medium text-fjord">Savings confirmed</p>
+          {hasAnySavings ? (
+            <>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-mono text-xl font-semibold text-pine">
+                  {formatCurrency(value.totalActioned + value.perkReimbursements)}
+                </span>
+                {sinceLabel && (
+                  <span className="text-xs text-stone">since {sinceLabel}</span>
+                )}
+              </div>
+              {hasPotential && (
+                <p className="mt-1 text-xs text-stone">
+                  + {formatCurrency(value.totalIdentified - value.totalActioned)} more identified
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-stone">
+              {formatCurrency(value.totalIdentified)} in potential savings identified.{' '}
+              <span className="text-pine">Complete an insight to start tracking.</span>
+            </p>
+          )}
         </div>
         <Link
           href="/monthly-review"
@@ -51,9 +67,9 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
         </Link>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-stone">
-        {value.totalIdentified > 0 && (
+        {value.actionedCount > 0 && (
           <span>
-            {formatCurrency(value.totalIdentified)} from {value.insightCount} insight{value.insightCount !== 1 ? 's' : ''}
+            {value.actionedCount} insight{value.actionedCount !== 1 ? 's' : ''} completed
           </span>
         )}
         {hasCardBenefits && (

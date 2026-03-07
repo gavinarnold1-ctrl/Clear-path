@@ -8,7 +8,7 @@ import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { db } from '@/lib/db'
 import ForecastTimeline from './ForecastTimeline'
 import ForecastScenarios from './ForecastScenarios'
-import type { Forecast, AssetClass, IncomeTransition } from '@/types'
+import type { Forecast, AssetClass, IncomeTransition, GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Forecast' }
 
@@ -38,12 +38,16 @@ export default async function ForecastPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const [forecast, accuracy, profile] = await Promise.all([
+  const [forecast, accuracy, profile, properties] = await Promise.all([
     getCachedForecast(session.userId),
     getForecastAccuracy(session.userId),
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { incomeTransitions: true, expectedMonthlyIncome: true },
+      select: { incomeTransitions: true, expectedMonthlyIncome: true, goalTarget: true },
+    }),
+    db.property.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true, currentValue: true, loanBalance: true, interestRate: true, monthlyPayment: true, appreciationRate: true },
     }),
   ])
 
@@ -105,6 +109,24 @@ export default async function ForecastPage() {
   const projectedDateLabel = projectedDate
     ? new Date(projectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : 'Not projected'
+
+  // Property equity growth for net worth goals
+  const goalTarget = profile?.goalTarget as GoalTarget | null
+  const isNetWorthGoal = goalTarget?.metric === 'net_worth_target' || goalTarget?.metric === 'net_worth_increase'
+  const propertiesWithValue = properties.filter((p) => (p.currentValue ?? 0) > 0)
+  let annualPropertyEquityGrowth = 0
+  if (isNetWorthGoal && propertiesWithValue.length > 0) {
+    annualPropertyEquityGrowth = propertiesWithValue.reduce((sum, p) => {
+      const currentVal = p.currentValue ?? 0
+      const appreciation = currentVal * (p.appreciationRate ?? 0.03)
+      let principalPaydown = 0
+      if (p.loanBalance && p.interestRate != null && p.monthlyPayment) {
+        const monthlyInterest = p.loanBalance * (p.interestRate / 12)
+        principalPaydown = Math.max(0, p.monthlyPayment - monthlyInterest) * 12
+      }
+      return sum + appreciation + principalPaydown
+    }, 0)
+  }
 
   // Calculate months ahead/behind
   const targetDate = new Date(forecast.timeline[0]?.month ? forecast.timeline[forecast.timeline.length - 7]?.month ?? '' : '')
@@ -283,6 +305,21 @@ export default async function ForecastPage() {
                 +{formatCurrency(assetGrowth.reduce((s, a) => s + a.expectedGrowth, 0))}
               </span>
             </div>
+            {isNetWorthGoal && propertiesWithValue.length > 0 && annualPropertyEquityGrowth > 0 && (
+              <div className="flex items-center justify-between border-t border-mist pt-3">
+                <div>
+                  <p className="text-sm font-medium text-fjord">Property Equity</p>
+                  <p className="text-xs text-stone">
+                    {propertiesWithValue.length} propert{propertiesWithValue.length === 1 ? 'y' : 'ies'} — appreciation + paydown
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-pine">
+                    +{formatCurrency(annualPropertyEquityGrowth)}/yr
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -12,8 +12,7 @@ import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
 import { getValueSummary } from '@/lib/value-tracker'
 import { getGoalContext } from '@/lib/goal-context'
-import { getForecastSummaries } from '@/lib/forecast-helpers'
-import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
+// GoalProgressCard replaced by compact inline goal row
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
@@ -201,9 +200,6 @@ export default async function DashboardPage({ searchParams }: Props) {
     // Goal context for goal-driven dashboard
     getGoalContext(session.userId),
   ])
-
-  // Fetch forecast summaries (non-blocking, after main data)
-  const forecastSummaries = await getForecastSummaries(session.userId)
 
   // Benefit alerts — expiring card credits
   const userCards = await db.userCard.findMany({
@@ -410,31 +406,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
-      {/* Goal Progress Hero — shown when user has a goal */}
-      {hasGoal && goalContext && (
-        <GoalProgressCard
-          goal={userProfile!.primaryGoal as PrimaryGoal}
-          goalLabel={goalContext.goalLabel}
-          target={goalTarget}
-          trueRemaining={trueRemaining}
-        />
-      )}
-
-      {/* Goal Recalibration Banner — shown when user is behind pace */}
-      {recalibration && <RecalibrationWrapper suggestion={recalibration} />}
-
-      {/* Forecast summary — links to full forecast page */}
-      {forecastSummaries && (
-        <div className="mb-4 rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
-          <span className="text-xs font-medium uppercase tracking-wider text-stone">Forecast</span>
-          <p className="mt-1 text-sm text-fjord">{forecastSummaries.dashboard}</p>
-          <Link href="/forecast" className="mt-1 inline-block text-xs text-pine hover:underline">
-            See full forecast →
-          </Link>
-        </div>
-      )}
-
-      {/* True Remaining Hero — R8.1, R6.6 (secondary when goal is set, primary otherwise) */}
+      {/* True Remaining Hero — always first */}
       {hasBudgets ? (
         <TrueRemainingBanner
           income={monthlyIncome}
@@ -455,7 +427,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Summary stats */}
+      {/* Summary stats — above the fold */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Cash Available"
@@ -481,6 +453,58 @@ export default async function DashboardPage({ searchParams }: Props) {
           sub={monthlyNet >= 0 ? 'surplus' : 'deficit'}
         />
       </div>
+
+      {/* Compact goal context row */}
+      {hasGoal && goalContext && goalTarget && (() => {
+        const progressPercent = goalTarget.currentValue !== undefined && goalTarget.targetValue > 0
+          ? Math.min(100, Math.round((goalTarget.currentValue / goalTarget.targetValue) * 100))
+          : 0
+        const monthsElapsed = (() => {
+          const start = new Date(goalTarget.startDate)
+          const n = new Date()
+          return (n.getFullYear() - start.getFullYear()) * 12 + (n.getMonth() - start.getMonth())
+        })()
+        const monthsTotal = (() => {
+          const start = new Date(goalTarget.startDate)
+          const end = new Date(goalTarget.targetDate)
+          return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+        })()
+        const expectedProgress = monthsTotal > 0 ? Math.min(100, Math.round((monthsElapsed / monthsTotal) * 100)) : 0
+        const pace: 'ahead' | 'on_track' | 'behind' =
+          progressPercent >= expectedProgress + 5 ? 'ahead' :
+          progressPercent >= expectedProgress - 5 ? 'on_track' : 'behind'
+        return (
+          <div className="card mb-8 flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-stone">{goalTarget.description ?? goalContext.goalLabel}</div>
+              <div className="w-30 h-2 bg-frost rounded-bar overflow-hidden">
+                <div
+                  className="h-full bg-pine rounded-bar transition-all"
+                  style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                />
+              </div>
+              <span className="text-sm font-medium text-fjord">
+                {progressPercent}%
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className={`text-xs px-2 py-0.5 rounded-badge ${
+                pace === 'ahead' ? 'bg-pine/10 text-pine' :
+                pace === 'on_track' ? 'bg-pine/10 text-pine' :
+                'bg-ember/10 text-ember'
+              }`}>
+                {pace === 'ahead' ? 'Ahead' : pace === 'on_track' ? 'On track' : 'Behind'}
+              </span>
+              <Link href="/forecast" className="text-sm text-pine hover:underline">
+                View forecast →
+              </Link>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Goal Recalibration Banner */}
+      {recalibration && <RecalibrationWrapper suggestion={recalibration} />}
 
       {/* Income surplus insight */}
       {(() => {
@@ -614,11 +638,6 @@ export default async function DashboardPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Value tracker — cumulative savings identified */}
-      <div className="mb-8">
-        <ValueTracker value={valueSummary} />
-      </div>
-
       {/* Recent transactions */}
       <div className="card mb-8">
         <div className="mb-4 flex items-center justify-between">
@@ -657,9 +676,14 @@ export default async function DashboardPage({ searchParams }: Props) {
         )}
       </div>
 
-      {/* Chart — below fold per R8.1 */}
-      <div>
+      {/* Chart */}
+      <div className="mb-8">
         <MonthlyChart data={chartSeries} />
+      </div>
+
+      {/* Value tracker — at bottom */}
+      <div>
+        <ValueTracker value={valueSummary} />
       </div>
     </div>
   )
