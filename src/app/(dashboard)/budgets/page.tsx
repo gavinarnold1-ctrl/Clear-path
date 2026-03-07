@@ -434,20 +434,40 @@ export default async function BudgetsPage() {
             monthLabel={monthLabel}
           />
 
-          {/* Compact goal surplus row */}
+          {/* Goal alignment banner */}
           {goalContext && goalTarget && (
-            <div className="mb-6 flex items-center justify-between px-4 py-2 bg-frost/50 rounded-button text-sm">
-              <span className="text-stone">
-                Monthly surplus after budgets:{' '}
-                <span className={projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? 'text-pine font-medium' : 'text-ember font-medium'}>
-                  {formatCurrency(projectedMonthlySurplus)}
-                </span>
-                {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0)
-                  ? ' — on track for goal'
-                  : ` — need ${formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)} more/mo`
-                }
-              </span>
-              <Link href="/forecast" className="text-pine hover:underline text-sm">Forecast →</Link>
+            <div className={`mb-6 rounded-card border px-5 py-4 ${
+              projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0)
+                ? 'border-pine/20 bg-pine/5'
+                : 'border-birch/30 bg-birch/10'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-stone">
+                    {goalContext.goalLabel} — Budget Alignment
+                  </p>
+                  <p className="mt-1 text-sm text-fjord">
+                    {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? (
+                      <>
+                        Your budgets leave{' '}
+                        <span className="font-semibold text-pine">{formatCurrency(projectedMonthlySurplus)}/mo</span>
+                        {' '}surplus — on track to reach your goal.
+                      </>
+                    ) : (
+                      <>
+                        Your budgets leave{' '}
+                        <span className="font-semibold text-ember">{formatCurrency(projectedMonthlySurplus)}/mo</span>
+                        {' '}surplus. You need{' '}
+                        <span className="font-medium">{formatCurrency((goalTarget.monthlyNeeded ?? 0) - projectedMonthlySurplus)}/mo</span>
+                        {' '}more to stay on pace.
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Link href="/forecast" className="shrink-0 text-sm font-medium text-pine hover:underline">
+                  Forecast →
+                </Link>
+              </div>
             </div>
           )}
 

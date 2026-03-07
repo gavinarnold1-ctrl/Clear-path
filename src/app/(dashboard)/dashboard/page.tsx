@@ -408,14 +408,25 @@ export default async function DashboardPage({ searchParams }: Props) {
 
       {/* True Remaining Hero — always first */}
       {hasBudgets ? (
-        <TrueRemainingBanner
-          income={monthlyIncome}
-          expectedIncome={userProfile?.expectedMonthlyIncome ?? prevIncome}
-          fixedTotal={fixedTotal}
-          flexibleSpent={flexibleSpent}
-          flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
-          annualSetAside={annualSetAside}
-        />
+        <>
+          <TrueRemainingBanner
+            income={monthlyIncome}
+            expectedIncome={userProfile?.expectedMonthlyIncome ?? prevIncome}
+            fixedTotal={fixedTotal}
+            flexibleSpent={flexibleSpent}
+            flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
+            annualSetAside={annualSetAside}
+          />
+          {goalTarget && trueRemaining > 0 && (
+            <p className="-mt-4 mb-6 px-5 text-xs text-stone">
+              {userProfile?.primaryGoal === 'save_more' && `If saved, that's ${formatCurrency(trueRemaining)} closer to your savings goal this month`}
+              {userProfile?.primaryGoal === 'pay_off_debt' && `${formatCurrency(trueRemaining)} available for extra debt payments`}
+              {userProfile?.primaryGoal === 'spend_smarter' && 'Proof that your spending optimization is working'}
+              {userProfile?.primaryGoal === 'gain_visibility' && 'Your actual spending freedom after all commitments'}
+              {userProfile?.primaryGoal === 'build_wealth' && `${formatCurrency(trueRemaining)} available for wealth-building moves`}
+            </p>
+          )}
+        </>
       ) : (
         <div className="mb-6 rounded-xl border-2 border-mist bg-frost/50 p-5">
           <p className="text-sm text-stone">

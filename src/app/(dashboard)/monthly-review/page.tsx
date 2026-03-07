@@ -30,7 +30,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
   const { month: selectedMonth } = await searchParams
 
-  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile, perkCredits, forecastSummaries, forecastData] = await Promise.all([
+  const [insights, latestScore, transactionCount, snapshots, debts, accounts, valueSummary, propertiesForNW, linkedAccountLinks, goalContext, goalProfile, perkCredits, forecastSummaries, forecastData, budgetsForGoal] = await Promise.all([
     db.insight.findMany({
       where: { userId: session.userId, status: 'active' },
       orderBy: [{ priority: 'asc' }, { savingsAmount: 'desc' }],
@@ -83,6 +83,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     // Forecast summaries and accuracy for monthly review
     getForecastSummaries(session.userId),
     getCachedForecast(session.userId),
+    // Budgets with category for goal contributors/detractors
+    db.budget.findMany({
+      where: { userId: session.userId, tier: { in: ['FIXED', 'FLEXIBLE'] } },
+      select: { id: true, name: true, amount: true, tier: true, categoryId: true, category: { select: { name: true } } },
+    }),
   ])
 
   // R7.8: Convert snapshot months (Date) to YYYY-MM strings
@@ -214,6 +219,28 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     ? computeForecastAccuracy(forecastData.timeline)
     : null
 
+  // Goal contributors/detractors: compare budget vs spent from active snapshot
+  const goalContributors: { name: string; saved: number }[] = []
+  const goalDetractors: { name: string; overBy: number }[] = []
+  if (goalTarget && activeSnapshot && summary) {
+    for (const b of budgetsForGoal) {
+      const catName = b.category?.name ?? b.name
+      const catBreakdown = summary.categoryBreakdown.find(
+        c => c.category.toLowerCase() === catName.toLowerCase()
+      )
+      if (!catBreakdown) continue
+      const monthlySpent = catBreakdown.total / summary.period.months
+      const diff = b.amount - monthlySpent
+      if (diff > 5) {
+        goalContributors.push({ name: catName, saved: diff })
+      } else if (diff < -5) {
+        goalDetractors.push({ name: catName, overBy: Math.abs(diff) })
+      }
+    }
+    goalContributors.sort((a, b) => b.saved - a.saved)
+    goalDetractors.sort((a, b) => b.overBy - a.overBy)
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -284,6 +311,38 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                     <a href="/settings" className="mt-2 inline-block text-sm text-pine hover:underline">
                       Review your goal &rarr;
                     </a>
+                  </div>
+                )}
+
+                {/* Goal contributors/detractors */}
+                {(goalContributors.length > 0 || goalDetractors.length > 0) && (
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {goalContributors.length > 0 && (
+                      <div className="rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-pine">Helped Your Goal</p>
+                        <ul className="space-y-1">
+                          {goalContributors.slice(0, 5).map(c => (
+                            <li key={c.name} className="flex items-center justify-between text-sm">
+                              <span className="text-fjord">{c.name}</span>
+                              <span className="font-mono text-xs text-pine">{formatCurrency(c.saved)} under budget</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {goalDetractors.length > 0 && (
+                      <div className="rounded-lg border border-ember/20 bg-ember/5 px-4 py-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ember">Worked Against Goal</p>
+                        <ul className="space-y-1">
+                          {goalDetractors.slice(0, 5).map(d => (
+                            <li key={d.name} className="flex items-center justify-between text-sm">
+                              <span className="text-fjord">{d.name}</span>
+                              <span className="font-mono text-xs text-ember">{formatCurrency(d.overBy)} over budget</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
 

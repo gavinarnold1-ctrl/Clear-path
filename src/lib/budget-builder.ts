@@ -493,7 +493,28 @@ CURRENT SAVINGS RATE: ${profile.savingsRate}%`
 
 USER'S PRIMARY FINANCIAL GOAL: ${goalContext.goalLabel}
 ${goalContext.guidanceForAI}
-Tailor the budget structure and commentary to serve this goal. For example, if the goal is "Save More," be more aggressive with flexible spending targets and highlight the projected savings rate improvement.`
+Tailor the budget structure and commentary to serve this goal.`
+
+    if (goalContext.goalTarget?.description) {
+      const gt = goalContext.goalTarget
+      userPrompt += `
+Goal target: ${gt.description}
+${gt.monthlyNeeded ? `Monthly contribution needed: $${gt.monthlyNeeded.toFixed(0)}` : ''}
+${gt.targetValue ? `Target value: $${gt.targetValue.toLocaleString()}` : ''}
+
+ARCHETYPE-SPECIFIC BUDGET INSTRUCTIONS:`
+      if (goalContext.primaryGoal === 'save_more') {
+        userPrompt += `\n- Be more aggressive with flexible spending targets. Ensure projected surplus >= $${(gt.monthlyNeeded ?? 0).toFixed(0)}/mo for savings.`
+      } else if (goalContext.primaryGoal === 'pay_off_debt') {
+        userPrompt += `\n- Minimize flexible spending where possible. Frame surplus as "available for extra debt payments." Ensure projected surplus >= $${(gt.monthlyNeeded ?? 0).toFixed(0)}/mo.`
+      } else if (goalContext.primaryGoal === 'spend_smarter') {
+        userPrompt += `\n- Focus on getting best value from each budget category. Compare to benchmarks aggressively. Highlight categories where the user is over benchmark.`
+      } else if (goalContext.primaryGoal === 'gain_visibility') {
+        userPrompt += `\n- Ensure every major spending category has a budget. Completeness matters more than aggressiveness.`
+      } else if (goalContext.primaryGoal === 'build_wealth') {
+        userPrompt += `\n- Maximize surplus for investing. Be aggressive on flexible cuts. Frame commentary around wealth-building timeline impact.`
+      }
+    }
   }
 
   userPrompt += `

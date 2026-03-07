@@ -905,6 +905,49 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
   return (
     <div className="space-y-8">
+      {/* Financial Goal — first section for prominence */}
+      <section className="card">
+        <h2 className="mb-1 text-base font-semibold text-fjord">Financial Goal</h2>
+        <p className="mb-4 text-xs text-stone">
+          This drives your budget suggestions, insights, and progress tracking.
+          {currentGoalSetAt && (
+            <> Set on {new Date(currentGoalSetAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.</>
+          )}
+        </p>
+        <div className="space-y-2">
+          {GOAL_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => { setSelectedGoal(opt.key); setGoalMsg(null) }}
+              className={`w-full rounded-card border px-4 py-3 text-left transition ${
+                selectedGoal === opt.key
+                  ? 'border-fjord bg-frost text-midnight'
+                  : 'border-mist text-fjord hover:border-lichen hover:bg-snow'
+              }`}
+            >
+              <span className="block text-sm font-semibold">{opt.label}</span>
+              <span className="block text-xs text-stone mt-0.5">{opt.description}</span>
+            </button>
+          ))}
+        </div>
+        {goalMsg && (
+          <p className={`mt-3 text-sm ${goalMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
+            {goalMsg.text}
+          </p>
+        )}
+        <Button size="sm" className="mt-4" onClick={saveGoal} disabled={!goalChanged || !selectedGoal} loading={goalSaving} loadingText="Saving...">
+          Save Goal
+        </Button>
+        {selectedGoal && (
+          <GoalHistory
+            currentGoal={selectedGoal}
+            goalSetAt={currentGoalSetAt}
+            previousGoals={previousGoals}
+          />
+        )}
+      </section>
+
       {/* R10.1: Profile Management */}
       <section className="card">
         <h2 className="mb-4 text-base font-semibold text-fjord">Profile</h2>
@@ -967,49 +1010,6 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             Change Password
           </Button>
         </div>
-      </section>
-
-      {/* Financial Goal */}
-      <section className="card">
-        <h2 className="mb-1 text-base font-semibold text-fjord">Financial Goal</h2>
-        <p className="mb-4 text-xs text-stone">
-          This drives your budget suggestions, insights, and progress tracking.
-          {currentGoalSetAt && (
-            <> Set on {new Date(currentGoalSetAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.</>
-          )}
-        </p>
-        <div className="space-y-2">
-          {GOAL_OPTIONS.map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => { setSelectedGoal(opt.key); setGoalMsg(null) }}
-              className={`w-full rounded-card border px-4 py-3 text-left transition ${
-                selectedGoal === opt.key
-                  ? 'border-fjord bg-frost text-midnight'
-                  : 'border-mist text-fjord hover:border-lichen hover:bg-snow'
-              }`}
-            >
-              <span className="block text-sm font-semibold">{opt.label}</span>
-              <span className="block text-xs text-stone mt-0.5">{opt.description}</span>
-            </button>
-          ))}
-        </div>
-        {goalMsg && (
-          <p className={`mt-3 text-sm ${goalMsg.type === 'success' ? 'text-income' : 'text-expense'}`}>
-            {goalMsg.text}
-          </p>
-        )}
-        <Button size="sm" className="mt-4" onClick={saveGoal} disabled={!goalChanged || !selectedGoal} loading={goalSaving} loadingText="Saving...">
-          Save Goal
-        </Button>
-        {selectedGoal && (
-          <GoalHistory
-            currentGoal={selectedGoal}
-            goalSetAt={currentGoalSetAt}
-            previousGoals={previousGoals}
-          />
-        )}
       </section>
 
       {/* R10.2: Household Members */}

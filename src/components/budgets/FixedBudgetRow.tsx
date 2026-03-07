@@ -29,7 +29,7 @@ function getCurrentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, status }: Props) {
+export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, category, status }: Props) {
   const cfg = STATUS_CONFIG[status]
 
   const href = id

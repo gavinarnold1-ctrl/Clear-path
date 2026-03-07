@@ -244,7 +244,17 @@ ENTITY ANALYSIS GUIDANCE:
 
 USER'S PRIMARY GOAL: ${ctx.goalContext.goalLabel}
 ${ctx.goalContext.guidanceForAI}
-Set since: ${ctx.goalContext.goalSetAt?.toLocaleDateString() ?? 'unknown'}
+Set since: ${ctx.goalContext.goalSetAt?.toLocaleDateString() ?? 'unknown'}`
+
+    if (ctx.goalContext.goalTarget?.description) {
+      const gt = ctx.goalContext.goalTarget
+      userPrompt += `
+Goal target: ${gt.description}
+${gt.monthlyNeeded ? `Monthly contribution needed: $${gt.monthlyNeeded.toFixed(0)}` : ''}
+${gt.targetValue ? `Target value: $${gt.targetValue.toLocaleString()}` : ''}`
+    }
+
+    userPrompt += `
 Frame all insights through this lens. The user chose this goal — respect it.
 IMPORTANT: Rank your insights by relevance to this goal. The first 1-2 insights should directly address goal progress. Remaining insights can cover other financial health topics.`
   }
