@@ -19,6 +19,7 @@ export interface DuplicateGroup {
     accountName: string | null
     notes: string | null
     plaidTransactionId: string | null
+    originalStatement: string | null
     isPending: boolean
   }[]
 }
@@ -86,6 +87,26 @@ export async function GET() {
         }
 
         if (cluster.length >= 2) {
+          // If every transaction has a distinct Plaid ID, Plaid has confirmed
+          // they are separate transactions — skip this cluster
+          const plaidIds = cluster
+            .map(tx => tx.plaidTransactionId)
+            .filter(Boolean)
+          const uniquePlaidIds = new Set(plaidIds)
+          if (plaidIds.length === cluster.length && uniquePlaidIds.size === cluster.length) {
+            continue
+          }
+
+          // If every transaction has a distinct originalStatement (raw bank
+          // description), they are confirmed-different — skip this cluster
+          const origStatements = cluster
+            .map(tx => tx.originalStatement)
+            .filter(Boolean)
+          const uniqueStatements = new Set(origStatements)
+          if (origStatements.length === cluster.length && uniqueStatements.size === cluster.length) {
+            continue
+          }
+
           duplicateGroups.push({
             canonicalMerchant: canonicalizeMerchant(cluster[0].merchant),
             amount: cluster[0].amount,
@@ -102,6 +123,7 @@ export async function GET() {
               accountName: tx.account?.name ?? null,
               notes: tx.notes,
               plaidTransactionId: tx.plaidTransactionId,
+              originalStatement: tx.originalStatement,
               isPending: tx.isPending,
             })),
           })

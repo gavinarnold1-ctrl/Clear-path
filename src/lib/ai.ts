@@ -278,12 +278,31 @@ ${ctx.cardRenewals.map((r) => `- ${sanitizeForPrompt(r.cardLabel)}: $${Math.roun
 
   userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: userPrompt }],
-    system: systemPrompt,
-  })
+  // Retry up to 3 attempts for transient API errors (overloaded, rate limit)
+  let response
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt - 1)))
+    }
+    try {
+      response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: userPrompt }],
+        system: systemPrompt,
+      })
+      break
+    } catch (apiError: unknown) {
+      const status = (apiError as { status?: number })?.status
+      if ((status === 529 || status === 429 || status === 500 || status === 503) && attempt < 2) {
+        continue
+      }
+      throw apiError
+    }
+  }
+  if (!response) {
+    throw new Error('Failed to get AI response after 3 attempts')
+  }
 
   if (response.stop_reason !== 'end_turn') {
     throw new Error(`AI response was truncated (stop_reason: ${response.stop_reason})`)

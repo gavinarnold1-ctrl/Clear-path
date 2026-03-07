@@ -14,6 +14,8 @@ interface DuplicateTx {
   categoryName: string | null
   accountName: string | null
   notes: string | null
+  plaidTransactionId: string | null
+  originalStatement: string | null
   isPending: boolean
 }
 
@@ -106,22 +108,34 @@ export default function DuplicateReview() {
             <div className="space-y-1.5">
               {group.transactions.map(tx => (
                 <div key={tx.id} className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-badge bg-mist/50 px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                      {tx.importSource ?? 'manual'}
-                    </span>
-                    <span className="text-fjord">{tx.merchant}</span>
-                    {tx.isPending && (
-                      <span className="rounded-badge bg-mist/40 px-1 py-0.5 text-[10px] text-stone">
-                        pending
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-badge bg-mist/50 px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                        {tx.importSource ?? 'manual'}
                       </span>
-                    )}
-                    <span className="text-stone">{formatDate(new Date(tx.date))}</span>
-                    {tx.categoryName && (
-                      <span className="text-stone">{tx.categoryName}</span>
-                    )}
-                    {tx.accountName && (
-                      <span className="text-stone">({tx.accountName})</span>
+                      {tx.plaidTransactionId && (
+                        <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                          Plaid-verified
+                        </span>
+                      )}
+                      <span className="text-fjord">{tx.merchant}</span>
+                      {tx.isPending && (
+                        <span className="rounded-badge bg-mist/40 px-1 py-0.5 text-[10px] text-stone">
+                          pending
+                        </span>
+                      )}
+                      <span className="text-stone">{formatDate(new Date(tx.date))}</span>
+                      {tx.categoryName && (
+                        <span className="text-stone">{tx.categoryName}</span>
+                      )}
+                      {tx.accountName && (
+                        <span className="text-stone">({tx.accountName})</span>
+                      )}
+                    </div>
+                    {tx.originalStatement && tx.originalStatement !== tx.merchant && (
+                      <span className="pl-1 text-[10px] text-stone/70 italic">
+                        {tx.originalStatement}
+                      </span>
                     )}
                   </div>
                   <Button
