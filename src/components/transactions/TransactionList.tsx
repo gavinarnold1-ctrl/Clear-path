@@ -61,6 +61,7 @@ interface TransactionRow {
   property: { id: string; name: string } | null
   classification?: string
   annualExpenseId?: string | null
+  isPending?: boolean
   splits?: SplitRow[]
 }
 
@@ -1136,6 +1137,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                   <td className="px-4 py-3 text-stone">{formatDate(new Date(tx.date))}</td>
                   <td className="px-4 py-3 font-medium text-fjord">
                     {tx.merchant}
+                    {tx.isPending && (
+                      <span className="ml-1.5 rounded-badge bg-mist/40 px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                        Pending
+                      </span>
+                    )}
                     {tx.classification === 'perk_reimbursement' && (
                       <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">
                         Card Perk

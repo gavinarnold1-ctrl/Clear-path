@@ -7,6 +7,7 @@ import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 import { inferCategoryGroup, classifyTransaction } from '@/lib/category-groups'
 import { applyPropertyAttribution } from '@/lib/apply-splits'
+import { canonicalizeMerchant } from '@/lib/normalize-merchant'
 /** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
 function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
   const lower = name.toLowerCase()
@@ -322,6 +323,7 @@ export async function POST(request: Request) {
       }
 
       if (skipDuplicates) {
+        // Exact match: same date, amount, merchant
         const existing = await db.transaction.findFirst({
           where: {
             userId: session.userId,
@@ -331,6 +333,25 @@ export async function POST(request: Request) {
           },
         })
         if (existing) {
+          duplicateCount++
+          continue
+        }
+
+        // Cross-source dedup: CSV transaction may match a Plaid transaction
+        // with a different merchant name variant (e.g., "STARBUCKS #123" vs "Starbucks")
+        const canonicalKey = canonicalizeMerchant(tx.merchant)
+        const crossSourceMatch = await db.transaction.findFirst({
+          where: {
+            userId: session.userId,
+            date: {
+              gte: new Date(txDate.getTime() - 24 * 60 * 60 * 1000),
+              lte: new Date(txDate.getTime() + 24 * 60 * 60 * 1000),
+            },
+            amount: tx.amount,
+            importSource: 'plaid',
+          },
+        })
+        if (crossSourceMatch && canonicalizeMerchant(crossSourceMatch.merchant) === canonicalKey) {
           duplicateCount++
           continue
         }

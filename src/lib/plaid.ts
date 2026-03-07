@@ -66,7 +66,10 @@ export function mapPlaidCategory(
   primary: string,
   detailed?: string | null,
   amount?: number,
+  merchantName?: string | null,
 ): { group: string; name: string; type: string } {
+  const merchantLower = (merchantName ?? '').toLowerCase()
+
   // Credit card payments — internal transfer, NOT an expense
   if (primary === 'LOAN_PAYMENTS' && detailed?.includes('CREDIT_CARD')) {
     return { group: 'Transfers', name: 'Credit Card Payment', type: 'transfer' }
@@ -85,14 +88,38 @@ export function mapPlaidCategory(
     return { group: 'Income', name: 'Interest', type: 'income' }
   }
 
+  // Trust distributions — classified as income, not generic transfer
+  if (primary === 'INCOME' && detailed === 'INCOME_OTHER_INCOME') {
+    if (/\b(trust|distrib|estate|beneficiar)/i.test(merchantLower)) {
+      return { group: 'Income', name: 'Trust Distribution', type: 'income' }
+    }
+  }
+
   // Investment transfers
   if (primary === 'TRANSFER_IN' && detailed === 'TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS') {
     return { group: 'Transfers', name: 'Investment Transfer', type: 'transfer' }
   }
 
+  // Peer-to-peer transfers: Venmo, Zelle, Cash App
+  // These are often person-to-person — classify as transfer, not income/expense
+  const isPeerTransfer = /\b(venmo|zelle|cash\s*app|cashapp)\b/i.test(merchantLower)
+  if (isPeerTransfer && (primary === 'TRANSFER_IN' || primary === 'TRANSFER_OUT')) {
+    return { group: 'Transfers', name: 'Peer Transfer', type: 'transfer' }
+  }
+
+  // Mobile deposits >$200 — likely income (paycheck, check deposit)
+  if (primary === 'TRANSFER_IN' && detailed === 'TRANSFER_IN_DEPOSIT') {
+    if (amount && amount > 200) {
+      return { group: 'Income', name: 'Paychecks', type: 'income' }
+    }
+    if (/\b(mobile\s*deposit|remote\s*deposit|check\s*deposit)\b/i.test(merchantLower)) {
+      return { group: 'Income', name: 'Other Income', type: 'income' }
+    }
+  }
+
   // Income detection from transfers
   if (primary === 'TRANSFER_IN') {
-    if (detailed === 'TRANSFER_IN_DEPOSIT' || detailed === 'TRANSFER_IN_PAYROLL') {
+    if (detailed === 'TRANSFER_IN_PAYROLL') {
       return { group: 'Income', name: 'Paychecks', type: 'income' }
     }
     // Large positive transfers that aren't account-to-account

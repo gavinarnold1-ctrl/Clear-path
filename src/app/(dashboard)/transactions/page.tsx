@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import TransactionList from '@/components/transactions/TransactionList'
+import DuplicateReview from '@/components/transactions/DuplicateReview'
 import { findRefundPairs } from '@/lib/refund-detection'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
 
@@ -103,6 +104,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     property: tx.property ? { id: tx.property.id, name: tx.property.name } : null,
     classification: tx.classification,
     annualExpenseId: tx.annualExpenseId,
+    isPending: tx.isPending,
     splits: tx.splits.map(s => ({
       id: s.id,
       propertyId: s.propertyId,
@@ -132,6 +134,8 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           </Button>
         </div>
       </div>
+
+      <DuplicateReview />
 
       {transactions.length === 0 ? (
         <div className="card">

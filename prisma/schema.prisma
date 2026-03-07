@@ -181,6 +181,8 @@ model Transaction {
   tags              String?  // Comma-separated tags (e.g., "tax,business")
   importSource      String?  // "csv" | "manual" | "plaid"
   plaidTransactionId String?  @unique // Plaid's transaction_id — prevents duplicate imports
+  isPending         Boolean  @default(false) // true for Plaid pending transactions (not yet posted)
+  pendingPlaidId    String?  // Links a posted transaction to its former pending plaidTransactionId
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
