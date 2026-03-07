@@ -382,6 +382,8 @@ describe('computeForecast', () => {
         makeSnapshot({ month: '2025-12-01', netSurplus: 2000 }),
         makeSnapshot({ month: '2026-01-01', netSurplus: 1000 }),
       ],
+      // Zero budget surplus so the savings fallback doesn't override negative velocity
+      budgets: makeBudgets({ projectedSurplus: 0 }),
     })
     const forecast = computeForecast(input)
     // Velocity is negative (decreasing surplus)
