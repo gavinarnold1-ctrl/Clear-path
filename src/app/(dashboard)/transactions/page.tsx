@@ -35,20 +35,50 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const initialCatchAll = params.catchAll === 'true'
   const initialBudgetName = params.budgetName ?? ''
 
-  const [transactions, categories, accounts, householdMembers, properties, propertyGroups] = await Promise.all([
-    db.transaction.findMany({
-      where: { userId: session.userId },
-      include: {
-        account: true,
-        category: true,
-        householdMember: true,
-        property: true,
-        splits: {
-          include: { property: { select: { id: true, name: true, taxSchedule: true } } },
-          orderBy: { amount: 'desc' },
-        },
+  const isBudgetMode = !!(initialBudgetId || initialCatchAll)
+  const PAGE_SIZE = 50
+
+  // Build where clause from URL params for server-side filtering
+  const txWhere: Record<string, unknown> = { userId: session.userId }
+  if (initialCategoryId) txWhere.categoryId = initialCategoryId
+  if (initialMonth) {
+    const [y, m] = initialMonth.split('-').map(Number)
+    if (y && m) {
+      txWhere.date = { gte: new Date(Date.UTC(y, m - 1, 1)), lt: new Date(Date.UTC(y, m, 1)) }
+    }
+  }
+  if (initialAccountId) txWhere.accountId = initialAccountId
+  if (initialPersonId && initialPersonId !== '__none__') txWhere.householdMemberId = initialPersonId
+  if (initialPropertyId && initialPropertyId !== '__none__' && !initialPropertyId.startsWith('group:')) txWhere.propertyId = initialPropertyId
+  if (initialClassification) txWhere.classification = initialClassification
+  if (initialUncategorized) txWhere.categoryId = null
+  if (initialAnnualExpenseId) txWhere.annualExpenseId = initialAnnualExpenseId
+  if (initialSearch) txWhere.merchant = { contains: initialSearch, mode: 'insensitive' }
+
+  const txSelect = {
+    id: true, date: true, merchant: true, amount: true, notes: true,
+    categoryId: true, accountId: true, householdMemberId: true, propertyId: true,
+    classification: true, annualExpenseId: true, isPending: true,
+    category: { select: { id: true, name: true } },
+    account: { select: { id: true, name: true } },
+    householdMember: { select: { id: true, name: true } },
+    property: { select: { id: true, name: true } },
+    splits: {
+      select: {
+        id: true, propertyId: true, amount: true,
+        property: { select: { id: true, name: true, taxSchedule: true } },
       },
+      orderBy: { amount: 'desc' as const },
+    },
+  }
+
+  const [txTotal, transactions, categories, accounts, householdMembers, properties, propertyGroups] = await Promise.all([
+    db.transaction.count({ where: txWhere }),
+    db.transaction.findMany({
+      where: txWhere,
+      select: txSelect,
       orderBy: { date: 'desc' },
+      ...(isBudgetMode ? {} : { take: PAGE_SIZE, skip: 0 }),
     }),
     db.category.findMany({
       where: {
@@ -84,32 +114,32 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
   // Detect refund pairs for badge display
   const refundPairIds = findRefundPairs(
-    transactions.map(tx => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId, classification: tx.classification }))
+    transactions.map(tx => ({ id: tx.id, merchant: tx.merchant, amount: Number(tx.amount), date: tx.date.toISOString(), accountId: tx.accountId, classification: tx.classification }))
   )
 
-  // Serialize dates for the client component
+  // Serialize dates + Decimal→number for the client component
   const serialized = transactions.map(tx => ({
     id: tx.id,
     date: tx.date.toISOString(),
     merchant: tx.merchant,
-    amount: tx.amount,
+    amount: Number(tx.amount),
     notes: tx.notes,
     categoryId: tx.categoryId,
     accountId: tx.accountId,
     householdMemberId: tx.householdMemberId,
     propertyId: tx.propertyId,
-    category: tx.category ? { id: tx.category.id, name: tx.category.name } : null,
-    account: tx.account ? { id: tx.account.id, name: tx.account.name } : null,
-    householdMember: tx.householdMember ? { id: tx.householdMember.id, name: tx.householdMember.name } : null,
-    property: tx.property ? { id: tx.property.id, name: tx.property.name } : null,
+    category: tx.category,
+    account: tx.account,
+    householdMember: tx.householdMember,
+    property: tx.property,
     classification: tx.classification,
     annualExpenseId: tx.annualExpenseId,
     isPending: tx.isPending,
     splits: tx.splits.map(s => ({
       id: s.id,
       propertyId: s.propertyId,
-      amount: s.amount,
-      property: s.property ? { id: s.property.id, name: s.property.name, taxSchedule: s.property.taxSchedule } : null,
+      amount: Number(s.amount),
+      property: s.property,
     })),
   }))
 
@@ -137,7 +167,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
       <DuplicateReview />
 
-      {transactions.length === 0 ? (
+      {txTotal === 0 ? (
         <div className="card">
           <EmptyState
             title="No transactions yet"
@@ -148,6 +178,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
       ) : (
         <TransactionList
           transactions={serialized}
+          initialTotal={txTotal}
           categories={categories}
           accounts={accounts}
           householdMembers={householdMembers}

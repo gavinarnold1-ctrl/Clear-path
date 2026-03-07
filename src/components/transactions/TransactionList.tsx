@@ -87,9 +87,10 @@ interface Props {
   initialCatchAll?: boolean
   initialBudgetName?: string
   refundedTxIds?: string[]
+  initialTotal?: number
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [] }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [], initialTotal = 0 }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -160,12 +161,23 @@ export default function TransactionList({ transactions: initial, categories, acc
   // Mobile detail row expansion
   const [mobileDetailId, setMobileDetailId] = useState<string | null>(null)
 
+  // Pagination state
+  const [page, setPage] = useState(0)
+  const [totalCount, setTotalCount] = useState(initialTotal)
+  const [loading, setLoading] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText)
+  const PAGE_SIZE = 50
+  const isBudgetMode = !!(initialBudgetId || initialCatchAll)
+  const isInitialMount = useRef(true)
+  const fetchIdRef = useRef(0)
+
   const merchantRef = useRef<HTMLInputElement>(null)
 
   // Sync transactions when parent re-renders with new data
   useEffect(() => {
     setTransactions(initial)
-  }, [initial])
+    setTotalCount(initialTotal)
+  }, [initial, initialTotal])
 
   // Track search with debounce
   useEffect(() => {
@@ -200,6 +212,72 @@ export default function TransactionList({ transactions: initial, categories, acc
       })
       .catch(() => setBudgetFilterLoading(false))
   }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName])
+
+  // Debounce search text for server-side filtering (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // Compute filter hash to detect filter changes and reset page
+  const filterHash = [
+    sortColumn, sortDirection, filterCategoryId, filterMonth, filterAccountId,
+    filterPersonId, filterPropertyId, filterClassification, debouncedSearch,
+    filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax,
+    String(filterUncategorized), filterAnnualExpenseId,
+  ].join('|')
+
+  const prevFilterHash = useRef(filterHash)
+  if (filterHash !== prevFilterHash.current) {
+    prevFilterHash.current = filterHash
+    if (page !== 0) setPage(0)
+  }
+
+  // Fetch paginated data from API when filters or page change
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    if (isBudgetMode) return
+
+    const fetchId = ++fetchIdRef.current
+    setLoading(true)
+
+    const params = new URLSearchParams()
+    params.set('limit', String(PAGE_SIZE))
+    params.set('offset', String(page * PAGE_SIZE))
+    if (sortColumn !== 'category' && sortColumn !== 'account') {
+      params.set('sortBy', sortColumn)
+      params.set('sortDir', sortDirection)
+    }
+    if (filterCategoryId) params.set('categoryId', filterCategoryId)
+    if (filterMonth) params.set('month', filterMonth)
+    if (filterAccountId) params.set('accountId', filterAccountId)
+    if (filterPersonId) params.set('householdMemberId', filterPersonId)
+    if (filterPropertyId && !filterPropertyId.startsWith('group:')) params.set('propertyId', filterPropertyId)
+    if (filterClassification) params.set('classification', filterClassification)
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (filterDateFrom) params.set('dateFrom', filterDateFrom)
+    if (filterDateTo) params.set('dateTo', filterDateTo)
+    if (filterAmountMin) params.set('amountMin', filterAmountMin)
+    if (filterAmountMax) params.set('amountMax', filterAmountMax)
+    if (filterUncategorized) params.set('uncategorized', 'true')
+    if (filterAnnualExpenseId) params.set('annualExpenseId', filterAnnualExpenseId)
+
+    fetch(`/api/transactions?${params}`)
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        if (fetchId !== fetchIdRef.current) return
+        setTransactions(data.transactions)
+        setTotalCount(data.total)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (fetchId === fetchIdRef.current) setLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterHash, isBudgetMode])
 
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
@@ -767,7 +845,15 @@ export default function TransactionList({ transactions: initial, categories, acc
         </div>
       )}
 
-      <div className="card overflow-hidden p-0">
+      <div className="card relative overflow-hidden p-0">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-snow/60">
+            <div className="flex items-center gap-2 rounded-card bg-frost px-4 py-2 shadow-sm">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-mist border-t-fjord" />
+              <span className="text-xs text-stone">Loading...</span>
+            </div>
+          </div>
+        )}
         {error && (
           <div className="border-b border-ember/30 bg-ember/10 px-4 py-2 text-sm text-ember">
             {error}
@@ -1278,14 +1364,41 @@ export default function TransactionList({ transactions: initial, categories, acc
           </tbody>
         </table>
         </div>
-        <p className="border-t border-mist px-4 py-2 text-right text-xs text-stone">
-          {selected.size > 0 && (
-            <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
+        <div className="flex items-center justify-between border-t border-mist px-4 py-2">
+          <p className="text-xs text-stone">
+            {selected.size > 0 && (
+              <span className="mr-3 font-medium text-fjord">{selected.size} selected</span>
+            )}
+            {isBudgetMode
+              ? (hasAnyFilter
+                ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
+                : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`)
+              : totalCount === 0
+                ? 'No transactions'
+                : `${page * PAGE_SIZE + 1}\u2013${Math.min((page + 1) * PAGE_SIZE, totalCount)} of ${totalCount}`}
+          </p>
+          {!isBudgetMode && totalCount > PAGE_SIZE && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0 || loading}
+                className="rounded-button border border-mist bg-snow px-3 py-1 text-xs font-medium text-fjord hover:bg-frost disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-stone">
+                Page {page + 1} of {Math.ceil(totalCount / PAGE_SIZE)}
+              </span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={(page + 1) * PAGE_SIZE >= totalCount || loading}
+                className="rounded-button border border-mist bg-snow px-3 py-1 text-xs font-medium text-fjord hover:bg-frost disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           )}
-          {(filterPropertyId || filterPersonId || filterCategoryId || filterMonth || filterAccountId || searchText || filterClassification || filterAnnualExpenseId || budgetTxIds !== null)
-            ? `${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
-            : `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
-        </p>
+        </div>
       </div>
 
       {/* Bulk action bar */}

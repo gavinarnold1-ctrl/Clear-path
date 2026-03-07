@@ -89,6 +89,7 @@
   [role="progressbar"] > div,
   .progress-fill {
     transition: width 0.6s ease;
+    will-change: width;
   }
 }
 

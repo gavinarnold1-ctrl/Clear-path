@@ -20,7 +20,9 @@ export async function GET(req: NextRequest) {
     orderBy: { startDate: 'desc' },
   })
 
-  return NextResponse.json(budgets)
+  return NextResponse.json(budgets, {
+    headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+  })
 }
 
 export async function POST(req: NextRequest) {
