@@ -3,6 +3,7 @@ import { formatCurrency } from '@/lib/utils'
 import FlexibleBudgetRow from './FlexibleBudgetRow'
 import BenchmarkBar from './BenchmarkBar'
 import ProgressBar from '@/components/ui/ProgressBar'
+import SortableFlexibleCards from './SortableFlexibleCards'
 import { budgetProgress } from '@/lib/utils'
 import type { BudgetBenchmarkComparison } from '@/lib/budget-benchmarks'
 
@@ -134,30 +135,33 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
         </div>
       )}
 
-      {/* Individual flexible category cards */}
-      <div className="divide-y divide-mist rounded-card border border-mist bg-snow">
-        {visibleBudgets.map((budget) => {
+      {/* Individual flexible category cards — drag-and-drop sortable */}
+      <SortableFlexibleCards
+        items={visibleBudgets.map((budget) => {
           const bm = benchmarkMap.get(budget.category?.name ?? budget.name)
-          return (
-            <div key={budget.id}>
-              <FlexibleBudgetRow
-                id={budget.id}
-                name={budget.name}
-                amount={budget.amount}
-                spent={budget.spent}
-                categoryId={budget.resolvedCategoryId ?? budget.categoryId}
-                category={budget.category}
-                isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
-              />
-              {bm && (
-                <div className="px-3 pb-2">
-                  <BenchmarkBar benchmark={bm} goalAware={!!hasGoalTarget} primaryGoal={primaryGoal} />
-                </div>
-              )}
-            </div>
-          )
+          return {
+            id: budget.id,
+            content: (
+              <>
+                <FlexibleBudgetRow
+                  id={budget.id}
+                  name={budget.name}
+                  amount={budget.amount}
+                  spent={budget.spent}
+                  categoryId={budget.resolvedCategoryId ?? budget.categoryId}
+                  category={budget.category}
+                  isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
+                />
+                {bm && (
+                  <div className="px-3 pb-2">
+                    <BenchmarkBar benchmark={bm} goalAware={!!hasGoalTarget} primaryGoal={primaryGoal} />
+                  </div>
+                )}
+              </>
+            ),
+          }
         })}
-
+        trailing={<>
         {/* Unallocated flexible at bottom */}
         {showUnallocated && (() => {
           const spent = unallocatedSpent ?? 0
@@ -207,7 +211,8 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
             </Link>
           )
         })()}
-      </div>
+        </>}
+      />
     </section>
   )
 }

@@ -39,7 +39,7 @@ export default async function BudgetsPage() {
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true },
-      orderBy: [{ tier: 'asc' }, { amount: 'desc' }],
+      orderBy: [{ tier: 'asc' }, { sortOrder: 'asc' }, { amount: 'desc' }],
     }),
     // Current month's expense transactions — exclude transfers for budget computation
     db.transaction.findMany({
