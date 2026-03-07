@@ -3,8 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { formatCurrency, formatDate, budgetProgress } from '@/lib/utils'
-import ProgressBar from '@/components/ui/ProgressBar'
+import { formatCurrency } from '@/lib/utils'
 import MonthPicker from './MonthPicker'
 import MonthlyChart from '@/components/dashboard/MonthlyChart'
 import ValueTracker from '@/components/dashboard/ValueTracker'
@@ -12,47 +11,18 @@ import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
 import { getValueSummary } from '@/lib/value-tracker'
 import { getGoalContext } from '@/lib/goal-context'
-// GoalProgressCard replaced by compact inline goal row
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
+import GoalCrossLinks from '@/components/dashboard/GoalCrossLinks'
+import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
+import AttentionItems from '@/components/dashboard/AttentionItems'
+import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
 
 export const metadata: Metadata = { title: 'Overview' }
 export const revalidate = 60
-
-function StatCard({
-  label,
-  value,
-  sub,
-  valueClass,
-  change,
-}: {
-  label: string
-  value: string
-  sub?: string
-  valueClass?: string
-  change?: { pct: number; label: string } | null
-}) {
-  return (
-    <div className="card">
-      <p className="text-xs font-medium text-stone">{label}</p>
-      <p className={`mt-1 font-mono text-2xl font-medium ${valueClass ?? 'text-fjord'}`}>{value}</p>
-      {change != null && (
-        <p className={`mt-1 text-xs font-medium ${change.pct > 0 ? 'text-income' : change.pct < 0 ? 'text-expense' : 'text-stone'}`}>
-          {change.pct > 0 ? '+' : ''}{change.pct.toFixed(1)}% {change.label}
-        </p>
-      )}
-      {sub && !change && <p className="mt-1 text-xs text-stone">{sub}</p>}
-    </div>
-  )
-}
-
-function pctChange(current: number, previous: number): number | null {
-  if (previous === 0) return current === 0 ? null : 100
-  return ((current - previous) / Math.abs(previous)) * 100
-}
 
 interface Props {
   searchParams: Promise<{ month?: string }>
@@ -96,15 +66,17 @@ export default async function DashboardPage({ searchParams }: Props) {
     incomeAgg,
     expenseAgg,
     prevIncomeAgg,
-    prevExpenseAgg,
-    recent,
+    _prevExpenseAgg,
+    _recent,
     rawBudgets,
     budgetExpenses,
-    categorySpending,
+    _categorySpending,
     chartData,
     userProfile,
     valueSummary,
     goalContext,
+    debtSummary,
+    txCategorizationStats,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     // R1.14: Income = classification "income"
@@ -199,6 +171,16 @@ export default async function DashboardPage({ searchParams }: Props) {
     getValueSummary(session.userId),
     // Goal context for goal-driven dashboard
     getGoalContext(session.userId),
+    // Debt summary for archetype card
+    db.debt.aggregate({
+      where: { userId: session.userId },
+      _sum: { currentBalance: true, minimumPayment: true },
+    }),
+    // Categorization stats for gain_visibility archetype
+    Promise.all([
+      db.transaction.count({ where: { userId: session.userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 } } }),
+      db.transaction.count({ where: { userId: session.userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, categoryId: { not: null } } }),
+    ]),
   ])
 
   // Benefit alerts — expiring card credits
@@ -301,47 +283,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   const flexibleSpent = flexibleBudgets.reduce((sum, b) => sum + b.spent, 0)
   const annualSetAside = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
 
-  // Active Budgets: deduplicate by categoryId so the same category doesn't
-  // appear multiple times when the user has multiple budgets for one category.
-  // Collapse into one entry per category: sum budget amounts, keep actual spent.
-  const budgetsByCategoryId = new Map<string, { name: string; amount: number; spent: number; id: string }>()
-  for (const b of allBudgetsWithSpent) {
-    if (b.spent <= 0 && b.amount <= 0) continue
-    const key = b.categoryId ?? b.id // ungrouped budgets use their own id
-    const existing = budgetsByCategoryId.get(key)
-    if (existing) {
-      existing.amount += b.amount
-      // spent is per-category, so it's the same — don't double it
-    } else {
-      budgetsByCategoryId.set(key, {
-        name: b.category?.name ?? b.name,
-        amount: b.amount,
-        spent: b.spent,
-        id: b.id,
-      })
-    }
-  }
-  const activeBudgets = [...budgetsByCategoryId.values()]
-    .sort((a, b) => {
-      const pctA = a.amount > 0 ? a.spent / a.amount : 0
-      const pctB = b.amount > 0 ? b.spent / b.amount : 0
-      return pctB - pctA
-    })
-    .slice(0, 4)
-
-  const CASH_TYPES = new Set(['CHECKING', 'SAVINGS'])
-  const cashAvailable = accounts.reduce((sum, a) => {
-    if (CASH_TYPES.has(a.type)) return sum + a.balance
-    return sum
-  }, 0)
-  const monthlyExpense = Math.abs(expenseAgg._sum.amount ?? 0)
-  const monthlyNet = monthlyIncome - monthlyExpense
-
   const prevIncome = prevIncomeAgg._sum.amount ?? 0
-  const prevExpense = Math.abs(prevExpenseAgg._sum.amount ?? 0)
-
-  const incomeChange = pctChange(monthlyIncome, prevIncome)
-  const expenseChange = pctChange(monthlyExpense, prevExpense)
 
   // Build chart data - group transactions by month
   const chartMonths: Record<string, { income: number; expenses: number }> = {}
@@ -376,18 +318,6 @@ export default async function DashboardPage({ searchParams }: Props) {
     })
     .filter((entry) => entry.income > 0 || entry.expenses > 0 || entry.isCurrent)
 
-  // Resolve category names for spending breakdown
-  const catIds = categorySpending.map((g) => g.categoryId).filter((id): id is string => id !== null)
-  const categories = catIds.length > 0
-    ? await db.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true, icon: true } })
-    : []
-  const catMap = new Map(categories.map((c) => [c.id, c]))
-  const spendingByCategory = categorySpending.map((g) => {
-    const cat = catMap.get(g.categoryId!)
-    return { name: cat?.name ?? 'Unknown', icon: cat?.icon ?? null, amount: Math.abs(g._sum.amount ?? 0) }
-  })
-  const maxCategoryAmount = Math.max(...spendingByCategory.map((s) => s.amount), 1)
-
   const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`
 
   const hasBudgets = rawBudgets.length > 0
@@ -396,6 +326,29 @@ export default async function DashboardPage({ searchParams }: Props) {
   const goalTarget = userProfile?.goalTarget as GoalTarget | null
   const hasGoal = !!goalContext && !!userProfile?.primaryGoal
   const trueRemaining = (userProfile?.expectedMonthlyIncome ?? monthlyIncome) - fixedTotal - flexibleSpent - annualSetAside
+
+  // Budget health card data
+  const fixedPaidCount = fixedBudgets.filter(b => b.spent > 0).length
+  const flexibleUnderBudget = Math.max(0, flexibleBudgets.reduce((sum, b) => sum + b.amount, 0) - flexibleSpent)
+
+  // Archetype-specific card data
+  const totalDebt = debtSummary._sum.currentBalance ?? 0
+  const debtPayments = debtSummary._sum.minimumPayment ?? 0
+  const annualFundTotal = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.annualAmount ?? 0), 0)
+  const annualFundProgress = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.funded ?? 0), 0)
+  const [totalExpenseTxs, categorizedTxs] = txCategorizationStats
+  const categorizationPct = totalExpenseTxs > 0 ? Math.round((categorizedTxs / totalExpenseTxs) * 100) : 100
+  const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
+  const netWorth = accounts.reduce((sum, a) => {
+    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
+    return sum + a.balance
+  }, 0)
+
+  // Over-budget items for attention section
+  const overBudgetItems = flexibleBudgets
+    .filter(b => b.spent > b.amount)
+    .map(b => ({ name: b.category?.name ?? b.name, overBy: b.spent - b.amount }))
+    .sort((a, b) => b.overBy - a.overBy)
 
   return (
     <div>
@@ -406,7 +359,32 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
-      {/* True Remaining Hero — always first */}
+      {/* Row 1: Goal Progress Hero */}
+      {hasGoal && goalContext && userProfile?.primaryGoal ? (
+        <GoalProgressCard
+          goal={userProfile.primaryGoal as PrimaryGoal}
+          goalLabel={goalContext.goalLabel}
+          target={goalTarget}
+          trueRemaining={trueRemaining}
+        />
+      ) : (
+        <div className="card mb-6 text-center">
+          <p className="text-lg font-semibold text-fjord">
+            Set a goal to see your budget working toward something specific
+          </p>
+          <p className="mt-2 text-sm text-stone">
+            A goal transforms your dashboard from a financial report into a progress tracker.
+          </p>
+          <Link
+            href="/settings"
+            className="mt-4 inline-block rounded-button bg-fjord px-6 py-2 text-sm font-medium text-snow hover:bg-midnight"
+          >
+            Choose your goal
+          </Link>
+        </div>
+      )}
+
+      {/* Row 2: True Remaining (supporting) */}
       {hasBudgets ? (
         <>
           <TrueRemainingBanner
@@ -438,81 +416,30 @@ export default async function DashboardPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Summary stats — above the fold */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Cash Available"
-          value={formatCurrency(cashAvailable)}
-          sub="checking + savings"
+      {/* Row 3: Budget Health Cards */}
+      {hasBudgets && (
+        <BudgetHealthCards
+          fixedPaid={fixedPaidCount}
+          fixedTotal={fixedBudgets.length}
+          flexibleSpent={flexibleSpent}
+          flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
+          flexibleUnderBudget={flexibleUnderBudget}
+          primaryGoal={(userProfile?.primaryGoal as PrimaryGoal) ?? null}
+          annualFundProgress={annualFundProgress}
+          annualFundTotal={annualFundTotal}
+          totalDebt={totalDebt}
+          debtPayments={debtPayments}
+          categorizationPct={categorizationPct}
+          netWorth={netWorth}
         />
-        <StatCard
-          label={`Income — ${monthLabel}`}
-          value={formatCurrency(monthlyIncome)}
-          valueClass="text-income"
-          change={incomeChange != null ? { pct: incomeChange, label: 'vs prev month' } : null}
-        />
-        <StatCard
-          label={`Expenses — ${monthLabel}`}
-          value={formatCurrency(monthlyExpense)}
-          valueClass="text-expense"
-          change={expenseChange != null ? { pct: -expenseChange, label: 'vs prev month' } : null}
-        />
-        <StatCard
-          label={`Net — ${monthLabel}`}
-          value={formatCurrency(monthlyNet)}
-          valueClass={monthlyNet >= 0 ? 'text-income' : 'text-expense'}
-          sub={monthlyNet >= 0 ? 'surplus' : 'deficit'}
-        />
-      </div>
+      )}
 
-      {/* Compact goal context row */}
-      {hasGoal && goalContext && goalTarget && (() => {
-        const progressPercent = goalTarget.currentValue !== undefined && goalTarget.targetValue > 0
-          ? Math.min(100, Math.round((goalTarget.currentValue / goalTarget.targetValue) * 100))
-          : 0
-        const monthsElapsed = (() => {
-          const start = new Date(goalTarget.startDate)
-          const n = new Date()
-          return (n.getFullYear() - start.getFullYear()) * 12 + (n.getMonth() - start.getMonth())
-        })()
-        const monthsTotal = (() => {
-          const start = new Date(goalTarget.startDate)
-          const end = new Date(goalTarget.targetDate)
-          return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
-        })()
-        const expectedProgress = monthsTotal > 0 ? Math.min(100, Math.round((monthsElapsed / monthsTotal) * 100)) : 0
-        const pace: 'ahead' | 'on_track' | 'behind' =
-          progressPercent >= expectedProgress + 5 ? 'ahead' :
-          progressPercent >= expectedProgress - 5 ? 'on_track' : 'behind'
-        return (
-          <div className="card mb-8 flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-stone">{goalTarget.description ?? goalContext.goalLabel}</div>
-              <div className="w-30 h-2 bg-frost rounded-bar overflow-hidden">
-                <div
-                  className="h-full bg-pine rounded-bar transition-all"
-                  style={{ width: `${Math.min(progressPercent, 100)}%` }}
-                />
-              </div>
-              <span className="text-sm font-medium text-fjord">
-                {progressPercent}%
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className={`text-xs px-2 py-0.5 rounded-badge ${
-                pace === 'ahead' ? 'bg-pine/10 text-pine' :
-                pace === 'on_track' ? 'bg-pine/10 text-pine' :
-                'bg-ember/10 text-ember'
-              }`}>
-                {pace === 'ahead' ? 'Ahead' : pace === 'on_track' ? 'On track' : 'Behind'}
-              </span>
-              <Link href="/forecast" className="text-sm text-pine hover:underline">
-                View forecast →
-              </Link>
-            </div>
-          </div>
-        )
-      })()}
+      {/* Row 4: Attention Items */}
+      <AttentionItems
+        overBudgetItems={overBudgetItems}
+        recalibration={recalibration}
+        benefitAlerts={benefitAlerts}
+      />
 
       {/* Goal Recalibration Banner */}
       {recalibration && <RecalibrationWrapper suggestion={recalibration} />}
@@ -533,164 +460,22 @@ export default async function DashboardPage({ searchParams }: Props) {
                 <p className="mt-1 text-sm text-stone">
                   Your actual income of {formatCurrency(monthlyIncome)} exceeded your expected monthly income of {formatCurrency(expectedIncome)}.
                 </p>
-                <ul className="mt-2 space-y-1 text-sm text-stone">
-                  <li>&bull; Pay down high-interest debt to save on interest</li>
-                  <li>&bull; Add to your emergency fund or savings</li>
-                  <li>&bull; Top up an annual sinking fund ahead of schedule</li>
-                  <li>&bull; Invest for long-term growth</li>
-                </ul>
               </div>
             </div>
           </div>
         )
       })()}
 
-      {/* Budget overview + Spending by category */}
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Active budgets */}
-        <div className="card">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-fjord">Active budgets</h2>
-            <Link href={`/budgets?month=${currentMonth}`} className="text-sm text-fjord hover:text-midnight">
-              View all &rarr;
-            </Link>
-          </div>
-
-          {activeBudgets.length === 0 ? (
-            <p className="text-sm text-stone">
-              No active budgets.{' '}
-              <Link href="/budgets/new" className="text-fjord hover:underline">
-                Create one
-              </Link>{' '}
-              to track spending.
-            </p>
-          ) : (
-            <ul className="space-y-4">
-              {activeBudgets.map((b) => {
-                const pct = budgetProgress(b.spent, b.amount)
-                return (
-                  <li key={b.id}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-fjord">{b.name}</span>
-                      <span className="text-stone">
-                        {formatCurrency(b.spent)} / {formatCurrency(b.amount)}
-                      </span>
-                    </div>
-                    <ProgressBar value={pct} />
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-
-        {/* Spending by category */}
-        <div className="card">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-fjord">Spending by category</h2>
-            <Link href={`/spending?month=${currentMonth}`} className="text-sm text-fjord hover:text-midnight">
-              View all &rarr;
-            </Link>
-          </div>
-
-          {spendingByCategory.length === 0 ? (
-            <p className="text-sm text-stone">
-              No categorised expenses this month.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {spendingByCategory.map((s) => (
-                <li key={s.name}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium text-fjord">
-                      {s.icon ? `${s.icon} ` : ''}{s.name}
-                    </span>
-                    <span className="text-stone">{formatCurrency(s.amount)}</span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-mist">
-                    <div
-                      className="h-full rounded-full bg-fjord"
-                      style={{
-                        width: `${Math.round((s.amount / maxCategoryAmount) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Benefit alerts — expiring card credits */}
-      {benefitAlerts.length > 0 && (
-        <div className="mb-8 space-y-2">
-          {benefitAlerts.slice(0, 3).map((alert) => (
-            <Link
-              key={`${alert.benefitId}-${alert.userCardId}`}
-              href="/accounts/benefits"
-              className={`block rounded-card border px-4 py-3 transition-colors hover:bg-frost/60 ${
-                alert.severity === 'urgent'
-                  ? 'border-ember/40 bg-ember/5'
-                  : alert.severity === 'warning'
-                    ? 'border-birch/60 bg-birch/10'
-                    : 'border-mist bg-frost/30'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">
-                  {alert.severity === 'urgent' ? '⚠️' : alert.severity === 'warning' ? '⏰' : 'ℹ️'}
-                </span>
-                <p className="text-sm text-fjord">{alert.message}</p>
-              </div>
-              <p className="mt-0.5 pl-6 text-xs text-stone">{alert.cardLabel}</p>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* Recent transactions */}
-      <div className="card mb-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-fjord">Recent transactions</h2>
-          <Link href={`/transactions?month=${currentMonth}`} className="text-sm text-fjord hover:text-midnight">
-            View all &rarr;
-          </Link>
-        </div>
-
-        {recent.length === 0 ? (
-          <p className="text-sm text-stone">
-            No transactions yet.{' '}
-            <Link href="/transactions/new" className="text-fjord hover:underline">
-              Add one
-            </Link>{' '}
-            to get started.
-          </p>
-        ) : (
-          <ul className="divide-y divide-mist">
-            {recent.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-fjord">{tx.merchant}</p>
-                  <p className="text-xs text-stone">
-                    {formatDate(tx.date)} · {tx.account?.name ?? 'No account'}
-                    {tx.category ? ` · ${tx.category.name}` : ''}
-                  </p>
-                </div>
-                <span className={`ml-4 shrink-0 whitespace-nowrap text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
-                  {tx.amount < 0 ? '−' : '+'}
-                  {formatCurrency(Math.abs(tx.amount))}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       {/* Chart */}
       <div className="mb-8">
-        <MonthlyChart data={chartSeries} />
+        <MonthlyChart data={chartSeries} goalMonthlySurplus={goalTarget?.monthlyNeeded} />
       </div>
+
+      {/* Goal-driven cross-links */}
+      <GoalCrossLinks
+        primaryGoal={(userProfile?.primaryGoal as PrimaryGoal) ?? null}
+        showMonthlyReviewCTA={now.getDate() <= 7}
+      />
 
       {/* Value tracker — at bottom */}
       <div>

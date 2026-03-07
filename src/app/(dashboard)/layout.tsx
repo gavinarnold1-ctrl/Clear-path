@@ -8,34 +8,39 @@ import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
 
-function buildNavGroups(showProperties: boolean): NavGroup[] {
-  const mainItems = [
-    { href: '/dashboard', label: 'Overview' },
-    { href: '/budgets', label: 'Budgets' },
-    { href: '/spending', label: 'Spending' },
-    { href: '/budgets/annual', label: 'Annual Plan' },
-    { href: '/debts', label: 'Debts' },
-    { href: '/transactions', label: 'Transactions' },
-  ]
-  if (showProperties) {
-    mainItems.push({ href: '/properties', label: 'Properties' })
-  }
-
+function buildNavGroups(): NavGroup[] {
   return [
-    { label: null, items: mainItems },
     {
-      label: 'Periodic',
+      label: null,
+      items: [{ href: '/dashboard', label: 'Dashboard' }],
+    },
+    {
+      label: 'Plan',
+      items: [
+        { href: '/budgets', label: 'Budgets' },
+        { href: '/spending', label: 'Spending' },
+        { href: '/transactions', label: 'Transactions' },
+      ],
+    },
+    {
+      label: 'Progress',
       items: [
         { href: '/monthly-review', label: 'Monthly Review' },
         { href: '/forecast', label: 'Forecast' },
-        { href: '/spending-analytics', label: 'Analytics' },
+      ],
+    },
+    {
+      label: 'Manage',
+      items: [
+        { href: '/accounts', label: 'Accounts' },
+        { href: '/debts', label: 'Debts' },
+        { href: '/properties', label: 'Properties' },
       ],
     },
     {
       label: 'Setup',
       items: [
         { href: '/settings', label: 'Settings' },
-        { href: '/accounts', label: 'Accounts' },
         { href: '/categories', label: 'Categories' },
       ],
     },
@@ -82,10 +87,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }
   }
 
-  // Always show Properties nav — empty state on the page guides users to setup
-  const showProperties = true
-
-  const navGroups = buildNavGroups(showProperties)
+  const navGroups = buildNavGroups()
 
   return (
     <div className="flex min-h-screen">

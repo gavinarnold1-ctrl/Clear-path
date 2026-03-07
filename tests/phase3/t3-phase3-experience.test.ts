@@ -54,15 +54,16 @@ describe('T3.2 Navigation restructure', () => {
   it('layout has correct nav items in expected order', () => {
     const src = readSrc(layoutPath)
     const expectedNavOrder = [
-      'Overview',
+      'Dashboard',
       'Budgets',
       'Spending',
-      'Annual',
-      'Debts',
       'Transactions',
       'Monthly Review',
-      'Settings',
+      'Forecast',
       'Accounts',
+      'Debts',
+      'Properties',
+      'Settings',
       'Categories',
     ]
 

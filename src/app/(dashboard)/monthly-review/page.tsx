@@ -756,6 +756,24 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
               months={summary.period.months}
             />
           )}
+
+          {/* Cross-links */}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Link
+              href="/forecast"
+              className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
+            >
+              What does this mean for my timeline? →
+            </Link>
+            {recalibration && recalibration.type !== 'celebrate_completion' && (
+              <Link
+                href="/budgets"
+                className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
+              >
+                Adjust budgets to get back on track →
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>
