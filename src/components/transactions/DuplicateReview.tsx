@@ -23,31 +23,8 @@ interface DuplicateGroup {
   canonicalMerchant: string
   amount: number
   date: string
+  dismissKey: string
   transactions: DuplicateTx[]
-}
-
-const DISMISSED_KEY = 'oversikt-dismissed-duplicates'
-
-function groupSignature(group: DuplicateGroup): string {
-  const ids = group.transactions.map(t => t.id).sort().join(',')
-  return `${group.canonicalMerchant}|${group.amount}|${ids}`
-}
-
-function loadDismissed(): Set<string> {
-  try {
-    const raw = localStorage.getItem(DISMISSED_KEY)
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
-  } catch {
-    return new Set()
-  }
-}
-
-function saveDismissed(set: Set<string>) {
-  try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...set]))
-  } catch {
-    // localStorage unavailable
-  }
 }
 
 export default function DuplicateReview() {
@@ -57,10 +34,9 @@ export default function DuplicateReview() {
   const [merging, setMerging] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dismissedAll, setDismissedAll] = useState(false)
-  const [dismissed, setDismissedState] = useState<Set<string>>(new Set())
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    setDismissedState(loadDismissed())
     async function load() {
       try {
         const res = await fetch('/api/transactions/duplicates')
@@ -77,26 +53,40 @@ export default function DuplicateReview() {
   }, [])
 
   const dismissGroup = useCallback((group: DuplicateGroup) => {
-    const sig = groupSignature(group)
-    setDismissedState(prev => {
+    const key = group.dismissKey
+    // Optimistic UI
+    setDismissed(prev => {
       const next = new Set(prev)
-      next.add(sig)
-      saveDismissed(next)
+      next.add(key)
       return next
     })
+    // Persist server-side (fire-and-forget)
+    fetch('/api/transactions/duplicates/dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signature: key }),
+    }).catch(() => { /* silently ignore */ })
   }, [])
 
+  const visibleGroups = groups.filter(g => !dismissed.has(g.dismissKey))
+
   const dismissRemaining = useCallback(() => {
-    setDismissedState(prev => {
+    const toDismiss = groups.filter(g => !dismissed.has(g.dismissKey))
+    setDismissed(prev => {
       const next = new Set(prev)
-      for (const g of visibleGroups) {
-        next.add(groupSignature(g))
+      for (const g of toDismiss) {
+        next.add(g.dismissKey)
+        // Persist each server-side
+        fetch('/api/transactions/duplicates/dismiss', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signature: g.dismissKey }),
+        }).catch(() => { /* silently ignore */ })
       }
-      saveDismissed(next)
       return next
     })
     setDismissedAll(true)
-  }, [])
+  }, [groups, dismissed])
 
   async function handleMerge(group: DuplicateGroup, keepId: string) {
     setMerging(keepId)
@@ -120,9 +110,6 @@ export default function DuplicateReview() {
       setMerging(null)
     }
   }
-
-  // Filter out dismissed groups
-  const visibleGroups = groups.filter(g => !dismissed.has(groupSignature(g)))
 
   if (loading || dismissedAll || visibleGroups.length === 0) return null
 
@@ -150,8 +137,8 @@ export default function DuplicateReview() {
       )}
 
       <div className="space-y-3">
-        {visibleGroups.slice(0, 5).map((group, gi) => (
-          <div key={gi} className="rounded-button border border-mist bg-snow p-3">
+        {visibleGroups.slice(0, 5).map((group) => (
+          <div key={group.dismissKey} className="rounded-button border border-mist bg-snow p-3">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-medium text-fjord">
                 {group.canonicalMerchant} &middot; {formatCurrency(Math.abs(group.amount))} &middot; {group.date}

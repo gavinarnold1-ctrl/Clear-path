@@ -373,6 +373,9 @@ model UserProfile {
   // Income transitions — planned future income changes
   incomeTransitions     Json?     // IncomeTransition[] — see src/types/index.ts
 
+  // Dismissed duplicate groups (stable signatures, not transaction IDs)
+  dismissedDuplicates   Json?     // String[] of "canonicalMerchant|amount|date" signatures
+
   // In-progress answers not yet materialized into records (JSON)
   pendingSetup          String?   // JSON: { partnerName? }
 

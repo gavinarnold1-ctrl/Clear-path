@@ -162,7 +162,10 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
   const annualSetAside = budgets
     .filter((b) => b.tier === 'ANNUAL')
     .reduce((s, b) => s + (b.annualExpense?.monthlySetAside ?? 0), 0)
-  const expectedMonthlyIncome = profile.expectedMonthlyIncome ?? 0
+  const totalMonthlyRentalIncome = properties.reduce(
+    (sum, p) => sum + ((p as Record<string, unknown>).monthlyRentalIncome as number ?? 0), 0
+  )
+  const expectedMonthlyIncome = (profile.expectedMonthlyIncome ?? 0) + totalMonthlyRentalIncome
   const totalBudgeted = fixedTotal + flexibleTotal + annualSetAside
   const projectedSurplus = expectedMonthlyIncome - totalBudgeted
 
