@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -26,15 +26,41 @@ interface DuplicateGroup {
   transactions: DuplicateTx[]
 }
 
+const DISMISSED_KEY = 'oversikt-dismissed-duplicates'
+
+function groupSignature(group: DuplicateGroup): string {
+  const ids = group.transactions.map(t => t.id).sort().join(',')
+  return `${group.canonicalMerchant}|${group.amount}|${ids}`
+}
+
+function loadDismissed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY)
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveDismissed(set: Set<string>) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...set]))
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 export default function DuplicateReview() {
   const router = useRouter()
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [merging, setMerging] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissedAll, setDismissedAll] = useState(false)
+  const [dismissed, setDismissedState] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    setDismissedState(loadDismissed())
     async function load() {
       try {
         const res = await fetch('/api/transactions/duplicates')
@@ -48,6 +74,28 @@ export default function DuplicateReview() {
       }
     }
     load()
+  }, [])
+
+  const dismissGroup = useCallback((group: DuplicateGroup) => {
+    const sig = groupSignature(group)
+    setDismissedState(prev => {
+      const next = new Set(prev)
+      next.add(sig)
+      saveDismissed(next)
+      return next
+    })
+  }, [])
+
+  const dismissRemaining = useCallback(() => {
+    setDismissedState(prev => {
+      const next = new Set(prev)
+      for (const g of visibleGroups) {
+        next.add(groupSignature(g))
+      }
+      saveDismissed(next)
+      return next
+    })
+    setDismissedAll(true)
   }, [])
 
   async function handleMerge(group: DuplicateGroup, keepId: string) {
@@ -64,7 +112,6 @@ export default function DuplicateReview() {
         const data = await res.json()
         throw new Error(data.error ?? 'Merge failed')
       }
-      // Remove this group from the list
       setGroups(prev => prev.filter(g => g !== group))
       router.refresh()
     } catch (err) {
@@ -74,24 +121,27 @@ export default function DuplicateReview() {
     }
   }
 
-  if (loading || dismissed || groups.length === 0) return null
+  // Filter out dismissed groups
+  const visibleGroups = groups.filter(g => !dismissed.has(groupSignature(g)))
+
+  if (loading || dismissedAll || visibleGroups.length === 0) return null
 
   return (
     <div className="rounded-card border border-birch/30 bg-birch/10 p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="font-medium text-fjord">
-            {groups.length} potential duplicate{groups.length !== 1 ? ' groups' : ''} found
+            {visibleGroups.length} potential duplicate{visibleGroups.length !== 1 ? ' groups' : ''} found
           </h3>
           <p className="text-xs text-stone">
             Transactions with matching merchant, amount, and date from different sources.
           </p>
         </div>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={dismissRemaining}
           className="text-xs text-stone hover:text-fjord"
         >
-          Dismiss
+          Dismiss remaining
         </button>
       </div>
 
@@ -100,11 +150,19 @@ export default function DuplicateReview() {
       )}
 
       <div className="space-y-3">
-        {groups.slice(0, 5).map((group, gi) => (
+        {visibleGroups.slice(0, 5).map((group, gi) => (
           <div key={gi} className="rounded-button border border-mist bg-snow p-3">
-            <p className="mb-2 text-sm font-medium text-fjord">
-              {group.canonicalMerchant} &middot; {formatCurrency(Math.abs(group.amount))} &middot; {group.date}
-            </p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium text-fjord">
+                {group.canonicalMerchant} &middot; {formatCurrency(Math.abs(group.amount))} &middot; {group.date}
+              </p>
+              <button
+                onClick={() => dismissGroup(group)}
+                className="shrink-0 rounded-badge border border-mist px-2 py-0.5 text-[10px] text-stone hover:bg-frost hover:text-fjord"
+              >
+                Not a duplicate
+              </button>
+            </div>
             <div className="space-y-1.5">
               {group.transactions.map(tx => (
                 <div key={tx.id} className="flex items-center justify-between gap-2 text-xs">
@@ -154,9 +212,9 @@ export default function DuplicateReview() {
             </div>
           </div>
         ))}
-        {groups.length > 5 && (
+        {visibleGroups.length > 5 && (
           <p className="text-xs text-stone">
-            + {groups.length - 5} more group{groups.length - 5 !== 1 ? 's' : ''}
+            + {visibleGroups.length - 5} more group{visibleGroups.length - 5 !== 1 ? 's' : ''}
           </p>
         )}
       </div>

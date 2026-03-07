@@ -177,6 +177,34 @@ export async function POST(req: NextRequest) {
               })
               backfillCount++
               backfillTotal += candidate.amount
+
+              // Tag the original expense transaction as perk-covered so it's
+              // excluded from budget spent calculations
+              const thirtyDaysAgo = new Date(candidate.amount > 0
+                ? new Date().getTime() - 30 * 24 * 60 * 60 * 1000
+                : 0)
+              const matchingExpense = await db.transaction.findFirst({
+                where: {
+                  userId: session.userId,
+                  accountId,
+                  amount: { lt: 0 },
+                  classification: 'expense',
+                  merchant: { contains: match.matchedPattern, mode: 'insensitive' },
+                  date: { gte: thirtyDaysAgo },
+                  NOT: { tags: { contains: 'perk_covered' } },
+                },
+                orderBy: { date: 'desc' },
+              })
+              if (matchingExpense && Math.abs(Math.abs(matchingExpense.amount) - candidate.amount) / candidate.amount <= 0.1) {
+                const expTags = matchingExpense.tags ? matchingExpense.tags.split(',').map(t => t.trim()) : []
+                if (!expTags.includes('perk_covered')) {
+                  expTags.push('perk_covered')
+                }
+                await db.transaction.update({
+                  where: { id: matchingExpense.id },
+                  data: { tags: expTags.join(',') },
+                })
+              }
             }
           }
         }

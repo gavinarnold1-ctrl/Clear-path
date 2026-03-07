@@ -709,6 +709,12 @@ function projectTimeline(
     }, 0) * 0.3 // blending factor to avoid double-counting with snapshot velocity
   }
 
+  // Compute total monthly rental income across all properties
+  // This offsets mortgage expenses in cash flow projections
+  const totalMonthlyRentalIncome = (properties ?? []).reduce(
+    (sum, prop) => sum + (prop.monthlyRentalIncome ?? 0), 0
+  )
+
   // Accumulator for income-adjusted projection (cumulative velocity adjustments)
   let cumulativeIncomeAdj = 0
 
@@ -741,9 +747,10 @@ function projectTimeline(
 
     const onPlan = startValue + requiredVelocity * monthIndex
     const equityAdj = monthlyEquityGrowth * monthIndex
-    const projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj + cumulativeIncomeAdj
-    const optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2 + cumulativeIncomeAdj * 1.1
-    const conservative = startValue + velocity * 0.8 * monthIndex + equityAdj * 0.6 + cumulativeIncomeAdj * 0.8
+    const rentalAdj = totalMonthlyRentalIncome * monthIndex
+    const projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj + rentalAdj + cumulativeIncomeAdj
+    const optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2 + rentalAdj * 1.1 + cumulativeIncomeAdj * 1.1
+    const conservative = startValue + velocity * 0.8 * monthIndex + equityAdj * 0.6 + rentalAdj * 0.8 + cumulativeIncomeAdj * 0.8
 
     const point: ForecastPoint = {
       month: key,

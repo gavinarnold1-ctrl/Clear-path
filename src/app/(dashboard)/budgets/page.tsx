@@ -102,7 +102,9 @@ export default async function BudgetsPage() {
     ...refundCandidates.map((tx) => ({ id: tx.id, merchant: tx.merchant, amount: tx.amount, date: tx.date.toISOString(), accountId: tx.accountId, classification: tx.classification })),
   ]
   const refundPairIds = findRefundPairs(allForPairing)
-  const transactions = allExpenseTransactions.filter((tx) => !refundPairIds.has(tx.id))
+  const transactions = allExpenseTransactions.filter(
+    (tx) => !refundPairIds.has(tx.id) && !(tx.tags && tx.tags.includes('perk_covered'))
+  )
 
   const income = incomeAgg._sum.amount ?? 0
 

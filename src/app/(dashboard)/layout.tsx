@@ -8,7 +8,7 @@ import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
 
-function buildNavGroups(): NavGroup[] {
+function buildNavGroups(hasIdentifiedCards: boolean): NavGroup[] {
   return [
     {
       label: null,
@@ -33,6 +33,7 @@ function buildNavGroups(): NavGroup[] {
       label: 'Manage',
       items: [
         { href: '/accounts', label: 'Accounts' },
+        ...(hasIdentifiedCards ? [{ href: '/accounts/benefits', label: 'Card Benefits' }] : []),
         { href: '/debts', label: 'Debts' },
         { href: '/properties', label: 'Properties' },
       ],
@@ -57,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   let accountCount = 0
   let hasPlaid = false
   let hasProperties = false
+  let hasIdentifiedCards = false
   if (session) {
     const profile = await db.userProfile.findUnique({
       where: { userId: session.userId },
@@ -73,12 +75,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }
     profileData = profile ? { primaryGoal: profile.primaryGoal, householdType: profile.householdType, incomeRange: profile.incomeRange } : null
 
-    const [acctCount, propCount] = await Promise.all([
+    const [acctCount, propCount, cardCount] = await Promise.all([
       db.account.count({ where: { userId: session.userId } }),
       db.property.count({ where: { userId: session.userId } }),
+      db.userCard.count({ where: { userId: session.userId } }),
     ])
     accountCount = acctCount
     hasProperties = propCount > 0
+    hasIdentifiedCards = cardCount > 0
     if (acctCount > 0) {
       const plaidCount = await db.account.count({
         where: { userId: session.userId, plaidAccessToken: { not: null } },
@@ -87,7 +91,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }
   }
 
-  const navGroups = buildNavGroups()
+  const navGroups = buildNavGroups(hasIdentifiedCards)
 
   return (
     <div className="flex min-h-screen">

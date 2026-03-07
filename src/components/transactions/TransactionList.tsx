@@ -62,6 +62,7 @@ interface TransactionRow {
   classification?: string
   annualExpenseId?: string | null
   isPending?: boolean
+  tags?: string | null
   splits?: SplitRow[]
 }
 
@@ -1259,6 +1260,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                     {tx.classification === 'perk_reimbursement' && (
                       <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">
                         Card Perk
+                      </span>
+                    )}
+                    {tx.tags?.includes('perk_covered') && (
+                      <span className="ml-1.5 rounded-badge bg-lichen/20 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                        Covered by perk
                       </span>
                     )}
                     {refundedSet.has(tx.id) && (

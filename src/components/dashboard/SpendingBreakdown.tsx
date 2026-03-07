@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
-import { CATEGORY_COLORS } from '@/lib/chart-colors'
+import { GOAL_COLORS, CATEGORY_COLORS } from '@/lib/chart-colors'
 
 interface SpendingGroup {
   group: string
@@ -16,46 +16,59 @@ interface Props {
   data: SpendingGroup[]
   totalSpent: number
   currentMonth?: string
+  budgetByGroup?: Map<string, number>
 }
 
-export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Props) {
+export default function SpendingBreakdown({ data, totalSpent, currentMonth, budgetByGroup }: Props) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
 
-  const pieData = data.map((g, i) => ({
-    name: g.group,
-    value: g.amount,
-    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-  }))
+  // Sort by spend descending for ranked display
+  const sorted = [...data].sort((a, b) => b.amount - a.amount)
+
+  const barData = sorted.map((g) => {
+    const budget = budgetByGroup?.get(g.group)
+    return {
+      name: g.group,
+      amount: g.amount,
+      budget: budget ?? undefined,
+    }
+  })
+
+  function getBarColor(entry: { name: string; amount: number; budget?: number }): string {
+    if (entry.budget != null) {
+      return entry.amount > entry.budget ? GOAL_COLORS.threatening : GOAL_COLORS.contributing
+    }
+    return GOAL_COLORS.neutral
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Pie chart */}
+      {/* Bar chart */}
       <div className="card lg:col-span-1">
         <h2 className="mb-4 text-base font-semibold text-fjord">By Group</h2>
         {data.length === 0 ? (
           <p className="text-sm text-stone">No expenses this month.</p>
         ) : (
-          <div className="h-64">
+          <div style={{ height: Math.max(200, barData.length * 40 + 40) }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  {pieData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
+              <BarChart data={barData} layout="vertical" margin={{ left: 4, right: 12, top: 4, bottom: 4 }}>
+                <XAxis type="number" tickFormatter={(v: number) => formatCurrency(v)} tick={{ fontSize: 11 }} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={110}
+                  tick={{ fontSize: 11, fill: '#1B3A4B' }}
+                />
                 <Tooltip
                   formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                  labelStyle={{ fontWeight: 600 }}
                 />
-              </PieChart>
+                <Bar dataKey="amount" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                  {barData.map((entry, i) => (
+                    <Cell key={i} fill={getBarColor(entry)} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -72,7 +85,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth }: Pr
           </div>
         ) : (
           <div className="space-y-4">
-            {data.map((group, gi) => (
+            {sorted.map((group, gi) => (
               <div key={group.group} className="card overflow-hidden p-0">
                 <button
                   onClick={() => setExpandedGroup(expandedGroup === group.group ? null : group.group)}
