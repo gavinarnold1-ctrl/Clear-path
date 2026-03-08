@@ -39,6 +39,17 @@ export async function GET(
     endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999))
   }
 
+  // Count perk-excluded transactions for UI indicator
+  const perkExcludedCount = await db.transaction.count({
+    where: {
+      userId: session.userId,
+      date: { gte: startOfMonth, lte: endOfMonth },
+      classification: 'expense',
+      amount: { lt: 0 },
+      tags: { contains: 'perk_covered' },
+    },
+  })
+
   // ANNUAL tier: return transactions linked to this annual expense
   if (budget.tier === 'ANNUAL' && budget.annualExpense) {
     const transactions = await db.transaction.findMany({
@@ -46,6 +57,7 @@ export async function GET(
         userId: session.userId,
         annualExpenseId: budget.annualExpense.id,
         date: { gte: startOfMonth, lte: endOfMonth },
+        NOT: { tags: { contains: 'perk_covered' } },
       },
       select: { id: true },
       orderBy: { date: 'desc' },
@@ -53,6 +65,7 @@ export async function GET(
     return NextResponse.json({
       transactionIds: transactions.map(t => t.id),
       budgetName: budget.name,
+      perkExcludedCount,
     })
   }
 
@@ -63,6 +76,7 @@ export async function GET(
       date: { gte: startOfMonth, lte: endOfMonth },
       classification: 'expense',
       amount: { lt: 0 },
+      NOT: { tags: { contains: 'perk_covered' } },
     },
     include: { category: { select: { id: true, name: true } } },
     orderBy: { date: 'desc' },
@@ -81,6 +95,7 @@ export async function GET(
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
     category: tx.category,
+    tags: tx.tags,
   }))
 
   const result = claimTransactions(allBudgets, claimableTxs)
@@ -91,6 +106,7 @@ export async function GET(
     return NextResponse.json({
       transactionIds: txId ? [txId] : [],
       budgetName: budget.name,
+      perkExcludedCount,
     })
   }
 
@@ -101,6 +117,7 @@ export async function GET(
       return NextResponse.json({
         transactionIds: result.catchAllTxIds,
         budgetName: budget.name,
+        perkExcludedCount,
       })
     }
 
@@ -108,8 +125,9 @@ export async function GET(
     return NextResponse.json({
       transactionIds: txIds,
       budgetName: budget.name,
+      perkExcludedCount,
     })
   }
 
-  return NextResponse.json({ transactionIds: [], budgetName: budget.name })
+  return NextResponse.json({ transactionIds: [], budgetName: budget.name, perkExcludedCount })
 }

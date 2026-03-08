@@ -340,6 +340,7 @@ export default async function BudgetsPage() {
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
     category: tx.category,
+    tags: tx.tags,
   }))
   const claimResult = claimTransactions(budgetsWithSpent, claimableTxs)
 

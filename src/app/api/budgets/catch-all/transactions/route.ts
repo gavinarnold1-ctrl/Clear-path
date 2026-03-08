@@ -28,12 +28,23 @@ export async function GET(request: NextRequest) {
     endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999))
   }
 
+  const perkExcludedCount = await db.transaction.count({
+    where: {
+      userId: session.userId,
+      date: { gte: startOfMonth, lte: endOfMonth },
+      classification: 'expense',
+      amount: { lt: 0 },
+      tags: { contains: 'perk_covered' },
+    },
+  })
+
   const allTransactions = await db.transaction.findMany({
     where: {
       userId: session.userId,
       date: { gte: startOfMonth, lte: endOfMonth },
       classification: 'expense',
       amount: { lt: 0 },
+      NOT: { tags: { contains: 'perk_covered' } },
     },
     include: { category: { select: { id: true, name: true } } },
     orderBy: { date: 'desc' },
@@ -52,6 +63,7 @@ export async function GET(request: NextRequest) {
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
     category: tx.category,
+    tags: tx.tags,
   }))
 
   const result = claimTransactions(allBudgets, claimableTxs)
@@ -59,5 +71,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     transactionIds: result.catchAllTxIds,
     budgetName: 'Unallocated Flexible',
+    perkExcludedCount,
   })
 }
