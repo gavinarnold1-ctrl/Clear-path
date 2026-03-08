@@ -135,10 +135,10 @@ export default async function ForecastPage() {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card">
           <p className="text-xs font-medium uppercase tracking-wider text-stone">Avg Monthly Progress</p>
-          <p className="mt-1 font-mono text-2xl font-medium text-fjord">
-            {formatCurrency(Math.abs(monthlyVelocity))}
+          <p className={`mt-1 font-mono text-2xl font-medium ${monthlyVelocity >= 0 ? 'text-fjord' : 'text-ember'}`}>
+            {monthlyVelocity < 0 ? '-' : ''}{formatCurrency(Math.abs(monthlyVelocity))}
           </p>
-          <p className="mt-1 text-xs text-stone">/month</p>
+          <p className="mt-1 text-xs text-stone">/month{monthlyVelocity < 0 ? ' (spending exceeds income)' : ''}</p>
         </div>
         <div className="card">
           <p className="text-xs font-medium uppercase tracking-wider text-stone">Needed Monthly</p>

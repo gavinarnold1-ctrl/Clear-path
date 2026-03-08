@@ -152,27 +152,28 @@ describe('Asset class config', () => {
 // ── 9B: Velocity computation tests ──────────────────────────────────────────
 
 describe('computeMonthlyVelocity', () => {
-  it('returns weighted moving average with 3 months of savings data', () => {
+  it('returns weighted average of levels with 3 months of savings data', () => {
     const snapshots = [
       makeSnapshot({ month: '2025-11-01', netSurplus: 2000 }),
       makeSnapshot({ month: '2025-12-01', netSurplus: 3000 }),
       makeSnapshot({ month: '2026-01-01', netSurplus: 2500 }),
     ]
     const velocity = computeMonthlyVelocity(snapshots, 'savings_amount')
-    // Deltas: 1000, -500
-    // Weights: 1x, 3x (for 2nd delta since it's most recent in a 2-delta set... wait 2 deltas: idx 0 weight=2, idx 1 weight=3)
-    // Actually: recent = [1000, -500], fromEnd for idx 0 = 1 → weight 2, fromEnd for idx 1 = 0 → weight 3
-    // (1000 * 2 + -500 * 3) / (2 + 3) = (2000 - 1500) / 5 = 100
-    expect(velocity).toBeCloseTo(100, 0)
+    // savings_amount uses level-based (weighted avg of netSurplus values, not deltas)
+    // Values: [2000, 3000, 2500], weights: [1, 2, 3]
+    // (2000*1 + 3000*2 + 2500*3) / (1+2+3) = 15500/6 ≈ 2583
+    expect(velocity).toBeCloseTo(2583, 0)
   })
 
-  it('returns weighted moving average with 6 months of data', () => {
+  it('returns weighted average of levels with 6 months of data', () => {
     const snapshots = Array.from({ length: 7 }, (_, i) =>
       makeSnapshot({ month: `2025-${String(7 + i).padStart(2, '0')}-01`, netSurplus: 2000 + i * 200 })
     )
     const velocity = computeMonthlyVelocity(snapshots, 'savings_amount')
-    // Each delta is 200, weighted average of 200s is 200
-    expect(velocity).toBeCloseTo(200, 0)
+    // savings_amount uses level-based: weighted avg of netSurplus values (last 6)
+    // Values: [2200,2400,2600,2800,3000,3200], weights: [1,1,1,1,2,3]
+    // (2200+2400+2600+2800+6000+9600)/9 = 25600/9 ≈ 2844
+    expect(velocity).toBeCloseTo(2844, 0)
   })
 
   it('returns 0 when no snapshots', () => {
@@ -378,16 +379,16 @@ describe('computeForecast', () => {
   it('negative velocity → off_track pace', () => {
     const input = makeInput({
       snapshots: [
-        makeSnapshot({ month: '2025-11-01', netSurplus: 3000 }),
-        makeSnapshot({ month: '2025-12-01', netSurplus: 2000 }),
-        makeSnapshot({ month: '2026-01-01', netSurplus: 1000 }),
+        makeSnapshot({ month: '2025-11-01', netSurplus: -1000 }),
+        makeSnapshot({ month: '2025-12-01', netSurplus: -2000 }),
+        makeSnapshot({ month: '2026-01-01', netSurplus: -3000 }),
       ],
-      // Zero budget surplus so the savings fallback doesn't override negative velocity
+      // Zero budget surplus so the savings fallback floors at 0
       budgets: makeBudgets({ projectedSurplus: 0 }),
     })
     const forecast = computeForecast(input)
-    // Velocity is negative (decreasing surplus)
-    expect(forecast.monthlyVelocity).toBeLessThan(0)
+    // Negative netSurplus but floored at 0 by budget surplus fallback
+    expect(forecast.monthlyVelocity).toBe(0)
     expect(forecast.pace).toMatch(/behind|at_risk|off_track/)
   })
 
@@ -395,15 +396,15 @@ describe('computeForecast', () => {
     const input = makeInput({
       goal: makeGoal({ metric: 'savings_amount', startValue: 5000, targetValue: 20000 }),
       snapshots: [
-        makeSnapshot({ month: '2025-11-01', netSurplus: 3000 }),
-        makeSnapshot({ month: '2025-12-01', netSurplus: 2000 }),
-        makeSnapshot({ month: '2026-01-01', netSurplus: 1000 }),
+        makeSnapshot({ month: '2025-11-01', netSurplus: -1000 }),
+        makeSnapshot({ month: '2025-12-01', netSurplus: -2000 }),
+        makeSnapshot({ month: '2026-01-01', netSurplus: -500 }),
       ],
       budgets: makeBudgets({ projectedSurplus: 2000 }),
       accounts: [makeAccount({ balance: 5000 })],
     })
     const forecast = computeForecast(input)
-    // Budget surplus overrides negative velocity
+    // Budget surplus overrides negative snapshot velocity
     expect(forecast.monthlyVelocity).toBe(2000)
     // Timeline projections should not go below start value
     const futurePoints = forecast.timeline.filter((p) => !p.isHistorical)
