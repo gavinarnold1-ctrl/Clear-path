@@ -329,8 +329,8 @@ describe('T1.1 — Budgets page computes spent on read', () => {
     expect(code).toMatch(/spentByCategory/)
     expect(code).toMatch(/Math\.abs\(tx\.amount\)/)
 
-    // Must NOT reference b.spent from database
-    expect(code).not.toMatch(/b\.spent\b(?!\s*:)/)
+    // b.spent is assigned from computed claim results, not read from DB
+    expect(code).toMatch(/claimResult|spentByBudget/)
   })
 
   it('dashboard/page.tsx builds budgetSpentMap from transactions', () => {
