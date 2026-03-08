@@ -119,7 +119,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
                             ? `/transactions?categoryId=${cat.id}&month=${currentMonth}`
                             : null
                           return (
-                            <tr key={cat.name} className="hover:bg-snow">
+                            <tr key={cat.id ?? cat.name} className="hover:bg-snow">
                               <td className="px-4 py-2 pl-10 text-fjord">
                                 {catHref ? (
                                   <Link href={catHref} className="hover:underline">{cat.name}</Link>

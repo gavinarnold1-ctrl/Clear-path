@@ -49,6 +49,12 @@ export const metadata: Metadata = {
     icon: '/icon.svg',
     apple: '/icon.svg',
   },
+  openGraph: {
+    title: 'oversikt',
+    description: 'Personal budgeting that shows what is true and what it means.',
+    type: 'website',
+    siteName: 'oversikt',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
