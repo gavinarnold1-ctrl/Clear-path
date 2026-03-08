@@ -240,11 +240,19 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Compute live budget spent from current-month expense transactions.
   // Annual-plan-linked transactions are excluded from ALL budget tiers
   // to prevent double-counting (they are tracked on the annual plan itself).
+  // Additionally, transactions in annual-tier budget categories are excluded
+  // even if not yet linked to an annual expense (prevents leakage).
+  const annualCategoryIds = new Set(
+    rawBudgets
+      .filter((b) => b.tier === 'ANNUAL' && b.categoryId)
+      .map((b) => b.categoryId!)
+  )
   const budgetSpentMap = new Map<string, number>()
   const spentByCatName = new Map<string, number>()
   const catNameToIdMap = new Map<string, string>()
   for (const tx of budgetExpenses) {
     if (tx.annualExpenseId) continue // annual-linked → tracked on annual plan only
+    if (annualCategoryIds.has(tx.categoryId ?? '')) continue // annual-tier category → exclude
     if (tx.categoryId) {
       budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
     }
@@ -259,6 +267,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     // Primary: match by categoryId
     let spent = b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0
 
+    // TODO: V1.1 — remove fuzzy name matching once all budgets have categoryId
     // Fallback: match by category/budget name when categoryId is null
     if (spent === 0 && !b.categoryId) {
       const catName = b.category?.name?.toLowerCase()
@@ -272,6 +281,20 @@ export default async function DashboardPage({ searchParams }: Props) {
 
     return { ...b, spent }
   })
+
+  // Unbudgeted spending: transactions in categories not covered by any budget
+  const budgetedCategoryIds = new Set(
+    rawBudgets.map((b) => b.categoryId).filter(Boolean) as string[]
+  )
+  const unbudgetedSpent = budgetExpenses
+    .filter(
+      (tx) =>
+        !tx.annualExpenseId &&
+        !annualCategoryIds.has(tx.categoryId ?? '') &&
+        tx.categoryId &&
+        !budgetedCategoryIds.has(tx.categoryId)
+    )
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
 
   // True Remaining computation: income - fixed committed - flexible spent - annual set-asides
   const fixedBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'FIXED')
@@ -439,6 +462,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         overBudgetItems={overBudgetItems}
         recalibration={recalibration}
         benefitAlerts={benefitAlerts}
+        unbudgetedSpent={unbudgetedSpent}
       />
 
       {/* Goal Recalibration Banner */}

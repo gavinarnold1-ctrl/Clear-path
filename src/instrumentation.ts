@@ -22,4 +22,12 @@ const originalEmit = process.emit
 
 export async function register() {
   // Instrumentation hook — runs once at server startup
+  // Validate encryption key early so misconfiguration is caught on deploy, not on first Plaid call.
+  // Only validate when Plaid is configured (PLAID_CLIENT_ID set) or when the key is present but malformed.
+  const plaidConfigured = !!process.env.PLAID_CLIENT_ID
+  const keyPresent = !!process.env.PLAID_ENCRYPTION_KEY
+  if (plaidConfigured || keyPresent) {
+    const { validateEncryptionKeyOrThrow } = await import('@/lib/encryption')
+    validateEncryptionKeyOrThrow()
+  }
 }

@@ -20,12 +20,14 @@ interface Props {
   overBudgetItems: OverBudgetItem[]
   recalibration: RecalibrationSuggestion | null
   benefitAlerts: BenefitAlert[]
+  unbudgetedSpent?: number
 }
 
-export default function AttentionItems({ overBudgetItems, recalibration, benefitAlerts }: Props) {
+export default function AttentionItems({ overBudgetItems, recalibration, benefitAlerts, unbudgetedSpent = 0 }: Props) {
   const hasItems = overBudgetItems.length > 0 ||
     (recalibration && recalibration.type !== 'celebrate_completion') ||
-    benefitAlerts.length > 0
+    benefitAlerts.length > 0 ||
+    unbudgetedSpent > 0
 
   if (!hasItems) return null
 
@@ -77,6 +79,19 @@ export default function AttentionItems({ overBudgetItems, recalibration, benefit
             <p className="mt-0.5 text-xs text-stone">{alert.cardLabel}</p>
           </Link>
         ))}
+
+        {unbudgetedSpent > 0 && (
+          <Link
+            href="/transactions?unbudgeted=true"
+            className="block rounded-card border border-birch/40 bg-birch/10 px-4 py-3 transition-colors hover:bg-birch/20"
+          >
+            <p className="text-sm text-fjord">
+              <span className="font-semibold text-midnight">{formatCurrency(unbudgetedSpent)}</span>{' '}
+              spent in categories without a budget
+            </p>
+            <p className="mt-0.5 text-xs text-stone">Create budgets to track this spending</p>
+          </Link>
+        )}
       </div>
     </div>
   )

@@ -8,6 +8,7 @@ import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
 import { FeedbackWidget } from '@/components/feedback/FeedbackWidget'
+import { TokenRotation } from '@/components/auth/TokenRotation'
 
 function buildNavGroups(hasIdentifiedCards: boolean): NavGroup[] {
   return [
@@ -135,6 +136,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </main>
 
       <FeedbackWidget />
+      <TokenRotation />
     </div>
   )
 }

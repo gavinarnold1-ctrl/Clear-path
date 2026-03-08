@@ -12,7 +12,7 @@ import { getForecastSummaries } from '@/lib/forecast-helpers'
 export const metadata: Metadata = { title: 'Transactions' }
 
 interface PageProps {
-  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string; uncategorized?: string; budgetId?: string; tier?: string; catchAll?: string; budgetName?: string; ids?: string; category?: string; dateFrom?: string; dateTo?: string }>
+  searchParams: Promise<{ categoryId?: string; month?: string; personId?: string; propertyId?: string; accountId?: string; search?: string; classification?: string; annualExpenseId?: string; annualExpenseName?: string; uncategorized?: string; unbudgeted?: string; budgetId?: string; tier?: string; catchAll?: string; budgetName?: string; ids?: string; category?: string; dateFrom?: string; dateTo?: string }>
 }
 
 export default async function TransactionsPage({ searchParams }: PageProps) {
@@ -71,6 +71,25 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   if (initialPropertyId && initialPropertyId !== '__none__' && !initialPropertyId.startsWith('group:')) txWhere.propertyId = initialPropertyId
   if (initialClassification) txWhere.classification = initialClassification
   if (initialUncategorized) txWhere.categoryId = null
+
+  // Unbudgeted filter: transactions in categories that have no budget
+  const initialUnbudgeted = params.unbudgeted === 'true'
+  if (initialUnbudgeted) {
+    const budgetCategoryIds = await db.budget.findMany({
+      where: {
+        userId: session.userId,
+        categoryId: { not: null },
+        startDate: { lte: new Date() },
+        OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+      },
+      select: { categoryId: true },
+    })
+    const budgetedIds = budgetCategoryIds.map((b) => b.categoryId!).filter(Boolean)
+    txWhere.categoryId = { not: null, notIn: budgetedIds }
+    txWhere.classification = 'expense'
+    txWhere.annualExpenseId = null
+  }
+
   if (initialAnnualExpenseId) txWhere.annualExpenseId = initialAnnualExpenseId
   if (initialSearch) txWhere.merchant = { contains: initialSearch, mode: 'insensitive' }
 
