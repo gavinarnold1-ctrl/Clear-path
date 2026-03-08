@@ -362,6 +362,12 @@ export interface Forecast {
     properties: string
   }
   assetGrowth: AssetGrowthProjection[]
+  propertyEquityGrowth: {
+    annualAppreciation: number
+    annualPrincipalPaydown: number
+    annualTotal: number
+    properties: { name: string; appreciation: number; principalPaydown: number }[]
+  } | null
 }
 
 export interface ForecastPoint {

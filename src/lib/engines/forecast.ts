@@ -287,8 +287,13 @@ export function computeForecast(input: ForecastInput): Forecast {
     monthsToTarget,
   )
 
-  // 5. Project timeline (uses snapshotVelocity — projectTimeline adds rental internally)
-  const timeline = projectTimeline(goal, snapshots, snapshotVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
+  // 5. Project timeline — use budget-surplus-adjusted velocity (without rental, since
+  //    projectTimeline adds rental internally) so the chart reflects the budget plan
+  let timelineVelocity = snapshotVelocity
+  if (goal.metric === 'savings_amount' && snapshotVelocity < 0 && budgets.projectedSurplus > 0) {
+    timelineVelocity = budgets.projectedSurplus
+  }
+  const timeline = projectTimeline(goal, snapshots, timelineVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
 
   // 6. Compute projected date (uses rental-adjusted velocity)
   const projectedDate = computeProjectedDate(currentValue, goal.targetValue, monthlyVelocity, now)
@@ -301,6 +306,12 @@ export function computeForecast(input: ForecastInput): Forecast {
   const assetGrowth = accounts
     .filter((a) => !LIABILITY_TYPES.has(a.type) && a.balance > 0)
     .map((a) => projectAssetGrowth(a, 12))
+
+  // 8b. Property equity growth (computed for ALL goals, displayed as supplemental info)
+  let propertyEquityGrowth: ReturnType<typeof computePropertyEquityGrowth> = null
+  if (properties && properties.length > 0) {
+    propertyEquityGrowth = computePropertyEquityGrowth(properties)
+  }
 
   // 9. Generate scenarios
   const scenarios = generateDefaultScenarios(input)
@@ -341,6 +352,7 @@ export function computeForecast(input: ForecastInput): Forecast {
     confidenceReason,
     tabSummaries,
     assetGrowth,
+    propertyEquityGrowth,
   }
 }
 
@@ -555,6 +567,38 @@ export function generateDefaultScenarios(input: ForecastInput): ForecastScenario
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
+function computePropertyEquityGrowth(properties: PropertyForForecast[]) {
+  const propertiesWithValue = properties.filter((p) => p.currentValue > 0)
+  if (propertiesWithValue.length === 0) return null
+
+  let totalAppreciation = 0
+  let totalPrincipalPaydown = 0
+  const details: { name: string; appreciation: number; principalPaydown: number }[] = []
+
+  for (const p of propertiesWithValue) {
+    const appreciation = p.currentValue * (p.appreciationRate ?? 0.03)
+    let principalPaydown = 0
+    if (p.loanBalance && p.interestRate != null && p.monthlyPayment) {
+      const monthlyInterest = p.loanBalance * (p.interestRate / 12)
+      principalPaydown = Math.max(0, p.monthlyPayment - monthlyInterest) * 12
+    }
+    totalAppreciation += appreciation
+    totalPrincipalPaydown += principalPaydown
+    details.push({
+      name: p.name,
+      appreciation: round2(appreciation),
+      principalPaydown: round2(principalPaydown),
+    })
+  }
+
+  return {
+    annualAppreciation: round2(totalAppreciation),
+    annualPrincipalPaydown: round2(totalPrincipalPaydown),
+    annualTotal: round2(totalAppreciation + totalPrincipalPaydown),
+    properties: details,
+  }
+}
+
 function computeCurrentValue(
   goal: GoalTarget,
   snapshots: MonthlySnapshotData[],
@@ -710,6 +754,7 @@ function projectTimeline(
   const isNetWorthGoal = goal.metric === 'net_worth_target' || goal.metric === 'net_worth_increase'
   let monthlyEquityGrowth = 0
   if (isNetWorthGoal && properties && properties.length > 0) {
+    // Include property equity in net worth projections
     monthlyEquityGrowth = properties.reduce((sum, prop) => {
       const monthlyAppreciation = (prop.appreciationRate ?? 0.03) / 12
       const appreciation = prop.currentValue * monthlyAppreciation
