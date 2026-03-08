@@ -17,11 +17,16 @@ export interface PureValueSummary {
 }
 
 export function computeValueSummary(insights: InsightRow[]): PureValueSummary {
+  // Exclude dismissed/expired insights from value tracking
+  const activeInsights = insights.filter(
+    (i) => i.status !== 'dismissed' && i.status !== 'expired'
+  )
+
   let totalIdentified = 0
   let totalConfirmed = 0
   let insightsActioned = 0
 
-  for (const insight of insights) {
+  for (const insight of activeInsights) {
     const savings = insight.estimatedSavings ?? 0
     if (savings > 0) {
       totalIdentified += savings
@@ -35,7 +40,7 @@ export function computeValueSummary(insights: InsightRow[]): PureValueSummary {
   return {
     totalIdentified: Math.round(totalIdentified * 100) / 100,
     totalConfirmed: Math.round(totalConfirmed * 100) / 100,
-    insightsGenerated: insights.length,
+    insightsGenerated: activeInsights.length,
     insightsActioned,
   }
 }
@@ -64,6 +69,7 @@ export async function getValueSummary(userId: string): Promise<ValueSummary> {
       where: {
         userId,
         savingsAmount: { not: null, gt: 0 },
+        status: { notIn: ['dismissed', 'expired'] },
       },
       select: {
         savingsAmount: true,

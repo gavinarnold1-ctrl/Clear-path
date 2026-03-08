@@ -29,6 +29,20 @@ function getEncryptionKey(): Buffer {
 }
 
 /**
+ * Validate the encryption key at startup. Throws with a clear message if
+ * PLAID_ENCRYPTION_KEY is missing or malformed.
+ */
+export function validateEncryptionKeyOrThrow(): void {
+  try {
+    getEncryptionKey()
+  } catch (err) {
+    throw new Error(
+      `[oversikt] Encryption key validation failed at startup: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+}
+
+/**
  * Encrypt a plaintext string using AES-256-GCM.
  * Returns format: iv:authTag:ciphertext (all base64-encoded)
  */

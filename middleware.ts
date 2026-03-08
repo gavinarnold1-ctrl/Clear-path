@@ -103,27 +103,34 @@ export async function middleware(req: NextRequest) {
 
       // Issue a new access token and set it on the response
       const newAccessToken = await signAccessToken(session)
-      const response = NextResponse.next()
-      response.cookies.set(SESSION_COOKIE, newAccessToken, {
+      const IS_PROD = process.env.NODE_ENV === 'production'
+      const accessCookieOpts = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: IS_PROD,
+        sameSite: 'strict' as const,
         maxAge: 60 * 60, // 1 hour
         path: '/',
-      })
+      }
+      // Signal client to do full DB-backed token rotation via /api/auth/refresh
+      const rotationCookieOpts = {
+        httpOnly: false, // readable by client JS
+        secure: IS_PROD,
+        sameSite: 'strict' as const,
+        maxAge: 30, // 30 seconds — just long enough for the client to pick it up
+        path: '/',
+      }
+
+      const response = NextResponse.next()
+      response.cookies.set(SESSION_COOKIE, newAccessToken, accessCookieOpts)
+      response.cookies.set('oversikt-needs-rotation', '1', rotationCookieOpts)
 
       const isProtected = PROTECTED.some((p) => pathname.startsWith(p))
       const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p))
 
       if (isAuthRoute && session) {
         const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
-        redirect.cookies.set(SESSION_COOKIE, newAccessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 60 * 60,
-          path: '/',
-        })
+        redirect.cookies.set(SESSION_COOKIE, newAccessToken, accessCookieOpts)
+        redirect.cookies.set('oversikt-needs-rotation', '1', rotationCookieOpts)
         return redirect
       }
 

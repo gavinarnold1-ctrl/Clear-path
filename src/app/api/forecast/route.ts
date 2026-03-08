@@ -163,7 +163,7 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     .filter((b) => b.tier === 'ANNUAL')
     .reduce((s, b) => s + (b.annualExpense?.monthlySetAside ?? 0), 0)
   const totalMonthlyRentalIncome = properties.reduce(
-    (sum, p) => sum + ((p as Record<string, unknown>).monthlyRentalIncome as number ?? 0), 0
+    (sum, p) => sum + (Number(p.monthlyRentalIncome) || 0), 0
   )
   const expectedMonthlyIncome = (profile.expectedMonthlyIncome ?? 0) + totalMonthlyRentalIncome
   const totalBudgeted = fixedTotal + flexibleTotal + annualSetAside
@@ -190,17 +190,20 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     status: ae.status,
   }))
 
-  // Map properties
-  const propertyData: PropertyForForecast[] = properties.map((p) => ({
-    id: p.id,
-    name: p.name,
-    currentValue: p.currentValue ?? 0,
-    loanBalance: p.loanBalance,
-    interestRate: p.interestRate,
-    monthlyPayment: p.monthlyPayment,
-    appreciationRate: p.appreciationRate ?? 0.03,
-    monthlyRentalIncome: (p as Record<string, unknown>).monthlyRentalIncome as number ?? 0,
-  }))
+  // Map properties — filter out properties without a known current value
+  // (null currentValue with a loanBalance would produce negative equity)
+  const propertyData: PropertyForForecast[] = properties
+    .filter((p) => p.currentValue != null && p.currentValue > 0)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      currentValue: p.currentValue!,
+      loanBalance: p.loanBalance,
+      interestRate: p.interestRate,
+      monthlyPayment: p.monthlyPayment,
+      appreciationRate: p.appreciationRate ?? 0.03,
+      monthlyRentalIncome: Number(p.monthlyRentalIncome) || 0,
+    }))
 
   // Map income transitions
   const incomeTransitionData: IncomeTransition[] = Array.isArray(profile.incomeTransitions)

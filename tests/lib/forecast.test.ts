@@ -444,6 +444,36 @@ describe('computeForecast', () => {
     const forecast = computeForecast(input)
     expect(forecast.propertyEquityGrowth).toBeNull()
   })
+
+  it('conservative projection includes asset growth', () => {
+    const input = makeInput({
+      accounts: [makeAccount({ assetClass: 'index_fund', balance: 50000, expectedReturn: 0.10 })],
+    })
+    const forecast = computeForecast(input)
+    const futurePoints = forecast.timeline.filter((p) => !p.isHistorical)
+    // Conservative should be > 0 for positive velocity + asset growth
+    for (const point of futurePoints) {
+      expect(point.conservative).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('debt goal projections never go below 0', () => {
+    const input = makeInput({
+      goal: makeGoal({
+        archetype: 'pay_off_debt',
+        metric: 'debt_payoff',
+        targetValue: 0,
+        startValue: 5000,
+      }),
+      debts: [makeDebt({ balance: 5000 })],
+    })
+    const forecast = computeForecast(input)
+    for (const point of forecast.timeline) {
+      expect(point.projected).toBeGreaterThanOrEqual(0)
+      expect(point.conservative).toBeGreaterThanOrEqual(0)
+      expect(point.onPlan).toBeGreaterThanOrEqual(0)
+    }
+  })
 })
 
 // ── 9F: Scenario impact tests ───────────────────────────────────────────────
