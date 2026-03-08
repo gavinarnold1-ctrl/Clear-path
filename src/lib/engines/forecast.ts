@@ -808,18 +808,26 @@ function projectTimeline(
     }
     cumulativeIncomeAdj += incomeAdj
 
-    const onPlan = startValue + requiredVelocity * monthIndex
+    let onPlan = startValue + requiredVelocity * monthIndex
     const equityAdj = monthlyEquityGrowth * monthIndex
     const rentalAdj = totalMonthlyRentalIncome * monthIndex
     let projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj + rentalAdj + cumulativeIncomeAdj
     let optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2 + rentalAdj * 1.1 + cumulativeIncomeAdj * 1.1
-    let conservative = startValue + velocity * 0.8 * monthIndex + equityAdj * 0.6 + rentalAdj * 0.8 + cumulativeIncomeAdj * 0.8
+    let conservative = startValue + velocity * 0.8 * monthIndex + monthlyAssetGrowthRate * 0.7 * monthIndex + equityAdj * 0.6 + rentalAdj * 0.8 + cumulativeIncomeAdj * 0.8
 
     // Savings can't go below zero — floor projected values
     if (goal.metric === 'savings_amount') {
       projected = Math.max(0, projected)
       optimistic = Math.max(0, optimistic)
       conservative = Math.max(0, conservative)
+    }
+
+    // Debt can't go below zero
+    if (goal.metric === 'debt_payoff' || goal.metric === 'debt_total') {
+      projected = Math.max(0, projected)
+      optimistic = Math.max(0, optimistic)
+      conservative = Math.max(0, conservative)
+      onPlan = Math.max(0, onPlan)
     }
 
     const point: ForecastPoint = {
