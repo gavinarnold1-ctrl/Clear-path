@@ -110,12 +110,19 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
         spent: number
       }[]
     }>
+    let cleanup: () => void
 
     beforeAll(async () => {
       const mod = await import(
         '../../src/components/budgets/UnbudgetedSection'
       )
       UnbudgetedSection = mod.default || mod.UnbudgetedSection
+      const rtl = await import('@testing-library/react')
+      cleanup = rtl.cleanup
+    })
+
+    afterEach(() => {
+      cleanup()
     })
 
     // ── 4. Renders category names and spend amounts ─────────────────────────
@@ -156,8 +163,9 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
           <UnbudgetedSection categories={categories} />
         )
 
-        expect(screen.getByText(/350\.50/)).toBeDefined()
-        expect(screen.getByText(/120\.00/)).toBeDefined()
+        // Amounts may appear in both the category row and the total summary
+        expect(screen.getAllByText(/350\.50/).length).toBeGreaterThan(0)
+        expect(screen.getAllByText(/120\.00/).length).toBeGreaterThan(0)
       })
     })
 
@@ -209,7 +217,8 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
         )
 
         expect(screen.getByText('Dining Out')).toBeDefined()
-        expect(screen.getByText(/87\.25/)).toBeDefined()
+        // Amount may appear in both the row and the summary
+        expect(screen.getAllByText(/87\.25/).length).toBeGreaterThan(0)
 
         const links = screen.getAllByRole('link')
         const budgetLinks = links.filter((link: HTMLElement) =>
@@ -279,8 +288,9 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
         <UnbudgetedSection categories={expenseCategories} />
       )
 
-      expect(screen.getByText('Groceries')).toBeDefined()
-      expect(screen.getByText(/320\.00/)).toBeDefined()
+      // Category name and amount may each appear multiple times (row + summary)
+      expect(screen.getAllByText('Groceries').length).toBeGreaterThan(0)
+      expect(screen.getAllByText(/320\.00/).length).toBeGreaterThan(0)
 
       // Income or transfer categories should not appear since they are not passed
       expect(screen.queryByText('Salary')).toBeNull()

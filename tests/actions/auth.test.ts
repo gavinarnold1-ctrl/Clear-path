@@ -11,6 +11,10 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+vi.mock('@/lib/seed-categories', () => ({
+  seedUserCategories: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock('@/lib/session', () => ({
   getSession: vi.fn(),
   setSession: vi.fn(),

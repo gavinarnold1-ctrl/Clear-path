@@ -27,6 +27,7 @@ export interface ClaimableTransaction {
   categoryId: string | null
   annualExpenseId: string | null
   category?: { id: string; name: string } | null
+  tags?: string | null
 }
 
 export interface ClaimableBudget {
@@ -64,6 +65,11 @@ export function claimTransactions(
   budgets: ClaimableBudget[],
   transactions: ClaimableTransaction[],
 ): ClaimResult {
+  // Defense-in-depth: exclude perk-covered transactions even if caller forgot to filter
+  const filteredTransactions = transactions.filter(
+    (t) => !(t.tags && t.tags.includes('perk_covered'))
+  )
+
   const annualClaimed = new Map<string, string[]>()
   const fixedClaimed = new Map<string, string>()
   const fixedClaimedTxIds = new Set<string>()
@@ -73,7 +79,7 @@ export function claimTransactions(
   // ── Step 1: Separate annual-linked transactions ──
   // Any transaction with annualExpenseId is exclusively claimed by the annual plan.
   const annualTxIds = new Set<string>()
-  for (const tx of transactions) {
+  for (const tx of filteredTransactions) {
     if (tx.annualExpenseId) {
       annualTxIds.add(tx.id)
       const list = annualClaimed.get(tx.annualExpenseId) ?? []
@@ -89,14 +95,14 @@ export function claimTransactions(
     const txIds = annualClaimed.get(b.annualExpense.id) ?? []
     let spent = 0
     for (const txId of txIds) {
-      const tx = transactions.find(t => t.id === txId)
+      const tx = filteredTransactions.find(t => t.id === txId)
       if (tx) spent += Math.abs(tx.amount)
     }
     spentByBudget.set(b.id, spent)
   }
 
   // Non-annual pool — used by all other tiers
-  const nonAnnualTxs = transactions.filter(tx => !annualTxIds.has(tx.id))
+  const nonAnnualTxs = filteredTransactions.filter(tx => !annualTxIds.has(tx.id))
 
   // ── Step 2: FIXED claiming ──
   // Each fixed budget claims exactly one transaction per month.

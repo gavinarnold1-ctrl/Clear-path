@@ -111,6 +111,7 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [budgetTxIds, setBudgetTxIds] = useState<Set<string> | null>(null)
   const [budgetFilterLoading, setBudgetFilterLoading] = useState(false)
   const [budgetName, setBudgetName] = useState<string>(initialBudgetName)
+  const [perkExcludedCount, setPerkExcludedCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -214,6 +215,7 @@ export default function TransactionList({ transactions: initial, categories, acc
       .then(data => {
         setBudgetTxIds(new Set(data.transactionIds))
         if (data.budgetName && !initialBudgetName) setBudgetName(data.budgetName)
+        setPerkExcludedCount(data.perkExcludedCount ?? 0)
         setBudgetFilterLoading(false)
       })
       .catch(() => setBudgetFilterLoading(false))
@@ -799,6 +801,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                   ? 'No transactions match this budget.'
                   : `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} · ${formatCurrency(Math.abs(filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0)))} total`}
             </p>
+            {perkExcludedCount > 0 && !budgetFilterLoading && (
+              <p className="text-xs text-pine">
+                {perkExcludedCount} transaction{perkExcludedCount !== 1 ? 's' : ''} excluded (covered by card perks)
+              </p>
+            )}
           </div>
           <a
             href="/transactions"

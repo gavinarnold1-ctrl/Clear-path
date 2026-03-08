@@ -132,11 +132,16 @@ describe('T2.3 — API: debts route source', () => {
     expect(code).toMatch(/session\.userId/)
     expect(code).toMatch(/debt\.findMany/)
 
-    // Computed fields
-    expect(code).toMatch(/monthlyInterest/)
-    expect(code).toMatch(/monthlyPrincipal/)
-    expect(code).toMatch(/monthsRemaining/)
-    expect(code).toMatch(/interestRate\s*\/\s*12/)
+    // Computed fields are provided by piBreakdown from the amortization engine
+    expect(code).toMatch(/piBreakdown/)
+
+    // Verify the engine itself computes the expected fields
+    const enginePath = path.resolve(__dirname, '../../src/lib/engines/amortization.ts')
+    const engine = fs.readFileSync(enginePath, 'utf-8')
+    expect(engine).toMatch(/monthlyInterest/)
+    expect(engine).toMatch(/monthlyPrincipal/)
+    expect(engine).toMatch(/monthsRemaining/)
+    expect(engine).toMatch(/annualRate\s*\/\s*12/)
   })
 
   it('GET /api/debts returns summary (totalDebt, totalPayments, weightedAvgRate)', () => {
@@ -191,9 +196,8 @@ describe('T2.3 — API: debts/[id] route source', () => {
     const routePath = path.resolve(__dirname, '../../src/app/api/debts/[id]/route.ts')
     const code = fs.readFileSync(routePath, 'utf-8')
 
-    expect(code).toMatch(/monthlyInterest/)
-    expect(code).toMatch(/monthlyPrincipal/)
-    expect(code).toMatch(/monthsRemaining/)
+    // Computed fields delegated to piBreakdown from amortization engine
+    expect(code).toMatch(/piBreakdown/)
   })
 
   it('PATCH validates ownership and updates debt', () => {
@@ -311,7 +315,7 @@ describe('T2.3 — UI: Debts page and DebtManager', () => {
     const code = fs.readFileSync(pagePath, 'utf-8')
 
     expect(code).toMatch(/debt\.findMany/)
-    expect(code).toMatch(/include:.*property.*category/)
+    expect(code).toMatch(/include:[\s\S]*property[\s\S]*category/)
     expect(code).toMatch(/totalDebt/)
     expect(code).toMatch(/totalPayments/)
     expect(code).toMatch(/weightedRate/)
@@ -441,6 +445,10 @@ vi.mock('@/lib/db', () => ({
       findFirst: (...args: unknown[]) => mockCategoryFindFirst(...args),
     },
   },
+}))
+
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({

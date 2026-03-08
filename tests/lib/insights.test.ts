@@ -34,6 +34,7 @@ function makeTransaction(overrides: Record<string, unknown> = {}) {
     tags: null,
     transactionType: null,
     originalStatement: null,
+    classification: 'expense',
     userId: 'user-1',
     accountId: 'acc-1',
     categoryId: 'cat-1',
@@ -48,7 +49,7 @@ function makeTransaction(overrides: Record<string, unknown> = {}) {
 describe('buildTransactionSummary', () => {
   it('correctly splits income and expenses', async () => {
     const mockTransactions = [
-      makeTransaction({ amount: 5000, merchant: 'Salary', category: { id: 'cat-2', name: 'Salary', icon: null, type: 'income', userId: 'user-1' } }),
+      makeTransaction({ amount: 5000, merchant: 'Salary', classification: 'income', category: { id: 'cat-2', name: 'Salary', icon: null, type: 'income', userId: 'user-1' } }),
       makeTransaction({ amount: -200, merchant: 'Grocery Store' }),
       makeTransaction({ amount: -50, merchant: 'Coffee Shop', category: { id: 'cat-3', name: 'Dining', icon: null, type: 'expense', userId: 'user-1' } }),
     ]
