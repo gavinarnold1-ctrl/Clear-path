@@ -217,6 +217,7 @@ model Transaction {
   @@index([householdMemberId])
   @@index([propertyId])
   @@index([debtId])
+  @@index([userId, importSource])
 }
 
 model Budget {

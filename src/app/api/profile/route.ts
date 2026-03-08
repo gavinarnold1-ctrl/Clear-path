@@ -16,7 +16,9 @@ export async function GET() {
 
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  return NextResponse.json(user)
+  return NextResponse.json(user, {
+    headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=600' },
+  })
 }
 
 // PATCH update name / email

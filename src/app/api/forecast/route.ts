@@ -27,7 +27,9 @@ export async function GET() {
 
   const forecast = computeForecast(input)
   const accuracy = computeForecastAccuracy(forecast.timeline)
-  return NextResponse.json({ forecast, accuracy })
+  return NextResponse.json({ forecast, accuracy }, {
+    headers: { 'Cache-Control': 'private, max-age=120, stale-while-revalidate=300' },
+  })
 }
 
 export async function POST(req: NextRequest) {
