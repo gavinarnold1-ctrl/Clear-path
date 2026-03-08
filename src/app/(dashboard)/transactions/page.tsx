@@ -192,7 +192,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
         </div>
       )}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fjord">Transactions</h1>
+        <h1 className="font-display text-2xl font-bold text-fjord">Transactions</h1>
         <div className="flex gap-3">
           <Button variant="secondary" href="/transactions/import">
             Import CSV

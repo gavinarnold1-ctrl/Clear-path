@@ -40,7 +40,7 @@ export default async function SettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-fjord">Settings</h1>
+      <h1 className="mb-6 font-display text-2xl font-bold text-fjord">Settings</h1>
       <SettingsClient
         user={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
         initialMembers={householdMembers}

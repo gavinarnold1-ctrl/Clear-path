@@ -126,7 +126,7 @@ export default async function BenefitsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-fjord">Card Benefits</h1>
+          <h1 className="font-display text-2xl font-bold text-fjord">Card Benefits</h1>
           <p className="mt-1 text-sm text-stone">
             Track your credit card rewards and statement credits.
           </p>

@@ -68,7 +68,7 @@ export default async function EditBudgetPage({ params }: PageProps) {
 
   return (
     <div className="max-w-lg">
-      <h1 className="mb-6 text-2xl font-bold text-fjord">Edit budget</h1>
+      <h1 className="mb-6 font-display text-2xl font-bold text-fjord">Edit budget</h1>
       <div className="card">
         <BudgetForm
           categories={categories}

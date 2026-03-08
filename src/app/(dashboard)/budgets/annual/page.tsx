@@ -141,7 +141,7 @@ export default async function AnnualPlanningPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-fjord">Annual Planning</h1>
+          <h1 className="font-display text-2xl font-bold text-fjord">Annual Planning</h1>
           <p className="text-sm text-stone">{now.getFullYear()} Expense Forecast</p>
         </div>
         <AddExpenseButton categories={categoryOptions} />

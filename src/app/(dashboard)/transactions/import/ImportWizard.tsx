@@ -196,14 +196,14 @@ export default function ImportWizard({ accounts }: { accounts: Account[] }) {
           </div>
         ))}
         {isMonarch && step !== 'upload' && (
-          <span className="ml-2 rounded-full bg-pine/10 px-2 py-0.5 text-xs font-medium text-green-700">
+          <span className="ml-2 rounded-full bg-pine/10 px-2 py-0.5 text-xs font-medium text-pine">
             Monarch Money format detected
           </span>
         )}
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-ember/10 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-ember/30 bg-ember/10 px-4 py-3 text-sm text-ember">
           {error}
         </div>
       )}

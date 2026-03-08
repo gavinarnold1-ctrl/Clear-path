@@ -16,6 +16,7 @@ import { projectedDate } from '@/lib/goal-targets'
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import { getForecastSummaries, getCachedForecast } from '@/lib/forecast-helpers'
 import { computeForecastAccuracy } from '@/lib/engines/forecast'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { GoalTarget, PrimaryGoal } from '@/types'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
@@ -257,12 +258,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
       </div>
 
       {transactionCount === 0 ? (
-        <div className="card text-center">
-          <p className="text-lg font-medium text-fjord">No transactions yet</p>
-          <p className="mt-2 text-sm text-stone">
-            Add some transactions to get AI-powered financial insights and recommendations.
-          </p>
-        </div>
+        <EmptyState
+          title="No transactions yet"
+          description="Add some transactions to get AI-powered financial insights and recommendations."
+          action={{ label: 'Add transaction', href: '/transactions/new' }}
+        />
       ) : (
         <div className="space-y-6">
           {/* Goal Progress Section — opens the review with goal context */}
