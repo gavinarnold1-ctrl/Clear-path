@@ -390,6 +390,59 @@ describe('computeForecast', () => {
     expect(forecast.monthlyVelocity).toBeLessThan(0)
     expect(forecast.pace).toMatch(/behind|at_risk|off_track/)
   })
+
+  it('negative snapshot velocity + budget surplus → positive timeline projections', () => {
+    const input = makeInput({
+      goal: makeGoal({ metric: 'savings_amount', startValue: 5000, targetValue: 20000 }),
+      snapshots: [
+        makeSnapshot({ month: '2025-11-01', netSurplus: 3000 }),
+        makeSnapshot({ month: '2025-12-01', netSurplus: 2000 }),
+        makeSnapshot({ month: '2026-01-01', netSurplus: 1000 }),
+      ],
+      budgets: makeBudgets({ projectedSurplus: 2000 }),
+      accounts: [makeAccount({ balance: 5000 })],
+    })
+    const forecast = computeForecast(input)
+    // Budget surplus overrides negative velocity
+    expect(forecast.monthlyVelocity).toBe(2000)
+    // Timeline projections should not go below start value
+    const futurePoints = forecast.timeline.filter((p) => !p.isHistorical)
+    for (const point of futurePoints) {
+      expect(point.projected).toBeGreaterThanOrEqual(5000)
+    }
+    // Should show increasing trend
+    if (futurePoints.length >= 2) {
+      expect(futurePoints[futurePoints.length - 1].projected).toBeGreaterThan(futurePoints[0].projected)
+    }
+  })
+
+  it('propertyEquityGrowth computed for savings goals with properties', () => {
+    const input = makeInput({
+      goal: makeGoal({ metric: 'savings_amount' }),
+      properties: [{
+        id: 'p1',
+        name: 'Home',
+        currentValue: 400000,
+        loanBalance: 300000,
+        interestRate: 0.065,
+        monthlyPayment: 1896,
+        appreciationRate: 0.03,
+        monthlyRentalIncome: 0,
+      }],
+    })
+    const forecast = computeForecast(input)
+    expect(forecast.propertyEquityGrowth).not.toBeNull()
+    expect(forecast.propertyEquityGrowth!.annualAppreciation).toBeGreaterThan(0)
+    expect(forecast.propertyEquityGrowth!.annualTotal).toBeGreaterThan(0)
+    expect(forecast.propertyEquityGrowth!.properties).toHaveLength(1)
+    expect(forecast.propertyEquityGrowth!.properties[0].name).toBe('Home')
+  })
+
+  it('propertyEquityGrowth is null when no properties', () => {
+    const input = makeInput({ properties: undefined })
+    const forecast = computeForecast(input)
+    expect(forecast.propertyEquityGrowth).toBeNull()
+  })
 })
 
 // ── 9F: Scenario impact tests ───────────────────────────────────────────────
