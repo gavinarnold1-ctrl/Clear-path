@@ -110,7 +110,11 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
   const annualSetAside = budgets
     .filter((b) => b.tier === 'ANNUAL')
     .reduce((s, b) => s + (b.annualExpense?.monthlySetAside ?? 0), 0)
-  const expectedMonthlyIncome = profile.expectedMonthlyIncome ?? 0
+  // Use profile income if set, otherwise estimate from snapshot averages
+  const expectedMonthlyIncome = profile.expectedMonthlyIncome ??
+    (snapshots.length > 0
+      ? snapshots.reduce((s, snap) => s + snap.totalIncome, 0) / snapshots.length
+      : 0)
   const totalBudgeted = fixedTotal + flexibleTotal + annualSetAside
 
   const budgetSummary: BudgetSummaryForForecast = {

@@ -134,8 +134,10 @@ export function computeMonthlyVelocity(
 
   if (deltas.length === 0) return 0
 
-  // For rate-based metrics (savings_rate), use the average rate rather than deltas
-  if (metric === 'savings_rate' || metric === 'categorization_pct') {
+  // For rate-based metrics and savings_amount, use the average level (not deltas).
+  // savings_amount uses netSurplus (income - expenses) per month — we want the
+  // average monthly savings rate, not the acceleration of savings.
+  if (metric === 'savings_rate' || metric === 'categorization_pct' || metric === 'savings_amount') {
     return weightedAverage(values)
   }
 
@@ -264,11 +266,12 @@ export function computeForecast(input: ForecastInput): Forecast {
   )
   let monthlyVelocity = snapshotVelocity + rentalIncomeAdj
 
-  // 2c. For savings goals, use budget surplus when velocity is negative
-  // A negative velocity means spending exceeded income historically, but if the
-  // user has a positive budget surplus, that represents what should happen going forward
-  if (goal.metric === 'savings_amount' && monthlyVelocity < 0 && budgets.projectedSurplus > 0) {
-    monthlyVelocity = budgets.projectedSurplus
+  // 2c. For savings goals, use budget surplus as velocity when it's better than snapshot data
+  // Budget surplus = planned income - planned spending, representing forward-looking intent
+  if (goal.metric === 'savings_amount') {
+    if (monthlyVelocity < 0 && budgets.projectedSurplus > monthlyVelocity) {
+      monthlyVelocity = Math.max(0, budgets.projectedSurplus)
+    }
   }
 
   // 3. Compute required velocity
@@ -290,8 +293,10 @@ export function computeForecast(input: ForecastInput): Forecast {
   // 5. Project timeline — use budget-surplus-adjusted velocity (without rental, since
   //    projectTimeline adds rental internally) so the chart reflects the budget plan
   let timelineVelocity = snapshotVelocity
-  if (goal.metric === 'savings_amount' && snapshotVelocity < 0 && budgets.projectedSurplus > 0) {
-    timelineVelocity = budgets.projectedSurplus
+  if (goal.metric === 'savings_amount') {
+    if (snapshotVelocity < 0 && budgets.projectedSurplus > snapshotVelocity) {
+      timelineVelocity = Math.max(0, budgets.projectedSurplus)
+    }
   }
   const timeline = projectTimeline(goal, snapshots, timelineVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
 
