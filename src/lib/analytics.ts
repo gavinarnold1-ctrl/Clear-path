@@ -173,6 +173,10 @@ export const trackWaitlistSignup = () =>
 export const trackCtaClicked = (ctaText: string, location: string) =>
   track('cta_clicked', { cta_text: ctaText, location })
 
+// Feedback
+export const trackFeedbackSubmitted = (type: string, page: string) =>
+  track('feedback_submitted', { type, page })
+
 // Navigation
 export const trackPageViewed = (path: string, title: string) =>
   track('page_viewed', { path, title })

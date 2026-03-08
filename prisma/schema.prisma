@@ -102,6 +102,7 @@ model User {
   monthlySnapshots  MonthlySnapshot[]
   categoryMappings  UserCategoryMapping[]
   userCards          UserCard[]
+  feedback          Feedback[]
 }
 
 model Account {
@@ -931,6 +932,23 @@ model IncomeBenchmark {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("income_benchmarks")
+}
+
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // 'bug' | 'feature' | 'general'
+  message   String
+  page      String   // URL path where feedback was submitted
+  metadata  Json?    // browser info, screen size, etc.
+  status    String   @default("new") // 'new' | 'reviewed' | 'resolved'
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type, status])
 }
 
 // ─── Waitlist ─────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { DEMO_USER_ID } from '@/lib/demo'
 import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
+import { FeedbackWidget } from '@/components/feedback/FeedbackWidget'
 
 function buildNavGroups(hasIdentifiedCards: boolean): NavGroup[] {
   return [
@@ -132,6 +133,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         )}
         {children}
       </main>
+
+      <FeedbackWidget />
     </div>
   )
 }
