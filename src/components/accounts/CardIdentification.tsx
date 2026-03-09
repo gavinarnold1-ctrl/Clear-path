@@ -1,15 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { CardSuggestion, CardProgram } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 
+interface UnidentifiedAccount {
+  id: string
+  name: string
+  institution: string | null
+}
+
 export default function CardIdentification() {
   const router = useRouter()
   const [suggestions, setSuggestions] = useState<CardSuggestion[]>([])
   const [programs, setPrograms] = useState<CardProgram[]>([])
+  const [unidentifiedAccounts, setUnidentifiedAccounts] = useState<UnidentifiedAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [assigning, setAssigning] = useState<string | null>(null)
   const [manualSelect, setManualSelect] = useState<string | null>(null) // accountId for manual selection
@@ -23,12 +30,14 @@ export default function CardIdentification() {
       .then((data) => {
         setSuggestions(data.suggestions ?? [])
         setPrograms(data.programs ?? [])
+        setUnidentifiedAccounts(data.unidentifiedAccounts ?? [])
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading || dismissed || suggestions.length === 0) return null
+  const hasCards = suggestions.length > 0 || unidentifiedAccounts.length > 0
+  if (loading || dismissed || !hasCards) return null
 
   async function assignCard(accountId: string, cardProgramId: string) {
     setAssigning(accountId)
@@ -44,6 +53,7 @@ export default function CardIdentification() {
         throw new Error(data.error || 'Failed to assign card')
       }
       setSuggestions((prev) => prev.filter((s) => s.accountId !== accountId))
+      setUnidentifiedAccounts((prev) => prev.filter((a) => a.id !== accountId))
       setManualSelect(null)
       setAssignedCount((c) => c + 1)
       router.refresh()
@@ -60,6 +70,8 @@ export default function CardIdentification() {
     PREMIUM: 'Premium',
     ULTRA_PREMIUM: 'Ultra Premium',
   }
+
+  const allDone = suggestions.length === 0 && unidentifiedAccounts.length === 0
 
   return (
     <div className="mb-6 rounded-xl border border-birch/50 bg-birch/10 p-4">
@@ -97,7 +109,7 @@ export default function CardIdentification() {
         </div>
       )}
 
-      {assignedCount > 0 && suggestions.length === 0 && (
+      {assignedCount > 0 && allDone && (
         <div className="rounded-lg border border-pine/30 bg-pine/10 px-3 py-2 text-xs text-pine">
           All cards identified!{' '}
           <Link href="/accounts/benefits" className="font-medium underline">
@@ -107,6 +119,7 @@ export default function CardIdentification() {
       )}
 
       <div className="space-y-2">
+        {/* Auto-matched suggestions */}
         {suggestions.map((suggestion) => (
           <div
             key={suggestion.accountId}
@@ -178,32 +191,12 @@ export default function CardIdentification() {
 
             {/* Manual card selection dropdown */}
             {manualSelect === suggestion.accountId && (
-              <div className="mt-2 border-t border-mist pt-2">
-                <p className="mb-1 text-xs text-stone">
-                  Select the correct card:
-                </p>
-                <div className="max-h-48 space-y-1 overflow-y-auto">
-                  {programs.map((program) => (
-                    <button
-                      key={program.id}
-                      onClick={() =>
-                        assignCard(suggestion.accountId, program.id)
-                      }
-                      disabled={assigning === suggestion.accountId}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs hover:bg-frost disabled:opacity-50"
-                    >
-                      <span className="font-medium text-fjord">
-                        {program.issuer} {program.name}
-                      </span>
-                      <span className="text-stone">
-                        {program.annualFee > 0
-                          ? formatCurrency(program.annualFee) + '/yr'
-                          : 'No fee'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <ManualProgramList
+                accountId={suggestion.accountId}
+                programs={programs}
+                assigning={assigning}
+                onSelect={assignCard}
+              />
             )}
 
             {/* Benefits preview */}
@@ -227,6 +220,107 @@ export default function CardIdentification() {
                     ))}
                 </div>
               )}
+          </div>
+        ))}
+
+        {/* Unidentified accounts without auto-match — manual selection */}
+        {unidentifiedAccounts.map((account) => (
+          <div
+            key={account.id}
+            className="rounded-lg border border-mist bg-snow p-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-fjord">
+                  {account.name}
+                  {account.institution && (
+                    <span className="ml-1 text-xs text-stone">
+                      ({account.institution})
+                    </span>
+                  )}
+                </p>
+                {manualSelect !== account.id && (
+                  <p className="mt-0.5 text-xs text-stone">
+                    No auto-match found — select your card program
+                  </p>
+                )}
+              </div>
+
+              {manualSelect !== account.id ? (
+                <button
+                  onClick={() => setManualSelect(account.id)}
+                  className="rounded-button bg-frost px-3 py-1.5 text-xs font-medium text-pine hover:bg-pine/10 transition-colors"
+                >
+                  Identify card
+                </button>
+              ) : (
+                <button
+                  onClick={() => setManualSelect(null)}
+                  className="text-xs text-stone hover:text-fjord"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+
+            {manualSelect === account.id && (
+              <ManualProgramList
+                accountId={account.id}
+                programs={programs}
+                assigning={assigning}
+                onSelect={assignCard}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ManualProgramList({
+  accountId,
+  programs,
+  assigning,
+  onSelect,
+}: {
+  accountId: string
+  programs: CardProgram[]
+  assigning: string | null
+  onSelect: (accountId: string, programId: string) => void
+}) {
+  const grouped = useMemo(() => {
+    const groups: Record<string, CardProgram[]> = {}
+    for (const p of programs) {
+      ;(groups[p.issuer] ??= []).push(p)
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+  }, [programs])
+
+  return (
+    <div className="mt-2 border-t border-mist pt-2">
+      <p className="mb-1 text-xs text-stone">Select the correct card:</p>
+      <div className="max-h-48 space-y-2 overflow-y-auto">
+        {grouped.map(([issuer, issuerPrograms]) => (
+          <div key={issuer}>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-stone">{issuer}</p>
+            <div className="mt-0.5 space-y-0.5">
+              {issuerPrograms.map((program) => (
+                <button
+                  key={program.id}
+                  onClick={() => onSelect(accountId, program.id)}
+                  disabled={assigning === accountId}
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs hover:bg-frost disabled:opacity-50"
+                >
+                  <span className="font-medium text-fjord">{program.name}</span>
+                  <span className="text-stone">
+                    {program.annualFee > 0
+                      ? formatCurrency(program.annualFee) + '/yr'
+                      : 'No fee'}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         ))}
       </div>

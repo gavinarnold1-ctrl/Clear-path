@@ -21,13 +21,15 @@ interface Props {
   recalibration: RecalibrationSuggestion | null
   benefitAlerts: BenefitAlert[]
   unbudgetedSpent?: number
+  unidentifiedCards?: number
 }
 
-export default function AttentionItems({ overBudgetItems, recalibration, benefitAlerts, unbudgetedSpent = 0 }: Props) {
+export default function AttentionItems({ overBudgetItems, recalibration, benefitAlerts, unbudgetedSpent = 0, unidentifiedCards = 0 }: Props) {
   const hasItems = overBudgetItems.length > 0 ||
     (recalibration && recalibration.type !== 'celebrate_completion') ||
     benefitAlerts.length > 0 ||
-    unbudgetedSpent > 0
+    unbudgetedSpent > 0 ||
+    unidentifiedCards > 0
 
   if (!hasItems) return null
 
@@ -90,6 +92,23 @@ export default function AttentionItems({ overBudgetItems, recalibration, benefit
               spent in categories without a budget
             </p>
             <p className="mt-0.5 text-xs text-stone">Create budgets to track this spending</p>
+          </Link>
+        )}
+
+        {unidentifiedCards > 0 && (
+          <Link
+            href="/accounts"
+            className="flex items-center justify-between rounded-card border border-birch/30 bg-birch/5 px-4 py-3 transition-colors hover:bg-birch/10"
+          >
+            <div>
+              <p className="text-sm font-medium text-fjord">
+                {unidentifiedCards} credit card{unidentifiedCards > 1 ? 's' : ''} not identified
+              </p>
+              <p className="mt-0.5 text-xs text-stone">
+                Identify your cards to track rewards and get benefit reminders
+              </p>
+            </div>
+            <span className="text-sm text-pine">Set up &rarr;</span>
           </Link>
         )}
       </div>

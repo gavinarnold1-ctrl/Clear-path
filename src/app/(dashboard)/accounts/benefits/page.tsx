@@ -137,14 +137,29 @@ export default async function BenefitsPage() {
       </div>
 
       {serialized.length === 0 ? (
-        <div className="card py-16 text-center">
-          <p className="mb-2 text-sm font-medium text-stone">No cards identified yet</p>
-          <p className="mb-4 text-xs text-stone">
-            Go to your accounts page to identify your credit cards and unlock benefits tracking.
+        <div className="card mx-auto max-w-lg py-16 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-birch/20">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-birch"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          </div>
+          <h2 className="font-display text-xl font-semibold text-fjord">
+            Track Your Card Benefits
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-stone">
+            Identify your credit cards to unlock rewards tracking, benefit expiration
+            reminders, and see the true net value of each card after accounting for
+            annual fees.
           </p>
-          <Link href="/accounts" className="btn-primary inline-block">
-            Identify Cards
-          </Link>
+          <div className="mt-6 space-y-3">
+            <Link
+              href="/accounts"
+              className="inline-flex items-center rounded-button bg-pine px-6 py-2.5 text-sm font-medium text-snow transition-colors hover:bg-pine/90"
+            >
+              Identify Your Cards
+            </Link>
+            <p className="text-xs text-stone">
+              Works with card programs from Chase, Amex, Capital One, Citi, BofA, and more
+            </p>
+          </div>
         </div>
       ) : (
         <BenefitsDashboard cards={serialized} netValues={netValueMap} />

@@ -7,7 +7,7 @@
     "rewardsCurrency": "Ultimate Rewards",
     "signUpBonus": "60,000 points after $4,000 in 3 months",
     "foreignTxFee": 0,
-    "plaidPatterns": ["sapphire preferred", "chase sapphire pref"],
+    "plaidPatterns": ["sapphire preferred", "chase sapphire pref", "csp", "sapphire pref"],
     "benefits": [
       {
         "name": "Travel Rewards",
@@ -73,7 +73,7 @@
     "rewardsCurrency": "Ultimate Rewards",
     "signUpBonus": "60,000 points after $4,000 in 3 months",
     "foreignTxFee": 0,
-    "plaidPatterns": ["sapphire reserve", "chase sapphire res"],
+    "plaidPatterns": ["sapphire reserve", "chase sapphire res", "csr", "sapphire res"],
     "benefits": [
       {
         "name": "Travel Rewards",
@@ -159,7 +159,7 @@
     "rewardsCurrency": "Ultimate Rewards",
     "signUpBonus": "Additional 1.5% on everything up to $20,000 in first year",
     "foreignTxFee": 0.03,
-    "plaidPatterns": ["freedom unlimited", "chase freedom unl"],
+    "plaidPatterns": ["freedom unlimited", "chase freedom unl", "cfu", "freedom unl"],
     "benefits": [
       {
         "name": "Travel Rewards",
@@ -203,7 +203,7 @@
     "rewardsCurrency": "Membership Rewards",
     "signUpBonus": "60,000 points after $6,000 in 6 months",
     "foreignTxFee": 0,
-    "plaidPatterns": ["amex gold", "american express gold"],
+    "plaidPatterns": ["amex gold", "american express gold", "gold card", "amex gold card"],
     "benefits": [
       {
         "name": "Restaurant Rewards",
@@ -292,7 +292,7 @@
     "rewardsCurrency": "Membership Rewards",
     "signUpBonus": "80,000 points after $8,000 in 6 months",
     "foreignTxFee": 0,
-    "plaidPatterns": ["amex platinum", "american express platinum"],
+    "plaidPatterns": ["amex platinum", "american express platinum", "platinum card", "amex plat"],
     "benefits": [
       {
         "name": "Flight Rewards",
@@ -433,7 +433,7 @@
     "rewardsCurrency": "Miles",
     "signUpBonus": "75,000 miles after $4,000 in 3 months",
     "foreignTxFee": 0,
-    "plaidPatterns": ["venture x", "capital one venture x"],
+    "plaidPatterns": ["venture x", "capital one venture x", "cap one venture", "capitalone venture", "c1 venture x", "venture x rewards"],
     "benefits": [
       {
         "name": "Base Miles",
@@ -486,7 +486,7 @@
     "rewardsCurrency": "Cash Back",
     "signUpBonus": "$200 cash back after $500 in 3 months",
     "foreignTxFee": 0,
-    "plaidPatterns": ["savorone", "savor one", "capital one savor"],
+    "plaidPatterns": ["savorone", "savor one", "capital one savor", "capitalone savor", "cap one savor"],
     "benefits": [
       {
         "name": "Dining Cash Back",
@@ -530,7 +530,7 @@
     "rewardsCurrency": "Cash Back",
     "signUpBonus": "$200 cash back after $1,500 in 6 months",
     "foreignTxFee": 0.03,
-    "plaidPatterns": ["double cash", "citi double"],
+    "plaidPatterns": ["double cash", "citi double", "doublecash", "citi dc"],
     "benefits": [
       {
         "name": "Purchase Cash Back",
@@ -558,7 +558,7 @@
     "rewardsCurrency": "Cash Back",
     "signUpBonus": "Cashback Match — all cash back earned in first year automatically doubled",
     "foreignTxFee": 0,
-    "plaidPatterns": ["discover it", "discover card"],
+    "plaidPatterns": ["discover it", "discover card", "discover it card", "discover cashback"],
     "benefits": [
       {
         "name": "Rotating Category Cash Back",
@@ -587,7 +587,7 @@
     "rewardsCurrency": "Cash Back",
     "signUpBonus": "$200 cash back after $500 in 3 months",
     "foreignTxFee": 0.03,
-    "plaidPatterns": ["active cash", "wells fargo active"],
+    "plaidPatterns": ["active cash", "wells fargo active", "wf active cash", "activecash"],
     "benefits": [
       {
         "name": "Flat Cash Back",
@@ -602,6 +602,112 @@
         "type": "insurance",
         "category": null,
         "description": "Up to $600 per claim for cell phone damage/theft when you pay your bill with this card"
+      }
+    ]
+  },
+  {
+    "issuer": "Bank of America",
+    "name": "Customized Cash Rewards",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Cash Back",
+    "signUpBonus": "$200 online cash rewards bonus after $1,000 in 90 days",
+    "foreignTxFee": 0.03,
+    "plaidPatterns": ["customized cash", "boa cash rewards", "bank of america cash", "bofa customized", "bankofamerica cash", "boa customized", "custom cash rewards"],
+    "benefits": [
+      {
+        "name": "Choice Category Cash Back",
+        "type": "cashback",
+        "category": "Choice Category",
+        "rewardRate": 0.03,
+        "rewardUnit": "percent",
+        "description": "3% cash back in a category of your choice (gas, online shopping, dining, travel, drug stores, or home improvement)"
+      },
+      {
+        "name": "Grocery Cash Back",
+        "type": "cashback",
+        "category": "Groceries",
+        "rewardRate": 0.02,
+        "rewardUnit": "percent",
+        "description": "2% cash back at grocery stores and wholesale clubs"
+      },
+      {
+        "name": "Base Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.01,
+        "rewardUnit": "percent",
+        "description": "1% cash back on all other purchases"
+      }
+    ]
+  },
+  {
+    "issuer": "Bank of America",
+    "name": "Unlimited Cash Rewards",
+    "tier": "BASIC",
+    "annualFee": 0,
+    "rewardsCurrency": "Cash Back",
+    "signUpBonus": "$200 online cash rewards bonus after $1,000 in 90 days",
+    "foreignTxFee": 0.03,
+    "plaidPatterns": ["unlimited cash", "boa unlimited", "bank of america unlimited", "bofa unlimited", "bankofamerica unlimited"],
+    "benefits": [
+      {
+        "name": "Flat Cash Back",
+        "type": "cashback",
+        "category": null,
+        "rewardRate": 0.015,
+        "rewardUnit": "percent",
+        "description": "1.5% cash back on all purchases"
+      }
+    ]
+  },
+  {
+    "issuer": "Bank of America",
+    "name": "Premium Rewards",
+    "tier": "MID",
+    "annualFee": 95,
+    "rewardsCurrency": "Points",
+    "signUpBonus": "60,000 points after $4,000 in 90 days",
+    "foreignTxFee": 0,
+    "plaidPatterns": ["premium rewards", "boa premium", "bank of america premium", "bankofamerica premium", "bofa premium"],
+    "benefits": [
+      {
+        "name": "Travel & Dining Rewards",
+        "type": "points_multiplier",
+        "category": "Travel",
+        "rewardRate": 2,
+        "rewardUnit": "points_per_dollar",
+        "description": "2 points per $1 on travel and dining purchases"
+      },
+      {
+        "name": "Base Rewards",
+        "type": "points_multiplier",
+        "category": null,
+        "rewardRate": 1.5,
+        "rewardUnit": "points_per_dollar",
+        "description": "1.5 points per $1 on all other purchases"
+      },
+      {
+        "name": "Airline Incidental Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 100,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["airlines"],
+        "creditMerchantPatterns": ["airline credit", "boa airline"],
+        "description": "$100 annual airline incidental credit"
+      },
+      {
+        "name": "Global Entry / TSA PreCheck Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 100,
+        "creditCycle": "CARDMEMBER_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["global entry", "tsa precheck"],
+        "creditMerchantPatterns": ["global entry credit", "tsa credit"],
+        "description": "$100 credit for Global Entry or TSA PreCheck"
       }
     ]
   }
