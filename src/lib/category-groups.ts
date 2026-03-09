@@ -1,96 +1,20 @@
 /**
- * Default category group mapping table (R1.6).
+ * Category group inference and transaction classification.
  *
- * When a CSV import creates a new category that doesn't match any existing one,
- * this table assigns it to the best-fit group based on keyword matching.
- * Never assigns to "Imported" — always picks a real group.
+ * Uses the canonical reference data from `src/lib/reference/category-groups.ts`
+ * as the single source of truth for group keywords.
  */
 
-const GROUP_KEYWORDS: Record<string, string[]> = {
-  'Housing': [
-    'mortgage', 'rent', 'hoa', 'property tax', 'home', 'housing',
-    'improvement', 'repair', 'furniture', 'housewares', 'appliance',
-  ],
-  'Utilities': [
-    'electric', 'gas & electric', 'water', 'garbage', 'internet',
-    'cable', 'phone', 'cell', 'mobile', 'utility',
-  ],
-  'Food': [
-    'groceries', 'grocery', 'restaurant', 'dining', 'food', 'coffee',
-    'bars', 'bakery', 'takeout', 'delivery',
-  ],
-  'Transport': [
-    'gas', 'fuel', 'auto', 'car', 'parking', 'toll',
-    'uber', 'lyft', 'taxi', 'transit', 'ride share', 'public transit',
-  ],
-  'Insurance': [
-    'insurance', 'premium', 'usaa', 'geico', 'state farm',
-  ],
-  'Healthcare': [
-    'medical', 'doctor', 'dentist', 'pharmacy', 'hospital',
-    'therapy', 'fitness', 'gym', 'health', 'wellness',
-  ],
-  'Personal': [
-    'clothing', 'personal', 'shopping', 'electronics', 'education',
-    'gifts', 'charity', 'donation', 'beauty', 'haircut',
-  ],
-  'Entertainment': [
-    'entertainment', 'recreation', 'travel', 'vacation', 'hotel',
-    'flight', 'pet', 'vet', 'streaming', 'movie', 'concert',
-  ],
-  'Financial': [
-    'fee', 'financial', 'legal', 'loan', 'student loan',
-    'bank fee', 'interest charge', 'atm',
-  ],
-  'Income': [
-    'income', 'salary', 'paycheck', 'dividend', 'interest earned',
-    'bonus', 'refund', 'reimbursement', 'freelance', 'contract',
-    'wages', 'investment income', 'rental income', 'interest',
-    'pension', 'social security', 'annuity', 'royalty', 'commission',
-    'capital gain', 'capital gains', 'dividends', 'distribution',
-  ],
-  'Transfers': [
-    'transfer', 'credit card payment', 'internal transfer',
-    'zelle', 'venmo', 'paypal',
-  ],
-  'Other': [
-    'miscellaneous', 'uncategorized', 'cash', 'postage', 'shipping',
-    'tax', 'office', 'wedding', 'business',
-  ],
-}
+import { suggestGroup } from '@/lib/reference/category-groups'
 
 /**
  * Infer the best-fit category group for a given category name.
  * Returns a real group name — never "Imported".
+ *
+ * Delegates to the canonical reference data in `suggestGroup()`.
  */
 export function inferCategoryGroup(categoryName: string, categoryType: string): string {
-  const nameLower = categoryName.toLowerCase()
-
-  // Check each group's keywords for a match
-  let bestGroup: string | null = null
-  let bestScore = 0
-
-  for (const [group, keywords] of Object.entries(GROUP_KEYWORDS)) {
-    for (const keyword of keywords) {
-      if (nameLower.includes(keyword) || keyword.includes(nameLower)) {
-        const score = Math.min(keyword.length, nameLower.length) / Math.max(keyword.length, nameLower.length)
-        if (score > bestScore) {
-          bestScore = score
-          bestGroup = group
-        }
-      }
-    }
-  }
-
-  if (bestGroup && bestScore >= 0.3) {
-    return bestGroup
-  }
-
-  // Fallback based on category type
-  if (categoryType === 'income') return 'Income'
-  if (categoryType === 'transfer') return 'Transfers'
-
-  return 'Other'
+  return suggestGroup(categoryName, categoryType)
 }
 
 /**

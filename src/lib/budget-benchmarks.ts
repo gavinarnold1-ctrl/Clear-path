@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { getBlsMajorCategory } from '@/lib/reference/category-groups'
 
 export interface BudgetBenchmarkComparison {
   categoryName: string
@@ -86,4 +87,55 @@ export async function getBudgetBenchmarks(
     })
     .filter((b): b is BudgetBenchmarkComparison => b !== null)
     .sort((a, b) => b.percentOfBenchmark - a.percentOfBenchmark) // Worst offenders first
+}
+
+export interface GroupBenchmarkComparison {
+  groupName: string
+  blsMajorCategory: string
+  userMonthlySpend: number
+  blsMonthlyAvg: number
+  percentOfBenchmark: number
+  delta: number
+  status: 'under' | 'at' | 'over' | 'way_over'
+  categoryCount: number
+}
+
+/**
+ * Aggregate benchmark comparisons to the group level using BLS major categories.
+ * Groups that map to the same BLS major category are rolled up together.
+ */
+export function aggregateByGroup(
+  benchmarks: BudgetBenchmarkComparison[],
+): GroupBenchmarkComparison[] {
+  // Roll up by categoryGroup
+  const groupMap = new Map<string, { spend: number; bls: number; count: number }>()
+
+  for (const bm of benchmarks) {
+    const group = bm.categoryGroup || 'Other'
+    const existing = groupMap.get(group) ?? { spend: 0, bls: 0, count: 0 }
+    existing.spend += bm.userMonthlySpend
+    existing.bls += bm.blsMonthlyAvg
+    existing.count += 1
+    groupMap.set(group, existing)
+  }
+
+  return [...groupMap.entries()]
+    .map(([groupName, data]) => {
+      const pct = data.bls > 0 ? (data.spend / data.bls) * 100 : 0
+      const delta = Math.round(data.spend - data.bls)
+      return {
+        groupName,
+        blsMajorCategory: getBlsMajorCategory(groupName) ?? groupName,
+        userMonthlySpend: Math.round(data.spend),
+        blsMonthlyAvg: Math.round(data.bls),
+        percentOfBenchmark: Math.round(pct),
+        delta,
+        status: pct < 90 ? 'under' as const
+          : pct <= 110 ? 'at' as const
+          : pct <= 150 ? 'over' as const
+          : 'way_over' as const,
+        categoryCount: data.count,
+      }
+    })
+    .sort((a, b) => b.percentOfBenchmark - a.percentOfBenchmark)
 }

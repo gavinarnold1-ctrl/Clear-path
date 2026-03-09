@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { GROUP_ORDER, CATEGORY_GROUPS, suggestGroup } from '@/lib/reference/category-groups'
 
 interface CategoryRow {
   id: string
@@ -144,15 +145,27 @@ export default function CategoryManager({ categories: initial }: Props) {
     return acc
   }, {})
 
-  const groupNames = Object.keys(grouped).sort()
+  // Sort group names by canonical order, then alphabetically for any custom groups
+  const groupNames = Object.keys(grouped).sort((a, b) => {
+    const orderA = GROUP_ORDER.get(a) ?? 99
+    const orderB = GROUP_ORDER.get(b) ?? 99
+    if (orderA !== orderB) return orderA - orderB
+    return a.localeCompare(b)
+  })
 
-  // All unique groups for the edit dropdown
-  const allGroups = [...new Set(categories.map(c => c.group))].sort()
+  // All unique groups for the edit dropdown (canonical groups + any extras)
+  const allGroups = [
+    ...CATEGORY_GROUPS.map(g => g.name),
+    ...Object.keys(grouped).filter(g => !GROUP_ORDER.has(g)),
+  ].filter((v, i, a) => a.indexOf(v) === i)
 
   // Categories available as reassignment/merge targets (excluding the one being deleted/merged)
   const reassignOptions = categories.filter(
     c => c.id !== deleteTarget?.id && c.id !== mergeSource?.id
   )
+
+  // Group descriptions from reference data
+  const groupDescriptions = new Map(CATEGORY_GROUPS.map(g => [g.name, g.description]))
 
   return (
     <div>
@@ -257,188 +270,204 @@ export default function CategoryManager({ categories: initial }: Props) {
         </div>
       )}
 
-      {/* Grouped category tables */}
-      {groupNames.map(group => (
-        <div key={group} className="mb-6">
-          <h2 className="mb-2 font-display text-sm font-semibold uppercase tracking-wide text-stone">{group}</h2>
+      {/* Grouped category accordion */}
+      <div className="space-y-3">
+        {groupNames.map(group => {
+          const cats = grouped[group]
+          const totalTxCount = cats.reduce((sum, c) => sum + c.txCount, 0)
+          const description = groupDescriptions.get(group)
 
-          {/* Mobile card layout */}
-          <div className="space-y-3 md:hidden">
-            {grouped[group].map(cat =>
-              editingId === cat.id ? (
-                <div key={cat.id} className="card border-2 border-mist bg-frost">
-                  <div className="space-y-3">
-                    <input
-                      ref={nameRef}
-                      type="text"
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      className="input w-full text-sm"
-                      placeholder="Category name"
-                      onKeyDown={e => e.key === 'Enter' && saveEdit()}
-                    />
-                    <select
-                      value={editGroup}
-                      onChange={e => setEditGroup(e.target.value)}
-                      className="input w-full text-sm"
-                    >
-                      {allGroups.map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                    <div className="flex justify-end gap-2">
-                      <button onClick={cancelEdit} className="text-xs text-stone hover:text-fjord">Cancel</button>
-                      <button
-                        onClick={saveEdit}
-                        disabled={saving}
-                        className="rounded bg-fjord px-2 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
-                      >
-                        {saving ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
+          return (
+            <details key={group} className="group" open>
+              <summary className="flex cursor-pointer list-none items-baseline justify-between rounded-card bg-frost px-4 py-3 hover:bg-mist/30 [&::-webkit-details-marker]:hidden">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="font-display text-sm font-semibold text-fjord">{group}</h2>
+                  <span className="text-xs text-stone">
+                    {cats.length} categor{cats.length !== 1 ? 'ies' : 'y'}
+                  </span>
+                  {description && (
+                    <span className="hidden text-xs text-stone/60 md:inline">&middot; {description}</span>
+                  )}
                 </div>
-              ) : (
-                <div key={cat.id} className="card">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/transactions?category=${cat.id}`} className="font-medium text-fjord hover:underline">
-                          {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                          {cat.name}
-                        </Link>
-                        {!cat.userId && (
-                          <span className="rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                            default
-                          </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-stone">{totalTxCount} txn{totalTxCount !== 1 ? 's' : ''}</span>
+                  <svg className="h-4 w-4 text-stone transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </summary>
+
+              {/* Mobile card layout */}
+              <div className="mt-2 space-y-2 md:hidden">
+                {cats.map(cat =>
+                  editingId === cat.id ? (
+                    <div key={cat.id} className="card border-2 border-mist bg-frost">
+                      <div className="space-y-3">
+                        <input
+                          ref={nameRef}
+                          type="text"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          className="input w-full text-sm"
+                          placeholder="Category name"
+                          onKeyDown={e => e.key === 'Enter' && saveEdit()}
+                        />
+                        <select
+                          value={editGroup}
+                          onChange={e => setEditGroup(e.target.value)}
+                          className="input w-full text-sm"
+                        >
+                          {allGroups.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                        <div className="flex justify-end gap-2">
+                          <button onClick={cancelEdit} className="text-xs text-stone hover:text-fjord">Cancel</button>
+                          <button
+                            onClick={saveEdit}
+                            disabled={saving}
+                            className="rounded bg-fjord px-2 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
+                          >
+                            {saving ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={cat.id} className="card">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Link href={`/transactions?category=${cat.id}`} className="font-medium text-fjord hover:underline">
+                              {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                              {cat.name}
+                            </Link>
+                            {!cat.userId && (
+                              <span className="rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                                default
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-xs">
+                            <span className={`rounded-full px-2 py-0.5 font-medium ${TYPE_BADGE[cat.type] ?? ''}`}>
+                              {cat.type}
+                            </span>
+                            <span className="text-stone">{cat.txCount} txn{cat.txCount !== 1 ? 's' : ''}</span>
+                          </div>
+                        </div>
+                        {cat.userId && (
+                          <div className="flex items-center gap-3">
+                            <button onClick={(e) => { e.stopPropagation(); startEdit(cat) }} className="text-xs text-stone hover:text-fjord">Edit</button>
+                            <button onClick={(e) => { e.stopPropagation(); setMergeSource(cat) }} className="text-xs text-stone hover:text-fjord">Merge</button>
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(cat) }} className="text-xs text-stone hover:text-ember">Delete</button>
+                          </div>
                         )}
                       </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs">
-                        <span className={`rounded-full px-2 py-0.5 font-medium ${TYPE_BADGE[cat.type] ?? ''}`}>
-                          {cat.type}
-                        </span>
-                        <span className="text-stone">{cat.txCount} txn{cat.txCount !== 1 ? 's' : ''}</span>
-                      </div>
                     </div>
-                    {cat.userId && (
-                      <div className="flex items-center gap-3">
-                        <button onClick={(e) => { e.stopPropagation(); startEdit(cat) }} className="text-xs text-stone hover:text-fjord">Edit</button>
-                        <button onClick={(e) => { e.stopPropagation(); setMergeSource(cat) }} className="text-xs text-stone hover:text-fjord">Merge</button>
-                        <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(cat) }} className="text-xs text-stone hover:text-ember">Delete</button>
-                      </div>
-                    )}
-                  </div>
+                  )
+                )}
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="mt-1 hidden md:block">
+                <div className="overflow-hidden rounded-b-card border border-mist/50 bg-snow/50">
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-mist/50">
+                      {cats.map(cat =>
+                        editingId === cat.id ? (
+                          <tr key={cat.id} className="bg-frost">
+                            <td className="px-4 py-2" colSpan={2}>
+                              <div className="flex gap-2">
+                                <input
+                                  ref={nameRef}
+                                  type="text"
+                                  value={editName}
+                                  onChange={e => setEditName(e.target.value)}
+                                  className="input flex-1 text-sm"
+                                  placeholder="Category name"
+                                  onKeyDown={e => e.key === 'Enter' && saveEdit()}
+                                />
+                                <select
+                                  value={editGroup}
+                                  onChange={e => setEditGroup(e.target.value)}
+                                  className="input text-sm"
+                                >
+                                  {allGroups.map(g => (
+                                    <option key={g} value={g}>{g}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 text-right text-xs text-stone">{cat.txCount}</td>
+                            <td className="px-4 py-2 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={cancelEdit} className="text-xs text-stone hover:text-fjord">Cancel</button>
+                                <button
+                                  onClick={saveEdit}
+                                  disabled={saving}
+                                  className="rounded bg-fjord px-2 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
+                                >
+                                  {saving ? 'Saving...' : 'Save'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={cat.id} className="hover:bg-frost/50">
+                            <td className="px-4 py-2.5 font-medium text-fjord">
+                              {cat.icon && <span className="mr-1.5">{cat.icon}</span>}
+                              <Link href={`/transactions?category=${cat.id}`} className="hover:underline hover:text-fjord">
+                                {cat.name}
+                              </Link>
+                              {!cat.userId && (
+                                <span className="ml-2 rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                                  default
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[cat.type] ?? ''}`}>
+                                {cat.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-stone">{cat.txCount}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              {cat.userId && (
+                                <div className="flex items-center justify-end gap-3">
+                                  <button
+                                    onClick={() => startEdit(cat)}
+                                    className="text-xs text-stone hover:text-fjord"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => setMergeSource(cat)}
+                                    className="text-xs text-stone hover:text-fjord"
+                                  >
+                                    Merge
+                                  </button>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setDeleteTarget(cat) }}
+                                    className="text-xs text-stone hover:text-ember"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )
-            )}
-          </div>
+              </div>
+            </details>
+          )
+        })}
+      </div>
 
-          {/* Desktop table layout */}
-          <div className="hidden md:block">
-            <div className="card overflow-hidden p-0">
-              <table className="w-full text-sm">
-                <thead className="border-b border-mist bg-snow">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium text-stone">Name</th>
-                    <th className="px-4 py-2 text-left font-medium text-stone">Type</th>
-                    <th className="px-4 py-2 text-right font-medium text-stone">Transactions</th>
-                    <th className="px-4 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-mist">
-                  {grouped[group].map(cat =>
-                    editingId === cat.id ? (
-                      <tr key={cat.id} className="bg-frost">
-                        <td className="px-4 py-2" colSpan={2}>
-                          <div className="flex gap-2">
-                            <input
-                              ref={nameRef}
-                              type="text"
-                              value={editName}
-                              onChange={e => setEditName(e.target.value)}
-                              className="input flex-1 text-sm"
-                              placeholder="Category name"
-                              onKeyDown={e => e.key === 'Enter' && saveEdit()}
-                            />
-                            <select
-                              value={editGroup}
-                              onChange={e => setEditGroup(e.target.value)}
-                              className="input text-sm"
-                            >
-                              {allGroups.map(g => (
-                                <option key={g} value={g}>{g}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 text-right text-xs text-stone">{cat.txCount}</td>
-                        <td className="px-4 py-2 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={cancelEdit} className="text-xs text-stone hover:text-fjord">Cancel</button>
-                            <button
-                              onClick={saveEdit}
-                              disabled={saving}
-                              className="rounded bg-fjord px-2 py-1 text-xs font-medium text-snow hover:bg-midnight disabled:opacity-50"
-                            >
-                              {saving ? 'Saving...' : 'Save'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr key={cat.id} className="hover:bg-snow">
-                        <td className="px-4 py-3 font-medium text-fjord">
-                          {cat.icon && <span className="mr-1.5">{cat.icon}</span>}
-                          <Link href={`/transactions?category=${cat.id}`} className="hover:underline hover:text-fjord">
-                            {cat.name}
-                          </Link>
-                          {!cat.userId && (
-                            <span className="ml-2 rounded bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                              default
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[cat.type] ?? ''}`}>
-                            {cat.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-stone">{cat.txCount}</td>
-                        <td className="px-4 py-3 text-right">
-                          {cat.userId && (
-                            <div className="flex items-center justify-end gap-3">
-                              <button
-                                onClick={() => startEdit(cat)}
-                                className="text-xs text-stone hover:text-fjord"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => setMergeSource(cat)}
-                                className="text-xs text-stone hover:text-fjord"
-                              >
-                                Merge
-                              </button>
-                              <button
-                                onClick={e => { e.stopPropagation(); setDeleteTarget(cat) }}
-                                className="text-xs text-stone hover:text-ember"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ))}
-
-      <p className="text-right text-xs text-stone">
+      <p className="mt-4 text-right text-xs text-stone">
         {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'} across {groupNames.length} group{groupNames.length !== 1 ? 's' : ''}
       </p>
     </div>
