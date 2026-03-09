@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 
@@ -21,13 +22,16 @@ export default function ReimportPage() {
       if (res.ok) {
         setStatus('done')
         setResult(data)
+        toast.success('Transactions reimported successfully')
       } else {
         setStatus('error')
         setResult(data)
+        toast.error('Reimport failed')
       }
     } catch (err) {
       setStatus('error')
       setResult({ error: String(err) })
+      toast.error('Reimport failed')
     }
   }
 

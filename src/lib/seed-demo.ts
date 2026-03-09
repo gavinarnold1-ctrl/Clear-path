@@ -592,6 +592,42 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     },
   })
 
+  // ─── Property-tagged annual expenses ────────────────────────────────
+  const propAnnualDefs = [
+    { budgetName: 'Property Tax', category: 'Property Tax', monthlyAmount: 292, expenseName: 'Property Tax', annualAmount: 3500, dueMonth: 11, funded: 1750, status: 'planned' as const, propertyId: primaryHome.id },
+    { budgetName: 'Home Insurance', category: 'Home Insurance', monthlyAmount: 108, expenseName: 'Homeowner\'s Insurance', annualAmount: 1300, dueMonth: 6, funded: 650, status: 'funded' as const, propertyId: primaryHome.id },
+  ]
+
+  for (const pad of propAnnualDefs) {
+    const catId = categoryMap.get(pad.category)
+    const pBudget = await db.budget.create({
+      data: {
+        userId: DEMO_USER_ID,
+        categoryId: catId ?? null,
+        name: pad.budgetName,
+        amount: pad.monthlyAmount,
+        period: BudgetPeriod.MONTHLY,
+        tier: BudgetTier.ANNUAL,
+        startDate: yearStart,
+      },
+    })
+    await db.annualExpense.create({
+      data: {
+        userId: DEMO_USER_ID,
+        budgetId: pBudget.id,
+        name: pad.expenseName,
+        annualAmount: pad.annualAmount,
+        dueMonth: pad.dueMonth,
+        dueYear: now.getFullYear(),
+        monthlySetAside: pad.monthlyAmount,
+        funded: pad.funded,
+        isRecurring: true,
+        status: pad.status,
+        propertyId: pad.propertyId,
+      },
+    })
+  }
+
   // ─── Account-Property Link ──────────────────────────────────────────
   await db.accountPropertyLink.create({
     data: { accountId: checking.id, propertyId: primaryHome.id },

@@ -18,6 +18,12 @@ interface CategoryOption {
   icon: string | null
 }
 
+interface PropertyOption {
+  id: string
+  name: string
+  type: string
+}
+
 interface AnnualExpenseData {
   id: string
   name: string
@@ -35,6 +41,8 @@ interface AnnualExpenseData {
   currentSetAside: number
   computedStatus: string
   linkedSpent?: number
+  propertyId?: string | null
+  property?: { id: string; name: string; type: string } | null
   budget: {
     id: string
     categoryId: string | null
@@ -46,6 +54,7 @@ interface Props {
   expense: AnnualExpenseData
   affordableMonthly?: number
   categories?: CategoryOption[]
+  properties?: PropertyOption[]
 }
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
@@ -58,7 +67,7 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   overspent: { label: 'OVERSPENT', className: 'border-ember/30 bg-ember/10 text-ember' },
 }
 
-export default function AnnualExpenseCard({ expense, affordableMonthly, categories = [] }: Props) {
+export default function AnnualExpenseCard({ expense, affordableMonthly, categories = [], properties = [] }: Props) {
   const router = useRouter()
   const [fundOpen, setFundOpen] = useState(false)
   const [spentOpen, setSpentOpen] = useState(false)
@@ -75,6 +84,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
   const [editDueYear, setEditDueYear] = useState(String(expense.dueYear))
   const [editIsRecurring, setEditIsRecurring] = useState(expense.isRecurring)
   const [editNotes, setEditNotes] = useState(expense.notes ?? '')
+  const [editPropertyId, setEditPropertyId] = useState(expense.propertyId ?? '')
   const [editError, setEditError] = useState('')
   const [editSaving, setEditSaving] = useState(false)
 
@@ -141,6 +151,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
     setEditDueYear(String(expense.dueYear))
     setEditIsRecurring(expense.isRecurring)
     setEditNotes(expense.notes ?? '')
+    setEditPropertyId(expense.propertyId ?? '')
     setEditError('')
     setIsEditing(true)
   }
@@ -162,6 +173,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
           name: editName.trim(),
           annualAmount: amount,
           categoryId: editCategoryId || null,
+          propertyId: editPropertyId || null,
           dueMonth: parseInt(editDueMonth),
           dueYear: parseInt(editDueYear),
           isRecurring: editIsRecurring,
@@ -222,6 +234,21 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                     <option key={cat.id} value={cat.id}>
                       {cat.icon ? `${cat.icon} ` : ''}{cat.name}
                     </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {properties.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-stone">Property (optional)</label>
+                <select
+                  value={editPropertyId}
+                  onChange={(e) => setEditPropertyId(e.target.value)}
+                  className="input mt-1 w-full text-sm"
+                >
+                  <option value="">No property</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
@@ -316,6 +343,11 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                 <p className="mt-0.5 text-sm text-stone">
                   {formatCurrency(expense.annualAmount)} planned &middot; Due{' '}
                   {formatMonthName(expense.dueMonth)} {expense.dueYear}
+                  {expense.property && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-frost px-2 py-0.5 text-xs text-stone">
+                      {expense.property.name}
+                    </span>
+                  )}
                 </p>
               </div>
               <span

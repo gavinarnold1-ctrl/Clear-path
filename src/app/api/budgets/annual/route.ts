@@ -8,7 +8,7 @@ export async function GET() {
 
   const expenses = await db.annualExpense.findMany({
     where: { userId: session.userId },
-    include: { budget: { include: { category: true } } },
+    include: { budget: { include: { category: true } }, property: { select: { id: true, name: true, type: true } } },
     orderBy: [{ dueYear: 'asc' }, { dueMonth: 'asc' }],
   })
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
 import GoalHistory from '@/components/settings/GoalHistory'
@@ -261,12 +262,15 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       if (!res.ok) {
         const data = await res.json()
         setProfileMsg({ type: 'error', text: data.error ?? 'Failed to update profile.' })
+        toast.error('Failed to update profile')
         return
       }
       setProfileMsg({ type: 'success', text: 'Profile updated.' })
+      toast.success('Profile updated')
       router.refresh()
     } catch {
       setProfileMsg({ type: 'error', text: 'Network error.' })
+      toast.error('Failed to update profile')
     } finally {
       setProfileSaving(false)
     }
@@ -284,13 +288,16 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       if (!res.ok) {
         const data = await res.json()
         setPasswordMsg({ type: 'error', text: data.error ?? 'Failed to change password.' })
+        toast.error(data.error ?? 'Failed to change password')
         return
       }
       setPasswordMsg({ type: 'success', text: 'Password changed.' })
+      toast.success('Password changed')
       setCurrentPassword('')
       setNewPassword('')
     } catch {
       setPasswordMsg({ type: 'error', text: 'Network error.' })
+      toast.error('Failed to change password')
     } finally {
       setPasswordSaving(false)
     }
@@ -312,14 +319,17 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       if (!res.ok) {
         const data = await res.json()
         setGoalMsg({ type: 'error', text: data.error ?? 'Failed to update goal.' })
+        toast.error('Failed to update goal')
         return
       }
       const data = await res.json()
       setCurrentGoalSetAt(data.goalSetAt)
       setGoalMsg({ type: 'success', text: 'Financial goal updated.' })
+      toast.success('Financial goal updated')
       router.refresh()
     } catch {
       setGoalMsg({ type: 'error', text: 'Network error.' })
+      toast.error('Failed to update goal')
     } finally {
       setGoalSaving(false)
     }
@@ -426,14 +436,17 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       if (!res.ok) {
         const data = await res.json()
         setMemberMsg(data.error ?? 'Failed to add member.')
+        toast.error('Failed to add member')
         return
       }
       const member = await res.json()
       setMembers((prev) => [...prev, member])
       setNewMemberName('')
+      toast.success('Member added')
       router.refresh()
     } catch {
       setMemberMsg('Network error.')
+      toast.error('Failed to add member')
     } finally {
       setMemberSaving(false)
     }
@@ -446,11 +459,15 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       if (!res.ok) {
         setMembers(initialMembers)
         setMemberMsg('Failed to delete member.')
+        toast.error('Failed to remove member')
+      } else {
+        toast.success('Member removed')
       }
       router.refresh()
     } catch {
       setMembers(initialMembers)
       setMemberMsg('Network error.')
+      toast.error('Failed to remove member')
     }
   }
 

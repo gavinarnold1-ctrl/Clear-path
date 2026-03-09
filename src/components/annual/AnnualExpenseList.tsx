@@ -3,6 +3,12 @@
 import { useState } from 'react'
 import AnnualExpenseCard from './AnnualExpenseCard'
 
+interface PropertyOption {
+  id: string
+  name: string
+  type: string
+}
+
 interface AnnualExpenseData {
   id: string
   name: string
@@ -20,6 +26,8 @@ interface AnnualExpenseData {
   currentSetAside: number
   computedStatus: string
   linkedSpent?: number
+  propertyId?: string | null
+  property?: { id: string; name: string; type: string } | null
   budget: {
     id: string
     categoryId: string | null
@@ -39,9 +47,10 @@ interface Props {
   trueRemaining?: number
   monthlyBurden?: number
   categories?: CategoryOption[]
+  properties?: PropertyOption[]
 }
 
-export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden, categories = [] }: Props) {
+export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden, categories = [], properties = [] }: Props) {
   const [showCompleted, setShowCompleted] = useState(false)
 
   return (
@@ -70,6 +79,7 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
                   expense={exp}
                   affordableMonthly={affordable}
                   categories={categories}
+                  properties={properties}
                 />
               )
             })}
@@ -86,7 +96,7 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
               {showCompleted && (
                 <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {completed.map((exp) => (
-                    <AnnualExpenseCard key={exp.id} expense={exp} categories={categories} />
+                    <AnnualExpenseCard key={exp.id} expense={exp} categories={categories} properties={properties} />
                   ))}
                 </div>
               )}
