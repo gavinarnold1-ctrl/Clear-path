@@ -5,14 +5,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import MonthPicker from './MonthPicker'
-import dynamic from 'next/dynamic'
-
-const MonthlyChart = dynamic(() => import('@/components/dashboard/MonthlyChart'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-64 animate-pulse rounded-card bg-mist/30" />
-  ),
-})
+import MonthlyChart from '@/components/dashboard/MonthlyChartLazy'
 import ValueTracker from '@/components/dashboard/ValueTracker'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
