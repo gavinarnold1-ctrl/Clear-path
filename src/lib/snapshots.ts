@@ -23,6 +23,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     propertySpending,
     latestScore,
     accounts,
+    propertiesForNetWorth,
   ] = await Promise.all([
     // Exclude transfers from income/expense totals in snapshots
     db.transaction.aggregate({
@@ -75,6 +76,11 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       where: { userId },
       select: { type: true, balance: true },
     }),
+    // Property values for net worth calculation
+    db.property.findMany({
+      where: { userId },
+      select: { currentValue: true, loanBalance: true },
+    }),
   ])
 
   const totalIncome = incomeAgg._sum.amount ?? 0
@@ -126,12 +132,42 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
   const totalDebt = debts.reduce((s, d) => s + d.currentBalance, 0)
   const totalDebtPayments = debts.reduce((s, d) => s + d.minimumPayment, 0)
 
-  // Net worth: assets minus liabilities (R7.9)
+  // Compute debt paid down this month (compare to previous month's snapshot)
+  let debtPaidDown: number | null = null
+  if (debts.length > 0) {
+    const prevMonth = new Date(year, month - 2, 1)
+    const prevSnapshot = await db.monthlySnapshot.findUnique({
+      where: { userId_month: { userId, month: prevMonth } },
+      select: { totalDebt: true },
+    })
+    if (prevSnapshot?.totalDebt != null) {
+      // Positive = debt went down (good), negative = debt went up
+      debtPaidDown = prevSnapshot.totalDebt - totalDebt
+    }
+  }
+
+  // Net worth: assets minus liabilities plus property equity (R7.9)
   const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
-  const netWorth = accounts.reduce((sum, a) => {
+  const accountNetWorth = accounts.reduce((sum, a) => {
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
+
+  // Property equity: add property values, subtract loan balances not already
+  // tracked as Plaid mortgage accounts (to avoid double-counting)
+  const mortgageAccountBalances = accounts
+    .filter(a => a.type === 'MORTGAGE')
+    .reduce((sum, a) => sum + Math.abs(a.balance), 0)
+  const totalPropertyValue = propertiesForNetWorth.reduce(
+    (sum, p) => sum + (p.currentValue ?? 0), 0
+  )
+  const totalPropertyLoans = propertiesForNetWorth.reduce(
+    (sum, p) => sum + (p.loanBalance ?? 0), 0
+  )
+  // If mortgage accounts exist in Plaid, they're already subtracted from accountNetWorth.
+  // Only subtract property loan balances that aren't covered by Plaid mortgage accounts.
+  const uncoveredLoans = Math.max(0, totalPropertyLoans - mortgageAccountBalances)
+  const netWorth = accountNetWorth + totalPropertyValue - uncoveredLoans
 
   // Person breakdown
   let personBreakdown: string | null = null
@@ -272,7 +308,8 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       avgDailySpend,
       totalDebt: debts.length > 0 ? totalDebt : null,
       totalDebtPayments: debts.length > 0 ? totalDebtPayments : null,
-      netWorth: accounts.length > 0 ? netWorth : null,
+      debtPaidDown,
+      netWorth: accounts.length > 0 || propertiesForNetWorth.length > 0 ? netWorth : null,
       personBreakdown,
       propertyBreakdown,
       efficiencyScore: latestScore ? Math.round(latestScore.overallScore) : null,
@@ -296,7 +333,8 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       avgDailySpend,
       totalDebt: debts.length > 0 ? totalDebt : null,
       totalDebtPayments: debts.length > 0 ? totalDebtPayments : null,
-      netWorth: accounts.length > 0 ? netWorth : null,
+      debtPaidDown,
+      netWorth: accounts.length > 0 || propertiesForNetWorth.length > 0 ? netWorth : null,
       personBreakdown,
       propertyBreakdown,
       efficiencyScore: latestScore ? Math.round(latestScore.overallScore) : null,

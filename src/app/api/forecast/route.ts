@@ -275,6 +275,59 @@ function applyScenario(
       }
       break
     }
+    case 'extra_debt_payment': {
+      const amount = Number(params?.amount ?? 0)
+      const targetDebtId = params?.debtId as string | undefined
+
+      if (targetDebtId) {
+        modified.debts = input.debts.map((d) =>
+          d.id === targetDebtId
+            ? { ...d, minimumPayment: d.minimumPayment + amount }
+            : d
+        )
+      } else {
+        // Apply to highest-rate debt
+        const sorted = [...input.debts].sort((a, b) => b.interestRate - a.interestRate)
+        if (sorted[0]) {
+          modified.debts = input.debts.map((d) =>
+            d.id === sorted[0].id
+              ? { ...d, minimumPayment: d.minimumPayment + amount }
+              : d
+          )
+        }
+      }
+      modified.budgets = {
+        ...input.budgets,
+        projectedSurplus: input.budgets.projectedSurplus - amount,
+      }
+      break
+    }
+    case 'property_value_change': {
+      const propertyId = params?.propertyId as string | undefined
+      const newValue = params?.newValue != null ? Number(params.newValue) : undefined
+      const newAppreciation = params?.appreciationRate != null ? Number(params.appreciationRate) : undefined
+
+      modified.properties = (input.properties ?? []).map((p) => {
+        if (propertyId && p.id !== propertyId) return p
+        return {
+          ...p,
+          ...(newValue != null ? { currentValue: newValue } : {}),
+          ...(newAppreciation != null ? { appreciationRate: newAppreciation } : {}),
+        }
+      })
+      break
+    }
+    case 'lump_sum_payment': {
+      const amount = Number(params?.amount ?? 0)
+      const targetDebtId = params?.debtId as string | undefined
+
+      modified.debts = input.debts.map((d) => {
+        if (targetDebtId && d.id !== targetDebtId) return d
+        if (!targetDebtId) return d
+        return { ...d, balance: Math.max(0, d.balance - amount) }
+      })
+      break
+    }
     default:
       break
   }

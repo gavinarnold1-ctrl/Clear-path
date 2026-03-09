@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { getCachedForecast, getForecastAccuracy } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
+import { piBreakdown } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
 import dynamic from 'next/dynamic'
 
@@ -41,9 +42,12 @@ function PaceIcon({ pace }: { pace: Forecast['pace'] }) {
   )
 }
 
-export default async function ForecastPage() {
+export default async function ForecastPage({ searchParams }: { searchParams: Promise<{ focus?: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
+
+  const params = await searchParams
+  const focusDebt = params.focus === 'debt'
 
   const [forecast, accuracy, profile] = await Promise.all([
     getCachedForecast(session.userId),
@@ -56,6 +60,19 @@ export default async function ForecastPage() {
 
   const incomeTransitions: IncomeTransition[] = Array.isArray(profile?.incomeTransitions)
     ? (profile.incomeTransitions as unknown as IncomeTransition[])
+    : []
+
+  // Fetch debt payoff data when coming from debts page
+  const debtPayoffData = focusDebt
+    ? await db.debt.findMany({
+        where: { userId: session.userId },
+        orderBy: { interestRate: 'desc' },
+        select: {
+          id: true, name: true, type: true,
+          currentBalance: true, interestRate: true,
+          minimumPayment: true, escrowAmount: true,
+        },
+      })
     : []
 
   if (!forecast) {
@@ -137,6 +154,59 @@ export default async function ForecastPage() {
       <div className="card mb-6">
         <ForecastTimeline timeline={timeline} targetValue={goalTarget?.targetValue ?? forecast.projectedValue} targetDate={goalTarget?.targetDate} incomeTransitions={incomeTransitions} />
       </div>
+
+      {/* Debt Payoff Timeline (shown when navigating from debts page) */}
+      {focusDebt && debtPayoffData.length > 0 && (
+        <div className="card mb-6">
+          <h2 className="mb-4 text-base font-semibold text-fjord">Debt Payoff Timeline</h2>
+          <div className="space-y-3">
+            {debtPayoffData.map((debt) => {
+              const pi = piBreakdown(debt.currentBalance, debt.interestRate, debt.minimumPayment, debt.escrowAmount)
+              const payoffDate = pi.monthsRemaining != null
+                ? new Date(new Date().getFullYear(), new Date().getMonth() + pi.monthsRemaining, 1)
+                : null
+              const totalInterest = pi.monthsRemaining != null
+                ? pi.monthlyInterest * pi.monthsRemaining
+                : null
+              return (
+                <div key={debt.id} className="flex items-center justify-between rounded-lg border border-mist bg-frost/30 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-fjord">{debt.name}</p>
+                    <p className="text-xs text-stone">
+                      {formatCurrency(debt.currentBalance)} at {(debt.interestRate * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {payoffDate ? (
+                      <>
+                        <p className="text-sm font-medium text-fjord">
+                          {payoffDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </p>
+                        <p className="text-xs text-stone">
+                          {pi.monthsRemaining} months &middot; {formatCurrency(pi.monthlyPrincipal)}/mo principal
+                        </p>
+                        {totalInterest != null && totalInterest > 0 && (
+                          <p className="text-xs text-ember">
+                            {formatCurrency(totalInterest)} remaining interest
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-stone">Payoff date not projected</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            <div className="flex items-center justify-between border-t border-mist pt-3">
+              <span className="text-sm font-semibold text-fjord">Total Debt</span>
+              <span className="font-mono text-sm font-semibold text-fjord">
+                {formatCurrency(debtPayoffData.reduce((s, d) => s + d.currentBalance, 0))}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section 2: Pace Summary Cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

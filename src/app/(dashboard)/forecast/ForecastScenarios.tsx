@@ -12,9 +12,12 @@ const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
   { value: 'new_expense', label: 'New monthly expense', fields: ['amount'] },
   { value: 'new_debt', label: 'Take on new debt', fields: ['principal', 'rate', 'term'] },
   { value: 'income_change', label: 'Income change', fields: ['amount'] },
+  { value: 'extra_debt_payment', label: 'Extra debt payment', fields: ['amount'] },
+  { value: 'property_value_change', label: 'Property value change', fields: ['newValue'] },
+  { value: 'lump_sum_payment', label: 'Lump sum debt payment', fields: ['amount'] },
 ]
 
-type ScenarioTypeValue = 'new_expense' | 'new_debt' | 'income_change'
+type ScenarioTypeValue = 'new_expense' | 'new_debt' | 'income_change' | 'extra_debt_payment' | 'property_value_change' | 'lump_sum_payment'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -45,6 +48,7 @@ export default function ForecastScenarios({ scenarios }: Props) {
   const [customPrincipal, setCustomPrincipal] = useState('')
   const [customRate, setCustomRate] = useState('5')
   const [customTerm, setCustomTerm] = useState('60')
+  const [customNewValue, setCustomNewValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
 
@@ -70,6 +74,15 @@ export default function ForecastScenarios({ scenarios }: Props) {
       } else if (customType === 'income_change') {
         params.amount = parseFloat(customAmount)
         params.description = `${parseFloat(customAmount) >= 0 ? 'Increase' : 'Decrease'} income by ${formatCurrency(Math.abs(parseFloat(customAmount)))}/mo`
+      } else if (customType === 'extra_debt_payment') {
+        params.amount = parseFloat(customAmount)
+        params.description = `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward highest-rate debt`
+      } else if (customType === 'property_value_change') {
+        params.newValue = parseFloat(customNewValue)
+        params.description = `Set property value to ${formatCurrency(parseFloat(customNewValue))}`
+      } else if (customType === 'lump_sum_payment') {
+        params.amount = parseFloat(customAmount)
+        params.description = `One-time ${formatCurrency(parseFloat(customAmount))} payment toward debt`
       }
 
       const res = await fetch('/api/forecast', {
@@ -86,6 +99,7 @@ export default function ForecastScenarios({ scenarios }: Props) {
         setCustomLabel('')
         setCustomAmount('')
         setCustomPrincipal('')
+        setCustomNewValue('')
       }
     } catch {
       // silently fail
@@ -231,6 +245,20 @@ export default function ForecastScenarios({ scenarios }: Props) {
                   {customType === 'income_change' && (
                     <p className="mt-1 text-[10px] text-stone">Positive = income increase, negative = decrease</p>
                   )}
+                </div>
+              )}
+
+              {selectedType?.fields.includes('newValue') && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone">New property value ($)</label>
+                  <input
+                    type="number"
+                    value={customNewValue}
+                    onChange={(e) => setCustomNewValue(e.target.value)}
+                    placeholder="0"
+                    step="1000"
+                    className="input w-full text-sm"
+                  />
                 </div>
               )}
 
