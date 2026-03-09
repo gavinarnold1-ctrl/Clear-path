@@ -16,6 +16,7 @@ interface FlexibleBudget {
   categoryId: string | null
   resolvedCategoryId: string | null
   category: { name: string; icon: string | null } | null
+  _count?: { overrideTransactions: number }
 }
 
 interface Props {
@@ -151,6 +152,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                   categoryId={budget.resolvedCategoryId ?? budget.categoryId}
                   category={budget.category}
                   isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
+                  overrideCount={budget._count?.overrideTransactions}
                 />
                 {bm && (
                   <div className="px-3 pb-2">

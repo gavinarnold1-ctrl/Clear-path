@@ -38,7 +38,7 @@ export default async function BudgetsPage() {
   const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount, goalContext] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
-      include: { category: true, annualExpense: true },
+      include: { category: true, annualExpense: true, _count: { select: { overrideTransactions: true } } },
       orderBy: [{ tier: 'asc' }, { sortOrder: 'asc' }, { amount: 'desc' }],
     }),
     // Current month's expense transactions — exclude transfers for budget computation
@@ -339,6 +339,7 @@ export default async function BudgetsPage() {
     merchant: tx.merchant,
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
+    budgetId: tx.budgetId,
     category: tx.category,
     tags: tx.tags,
   }))

@@ -1,11 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import type { ForecastScenario } from '@/types'
+import type { ForecastScenario, ForecastPoint } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
+import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
 interface Props {
   scenarios: ForecastScenario[]
+  onScenarioSelect?: (scenario: ForecastScenario) => void
+  onScenarioClear?: () => void
+  baselineProjectedDate?: string | null
 }
 
 const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
@@ -41,8 +45,9 @@ function ScenarioTypeIcon({ type }: { type: ForecastScenario['type'] }) {
   return <span className="text-lg">{icons[type] ?? '📊'}</span>
 }
 
-export default function ForecastScenarios({ scenarios }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+export default function ForecastScenarios({ scenarios, onScenarioSelect, onScenarioClear, baselineProjectedDate }: Props) {
+  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null)
+  const [expandedBreakdownId, setExpandedBreakdownId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [customType, setCustomType] = useState<ScenarioTypeValue>('new_expense')
   const [customLabel, setCustomLabel] = useState('')
@@ -56,6 +61,24 @@ export default function ForecastScenarios({ scenarios }: Props) {
   const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
 
   const allScenarios = [...scenarios, ...customScenarios]
+
+  function handleShowOnChart(scenario: ForecastScenario) {
+    if (activeScenarioId === scenario.id) {
+      setActiveScenarioId(null)
+      onScenarioClear?.()
+    } else {
+      setActiveScenarioId(scenario.id)
+      onScenarioSelect?.(scenario)
+    }
+  }
+
+  function handleRemoveScenario(id: string) {
+    setCustomScenarios((prev) => prev.filter((s) => s.id !== id))
+    if (activeScenarioId === id) {
+      setActiveScenarioId(null)
+      onScenarioClear?.()
+    }
+  }
 
   async function handleCreateScenario() {
     setLoading(true)
@@ -121,102 +144,141 @@ export default function ForecastScenarios({ scenarios }: Props) {
 
   return (
     <div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="space-y-3">
         {allScenarios.map((scenario) => {
-          const isExpanded = expandedId === scenario.id
           const { impact } = scenario
-          const isPositive = impact.daysSaved > 0 || impact.monthlyImpactOnGoal > 0
+          const isActive = activeScenarioId === scenario.id
+          const isBreakdownExpanded = expandedBreakdownId === scenario.id
+          const isCustom = customScenarios.some((s) => s.id === scenario.id)
+
+          // Stat pill values
+          const monthlyImpact = impact.monthlyImpactOnTrueRemaining
+          const monthsSaved = impact.daysSaved !== 0 ? Math.round(impact.daysSaved / 30) : 0
+          const cumulativeImpact = scenario.monthlyBreakdown?.length
+            ? scenario.monthlyBreakdown[scenario.monthlyBreakdown.length - 1].cumulativeImpact
+            : 0
 
           return (
-            <button
-              key={scenario.id}
-              onClick={() => setExpandedId(isExpanded ? null : scenario.id)}
-              className="rounded-card border border-mist bg-frost/30 p-4 text-left transition-colors hover:bg-frost/60"
-            >
-              <div className="flex items-start gap-3">
-                <ScenarioTypeIcon type={scenario.type} />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-fjord">{scenario.label}</p>
-                  <p className="mt-0.5 text-xs text-stone">{scenario.description}</p>
+            <div key={scenario.id}>
+              <div
+                className={`rounded-card p-4 transition-all ${
+                  isActive
+                    ? 'border-2 border-pine/50 bg-frost/50 ring-1 ring-pine/20'
+                    : 'border border-mist bg-frost/30'
+                }`}
+              >
+                {/* Header */}
+                <div className="flex items-start gap-3">
+                  <ScenarioTypeIcon type={scenario.type} />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-fjord">{scenario.label}</p>
+                      {isActive && (
+                        <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-[10px] font-medium text-pine">
+                          Active
+                        </span>
+                      )}
+                    </div>
 
-                  {isExpanded && (
-                    <div className="mt-3 space-y-2 border-t border-mist pt-3">
-                      {impact.makesGoalAchievable && impact.newProjectedDate && (
-                        <div className="rounded-button bg-pine/10 px-2 py-1.5 text-xs font-medium text-pine">
-                          Makes goal achievable — projected {new Date(impact.newProjectedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    {/* Narrative summary */}
+                    {scenario.narrativeSummary && (
+                      <p className="mt-1.5 text-sm leading-relaxed text-fjord">
+                        {scenario.narrativeSummary}
+                      </p>
+                    )}
+                    {!scenario.narrativeSummary && scenario.description && (
+                      <p className="mt-0.5 text-xs text-stone">{scenario.description}</p>
+                    )}
+
+                    {/* Makes goal achievable badge */}
+                    {impact.makesGoalAchievable && (
+                      <span className="mt-1.5 inline-block rounded-badge bg-pine/20 px-2 py-0.5 text-[10px] font-medium text-pine">
+                        Makes goal achievable
+                      </span>
+                    )}
+
+                    {/* Stat pills */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {/* Monthly impact */}
+                      <div className="rounded-badge bg-frost px-3 py-2 text-center">
+                        <p className={`font-mono text-sm font-semibold ${monthlyImpact >= 0 ? 'text-pine' : 'text-ember'}`}>
+                          {monthlyImpact >= 0 ? '+' : ''}{formatCurrency(monthlyImpact)}/mo
+                        </p>
+                        <p className="text-[10px] uppercase text-stone">True Remain</p>
+                      </div>
+
+                      {/* Timeline impact */}
+                      {monthsSaved !== 0 ? (
+                        <div className="rounded-badge bg-frost px-3 py-2 text-center">
+                          <p className={`font-mono text-sm font-semibold ${monthsSaved > 0 ? 'text-pine' : 'text-ember'}`}>
+                            {Math.abs(monthsSaved)} mo {monthsSaved > 0 ? 'sooner' : 'later'}
+                          </p>
+                          <p className="text-[10px] uppercase text-stone">Goal date</p>
+                        </div>
+                      ) : impact.daysSaved === 0 && (
+                        <div className="rounded-badge bg-frost px-3 py-2 text-center">
+                          <p className="font-mono text-sm font-semibold text-stone">N/A</p>
+                          <p className="text-[10px] uppercase text-stone">Goal date</p>
                         </div>
                       )}
-                      {impact.daysSaved !== 0 && !impact.makesGoalAchievable && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone">Goal date impact</span>
-                          <span className={`font-medium ${impact.daysSaved > 0 ? 'text-pine' : 'text-ember'}`}>
-                            {impact.daysSaved > 0 ? '−' : '+'}{Math.abs(impact.daysSaved)} days
-                          </span>
-                        </div>
-                      )}
-                      {impact.velocityChange != null && impact.velocityChange !== 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone">Savings velocity</span>
-                          <span className={`font-medium ${impact.velocityChange >= 0 ? 'text-pine' : 'text-ember'}`}>
-                            {impact.velocityChange >= 0 ? '+' : ''}{formatCurrency(impact.velocityChange)}/mo
-                          </span>
-                        </div>
-                      )}
-                      {impact.monthlyImpactOnTrueRemaining !== 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone">True Remaining</span>
-                          <span className={`font-medium ${impact.monthlyImpactOnTrueRemaining >= 0 ? 'text-pine' : 'text-ember'}`}>
-                            {impact.monthlyImpactOnTrueRemaining >= 0 ? '+' : ''}{formatCurrency(impact.monthlyImpactOnTrueRemaining)}/mo
-                          </span>
-                        </div>
-                      )}
-                      {impact.totalInterestImpact != null && impact.totalInterestImpact !== 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone">Interest impact</span>
-                          <span className={`font-medium ${impact.totalInterestImpact <= 0 ? 'text-pine' : 'text-ember'}`}>
-                            {impact.totalInterestImpact <= 0 ? '−' : '+'}{formatCurrency(Math.abs(impact.totalInterestImpact))}
-                          </span>
-                        </div>
-                      )}
-                      {impact.newMonthlyPayment != null && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-stone">Monthly payment</span>
-                          <span className="font-medium text-fjord">{formatCurrency(impact.newMonthlyPayment)}</span>
+
+                      {/* Cumulative impact */}
+                      {cumulativeImpact !== 0 && (
+                        <div className="rounded-badge bg-frost px-3 py-2 text-center">
+                          <p className={`font-mono text-sm font-semibold ${cumulativeImpact >= 0 ? 'text-pine' : 'text-ember'}`}>
+                            {formatCurrency(Math.abs(cumulativeImpact))}
+                          </p>
+                          <p className="text-[10px] uppercase text-stone">Total gain</p>
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {!isExpanded && (
-                    <div className="mt-2 flex items-center gap-2">
-                      {impact.makesGoalAchievable ? (
-                        <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-xs font-medium text-pine">
-                          Makes goal achievable
-                        </span>
-                      ) : (
-                        <span
-                          className={`rounded-badge px-1.5 py-0.5 text-xs font-medium ${
-                            isPositive ? 'bg-pine/10 text-pine' : 'bg-ember/10 text-ember'
+                    {/* Action buttons */}
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      {scenario.scenarioTimeline && (
+                        <button
+                          onClick={() => handleShowOnChart(scenario)}
+                          className={`text-xs font-medium transition-colors ${
+                            isActive ? 'text-pine' : 'text-fjord hover:text-pine'
                           }`}
                         >
-                          {impact.daysSaved > 0
-                            ? `${impact.daysSaved} days sooner`
-                            : impact.daysSaved < 0
-                              ? `${Math.abs(impact.daysSaved)} days later`
-                              : impact.velocityChange != null && impact.velocityChange > 0
-                                ? `+${formatCurrency(impact.velocityChange)}/mo`
-                                : impact.monthlyImpactOnGoal > 0
-                                  ? `+${formatCurrency(impact.monthlyImpactOnGoal)}/mo`
-                                  : impact.monthlyImpactOnGoal < 0
-                                    ? `${formatCurrency(impact.monthlyImpactOnGoal)}/mo`
-                                    : 'No date impact'}
-                        </span>
+                          {isActive ? 'Showing on chart \u2713' : 'Show on chart'}
+                        </button>
+                      )}
+
+                      {scenario.monthlyBreakdown && scenario.monthlyBreakdown.length > 0 && (
+                        <button
+                          onClick={() => setExpandedBreakdownId(isBreakdownExpanded ? null : scenario.id)}
+                          className="text-xs font-medium text-fjord transition-colors hover:text-pine"
+                        >
+                          {isBreakdownExpanded ? 'Hide breakdown \u25B2' : 'View breakdown \u25BC'}
+                        </button>
+                      )}
+
+                      {isCustom && (
+                        <button
+                          onClick={() => handleRemoveScenario(scenario.id)}
+                          className="text-xs text-stone transition-colors hover:text-ember"
+                        >
+                          Remove
+                        </button>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </button>
+
+              {/* Expanded breakdown table */}
+              {isBreakdownExpanded && scenario.monthlyBreakdown && (
+                <div className="mt-1 rounded-b-card border border-t-0 border-mist bg-snow p-4">
+                  <MonthlyBreakdownTable
+                    breakdown={scenario.monthlyBreakdown}
+                    baselineGoalDate={scenario.baselineProjectedDate ?? baselineProjectedDate ?? null}
+                    scenarioGoalDate={scenario.scenarioProjectedDate ?? null}
+                  />
+                </div>
+              )}
+            </div>
           )
         })}
       </div>

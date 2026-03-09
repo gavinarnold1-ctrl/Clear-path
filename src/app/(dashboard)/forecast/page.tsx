@@ -8,7 +8,7 @@ import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { piBreakdown, amortizationSchedule } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
 import ForecastTimeline from './ForecastTimelineLazy'
-import ForecastScenarios from './ForecastScenarios'
+import ForecastInteractive from './ForecastInteractive'
 import type { Forecast, AssetClass, IncomeTransition, GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Forecast' }
@@ -144,10 +144,15 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         <PaceIcon pace={pace} />
       </div>
 
-      {/* Section 1: Hero Timeline Chart */}
-      <div className="card mb-6">
-        <ForecastTimeline timeline={timeline} targetValue={goalTarget?.targetValue ?? forecast.projectedValue} targetDate={goalTarget?.targetDate} incomeTransitions={incomeTransitions} />
-      </div>
+      {/* Section 1: Interactive Chart + Scenarios (chart overlay wired) */}
+      <ForecastInteractive
+        timeline={timeline}
+        targetValue={goalTarget?.targetValue ?? forecast.projectedValue}
+        targetDate={goalTarget?.targetDate}
+        incomeTransitions={incomeTransitions}
+        scenarios={scenarios}
+        baselineProjectedDate={projectedDate ?? null}
+      />
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}
       {focusDebt && debtPayoffData.length > 0 && (() => {
@@ -499,13 +504,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         </div>
       )}
 
-      {/* Section 5: Scenarios */}
-      {scenarios.length > 0 && (
-        <div className="card mb-6">
-          <h2 className="mb-4 text-base font-semibold text-fjord">What-If Scenarios</h2>
-          <ForecastScenarios scenarios={scenarios} />
-        </div>
-      )}
+      {/* Section 5: Scenarios are now rendered inside ForecastInteractive above */}
 
       {/* Section 6: Monthly Breakdown Table */}
       <div className="card">

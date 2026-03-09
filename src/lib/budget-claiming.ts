@@ -2,10 +2,11 @@
  * Shared budget claiming logic.
  *
  * The claiming priority is:
- * 1. ANNUAL — transactions with annualExpenseId are exclusively claimed
- * 2. FIXED  — one transaction per budget per month, matched by exact category (then merchant fallback for unlinked budgets)
- * 3. FLEXIBLE — all transactions in budget.categoryId minus annual-claimed and fixed-claimed
- * 4. CATCH-ALL — all unclaimed transactions not in any budgeted category
+ * 1. ANNUAL    — transactions with annualExpenseId are exclusively claimed
+ * 2. OVERRIDE  — transactions with explicit budgetId override (V1.1)
+ * 3. FIXED     — one transaction per budget per month, matched by exact category (then merchant fallback for unlinked budgets)
+ * 4. FLEXIBLE  — all transactions in budget.categoryId minus annual-claimed, override-claimed, and fixed-claimed
+ * 5. CATCH-ALL — all unclaimed transactions not in any budgeted category
  *
  * This module is used by:
  * - budgets/page.tsx (display spent values)
@@ -26,6 +27,7 @@ export interface ClaimableTransaction {
   merchant: string | null
   categoryId: string | null
   annualExpenseId: string | null
+  budgetId?: string | null
   category?: { id: string; name: string } | null
   tags?: string | null
 }
@@ -104,18 +106,54 @@ export function claimTransactions(
   // Non-annual pool — used by all other tiers
   const nonAnnualTxs = filteredTransactions.filter(tx => !annualTxIds.has(tx.id))
 
-  // ── Step 2: FIXED claiming ──
+  // ── Step 2: Budget override claiming (V1.1) ──
+  // Transactions with explicit budgetId are claimed by that budget, regardless of category.
+  const overrideTxIds = new Set<string>()
+
+  for (const tx of nonAnnualTxs) {
+    if (!tx.budgetId) continue
+
+    // Find the budget this tx is overridden to
+    const targetBudget = budgets.find(b => b.id === tx.budgetId)
+    if (!targetBudget) continue // Budget was deleted, ignore override
+
+    overrideTxIds.add(tx.id)
+
+    // Add to the appropriate claimed map based on budget tier
+    if (targetBudget.tier === 'FIXED') {
+      // For FIXED, override replaces the normal single-match behavior
+      if (!fixedClaimed.has(targetBudget.id)) {
+        fixedClaimed.set(targetBudget.id, tx.id)
+        fixedClaimedTxIds.add(tx.id)
+      }
+    } else if (targetBudget.tier === 'FLEXIBLE') {
+      const existing = flexibleClaimed.get(targetBudget.id) ?? []
+      flexibleClaimed.set(targetBudget.id, [...existing, tx.id])
+    }
+
+    // Track spent amount
+    const currentSpent = spentByBudget.get(targetBudget.id) ?? 0
+    spentByBudget.set(targetBudget.id, currentSpent + Math.abs(tx.amount))
+  }
+
+  // Remove override txs from the pool before fixed/flexible claiming
+  const postOverrideTxs = nonAnnualTxs.filter(tx => !overrideTxIds.has(tx.id))
+
+  // ── Step 3: FIXED claiming ──
   // Each fixed budget claims exactly one transaction per month.
   // Priority: exact categoryId → amount tiebreak.
   // Merchant-name fallback ONLY for unlinked budgets (no categoryId).
   const fixedBudgets = budgets.filter(b => b.tier === 'FIXED')
 
   for (const b of fixedBudgets) {
+    // Skip if already claimed by an override
+    if (fixedClaimed.has(b.id)) continue
+
     let bestMatch: ClaimableTransaction | undefined
 
     if (b.categoryId) {
       // Priority 1: exact category match (source of truth for linked budgets)
-      const categoryMatches = nonAnnualTxs.filter(
+      const categoryMatches = postOverrideTxs.filter(
         tx => tx.categoryId === b.categoryId && !fixedClaimedTxIds.has(tx.id),
       )
       if (categoryMatches.length > 0) {
@@ -131,7 +169,7 @@ export function claimTransactions(
     // Priority 2: merchant name fallback (ONLY for unlinked budgets)
     if (!bestMatch && !b.categoryId) {
       const budgetNameLower = b.name.toLowerCase()
-      bestMatch = nonAnnualTxs.find(tx => {
+      bestMatch = postOverrideTxs.find(tx => {
         if (fixedClaimedTxIds.has(tx.id)) return false
         const merchant = (tx.merchant ?? '').toLowerCase()
         return (
@@ -143,7 +181,7 @@ export function claimTransactions(
 
     // Priority 3: amount match (absolute last resort for unlinked budgets only)
     if (!bestMatch && !b.categoryId) {
-      const unclaimed = nonAnnualTxs.filter(
+      const unclaimed = postOverrideTxs.filter(
         tx => !fixedClaimedTxIds.has(tx.id),
       )
       if (unclaimed.length > 0) {
@@ -165,9 +203,9 @@ export function claimTransactions(
     }
   }
 
-  // ── Step 3: FLEXIBLE claiming ──
+  // ── Step 4: FLEXIBLE claiming ──
   // Named flexible budgets claim all transactions in their category,
-  // minus annual-claimed and fixed-claimed.
+  // minus annual-claimed, override-claimed, and fixed-claimed.
   const flexibleBudgets = budgets.filter(b => b.tier === 'FLEXIBLE')
 
   // Collect all category IDs claimed by non-catch-all budgets (for catch-all computation)
@@ -179,13 +217,15 @@ export function claimTransactions(
   }
 
   for (const b of flexibleBudgets) {
-    if (CATCHALL_NAMES.has(b.name.toLowerCase())) continue // catch-all handled in step 4
+    if (CATCHALL_NAMES.has(b.name.toLowerCase())) continue // catch-all handled in step 5
 
-    const txIds: string[] = []
-    let spent = 0
+    const existingTxIds = flexibleClaimed.get(b.id) ?? []
+    const existingSpent = spentByBudget.get(b.id) ?? 0
+    const txIds: string[] = [...existingTxIds]
+    let spent = existingSpent
 
     if (b.categoryId) {
-      for (const tx of nonAnnualTxs) {
+      for (const tx of postOverrideTxs) {
         if (tx.categoryId === b.categoryId && !fixedClaimedTxIds.has(tx.id)) {
           txIds.push(tx.id)
           spent += Math.abs(tx.amount)
@@ -197,13 +237,13 @@ export function claimTransactions(
     spentByBudget.set(b.id, spent)
   }
 
-  // ── Step 4: Catch-all ──
+  // ── Step 5: Catch-all ──
   // Transactions not claimed by any budget tier and either uncategorized
   // or in a category with no budget.
   const catchAllTxIds: string[] = []
   let catchAllSpent = 0
 
-  for (const tx of nonAnnualTxs) {
+  for (const tx of postOverrideTxs) {
     if (fixedClaimedTxIds.has(tx.id)) continue
     if (!tx.categoryId || !claimedCategoryIds.has(tx.categoryId)) {
       catchAllTxIds.push(tx.id)
@@ -216,8 +256,10 @@ export function claimTransactions(
     CATCHALL_NAMES.has(b.name.toLowerCase()),
   )
   if (catchAllBudget) {
-    flexibleClaimed.set(catchAllBudget.id, catchAllTxIds)
-    spentByBudget.set(catchAllBudget.id, catchAllSpent)
+    const existingCatchAll = flexibleClaimed.get(catchAllBudget.id) ?? []
+    const existingCatchAllSpent = spentByBudget.get(catchAllBudget.id) ?? 0
+    flexibleClaimed.set(catchAllBudget.id, [...existingCatchAll, ...catchAllTxIds])
+    spentByBudget.set(catchAllBudget.id, existingCatchAllSpent + catchAllSpent)
   }
 
   return {

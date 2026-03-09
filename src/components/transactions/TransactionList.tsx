@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { trackTransactionsSorted, trackTransactionsSearched, trackTransactionUpdated, trackTransactionsFiltered } from '@/lib/analytics'
+import BudgetSelect from './BudgetSelect'
 
 interface CategoryOption {
   id: string
@@ -62,6 +63,8 @@ interface TransactionRow {
   classification?: string
   annualExpenseId?: string | null
   annualExpenseName?: string | null
+  budgetId?: string | null
+  budget?: { id: string; name: string; tier: string } | null
   isPending?: boolean
   tags?: string | null
   splits?: SplitRow[]
@@ -142,6 +145,8 @@ export default function TransactionList({ transactions: initial, categories, acc
   const [editHouseholdMemberId, setEditHouseholdMemberId] = useState<string>('')
   const [editPropertyId, setEditPropertyId] = useState<string>('')
   const [editNotes, setEditNotes] = useState('')
+  const [editBudgetId, setEditBudgetId] = useState<string | null>(null)
+  const [editAnnualExpenseId, setEditAnnualExpenseId] = useState<string | null>(null)
 
   // Selection state
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -427,6 +432,8 @@ export default function TransactionList({ transactions: initial, categories, acc
     setEditHouseholdMemberId(tx.householdMemberId ?? '')
     setEditPropertyId(tx.propertyId ?? '')
     setEditNotes(tx.notes ?? '')
+    setEditBudgetId(tx.budgetId ?? null)
+    setEditAnnualExpenseId(tx.annualExpenseId ?? null)
     setError(null)
   }
 
@@ -567,6 +574,8 @@ export default function TransactionList({ transactions: initial, categories, acc
       householdMemberId: editHouseholdMemberId || null,
       propertyId: resolvedPropertyId,
       notes: editNotes.trim() || null,
+      budgetId: editBudgetId,
+      annualExpenseId: editAnnualExpenseId,
     }
 
     // Optimistic update
@@ -592,6 +601,8 @@ export default function TransactionList({ transactions: initial, categories, acc
           account: acct ? { id: acct.id, name: acct.name } : null,
           householdMember: member ? { id: member.id, name: member.name } : null,
           property: prop ? { id: prop.id, name: prop.name } : null,
+          budgetId: editBudgetId,
+          annualExpenseId: editAnnualExpenseId,
         }
       })
     )
@@ -1262,6 +1273,9 @@ export default function TransactionList({ transactions: initial, categories, acc
                   )}
                 </th>
               )}
+              <th className="hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
+                <span className="text-xs uppercase tracking-wider">Budget</span>
+              </th>
               <ColumnHeader
                 label="Amount"
                 column="amount"
@@ -1305,7 +1319,7 @@ export default function TransactionList({ transactions: initial, categories, acc
           <tbody className="divide-y divide-mist">
             {sortedTransactions.length === 0 && (
               <tr>
-                <td colSpan={6 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)} className="px-4 py-8 text-center text-sm text-stone">
+                <td colSpan={7 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)} className="px-4 py-8 text-center text-sm text-stone">
                   No transactions match the current filters.
                 </td>
               </tr>
@@ -1406,6 +1420,17 @@ export default function TransactionList({ transactions: initial, categories, acc
                       </select>
                     </td>
                   )}
+                  <td className="hidden px-4 py-2 lg:table-cell">
+                    <BudgetSelect
+                      budgetId={editBudgetId}
+                      annualExpenseId={editAnnualExpenseId}
+                      onChange={(bId, aeId) => {
+                        setEditBudgetId(bId)
+                        setEditAnnualExpenseId(aeId)
+                      }}
+                      className="w-full text-sm"
+                    />
+                  </td>
                   <td className="px-4 py-2">
                     <input
                       type="number"
@@ -1477,6 +1502,11 @@ export default function TransactionList({ transactions: initial, categories, acc
                         Refunded
                       </span>
                     )}
+                    {tx.budgetId && tx.budget && (
+                      <span className="ml-1.5 rounded-badge bg-fjord/10 px-1.5 py-0.5 text-[10px] font-medium text-fjord" title={`Manually assigned to ${tx.budget.name}`}>
+                        {tx.budget.name}
+                      </span>
+                    )}
                     {tx.splits && tx.splits.length > 0 && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setExpandedSplitId(expandedSplitId === tx.id ? null : tx.id) }}
@@ -1520,6 +1550,21 @@ export default function TransactionList({ transactions: initial, categories, acc
                   {properties.length > 0 && (
                     <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.property?.name ?? '—'}</td>
                   )}
+                  <td className="hidden px-4 py-3 text-stone lg:table-cell">
+                    {tx.budgetId && tx.budget ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="rounded-badge bg-fjord/10 px-1.5 py-0.5 text-[10px] font-medium text-fjord">
+                          {tx.budget.name}
+                        </span>
+                      </span>
+                    ) : tx.annualExpenseId ? (
+                      <span className="rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone">
+                        Annual
+                      </span>
+                    ) : (
+                      <span className="text-stone/50">Auto</span>
+                    )}
+                  </td>
                   <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {(() => {
                       // When filtering by property, show the split amount if the match is via split
@@ -1576,7 +1621,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                       <tr key={split.id} className="bg-frost/50 border-t border-mist/50">
                         <td className="px-3 py-2" />
                         <td className="px-4 py-2" />
-                        <td className="px-4 py-2 pl-8 text-xs text-stone" colSpan={2 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)}>
+                        <td className="px-4 py-2 pl-8 text-xs text-stone" colSpan={3 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)}>
                           <span className="font-medium text-fjord">{split.property?.name ?? 'Unknown'}</span>
                           <span className="ml-2 text-stone">{pct.toFixed(1)}%</span>
                         </td>
@@ -1617,6 +1662,9 @@ export default function TransactionList({ transactions: initial, categories, acc
                       )}
                       {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
                       {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
+                      {tx.budgetId && tx.budget && (
+                        <div><span className="text-stone">Budget:</span> <span className="rounded-badge bg-fjord/10 px-1.5 py-0.5 text-[10px] font-medium text-fjord">{tx.budget.name}</span></div>
+                      )}
                       {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
                       <button
                         onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
