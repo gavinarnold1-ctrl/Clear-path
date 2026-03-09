@@ -616,8 +616,6 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
         system: systemPrompt,
         messages: [
           { role: 'user', content: userPrompt },
-          // Prefill forces the model to continue with JSON instead of markdown/text
-          { role: 'assistant', content: '{' },
         ],
       })
     } catch (apiError: unknown) {
@@ -630,12 +628,10 @@ Propose a realistic, complete budget using all three tiers (Fixed, Flexible, Ann
       throw apiError
     }
 
-    // Prepend the '{' from our prefill since it's not included in the response
-    const responseText = response.content
+    const text = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === 'text')
       .map((block) => block.text)
       .join('')
-    const text = '{' + responseText
 
     const cleaned = repairJSON(text)
 
