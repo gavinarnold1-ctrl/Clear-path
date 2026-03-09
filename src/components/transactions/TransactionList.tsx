@@ -1025,7 +1025,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     )}
                     <div className="flex gap-2 pt-1">
                       <button
-                        onClick={() => startEdit(tx)}
+                        onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
                         className="rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
                       >
                         Edit
@@ -1033,13 +1033,13 @@ export default function TransactionList({ transactions: initial, categories, acc
                       {deleteConfirmId === tx.id ? (
                         <span className="inline-flex items-center gap-1.5">
                           <button
-                            onClick={() => { handleDelete(tx.id); setDeleteConfirmId(null) }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); setDeleteConfirmId(null) }}
                             className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
                           >
                             Confirm Delete
                           </button>
                           <button
-                            onClick={() => setDeleteConfirmId(null)}
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null) }}
                             className="text-xs text-stone hover:text-fjord"
                           >
                             Cancel
@@ -1047,7 +1047,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                         </span>
                       ) : (
                         <button
-                          onClick={() => setDeleteConfirmId(tx.id)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(tx.id) }}
                           className="rounded-button border border-mist px-3 py-1.5 text-xs text-stone hover:text-ember"
                         >
                           Delete
