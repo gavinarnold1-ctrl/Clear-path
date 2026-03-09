@@ -34,8 +34,13 @@
     --space-xl: 48px;
   }
 
+  html {
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-snow text-midnight antialiased;
+    padding-top: env(safe-area-inset-top);
   }
 }
 

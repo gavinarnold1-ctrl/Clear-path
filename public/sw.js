@@ -1,3 +1,5 @@
+// Oversikt Service Worker v1.0.0
+// Update CACHE_NAME when deploying breaking changes
 const CACHE_NAME = 'oversikt-v1'
 const SHELL_URLS = ['/offline']
 
@@ -6,6 +8,12 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
   )
   self.skipWaiting()
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 self.addEventListener('activate', (event) => {

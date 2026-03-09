@@ -8,6 +8,7 @@ import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
 import BottomTabBar from '@/components/layout/BottomTabBar'
 import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
+import InstallPrompt from '@/components/InstallPrompt'
 import { FeedbackWidget } from '@/components/feedback/FeedbackWidget'
 import { TokenRotation } from '@/components/auth/TokenRotation'
 
@@ -140,6 +141,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </main>
 
       <BottomTabBar logoutAction={logout} />
+      <InstallPrompt />
       <FeedbackWidget />
       <TokenRotation />
     </div>

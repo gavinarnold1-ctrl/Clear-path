@@ -31,6 +31,12 @@ const config: Config = {
         mono: ['var(--font-jetbrains)', 'monospace'],
         sans: ['var(--font-dm-sans)', 'sans-serif'],
       },
+      minHeight: {
+        screen: '100dvh',
+      },
+      height: {
+        screen: '100dvh',
+      },
       borderRadius: {
         card: '12px',
         button: '8px',
