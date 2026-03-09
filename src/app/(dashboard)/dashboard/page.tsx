@@ -20,6 +20,7 @@ import GoalCrossLinks from '@/components/dashboard/GoalCrossLinks'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
 import AttentionItems from '@/components/dashboard/AttentionItems'
 import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
+import CardNudgeBanner from '@/components/dashboard/CardNudgeBanner'
 
 export const metadata: Metadata = { title: 'Overview' }
 export const revalidate = 60
@@ -454,6 +455,9 @@ export default async function DashboardPage({ searchParams }: Props) {
           </Link>
         </div>
       )}
+
+      {/* Card identification nudge */}
+      {unidentifiedCards > 0 && <CardNudgeBanner count={unidentifiedCards} />}
 
       {/* Row 2: True Remaining (supporting) */}
       {hasBudgets ? (

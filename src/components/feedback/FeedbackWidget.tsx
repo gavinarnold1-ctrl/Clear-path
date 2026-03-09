@@ -115,7 +115,7 @@ export function FeedbackWidget() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 bg-fjord text-white p-3 rounded-full shadow-lg hover:bg-fjord/90 transition-all hover:scale-105"
+        className="fixed bottom-20 right-6 z-50 md:bottom-6 bg-fjord text-snow p-3 rounded-full shadow-lg hover:bg-fjord/90 transition-all hover:scale-105"
         aria-label="Send feedback"
       >
         <IconFeedback className="w-5 h-5" />
@@ -124,7 +124,7 @@ export function FeedbackWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-80 bg-white border border-mist rounded-card shadow-xl">
+    <div className="fixed bottom-20 right-6 z-50 md:bottom-6 w-80 max-w-[calc(100vw-3rem)] bg-snow border border-mist rounded-card shadow-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-frost">
         <h3 className="text-sm font-medium text-midnight">Send Feedback</h3>
@@ -178,7 +178,7 @@ export function FeedbackWidget() {
                 <button
                   onClick={handleSubmit}
                   disabled={!message.trim() || submitting}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-fjord text-white text-sm rounded-button hover:bg-fjord/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-fjord text-snow text-sm rounded-button hover:bg-fjord/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   <IconSend className="w-3 h-3" />
                   {submitting ? 'Sending...' : 'Send'}
