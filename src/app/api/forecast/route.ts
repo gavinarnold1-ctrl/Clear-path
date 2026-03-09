@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { computeForecast, autoDetectAssetClass, computeScenarioImpact, computeForecastAccuracy } from '@/lib/engines/forecast'
 import { monthlyPayment } from '@/lib/engines/amortization'
+import { buildNarrativeSummary } from '@/lib/engines/scenario-narrative'
 import type {
   AssetClass,
   GoalTarget,
@@ -14,6 +15,7 @@ import type {
   BudgetSummaryForForecast,
   AnnualExpenseForForecast,
   PropertyForForecast,
+  MonthlyBreakdownRow,
 } from '@/types'
 
 export async function GET() {
@@ -52,12 +54,48 @@ export async function POST(req: NextRequest) {
   const modifiedInput = applyScenario(input, scenarioType, params)
   const impact = computeScenarioImpact(baseline, modifiedInput)
 
+  // Compute the full modified forecast (for timeline + projected date)
+  const modifiedForecast = computeForecast(modifiedInput)
+
+  // Build month-by-month breakdown, handling timeline length mismatches
+  const maxLen = Math.max(baseline.timeline.length, modifiedForecast.timeline.length)
+  const monthlyBreakdown: MonthlyBreakdownRow[] = []
+  let cumulative = 0
+
+  for (let i = 0; i < maxLen; i++) {
+    const basePoint = baseline.timeline[i] ?? baseline.timeline[baseline.timeline.length - 1]
+    const scenarioPoint = modifiedForecast.timeline[i] ?? modifiedForecast.timeline[modifiedForecast.timeline.length - 1]
+    const baseValue = basePoint?.projected ?? basePoint?.actual ?? 0
+    const scenarioValue = scenarioPoint?.projected ?? scenarioPoint?.actual ?? 0
+    const delta = scenarioValue - baseValue
+    cumulative += delta
+
+    monthlyBreakdown.push({
+      month: (baseline.timeline[i] ?? modifiedForecast.timeline[i])?.month ?? basePoint?.month ?? '',
+      baselineValue: baseValue,
+      scenarioValue: scenarioValue,
+      delta: Math.round(delta * 100) / 100,
+      cumulativeImpact: Math.round(cumulative * 100) / 100,
+    })
+  }
+
+  // Build narrative summary
+  const narrativeSummary = buildNarrativeSummary({
+    ...impact,
+    baselineProjectedDate: baseline.projectedDate ?? null,
+  })
+
   const scenario = {
-    id: `custom-${scenarioType}`,
+    id: crypto.randomUUID(),
     label: params?.label ?? `Custom ${scenarioType}`,
     description: params?.description ?? '',
     type: scenarioType,
     impact,
+    scenarioTimeline: modifiedForecast.timeline,
+    monthlyBreakdown,
+    baselineProjectedDate: baseline.projectedDate ?? null,
+    scenarioProjectedDate: modifiedForecast.projectedDate ?? null,
+    narrativeSummary,
   }
 
   return NextResponse.json({ scenario })

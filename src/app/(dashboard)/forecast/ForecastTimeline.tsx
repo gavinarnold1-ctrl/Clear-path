@@ -135,15 +135,16 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
             connectNulls={false}
           />
 
-          {/* Scenario overlay (dashed birch line) */}
+          {/* Scenario overlay (dashed pine line) */}
           {scenarioTimeline && (
             <Line
               type="monotone"
               dataKey="scenarioProjected"
-              stroke="#D4C5A9"
+              stroke="#2D5F3E"
               strokeDasharray="8 4"
               strokeWidth={2}
               dot={false}
+              opacity={0.7}
               name="With scenario"
               connectNulls={false}
             />
@@ -234,7 +235,7 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
         </span>
         {scenarioTimeline && (
           <span className="flex items-center gap-1">
-            <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-birch" /> With Scenario
+            <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-pine opacity-70" /> With Scenario
           </span>
         )}
         {incomeTransitions.length > 0 && (

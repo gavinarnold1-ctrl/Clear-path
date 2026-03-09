@@ -12,7 +12,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const transaction = await db.transaction.findFirst({
     where: { id, userId: session.userId },
-    include: { account: true, category: true, householdMember: true, property: true },
+    include: {
+      account: true,
+      category: true,
+      householdMember: true,
+      property: true,
+      budget: { select: { id: true, name: true, tier: true } },
+    },
   })
   if (!transaction) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(transaction)
@@ -83,6 +89,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
   }
 
+  // Verify ownership of referenced budgetId
+  if (body.budgetId !== undefined && body.budgetId !== null) {
+    const budget = await db.budget.findFirst({
+      where: { id: body.budgetId, userId: session.userId },
+    })
+    if (!budget) return NextResponse.json({ error: 'Budget not found' }, { status: 404 })
+  }
+
+  // Handle budgetId / annualExpenseId mutual exclusion
+  const budgetOverrideData: Record<string, unknown> = {}
+  if ('budgetId' in body) {
+    budgetOverrideData.budgetId = body.budgetId
+    // Setting a budget override clears annual link
+    if (body.budgetId) {
+      budgetOverrideData.annualExpenseId = null
+    }
+  }
+  if ('annualExpenseId' in body) {
+    budgetOverrideData.annualExpenseId = body.annualExpenseId
+    // Setting annual link clears budget override
+    if (body.annualExpenseId) {
+      budgetOverrideData.budgetId = null
+    }
+  }
+
   const transaction = await db.$transaction(async (tx) => {
     const updated = await tx.transaction.update({
       where: { id },
@@ -100,8 +131,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.householdMemberId !== undefined && { householdMemberId: body.householdMemberId }),
         ...(body.propertyId !== undefined && { propertyId: body.propertyId }),
         ...(body.classification !== undefined && { classification: body.classification }),
+        ...budgetOverrideData,
       },
-      include: { account: true, category: true, householdMember: true, property: true },
+      include: {
+        account: true,
+        category: true,
+        householdMember: true,
+        property: true,
+        budget: { select: { id: true, name: true, tier: true } },
+      },
     })
 
     // Reverse old account balance, apply new

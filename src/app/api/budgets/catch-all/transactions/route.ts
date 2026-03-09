@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
     merchant: tx.merchant,
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
+    budgetId: tx.budgetId,
     category: tx.category,
     tags: tx.tags,
   }))

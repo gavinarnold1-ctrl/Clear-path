@@ -201,6 +201,8 @@ model Transaction {
   property            Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   debtId              String?           // R5.8: Link payment transactions to a debt
   debt                Debt?             @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  budgetId            String?           // V1.1: Manual budget override (bypasses category-based claiming)
+  budget              Budget?           @relation("BudgetOverride", fields: [budgetId], references: [id], onDelete: SetNull)
   splits              TransactionSplit[]
 
   @@index([userId, date])
@@ -212,6 +214,7 @@ model Transaction {
   @@index([userId, householdMemberId])
   @@index([userId, propertyId])
   @@index([userId, annualExpenseId])
+  @@index([userId, budgetId])
   @@index([accountId])
   @@index([annualExpenseId])
   @@index([householdMemberId])
@@ -244,6 +247,7 @@ model Budget {
   category   Category? @relation(fields: [categoryId], references: [id])
 
   annualExpense AnnualExpense?
+  overrideTransactions Transaction[] @relation("BudgetOverride")
 
   @@index([userId, tier])
 }

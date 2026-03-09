@@ -15,7 +15,7 @@ import UncategorizedReviewBanner from '@/components/budgets/UncategorizedReviewB
 import { findRefundPairs } from '@/lib/refund-detection'
 import { getGoalContext } from '@/lib/goal-context'
 import { formatCurrency } from '@/lib/utils'
-import { getBudgetBenchmarks } from '@/lib/budget-benchmarks'
+import { getBudgetBenchmarks, aggregateByGroup } from '@/lib/budget-benchmarks'
 import BenchmarkBar from '@/components/budgets/BenchmarkBar'
 import type { GoalTarget } from '@/types'
 import { claimTransactions, CATCHALL_NAMES } from '@/lib/budget-claiming'
@@ -38,7 +38,7 @@ export default async function BudgetsPage() {
   const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount, goalContext] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
-      include: { category: true, annualExpense: true },
+      include: { category: true, annualExpense: true, _count: { select: { overrideTransactions: true } } },
       orderBy: [{ tier: 'asc' }, { sortOrder: 'asc' }, { amount: 'desc' }],
     }),
     // Current month's expense transactions — exclude transfers for budget computation
@@ -339,6 +339,7 @@ export default async function BudgetsPage() {
     merchant: tx.merchant,
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
+    budgetId: tx.budgetId,
     category: tx.category,
     tags: tx.tags,
   }))
@@ -398,6 +399,9 @@ export default async function BudgetsPage() {
   const totalPotentialSavings = benchmarks
     .filter(b => b.delta > 0)
     .reduce((sum, b) => sum + b.delta, 0)
+
+  // Group-level benchmark aggregation
+  const groupBenchmarks = aggregateByGroup(benchmarks)
 
   return (
     <div>
@@ -492,6 +496,33 @@ export default async function BudgetsPage() {
                 </span>
               )}
             </div>
+          )}
+          {groupBenchmarks.length > 0 && (
+            <details className="mb-6">
+              <summary className="cursor-pointer text-xs font-medium text-stone hover:text-fjord">
+                Spending by group vs. bracket average
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {groupBenchmarks.map(gb => (
+                  <div key={gb.groupName} className="flex items-center justify-between rounded-badge bg-snow px-3 py-1.5 text-xs">
+                    <span className="font-medium text-fjord">{gb.groupName}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-stone">
+                        {formatCurrency(gb.userMonthlySpend)} / {formatCurrency(gb.blsMonthlyAvg)}
+                      </span>
+                      <span className={`rounded-badge px-1.5 py-0.5 font-medium ${
+                        gb.status === 'under' ? 'bg-pine/10 text-pine'
+                          : gb.status === 'at' ? 'bg-mist text-stone'
+                          : gb.status === 'over' ? 'bg-birch/20 text-birch'
+                          : 'bg-ember/10 text-ember'
+                      }`}>
+                        {gb.percentOfBenchmark}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
           <FlexibleBudgetSection
             budgets={namedFlexible}

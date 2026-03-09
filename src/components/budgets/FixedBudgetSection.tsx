@@ -21,6 +21,7 @@ interface FixedBudget {
   varianceLimit: number | null
   category: { name: string; icon: string | null } | null
   categoryId: string | null
+  _count?: { overrideTransactions: number }
 }
 
 function getFixedStatus(budget: FixedBudget, transactions: Transaction[]): { status: FixedStatus; matchedAmount: number } {
@@ -119,6 +120,7 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
                 categoryId={budget.categoryId}
                 category={budget.category}
                 status={status}
+                overrideCount={budget._count?.overrideTransactions}
               />
             )
           })}

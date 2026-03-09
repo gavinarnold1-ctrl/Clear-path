@@ -137,6 +137,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
               merchant: tx.merchant,
               categoryId: tx.categoryId,
               annualExpenseId: tx.annualExpenseId,
+              budgetId: tx.budgetId,
               category: tx.category,
               tags: tx.tags,
             }))
@@ -178,6 +179,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           merchant: tx.merchant,
           categoryId: tx.categoryId,
           annualExpenseId: tx.annualExpenseId,
+          budgetId: tx.budgetId,
           category: tx.category,
           tags: tx.tags,
         }))
@@ -196,12 +198,13 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
   const txSelect = {
     id: true, date: true, merchant: true, amount: true, notes: true,
     categoryId: true, accountId: true, householdMemberId: true, propertyId: true,
-    classification: true, annualExpenseId: true, isPending: true,
+    classification: true, annualExpenseId: true, isPending: true, tags: true, budgetId: true,
     annualExpense: { select: { name: true } },
     category: { select: { id: true, name: true } },
     account: { select: { id: true, name: true } },
     householdMember: { select: { id: true, name: true } },
     property: { select: { id: true, name: true } },
+    budget: { select: { id: true, name: true, tier: true } },
     splits: {
       select: {
         id: true, propertyId: true, amount: true,
@@ -275,6 +278,9 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     annualExpenseId: tx.annualExpenseId,
     annualExpenseName: tx.annualExpense?.name ?? null,
     isPending: tx.isPending,
+    tags: tx.tags,
+    budgetId: tx.budgetId,
+    budget: tx.budget,
     splits: tx.splits.map(s => ({
       id: s.id,
       propertyId: s.propertyId,

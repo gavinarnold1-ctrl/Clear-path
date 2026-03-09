@@ -10,6 +10,7 @@ interface Props {
   categoryId: string | null
   category: { name: string; icon: string | null } | null
   isCatchAll?: boolean
+  overrideCount?: number
 }
 
 function getDailyAllowance(amount: number, spent: number): { daily: number; daysLeft: number } {
@@ -40,7 +41,7 @@ function getCurrentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId, category, isCatchAll }: Props) {
+export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId, category, isCatchAll, overrideCount }: Props) {
   const pct = budgetProgress(spent, amount)
   const remaining = amount - spent
   const isOver = spent > amount
@@ -72,6 +73,11 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
               <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
             </svg>
           </Link>
+          {overrideCount != null && overrideCount > 0 && (
+            <span className="rounded-badge bg-fjord/10 px-1.5 py-0.5 text-[10px] font-medium text-fjord">
+              {overrideCount} manual
+            </span>
+          )}
         </div>
         <span className="font-mono text-sm text-stone">
           <span className={pctColor}>{formatCurrency(spent)}</span>

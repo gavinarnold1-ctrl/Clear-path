@@ -15,6 +15,7 @@ interface Props {
   categoryId: string | null
   category: { name: string; icon: string | null } | null
   status: FixedStatus
+  overrideCount?: number
 }
 
 const STATUS_CONFIG: Record<FixedStatus, { icon: string; color: string }> = {
@@ -29,7 +30,7 @@ function getCurrentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, category, status }: Props) {
+export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, category, status, overrideCount }: Props) {
   const cfg = STATUS_CONFIG[status]
 
   const href = id
@@ -55,6 +56,11 @@ export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAuto
           <span className="ml-2 text-xs text-stone">due {formatOrdinalDay(dueDay)}</span>
         )}
         {isAutoPay && <span className="ml-2 text-xs text-stone">auto-pay</span>}
+        {overrideCount != null && overrideCount > 0 && (
+          <span className="ml-2 rounded-badge bg-fjord/10 px-1.5 py-0.5 text-[10px] font-medium text-fjord">
+            {overrideCount} manual
+          </span>
+        )}
       </div>
       <div className="text-right">
         {status === 'variance' && spent > 0 ? (

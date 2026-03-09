@@ -436,6 +436,19 @@ export interface ForecastScenario {
     budgetCategoriesAffected: string[]
     annualExpensesAffected: string[]
   }
+  scenarioTimeline?: ForecastPoint[]
+  monthlyBreakdown?: MonthlyBreakdownRow[]
+  baselineProjectedDate?: string | null
+  scenarioProjectedDate?: string | null
+  narrativeSummary?: string
+}
+
+export interface MonthlyBreakdownRow {
+  month: string
+  baselineValue: number
+  scenarioValue: number
+  delta: number
+  cumulativeImpact: number
 }
 
 // ─── Card benefits types ─────────────────────────────────────────────────────

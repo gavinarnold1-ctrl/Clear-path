@@ -94,6 +94,7 @@ export async function GET(
     merchant: tx.merchant,
     categoryId: tx.categoryId,
     annualExpenseId: tx.annualExpenseId,
+    budgetId: tx.budgetId,
     category: tx.category,
     tags: tx.tags,
   }))
