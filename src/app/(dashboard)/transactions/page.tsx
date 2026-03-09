@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -8,6 +9,7 @@ import TransactionList from '@/components/transactions/TransactionList'
 import DuplicateReview from '@/components/transactions/DuplicateReview'
 import { findRefundPairs } from '@/lib/refund-detection'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
+import { claimTransactions, CATCHALL_NAMES } from '@/lib/budget-claiming'
 
 export const metadata: Metadata = { title: 'Transactions' }
 
@@ -92,6 +94,104 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
   if (initialAnnualExpenseId) txWhere.annualExpenseId = initialAnnualExpenseId
   if (initialSearch) txWhere.merchant = { contains: initialSearch, mode: 'insensitive' }
+
+  // Server-side budget claiming: compute exact transaction IDs for this budget
+  let budgetClaimedIds: string[] | null = null
+  if (isBudgetMode && initialMonth) {
+    const [y, m] = initialMonth.split('-').map(Number)
+    if (y && m) {
+      const monthStart = new Date(Date.UTC(y, m - 1, 1))
+      const monthEnd = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999))
+
+      if (initialBudgetId) {
+        const budget = await db.budget.findFirst({
+          where: { id: initialBudgetId, userId: session.userId },
+          include: { annualExpense: true },
+        })
+
+        if (budget) {
+          if (budget.tier === 'ANNUAL' && budget.annualExpense) {
+            // Annual budgets: filter by annualExpenseId directly
+            txWhere.annualExpenseId = budget.annualExpense.id
+          } else {
+            // Fixed/Flexible/Catch-all: use the claiming engine
+            const allTxs = await db.transaction.findMany({
+              where: {
+                userId: session.userId,
+                date: { gte: monthStart, lte: monthEnd },
+                classification: 'expense',
+                amount: { lt: 0 },
+                NOT: { tags: { contains: 'perk_covered' } },
+              },
+              include: { category: { select: { id: true, name: true } } },
+            })
+
+            const allBudgets = await db.budget.findMany({
+              where: { userId: session.userId },
+              include: { annualExpense: true, category: true },
+            })
+
+            const claimableTxs = allTxs.map(tx => ({
+              id: tx.id,
+              amount: Number(tx.amount),
+              merchant: tx.merchant,
+              categoryId: tx.categoryId,
+              annualExpenseId: tx.annualExpenseId,
+              category: tx.category,
+              tags: tx.tags,
+            }))
+
+            const result = claimTransactions(allBudgets, claimableTxs)
+
+            if (budget.tier === 'FIXED') {
+              const txId = result.fixedClaimed.get(initialBudgetId)
+              budgetClaimedIds = txId ? [txId] : []
+            } else if (budget.tier === 'FLEXIBLE') {
+              const isCatchAll = CATCHALL_NAMES.has(budget.name.toLowerCase())
+              budgetClaimedIds = isCatchAll
+                ? result.catchAllTxIds
+                : (result.flexibleClaimed.get(initialBudgetId) ?? [])
+            }
+          }
+        }
+      } else if (initialCatchAll) {
+        // Catch-all mode without a specific budgetId
+        const allTxs = await db.transaction.findMany({
+          where: {
+            userId: session.userId,
+            date: { gte: monthStart, lte: monthEnd },
+            classification: 'expense',
+            amount: { lt: 0 },
+            NOT: { tags: { contains: 'perk_covered' } },
+          },
+          include: { category: { select: { id: true, name: true } } },
+        })
+
+        const allBudgets = await db.budget.findMany({
+          where: { userId: session.userId },
+          include: { annualExpense: true, category: true },
+        })
+
+        const claimableTxs = allTxs.map(tx => ({
+          id: tx.id,
+          amount: Number(tx.amount),
+          merchant: tx.merchant,
+          categoryId: tx.categoryId,
+          annualExpenseId: tx.annualExpenseId,
+          category: tx.category,
+          tags: tx.tags,
+        }))
+
+        const result = claimTransactions(allBudgets, claimableTxs)
+        budgetClaimedIds = result.catchAllTxIds
+      }
+
+      // Apply claimed IDs filter
+      if (budgetClaimedIds !== null) {
+        txWhere.id = { in: budgetClaimedIds }
+      }
+    }
+  }
 
   const txSelect = {
     id: true, date: true, merchant: true, amount: true, notes: true,
@@ -185,6 +285,11 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
   return (
     <div>
+      {isBudgetMode && (
+        <Link href="/budgets" className="mb-2 inline-flex items-center gap-1 text-sm text-stone hover:text-fjord">
+          &larr; Back to Budgets
+        </Link>
+      )}
       {forecastSummary && (
         <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
           <span className="text-xs font-medium uppercase text-stone">Spending ↔ Goal</span>
@@ -259,6 +364,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           initialTier={initialTier}
           initialCatchAll={initialCatchAll}
           initialBudgetName={initialBudgetName}
+          serverBudgetFiltered={budgetClaimedIds !== null}
           refundedTxIds={[...refundPairIds]}
           isInsightView={isInsightView}
         />

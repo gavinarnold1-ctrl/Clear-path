@@ -87,12 +87,13 @@ interface Props {
   initialTier?: string
   initialCatchAll?: boolean
   initialBudgetName?: string
+  serverBudgetFiltered?: boolean
   refundedTxIds?: string[]
   initialTotal?: number
   isInsightView?: boolean
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [], initialTotal = 0, isInsightView = false }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', serverBudgetFiltered = false, refundedTxIds = [], initialTotal = 0, isInsightView = false }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -201,7 +202,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   }, [searchText])
 
   // Fetch budget-specific transaction IDs when budgetId or catchAll is active
+  // Skip if server already filtered (serverBudgetFiltered prop)
   useEffect(() => {
+    if (serverBudgetFiltered) return
     if (!initialBudgetId && !initialCatchAll) return
 
     setBudgetFilterLoading(true)
@@ -219,7 +222,7 @@ export default function TransactionList({ transactions: initial, categories, acc
         setBudgetFilterLoading(false)
       })
       .catch(() => setBudgetFilterLoading(false))
-  }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName])
+  }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName, serverBudgetFiltered])
 
   // Debounce search text for server-side filtering (300ms)
   useEffect(() => {
@@ -289,7 +292,17 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
-    // Budget-specific filter: when active, only show transactions the API computed for this budget
+    // Server-filtered budget mode: transactions are already the correct set
+    if (serverBudgetFiltered && isBudgetMode) {
+      // Only apply search filter on top of server-filtered results
+      if (searchText) {
+        const q = searchText.toLowerCase()
+        const haystack = [tx.merchant, tx.category?.name, tx.account?.name, tx.notes].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    }
+    // Client-side budget filter fallback (when server didn't filter)
     if (budgetTxIds !== null) {
       if (!budgetTxIds.has(tx.id)) return false
       // Still apply month filter for consistency
@@ -795,7 +808,7 @@ export default function TransactionList({ transactions: initial, categories, acc
               )}
             </h2>
             <p className="text-sm text-stone">
-              {budgetFilterLoading
+              {budgetFilterLoading && !serverBudgetFiltered
                 ? 'Loading budget transactions...'
                 : filteredTransactions.length === 0
                   ? 'No transactions match this budget.'
@@ -808,10 +821,10 @@ export default function TransactionList({ transactions: initial, categories, acc
             )}
           </div>
           <a
-            href="/transactions"
+            href="/budgets"
             className="text-xs text-stone hover:text-fjord"
           >
-            Clear filter
+            Back to Budgets
           </a>
         </div>
       )}
