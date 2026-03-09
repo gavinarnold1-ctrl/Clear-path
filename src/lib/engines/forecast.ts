@@ -25,6 +25,7 @@ import type {
   ForecastAccuracy,
   ForecastAccuracyPoint,
   DebtForForecast,
+  VelocityBreakdown,
 } from '@/types'
 
 // ── 3A: Asset class defaults ────────────────────────────────────────────────
@@ -187,6 +188,135 @@ function weightedAverage(values: number[]): number {
   return totalWeight > 0 ? weightedSum / totalWeight : 0
 }
 
+// ── 3D2: Anomaly detection (MAD-based) ──────────────────────────────────────
+
+/**
+ * Detect anomalous months using Median Absolute Deviation (MAD).
+ * MAD is robust to the very outliers we're trying to detect (unlike stddev).
+ * Returns indices of non-anomalous values and the filtered values.
+ */
+export function filterAnomalies(
+  values: number[],
+  threshold = 3,
+): { filtered: number[]; anomalyIndices: number[] } {
+  if (values.length < 3) return { filtered: values, anomalyIndices: [] }
+
+  const sorted = [...values].sort((a, b) => a - b)
+  const median = sorted[Math.floor(sorted.length / 2)]
+  const deviations = values.map((v) => Math.abs(v - median))
+  const sortedDeviations = [...deviations].sort((a, b) => a - b)
+  const mad = sortedDeviations[Math.floor(sortedDeviations.length / 2)]
+
+  // If MAD is 0 (all values identical or nearly so), no anomalies
+  if (mad === 0) return { filtered: values, anomalyIndices: [] }
+
+  const anomalyIndices: number[] = []
+  const filtered: number[] = []
+  values.forEach((v, i) => {
+    const modifiedZScore = Math.abs(v - median) / mad
+    if (modifiedZScore > threshold) {
+      anomalyIndices.push(i)
+    } else {
+      filtered.push(v)
+    }
+  })
+
+  return { filtered, anomalyIndices }
+}
+
+// ── 3D3: Plan velocity (forward-looking from budget) ────────────────────────
+
+/**
+ * Forward-looking velocity from budget plan.
+ * This is what the user's budget SAYS they should save each month.
+ */
+export function computePlanVelocity(input: ForecastInput): number {
+  return input.budgets.projectedSurplus
+}
+
+// ── 3D4: Recent velocity (3-month anomaly-filtered) ─────────────────────────
+
+/**
+ * Recent velocity from last 3 months, with anomaly filtering.
+ * Returns null if insufficient non-anomalous data.
+ */
+export function computeRecentVelocity(
+  snapshots: MonthlySnapshotData[],
+  metric: GoalMetric,
+): number | null {
+  const recent = snapshots.slice(-3)
+  if (recent.length < 2) return null
+
+  const values = recent.map((s) => extractMetricValue(s, metric))
+  const { filtered } = filterAnomalies(values)
+
+  if (filtered.length < 2) return null
+
+  // Simple average (no weighting — short window)
+  return filtered.reduce((sum, v) => sum + v, 0) / filtered.length
+}
+
+// ── 3D5: Blended velocity (3-signal) ────────────────────────────────────────
+
+/**
+ * Blended velocity from three signals.
+ * Shifts from plan-based (new users) to data-based (mature users).
+ */
+export function computeBlendedVelocity(
+  input: ForecastInput,
+  snapshotVelocity: number,
+  snapshots: MonthlySnapshotData[],
+): { velocity: number; breakdown: VelocityBreakdown } {
+  const planVelocity = computePlanVelocity(input)
+  const recentVelocity = computeRecentVelocity(snapshots, input.goal.metric)
+  const trendVelocity = snapshotVelocity
+
+  // Filter anomalies from all snapshots for the anomaly report
+  const allValues = snapshots.map((s) => extractMetricValue(s, input.goal.metric))
+  const { anomalyIndices } = filterAnomalies(allValues)
+
+  const monthsOfData = snapshots.length
+  let planWeight: number, recentWeight: number, trendWeight: number
+
+  if (monthsOfData < 3) {
+    // New user: trust the plan entirely
+    planWeight = 1.0; recentWeight = 0; trendWeight = 0
+  } else if (monthsOfData < 6) {
+    // Building history: blend plan + recent
+    planWeight = 0.6; recentWeight = 0.4; trendWeight = 0
+  } else if (monthsOfData < 12) {
+    // Solid history: three-way blend
+    planWeight = 0.3; recentWeight = 0.3; trendWeight = 0.4
+  } else {
+    // Mature user: trust history most
+    planWeight = 0.2; recentWeight = 0.2; trendWeight = 0.6
+  }
+
+  // If recent velocity is null (not enough clean data), redistribute weight to plan
+  if (recentVelocity === null) {
+    planWeight += recentWeight
+    recentWeight = 0
+  }
+
+  const blended = planWeight * planVelocity
+    + recentWeight * (recentVelocity ?? 0)
+    + trendWeight * trendVelocity
+
+  return {
+    velocity: blended,
+    breakdown: {
+      plan: { value: planVelocity, weight: planWeight },
+      recent: { value: recentVelocity, weight: recentWeight },
+      trend: { value: trendVelocity, weight: trendWeight },
+      anomalyCount: anomalyIndices.length,
+      anomalyMonths: anomalyIndices
+        .map((i) => snapshots[i]?.month)
+        .filter((m): m is string => m != null),
+      monthsOfData,
+    },
+  }
+}
+
 // ── 3E: Project asset growth ────────────────────────────────────────────────
 
 export function projectAssetGrowth(
@@ -257,22 +387,16 @@ export function computeForecast(input: ForecastInput): Forecast {
   // 1. Compute current value based on goal metric
   const currentValue = computeCurrentValue(goal, snapshots, debts, accounts, properties)
 
-  // 2. Compute monthly velocity from snapshots
-  const snapshotVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+  // 2. Compute blended velocity from 3 signals (plan + recent + trend)
+  const rawSnapshotVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+  const { velocity: blendedVelocity, breakdown: velocityBreakdown } =
+    computeBlendedVelocity(input, rawSnapshotVelocity, snapshots)
 
   // 2b. Adjust velocity for rental income (snapshots may not capture it)
   const rentalIncomeAdj = (properties ?? []).reduce(
     (sum, prop) => sum + (prop.monthlyRentalIncome ?? 0), 0
   )
-  let monthlyVelocity = snapshotVelocity + rentalIncomeAdj
-
-  // 2c. For savings goals, use budget surplus as velocity when it's better than snapshot data
-  // Budget surplus = planned income - planned spending, representing forward-looking intent
-  if (goal.metric === 'savings_amount') {
-    if (monthlyVelocity < 0 && budgets.projectedSurplus > monthlyVelocity) {
-      monthlyVelocity = Math.max(0, budgets.projectedSurplus)
-    }
-  }
+  const monthlyVelocity = blendedVelocity + rentalIncomeAdj
 
   // 3. Compute required velocity
   const now = new Date()
@@ -290,14 +414,9 @@ export function computeForecast(input: ForecastInput): Forecast {
     monthsToTarget,
   )
 
-  // 5. Project timeline — use budget-surplus-adjusted velocity (without rental, since
-  //    projectTimeline adds rental internally) so the chart reflects the budget plan
-  let timelineVelocity = snapshotVelocity
-  if (goal.metric === 'savings_amount') {
-    if (snapshotVelocity < 0 && budgets.projectedSurplus > snapshotVelocity) {
-      timelineVelocity = Math.max(0, budgets.projectedSurplus)
-    }
-  }
+  // 5. Project timeline — use blended velocity (without rental, since
+  //    projectTimeline adds rental internally) so the chart reflects the blend
+  const timelineVelocity = blendedVelocity
   const timeline = projectTimeline(goal, snapshots, timelineVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
 
   // 6. Compute projected date (uses rental-adjusted velocity)
@@ -347,6 +466,7 @@ export function computeForecast(input: ForecastInput): Forecast {
     pace,
     paceDetail,
     monthlyVelocity: round2(monthlyVelocity),
+    velocityBreakdown,
     requiredVelocity: round2(requiredVelocity),
     projectedDate,
     projectedValue: round2(projectedValue),
@@ -379,6 +499,8 @@ export function computeScenarioImpact(
   return {
     newProjectedDate: modified.projectedDate,
     daysSaved: baselineDays - modifiedDays,
+    makesGoalAchievable: !baselineForecast.projectedDate && !!modified.projectedDate,
+    velocityChange: round2(modified.monthlyVelocity - baselineForecast.monthlyVelocity),
     monthlyImpactOnTrueRemaining: round2(modified.monthlyVelocity - baselineForecast.monthlyVelocity),
     monthlyImpactOnGoal: round2(modified.requiredVelocity - baselineForecast.requiredVelocity),
     budgetCategoriesAffected: [],
@@ -957,18 +1079,18 @@ function generateTabSummaries(
 
 /** Lightweight forecast computation for scenario diffs (skips scenarios to avoid recursion) */
 function computeForecastLight(input: ForecastInput): Pick<Forecast, 'projectedDate' | 'monthlyVelocity' | 'requiredVelocity'> {
-  const { goal, snapshots, debts, accounts, budgets, properties } = input
+  const { goal, snapshots, debts, accounts, properties } = input
   const currentValue = computeCurrentValue(goal, snapshots, debts, accounts, properties)
-  const snapshotVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+
+  // Use blended velocity model (same as computeForecast)
+  const rawSnapshotVelocity = computeMonthlyVelocity(snapshots, goal.metric)
+  const { velocity: blendedVelocity } = computeBlendedVelocity(input, rawSnapshotVelocity, snapshots)
+
   const rentalIncomeAdj = (properties ?? []).reduce(
     (sum, prop) => sum + (prop.monthlyRentalIncome ?? 0), 0
   )
-  let monthlyVelocity = snapshotVelocity + rentalIncomeAdj
+  const monthlyVelocity = blendedVelocity + rentalIncomeAdj
 
-  // For savings goals, use budget surplus when velocity is negative
-  if (goal.metric === 'savings_amount' && monthlyVelocity < 0 && budgets.projectedSurplus > 0) {
-    monthlyVelocity = budgets.projectedSurplus
-  }
   const now = new Date()
   const targetDate = new Date(goal.targetDate)
   const monthsToTarget = monthsBetween(now, targetDate)

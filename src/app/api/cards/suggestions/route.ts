@@ -17,5 +17,18 @@ export async function GET() {
     orderBy: [{ issuer: 'asc' }, { name: 'asc' }],
   })
 
-  return NextResponse.json({ suggestions, programs })
+  // Return unidentified credit card accounts (those without auto-match suggestions)
+  const suggestedAccountIds = new Set(suggestions.map((s) => s.accountId))
+  const unidentifiedAccounts = await db.account.findMany({
+    where: {
+      userId: session.userId,
+      type: 'CREDIT_CARD',
+      userCard: null,
+      id: { notIn: Array.from(suggestedAccountIds) },
+    },
+    select: { id: true, name: true, institution: true },
+    orderBy: { name: 'asc' },
+  })
+
+  return NextResponse.json({ suggestions, programs, unidentifiedAccounts })
 }

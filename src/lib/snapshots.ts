@@ -167,7 +167,8 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
   // If mortgage accounts exist in Plaid, they're already subtracted from accountNetWorth.
   // Only subtract property loan balances that aren't covered by Plaid mortgage accounts.
   const uncoveredLoans = Math.max(0, totalPropertyLoans - mortgageAccountBalances)
-  const netWorth = accountNetWorth + totalPropertyValue - uncoveredLoans
+  const propertyEquity = totalPropertyValue - uncoveredLoans
+  const netWorth = accountNetWorth + propertyEquity
 
   // Person breakdown
   let personBreakdown: string | null = null
@@ -310,6 +311,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       totalDebtPayments: debts.length > 0 ? totalDebtPayments : null,
       debtPaidDown,
       netWorth: accounts.length > 0 || propertiesForNetWorth.length > 0 ? netWorth : null,
+      propertyEquity: propertiesForNetWorth.length > 0 ? propertyEquity : null,
       personBreakdown,
       propertyBreakdown,
       efficiencyScore: latestScore ? Math.round(latestScore.overallScore) : null,
@@ -335,6 +337,7 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       totalDebtPayments: debts.length > 0 ? totalDebtPayments : null,
       debtPaidDown,
       netWorth: accounts.length > 0 || propertiesForNetWorth.length > 0 ? netWorth : null,
+      propertyEquity: propertiesForNetWorth.length > 0 ? propertyEquity : null,
       personBreakdown,
       propertyBreakdown,
       efficiencyScore: latestScore ? Math.round(latestScore.overallScore) : null,

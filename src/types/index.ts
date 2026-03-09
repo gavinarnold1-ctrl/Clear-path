@@ -335,6 +335,17 @@ export interface PropertyForForecast {
   monthlyRentalIncome: number
 }
 
+// ─── Velocity Breakdown (3-signal blend) ─────────────────────────────────────
+
+export interface VelocityBreakdown {
+  plan: { value: number; weight: number }
+  recent: { value: number | null; weight: number }
+  trend: { value: number; weight: number }
+  anomalyCount: number
+  anomalyMonths: string[]
+  monthsOfData: number
+}
+
 // ─── Forecast Output ─────────────────────────────────────────────────────────
 
 export interface Forecast {
@@ -343,6 +354,7 @@ export interface Forecast {
   pace: 'ahead' | 'on_track' | 'behind' | 'at_risk' | 'off_track'
   paceDetail: string
   monthlyVelocity: number
+  velocityBreakdown?: VelocityBreakdown
   requiredVelocity: number
   projectedDate: string | null
   projectedValue: number
@@ -415,6 +427,8 @@ export interface ForecastScenario {
   impact: {
     newProjectedDate: string | null
     daysSaved: number
+    makesGoalAchievable?: boolean
+    velocityChange?: number
     monthlyImpactOnTrueRemaining: number
     monthlyImpactOnGoal: number
     totalInterestImpact?: number

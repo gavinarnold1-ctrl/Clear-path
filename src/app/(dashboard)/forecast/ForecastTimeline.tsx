@@ -18,6 +18,7 @@ interface Props {
   targetValue: number
   targetDate?: string
   incomeTransitions?: IncomeTransition[]
+  scenarioTimeline?: ForecastPoint[]
 }
 
 function formatCompact(value: number): string {
@@ -28,16 +29,24 @@ function formatCompact(value: number): string {
 
 const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 
-export default function ForecastTimeline({ timeline, targetValue, targetDate, incomeTransitions = [] }: Props) {
+export default function ForecastTimeline({ timeline, targetValue, targetDate, incomeTransitions = [], scenarioTimeline }: Props) {
   if (timeline.length === 0) {
     return <p className="py-8 text-center text-sm text-stone">No timeline data available.</p>
   }
+
+  // Merge scenario projected values into chart data
+  const chartData = scenarioTimeline
+    ? timeline.map((point) => {
+        const scenarioPoint = scenarioTimeline.find((s) => s.month === point.month)
+        return { ...point, scenarioProjected: scenarioPoint?.projected ?? null }
+      })
+    : timeline
 
   return (
     <div>
       <h2 className="mb-4 text-base font-semibold text-fjord">Goal Timeline</h2>
       <ResponsiveContainer width="100%" height={320}>
-        <ComposedChart data={timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#C8D5CE" opacity={0.5} />
           <XAxis
             dataKey="month"
@@ -74,7 +83,9 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
                       ? 'On Plan'
                       : name === 'actual'
                         ? 'Actual'
-                        : name,
+                        : name === 'scenarioProjected'
+                          ? 'With Scenario'
+                          : name,
             ]) as any}
           />
 
@@ -123,6 +134,20 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
             dot={{ fill: '#1B3A4B', r: 3 }}
             connectNulls={false}
           />
+
+          {/* Scenario overlay (dashed birch line) */}
+          {scenarioTimeline && (
+            <Line
+              type="monotone"
+              dataKey="scenarioProjected"
+              stroke="#D4C5A9"
+              strokeDasharray="8 4"
+              strokeWidth={2}
+              dot={false}
+              name="With scenario"
+              connectNulls={false}
+            />
+          )}
 
           {/* Target value line */}
           <ReferenceLine
@@ -207,6 +232,11 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
         <span className="flex items-center gap-1">
           <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-ember" /> Target
         </span>
+        {scenarioTimeline && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-birch" /> With Scenario
+          </span>
+        )}
         {incomeTransitions.length > 0 && (
           <span className="flex items-center gap-1">
             <span className="inline-block h-3 w-0 border-l-2 border-dashed border-birch" /> Income Change

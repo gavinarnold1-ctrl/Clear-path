@@ -47,7 +47,7 @@ export default function UnbudgetedSection({ categories }: Props) {
                 {formatCurrency(cat.spent)}
               </Link>
               <Link
-                href={`/budgets/new?categoryId=${cat.categoryId}`}
+                href={`/budgets/new?categoryId=${cat.categoryId}&tier=FLEXIBLE`}
                 className="text-xs font-medium text-fjord hover:text-midnight"
               >
                 + Budget

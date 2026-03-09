@@ -32,9 +32,17 @@ interface InitialBudget {
   varianceLimit: number | null
 }
 
+interface Autofill {
+  categoryId: string
+  name: string
+  amount: number
+  tier: string
+}
+
 interface Props {
   categories: CategoryOption[]
   initialBudget?: InitialBudget
+  autofill?: Autofill
   goalTarget?: GoalTarget
   currentSurplus?: number
 }
@@ -66,14 +74,14 @@ const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(),
 
 const currentYear = new Date().getFullYear()
 
-export default function BudgetForm({ categories, initialBudget, goalTarget, currentSurplus }: Props) {
+export default function BudgetForm({ categories, initialBudget, autofill, goalTarget, currentSurplus }: Props) {
   const isEdit = !!initialBudget
   const action = isEdit ? updateBudget : createBudget
   const [state, formAction, isPending] = useActionState(action, initialState)
-  const [tier, setTier] = useState(initialBudget?.tier ?? 'FLEXIBLE')
+  const [tier, setTier] = useState(initialBudget?.tier ?? autofill?.tier ?? 'FLEXIBLE')
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [editAmount, setEditAmount] = useState<string>(String(initialBudget?.amount ?? ''))
+  const [editAmount, setEditAmount] = useState<string>(String(initialBudget?.amount ?? autofill?.amount ?? ''))
   const expenseCategories = categories.filter((c) => c.type === 'expense')
 
   // Compute goal impact when amount changes
@@ -145,7 +153,7 @@ export default function BudgetForm({ categories, initialBudget, goalTarget, curr
         label="Budget name"
         name="name"
         type="text"
-        defaultValue={initialBudget?.name ?? ''}
+        defaultValue={initialBudget?.name ?? autofill?.name ?? ''}
         placeholder={
           tier === 'FIXED' ? 'e.g. Rent, Internet, Car Insurance'
           : tier === 'ANNUAL' ? 'e.g. Summer Vacation, Christmas Gifts'
@@ -164,11 +172,16 @@ export default function BudgetForm({ categories, initialBudget, goalTarget, curr
             step="0.01"
             min="0.01"
             startAdornment="$"
-            defaultValue={initialBudget?.amount ?? ''}
+            defaultValue={initialBudget?.amount ?? autofill?.amount ?? ''}
             placeholder="0.00"
             required
             onChange={(e: { target: { value: string } }) => setEditAmount(e.target.value)}
           />
+          {!isEdit && autofill && autofill.amount > 0 && (
+            <p className="mt-1 text-xs text-stone">
+              Based on ~${autofill.amount}/mo average spending (last 3 months)
+            </p>
+          )}
           {goalImpact && (
             <GoalImpactTooltip
               monthsShifted={goalImpact.monthsShifted}
@@ -292,7 +305,7 @@ export default function BudgetForm({ categories, initialBudget, goalTarget, curr
       )}
 
       {/* Category — shared */}
-      <FormSelect label="Category (optional)" name="categoryId" defaultValue={initialBudget?.categoryId ?? ''}>
+      <FormSelect label="Category (optional)" name="categoryId" defaultValue={initialBudget?.categoryId ?? autofill?.categoryId ?? ''}>
         <option value="">No category</option>
         {expenseCategories.map((c) => (
           <option key={c.id} value={c.id}>

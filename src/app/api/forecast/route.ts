@@ -328,6 +328,25 @@ function applyScenario(
       })
       break
     }
+    case 'cut_spending': {
+      const percentage = Number(params?.percentage ?? 10) / 100
+      const reduction = input.budgets.flexibleTotal * percentage
+      modified.budgets = {
+        ...input.budgets,
+        flexibleTotal: input.budgets.flexibleTotal * (1 - percentage),
+        totalBudgeted: input.budgets.totalBudgeted - reduction,
+        projectedSurplus: input.budgets.projectedSurplus + reduction,
+      }
+      break
+    }
+    case 'savings_boost': {
+      const amount = Number(params?.amount ?? 0)
+      modified.budgets = {
+        ...input.budgets,
+        projectedSurplus: input.budgets.projectedSurplus + amount,
+      }
+      break
+    }
     default:
       break
   }

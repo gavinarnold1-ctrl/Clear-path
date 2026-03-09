@@ -619,6 +619,7 @@ model MonthlySnapshot {
   totalDebtPayments Float?
   debtPaidDown      Float?
   netWorth          Float?
+  propertyEquity    Float?     // sum(currentValue) - sum(uncovered loanBalance)
   personBreakdown   String?  // JSON: { [name]: amount }
   propertyBreakdown String?  // JSON: { [name]: amount }
   reviewHeadline    String?

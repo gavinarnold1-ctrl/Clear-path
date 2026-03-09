@@ -203,6 +203,15 @@ export default async function DashboardPage({ searchParams }: Props) {
     ]),
   ])
 
+  // Count unidentified credit cards for dashboard nudge
+  const unidentifiedCards = await db.account.count({
+    where: {
+      userId: session.userId,
+      type: 'CREDIT_CARD',
+      userCard: null,
+    },
+  })
+
   // Benefit alerts — expiring card credits
   const userCards = await db.userCard.findMany({
     where: { userId: session.userId, isActive: true },
@@ -509,6 +518,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         recalibration={recalibration}
         benefitAlerts={benefitAlerts}
         unbudgetedSpent={unbudgetedSpent}
+        unidentifiedCards={unidentifiedCards}
       />
 
       {/* Goal Recalibration Banner */}

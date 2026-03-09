@@ -9,15 +9,17 @@ interface Props {
 }
 
 const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
+  { value: 'cut_spending', label: 'Cut spending', fields: ['percentage'] },
+  { value: 'extra_debt_payment', label: 'Extra debt payment', fields: ['amount'] },
+  { value: 'income_change', label: 'Income change', fields: ['amount'] },
+  { value: 'savings_boost', label: 'Monthly savings boost', fields: ['amount'] },
+  { value: 'lump_sum_payment', label: 'Lump sum debt payment', fields: ['amount'] },
   { value: 'new_expense', label: 'New monthly expense', fields: ['amount'] },
   { value: 'new_debt', label: 'Take on new debt', fields: ['principal', 'rate', 'term'] },
-  { value: 'income_change', label: 'Income change', fields: ['amount'] },
-  { value: 'extra_debt_payment', label: 'Extra debt payment', fields: ['amount'] },
   { value: 'property_value_change', label: 'Property value change', fields: ['newValue'] },
-  { value: 'lump_sum_payment', label: 'Lump sum debt payment', fields: ['amount'] },
 ]
 
-type ScenarioTypeValue = 'new_expense' | 'new_debt' | 'income_change' | 'extra_debt_payment' | 'property_value_change' | 'lump_sum_payment'
+type ScenarioTypeValue = 'new_expense' | 'new_debt' | 'income_change' | 'extra_debt_payment' | 'property_value_change' | 'lump_sum_payment' | 'cut_spending' | 'savings_boost'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -49,6 +51,7 @@ export default function ForecastScenarios({ scenarios }: Props) {
   const [customRate, setCustomRate] = useState('5')
   const [customTerm, setCustomTerm] = useState('60')
   const [customNewValue, setCustomNewValue] = useState('')
+  const [customPercentage, setCustomPercentage] = useState('10')
   const [loading, setLoading] = useState(false)
   const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
 
@@ -83,6 +86,12 @@ export default function ForecastScenarios({ scenarios }: Props) {
       } else if (customType === 'lump_sum_payment') {
         params.amount = parseFloat(customAmount)
         params.description = `One-time ${formatCurrency(parseFloat(customAmount))} payment toward debt`
+      } else if (customType === 'cut_spending') {
+        params.percentage = parseFloat(customPercentage)
+        params.description = `Reduce flexible spending by ${customPercentage}%`
+      } else if (customType === 'savings_boost') {
+        params.amount = parseFloat(customAmount)
+        params.description = `Save an extra ${formatCurrency(parseFloat(customAmount))}/mo`
       }
 
       const res = await fetch('/api/forecast', {
@@ -132,11 +141,24 @@ export default function ForecastScenarios({ scenarios }: Props) {
 
                   {isExpanded && (
                     <div className="mt-3 space-y-2 border-t border-mist pt-3">
-                      {impact.daysSaved !== 0 && (
+                      {impact.makesGoalAchievable && impact.newProjectedDate && (
+                        <div className="rounded-button bg-pine/10 px-2 py-1.5 text-xs font-medium text-pine">
+                          Makes goal achievable — projected {new Date(impact.newProjectedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </div>
+                      )}
+                      {impact.daysSaved !== 0 && !impact.makesGoalAchievable && (
                         <div className="flex justify-between text-xs">
                           <span className="text-stone">Goal date impact</span>
                           <span className={`font-medium ${impact.daysSaved > 0 ? 'text-pine' : 'text-ember'}`}>
                             {impact.daysSaved > 0 ? '−' : '+'}{Math.abs(impact.daysSaved)} days
+                          </span>
+                        </div>
+                      )}
+                      {impact.velocityChange != null && impact.velocityChange !== 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-stone">Savings velocity</span>
+                          <span className={`font-medium ${impact.velocityChange >= 0 ? 'text-pine' : 'text-ember'}`}>
+                            {impact.velocityChange >= 0 ? '+' : ''}{formatCurrency(impact.velocityChange)}/mo
                           </span>
                         </div>
                       )}
@@ -167,21 +189,29 @@ export default function ForecastScenarios({ scenarios }: Props) {
 
                   {!isExpanded && (
                     <div className="mt-2 flex items-center gap-2">
-                      <span
-                        className={`rounded-badge px-1.5 py-0.5 text-xs font-medium ${
-                          isPositive ? 'bg-pine/10 text-pine' : 'bg-ember/10 text-ember'
-                        }`}
-                      >
-                        {impact.daysSaved > 0
-                          ? `${impact.daysSaved} days sooner`
-                          : impact.daysSaved < 0
-                            ? `${Math.abs(impact.daysSaved)} days later`
-                            : impact.monthlyImpactOnGoal > 0
-                              ? `+${formatCurrency(impact.monthlyImpactOnGoal)}/mo`
-                              : impact.monthlyImpactOnGoal < 0
-                                ? `${formatCurrency(impact.monthlyImpactOnGoal)}/mo`
-                                : 'No date impact'}
-                      </span>
+                      {impact.makesGoalAchievable ? (
+                        <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-xs font-medium text-pine">
+                          Makes goal achievable
+                        </span>
+                      ) : (
+                        <span
+                          className={`rounded-badge px-1.5 py-0.5 text-xs font-medium ${
+                            isPositive ? 'bg-pine/10 text-pine' : 'bg-ember/10 text-ember'
+                          }`}
+                        >
+                          {impact.daysSaved > 0
+                            ? `${impact.daysSaved} days sooner`
+                            : impact.daysSaved < 0
+                              ? `${Math.abs(impact.daysSaved)} days later`
+                              : impact.velocityChange != null && impact.velocityChange > 0
+                                ? `+${formatCurrency(impact.velocityChange)}/mo`
+                                : impact.monthlyImpactOnGoal > 0
+                                  ? `+${formatCurrency(impact.monthlyImpactOnGoal)}/mo`
+                                  : impact.monthlyImpactOnGoal < 0
+                                    ? `${formatCurrency(impact.monthlyImpactOnGoal)}/mo`
+                                    : 'No date impact'}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -259,6 +289,22 @@ export default function ForecastScenarios({ scenarios }: Props) {
                     step="1000"
                     className="input w-full text-sm"
                   />
+                </div>
+              )}
+
+              {selectedType?.fields.includes('percentage') && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone">Cut percentage (%)</label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    step="5"
+                    value={customPercentage}
+                    onChange={(e) => setCustomPercentage(e.target.value)}
+                    className="w-full accent-pine"
+                  />
+                  <div className="mt-1 text-center text-sm font-medium text-fjord">{customPercentage}%</div>
                 </div>
               )}
 

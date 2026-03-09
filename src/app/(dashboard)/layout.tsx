@@ -11,7 +11,7 @@ import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
 import { FeedbackWidget } from '@/components/feedback/FeedbackWidget'
 import { TokenRotation } from '@/components/auth/TokenRotation'
 
-function buildNavGroups(hasIdentifiedCards: boolean): NavGroup[] {
+function buildNavGroups(hasIdentifiedCards: boolean, hasCreditCards: boolean): NavGroup[] {
   return [
     {
       label: null,
@@ -37,7 +37,7 @@ function buildNavGroups(hasIdentifiedCards: boolean): NavGroup[] {
       label: 'Manage',
       items: [
         { href: '/accounts', label: 'Accounts' },
-        ...(hasIdentifiedCards ? [{ href: '/accounts/benefits', label: 'Card Benefits' }] : []),
+        ...((hasIdentifiedCards || hasCreditCards) ? [{ href: '/accounts/benefits', label: 'Card Benefits' }] : []),
         { href: '/debts', label: 'Debts' },
         { href: '/properties', label: 'Properties' },
       ],
@@ -63,6 +63,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   let hasPlaid = false
   let hasProperties = false
   let hasIdentifiedCards = false
+  let hasCreditCards = false
   if (session) {
     const profile = await db.userProfile.findUnique({
       where: { userId: session.userId },
@@ -79,14 +80,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }
     profileData = profile ? { primaryGoal: profile.primaryGoal, householdType: profile.householdType, incomeRange: profile.incomeRange } : null
 
-    const [acctCount, propCount, cardCount] = await Promise.all([
+    const [acctCount, propCount, cardCount, ccCount] = await Promise.all([
       db.account.count({ where: { userId: session.userId } }),
       db.property.count({ where: { userId: session.userId } }),
       db.userCard.count({ where: { userId: session.userId } }),
+      db.account.count({ where: { userId: session.userId, type: 'CREDIT_CARD' } }),
     ])
     accountCount = acctCount
     hasProperties = propCount > 0
     hasIdentifiedCards = cardCount > 0
+    hasCreditCards = ccCount > 0
     if (acctCount > 0) {
       const plaidCount = await db.account.count({
         where: { userId: session.userId, plaidAccessToken: { not: null } },
@@ -95,7 +98,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }
   }
 
-  const navGroups = buildNavGroups(hasIdentifiedCards)
+  const navGroups = buildNavGroups(hasIdentifiedCards, hasCreditCards)
 
   return (
     <div className="flex min-h-screen">
