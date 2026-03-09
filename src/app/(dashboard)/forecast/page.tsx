@@ -110,6 +110,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
     pace,
     paceDetail,
     monthlyVelocity,
+    velocityBreakdown,
     requiredVelocity,
     projectedDate,
     confidence,
@@ -203,12 +204,46 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
 
       {/* Section 2: Pace Summary Cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card">
-          <p className="text-xs font-medium uppercase tracking-wider text-stone">Avg Monthly Progress</p>
-          <p className={`mt-1 font-mono text-2xl font-medium ${monthlyVelocity >= 0 ? 'text-fjord' : 'text-ember'}`}>
+        {/* Velocity Breakdown Card */}
+        <div className="card sm:col-span-2 lg:col-span-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-stone">Monthly Savings Estimate</p>
+          <p className={`mt-1 font-mono text-2xl font-medium ${monthlyVelocity >= 0 ? 'text-pine' : 'text-ember'}`}>
             {monthlyVelocity < 0 ? '-' : ''}{formatCurrency(Math.abs(monthlyVelocity))}
           </p>
-          <p className="mt-1 text-xs text-stone">/month{monthlyVelocity < 0 ? ' (spending exceeds income)' : ''}</p>
+          <p className="mt-1 text-xs text-stone">/month blended estimate</p>
+          {velocityBreakdown && (
+            <div className="mt-3 space-y-1.5 border-t border-mist pt-2">
+              {velocityBreakdown.plan.weight > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-stone">Budget plan</span>
+                  <span className="font-mono text-fjord">
+                    {formatCurrency(velocityBreakdown.plan.value)} ({Math.round(velocityBreakdown.plan.weight * 100)}%)
+                  </span>
+                </div>
+              )}
+              {velocityBreakdown.recent.weight > 0 && velocityBreakdown.recent.value != null && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-stone">Recent (3mo)</span>
+                  <span className="font-mono text-fjord">
+                    {formatCurrency(velocityBreakdown.recent.value)} ({Math.round(velocityBreakdown.recent.weight * 100)}%)
+                  </span>
+                </div>
+              )}
+              {velocityBreakdown.trend.weight > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-stone">Historical trend</span>
+                  <span className="font-mono text-fjord">
+                    {formatCurrency(velocityBreakdown.trend.value)} ({Math.round(velocityBreakdown.trend.weight * 100)}%)
+                  </span>
+                </div>
+              )}
+              {velocityBreakdown.anomalyCount > 0 && (
+                <p className="pt-1 text-[10px] italic text-stone">
+                  Excluding {velocityBreakdown.anomalyCount} anomalous month{velocityBreakdown.anomalyCount > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          )}
         </div>
         <div className="card">
           <p className="text-xs font-medium uppercase tracking-wider text-stone">Needed Monthly</p>
@@ -242,7 +277,15 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
               {confidence.charAt(0).toUpperCase() + confidence.slice(1)}
             </span>
           </p>
-          <p className="mt-1 text-xs text-stone">{confidenceReason}</p>
+          <p className="mt-1 text-xs text-stone">
+            {velocityBreakdown && velocityBreakdown.monthsOfData < 3
+              ? 'Based on your budget plan \u2014 forecast will calibrate as data accumulates'
+              : velocityBreakdown && velocityBreakdown.monthsOfData < 6
+                ? 'Blending your budget plan with recent spending patterns'
+                : velocityBreakdown && velocityBreakdown.monthsOfData >= 6
+                  ? 'Calibrated from budget plan, recent behavior, and long-term trends'
+                  : confidenceReason}
+          </p>
         </div>
       </div>
 
