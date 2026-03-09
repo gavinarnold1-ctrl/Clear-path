@@ -33,8 +33,10 @@ export default function BudgetHealthCards({
   categorizationPct,
   netWorth,
 }: Props) {
+  const showNetWorthSeparately = primaryGoal !== 'build_wealth' && netWorth != null
+
   return (
-    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className={`mb-8 grid grid-cols-1 gap-4 ${showNetWorthSeparately ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
       {/* Card 1: Fixed Bills */}
       <Link href="/budgets" className="card transition-colors hover:border-fjord/30">
         <p className="text-xs font-medium uppercase tracking-wider text-stone">Fixed Bills</p>
@@ -69,6 +71,15 @@ export default function BudgetHealthCards({
         categorizationPct={categorizationPct}
         netWorth={netWorth}
       />
+
+      {/* Card 4: Net Worth (always visible unless build_wealth archetype already shows it) */}
+      {showNetWorthSeparately && (
+        <Link href="/accounts" className="card transition-colors hover:border-fjord/30">
+          <p className="text-xs font-medium uppercase tracking-wider text-stone">Net Worth</p>
+          <p className="mt-1 font-mono text-2xl font-bold text-fjord">{formatCurrency(netWorth)}</p>
+          <p className="mt-1 text-xs text-stone">total assets minus liabilities</p>
+        </Link>
+      )}
     </div>
   )
 }

@@ -61,6 +61,7 @@ interface TransactionRow {
   property: { id: string; name: string } | null
   classification?: string
   annualExpenseId?: string | null
+  annualExpenseName?: string | null
   isPending?: boolean
   tags?: string | null
   splits?: SplitRow[]
@@ -977,6 +978,9 @@ export default function TransactionList({ transactions: initial, categories, acc
                     {tx.classification === 'perk_reimbursement' && (
                       <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">Card Perk</span>
                     )}
+                    {tx.annualExpenseId && (
+                      <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone" title={tx.annualExpenseName ?? 'Annual Plan'}>Annual Plan</span>
+                    )}
                   </p>
                   <span className={`shrink-0 text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {tx.amount < 0 ? '−' : '+'}{formatCurrency(Math.abs(tx.amount))}
@@ -1485,7 +1489,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                   </td>
                   <td className="px-4 py-3 text-stone" onClick={(e) => { if (!tx.categoryId) e.stopPropagation() }}>
                     {tx.category?.name ? (
-                      tx.category.name
+                      <span>
+                        {tx.category.name}
+                        {tx.annualExpenseId && (
+                          <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone" title={tx.annualExpenseName ?? 'Annual Plan'}>Annual Plan</span>
+                        )}
+                      </span>
                     ) : (
                       <select
                         value=""

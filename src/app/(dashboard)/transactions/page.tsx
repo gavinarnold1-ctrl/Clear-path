@@ -197,6 +197,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     id: true, date: true, merchant: true, amount: true, notes: true,
     categoryId: true, accountId: true, householdMemberId: true, propertyId: true,
     classification: true, annualExpenseId: true, isPending: true,
+    annualExpense: { select: { name: true } },
     category: { select: { id: true, name: true } },
     account: { select: { id: true, name: true } },
     householdMember: { select: { id: true, name: true } },
@@ -272,6 +273,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     property: tx.property,
     classification: tx.classification,
     annualExpenseId: tx.annualExpenseId,
+    annualExpenseName: tx.annualExpense?.name ?? null,
     isPending: tx.isPending,
     splits: tx.splits.map(s => ({
       id: s.id,
