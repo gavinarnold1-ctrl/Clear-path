@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "connect-src 'self' https://*.plaid.com https://cdn.plaid.com https://api.anthropic.com https://va.vercel-scripts.com https://us.i.posthog.com",
               "frame-src 'self' https://*.plaid.com",
+              "worker-src 'self'",
             ].join('; '),
           },
         ],

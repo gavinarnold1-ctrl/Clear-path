@@ -401,7 +401,7 @@ export default async function BudgetsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold text-fjord">Budgets</h1>
         <div className="flex items-center gap-2">
           {budgets.length > 0 && <BudgetBuilderFlow hasBudgets />}

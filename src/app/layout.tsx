@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics } from '@vercel/analytics/next'
 import { ToastProvider } from '@/components/ui/ToastProvider'
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { PostHogProvider } from '@/providers/PostHogProvider'
 import { PageViewTracker } from '@/components/analytics/PageViewTracker'
 import './globals.css'
@@ -46,8 +47,12 @@ export const metadata: Metadata = {
     title: 'Oversikt',
   },
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon-180.png',
   },
   openGraph: {
     title: 'oversikt',
@@ -73,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Analytics />
         <SpeedInsights />
         <ToastProvider />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   )

@@ -934,8 +934,136 @@ export default function TransactionList({ transactions: initial, categories, acc
             <button onClick={() => setError(null)} className="ml-2 font-medium underline">dismiss</button>
           </div>
         )}
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm md:min-w-0">
+        {/* Mobile card list — replaces table on small screens */}
+        <div className="divide-y divide-mist md:hidden">
+          {sortedTransactions.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-stone">
+              No transactions match the current filters.
+            </div>
+          )}
+          {sortedTransactions.map((tx) => (
+            <div
+              key={tx.id}
+              className={`flex items-start gap-3 px-4 py-3 ${selected.has(tx.id) ? 'bg-fjord/5' : ''} ${isInsightView ? 'border-l-2 border-l-ember bg-ember/5' : ''}`}
+              onClick={() => setMobileDetailId(mobileDetailId === tx.id ? null : tx.id)}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(tx.id)}
+                onChange={() => toggleSelect(tx.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-mist text-fjord accent-fjord"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-medium text-fjord text-sm">
+                    {tx.merchant}
+                    {tx.isPending && (
+                      <span className="ml-1.5 rounded-badge bg-mist/40 px-1.5 py-0.5 text-[10px] font-medium text-stone">Pending</span>
+                    )}
+                    {tx.classification === 'perk_reimbursement' && (
+                      <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">Card Perk</span>
+                    )}
+                  </p>
+                  <span className={`shrink-0 text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
+                    {tx.amount < 0 ? '−' : '+'}{formatCurrency(Math.abs(tx.amount))}
+                  </span>
+                </div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-stone">
+                  <span>{formatDate(new Date(tx.date))}</span>
+                  {tx.category && (
+                    <>
+                      <span className="text-mist">&middot;</span>
+                      <span className="truncate">{tx.category.name}</span>
+                    </>
+                  )}
+                  {!tx.category && (
+                    <>
+                      <span className="text-mist">&middot;</span>
+                      <span className="text-birch">Uncategorized</span>
+                    </>
+                  )}
+                </div>
+                {/* Expanded detail */}
+                {mobileDetailId === tx.id && (
+                  <div className="mt-2 space-y-1 text-xs" onClick={(e) => e.stopPropagation()}>
+                    {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
+                    {!tx.category && (
+                      <div>
+                        <span className="text-stone">Category:</span>{' '}
+                        <select
+                          value=""
+                          onChange={(e) => { if (e.target.value) quickCategorize(tx.id, e.target.value) }}
+                          className="ml-1 rounded-badge border border-birch/40 bg-birch/10 px-1.5 py-0.5 text-xs text-stone"
+                        >
+                          <option value="">+ Assign</option>
+                          {Object.entries(groupedCategories).map(([group, cats]) => (
+                            <optgroup key={group} label={group}>
+                              {cats.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
+                    {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
+                    {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
+                    {tx.splits && tx.splits.length > 0 && (
+                      <div className="mt-1 rounded-button bg-frost/50 px-2 py-1.5">
+                        <p className="mb-1 text-[10px] font-medium uppercase text-stone">Split Allocations</p>
+                        {tx.splits.map((split) => (
+                          <div key={split.id} className="flex items-center justify-between text-xs">
+                            <span className="text-fjord">{split.property?.name ?? 'Unknown'}</span>
+                            <span className={split.amount < 0 ? 'text-expense' : 'text-income'}>
+                              {split.amount < 0 ? '−' : '+'}{formatCurrency(Math.abs(split.amount))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => startEdit(tx)}
+                        className="rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
+                      >
+                        Edit
+                      </button>
+                      {deleteConfirmId === tx.id ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => { handleDelete(tx.id); setDeleteConfirmId(null) }}
+                            className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
+                          >
+                            Confirm Delete
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="text-xs text-stone hover:text-fjord"
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirmId(tx.id)}
+                          className="rounded-button border border-mist px-3 py-1.5 text-xs text-stone hover:text-ember"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table — hidden on mobile */}
+        <div className="hidden overflow-x-auto md:block">
+        <table className="w-full text-sm">
           <thead className="border-b border-mist bg-snow">
             <tr>
               <th className="w-10 px-3 py-3">

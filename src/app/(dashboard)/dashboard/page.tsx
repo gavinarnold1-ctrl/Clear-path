@@ -395,7 +395,7 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-medium text-fjord">
           {session.name ? `Welcome back, ${session.name.split(' ')[0]}` : 'Overview'}
         </h1>
