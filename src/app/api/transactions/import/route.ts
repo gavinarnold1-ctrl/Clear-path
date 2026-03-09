@@ -121,12 +121,30 @@ export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Size limit: 10MB for CSV uploads
+  const MAX_CSV_SIZE = 10 * 1024 * 1024
+  const contentLength = request.headers.get('content-length')
+  if (contentLength && parseInt(contentLength, 10) > MAX_CSV_SIZE) {
+    return NextResponse.json(
+      { error: 'File too large. Maximum CSV size is 10MB.' },
+      { status: 413 }
+    )
+  }
+
   try {
     const body = await request.json()
     const { csvText, mapping, accountId, skipDuplicates = true, isMonarch = false } = body
 
     if (!csvText) {
       return NextResponse.json({ error: 'Missing CSV text' }, { status: 400 })
+    }
+
+    // Check actual body size after parsing
+    if (typeof csvText === 'string' && csvText.length > MAX_CSV_SIZE) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum CSV size is 10MB.' },
+        { status: 413 }
+      )
     }
     if (!isMonarch && !mapping) {
       return NextResponse.json({ error: 'Missing column mapping' }, { status: 400 })

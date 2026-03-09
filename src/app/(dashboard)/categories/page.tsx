@@ -47,7 +47,7 @@ export default async function CategoriesPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fjord">Categories</h1>
+        <h1 className="font-display text-2xl font-bold text-fjord">Categories</h1>
         <Button href="/categories/new">
           + New category
         </Button>

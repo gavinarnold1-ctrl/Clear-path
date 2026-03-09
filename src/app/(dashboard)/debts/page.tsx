@@ -90,7 +90,7 @@ export default async function DebtsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fjord">Debts</h1>
+        <h1 className="font-display text-2xl font-bold text-fjord">Debts</h1>
       </div>
 
       {/* Forecast context */}

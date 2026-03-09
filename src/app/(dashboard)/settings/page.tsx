@@ -32,7 +32,7 @@ export default async function SettingsPage() {
     }),
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { primaryGoal: true, goalSetAt: true, previousGoals: true, incomeTransitions: true },
+      select: { primaryGoal: true, goalSetAt: true, previousGoals: true, incomeTransitions: true, goalTarget: true },
     }),
   ])
 
@@ -40,7 +40,7 @@ export default async function SettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-fjord">Settings</h1>
+      <h1 className="mb-6 font-display text-2xl font-bold text-fjord">Settings</h1>
       <SettingsClient
         user={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
         initialMembers={householdMembers}
@@ -50,6 +50,7 @@ export default async function SettingsPage() {
         goalSetAt={profile?.goalSetAt?.toISOString() ?? null}
         previousGoals={(profile?.previousGoals as Array<{ goal: string; setAt: string; changedAt: string }>) ?? []}
         initialIncomeTransitions={(profile?.incomeTransitions as Array<{ id: string; date: string; monthlyIncome: number; label: string; annualIncome?: number }>) ?? []}
+        initialGoalTarget={(profile?.goalTarget as Record<string, unknown>) ?? null}
       />
     </div>
   )

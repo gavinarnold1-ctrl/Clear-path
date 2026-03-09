@@ -64,7 +64,7 @@ export default async function AccountsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fjord">Accounts</h1>
+        <h1 className="font-display text-2xl font-bold text-fjord">Accounts</h1>
         <Button href="/accounts/new">
           + Add account
         </Button>

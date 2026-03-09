@@ -89,8 +89,14 @@ export const RATE_LIMITS = {
   register: { maxRequests: 3, windowMs: 60 * 60 * 1000 },
   /** /api/plaid/*: 10 per min per user */
   plaid: { maxRequests: 10, windowMs: 60 * 1000 },
-  /** /api/transactions/import/*: 5 per min per user */
-  import: { maxRequests: 5, windowMs: 60 * 1000 },
+  /** /api/transactions/import/*: 10 per hour per user */
+  import: { maxRequests: 10, windowMs: 60 * 60 * 1000 },
+  /** /api/transactions/export: 5 per hour per user */
+  export: { maxRequests: 5, windowMs: 60 * 60 * 1000 },
+  /** /api/budgets/generate: 3 AI budget generations per hour per user */
+  budgetGenerate: { maxRequests: 3, windowMs: 60 * 60 * 1000 },
+  /** /api/forecast: 30 per minute per user */
+  forecast: { maxRequests: 30, windowMs: 60 * 1000 },
   /** All other API routes: 30 per min per user */
   general: { maxRequests: 30, windowMs: 60 * 1000 },
 } as const

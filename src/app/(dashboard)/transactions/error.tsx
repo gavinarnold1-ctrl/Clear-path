@@ -14,7 +14,7 @@ export default function Error({
       </p>
       <button
         onClick={reset}
-        className="px-4 py-2 bg-fjord text-white rounded-button text-sm hover:bg-fjord/90"
+        className="px-4 py-2 bg-fjord text-snow rounded-button text-sm hover:bg-fjord/90"
       >
         Try again
       </button>

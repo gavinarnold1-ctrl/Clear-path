@@ -16,6 +16,7 @@ import type { ForecastPoint, IncomeTransition } from '@/types'
 interface Props {
   timeline: ForecastPoint[]
   targetValue: number
+  targetDate?: string
   incomeTransitions?: IncomeTransition[]
 }
 
@@ -25,7 +26,9 @@ function formatCompact(value: number): string {
   return `$${value.toFixed(0)}`
 }
 
-export default function ForecastTimeline({ timeline, targetValue, incomeTransitions = [] }: Props) {
+const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+
+export default function ForecastTimeline({ timeline, targetValue, targetDate, incomeTransitions = [] }: Props) {
   if (timeline.length === 0) {
     return <p className="py-8 text-center text-sm text-stone">No timeline data available.</p>
   }
@@ -155,6 +158,36 @@ export default function ForecastTimeline({ timeline, targetValue, incomeTransiti
               />
             )
           })}
+
+          {/* Target date marker */}
+          {targetDate && (
+            <ReferenceLine
+              x={targetDate.slice(0, 7)}
+              stroke="#C4704B"
+              strokeDasharray="4 2"
+              strokeWidth={1.5}
+              label={{
+                value: 'Target Date',
+                position: 'top',
+                fill: '#C4704B',
+                fontSize: 10,
+              }}
+            />
+          )}
+
+          {/* Today marker */}
+          <ReferenceLine
+            x={todayKey}
+            stroke="#1B3A4B"
+            strokeDasharray="2 2"
+            strokeWidth={1}
+            label={{
+              value: 'Today',
+              position: 'insideBottomRight',
+              fill: '#1B3A4B',
+              fontSize: 10,
+            }}
+          />
         </ComposedChart>
       </ResponsiveContainer>
 
@@ -179,6 +212,14 @@ export default function ForecastTimeline({ timeline, targetValue, incomeTransiti
             <span className="inline-block h-3 w-0 border-l-2 border-dashed border-birch" /> Income Change
           </span>
         )}
+        {targetDate && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-3 w-0 border-l-2 border-dashed border-ember" /> Target Date
+          </span>
+        )}
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-3 w-0 border-l-2 border-dotted border-fjord" /> Today
+        </span>
       </div>
     </div>
   )

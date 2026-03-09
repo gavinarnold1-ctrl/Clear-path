@@ -128,7 +128,7 @@ export default async function ForecastPage() {
 
       {/* Section 1: Hero Timeline Chart */}
       <div className="card mb-6">
-        <ForecastTimeline timeline={timeline} targetValue={goalTarget?.targetValue ?? forecast.projectedValue} incomeTransitions={incomeTransitions} />
+        <ForecastTimeline timeline={timeline} targetValue={goalTarget?.targetValue ?? forecast.projectedValue} targetDate={goalTarget?.targetDate} incomeTransitions={incomeTransitions} />
       </div>
 
       {/* Section 2: Pace Summary Cards */}

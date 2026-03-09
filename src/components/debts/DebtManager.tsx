@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { trackDebtCreated } from '@/lib/analytics'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { amortizationSchedule, effectiveRate as calcEffectiveRate } from '@/lib/engines/amortization'
@@ -311,12 +312,13 @@ export default function DebtManager({ debts: initial, properties, categories }: 
   return (
     <div>
       {debts.length === 0 && !showForm ? (
-        <div className="card text-center py-12">
-          <p className="mb-1 text-sm font-medium text-stone">No debts tracked yet</p>
-          <p className="mb-4 text-xs text-stone">Add your debts to track principal vs interest and payoff progress.</p>
-          <Button onClick={() => setShowForm(true)}>
-            + Add debt
-          </Button>
+        <div className="card">
+          <EmptyState
+            icon={<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>}
+            title="No debts tracked yet"
+            description="Add your loans, credit cards, and mortgages to track payoff progress."
+            action={{ label: 'Add a debt', onClick: () => setShowForm(true) }}
+          />
         </div>
       ) : (
         <>

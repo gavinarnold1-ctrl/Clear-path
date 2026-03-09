@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import type { GoalTarget, PrimaryGoal } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { monthsBetween, projectedDate } from '@/lib/goal-targets'
@@ -88,6 +89,16 @@ export default function GoalProgressCard({
           <span className="text-lg font-bold text-fjord">{formatCurrency(trueRemaining)}</span>
         </div>
         <p className="mt-1 text-xs text-stone">{trueRemainingContext}</p>
+      </div>
+
+      {/* Link to forecast */}
+      <div className="mt-4 text-center">
+        <Link
+          href="/forecast"
+          className="text-sm font-medium text-fjord hover:text-midnight hover:underline"
+        >
+          View Forecast &rarr;
+        </Link>
       </div>
     </div>
   )

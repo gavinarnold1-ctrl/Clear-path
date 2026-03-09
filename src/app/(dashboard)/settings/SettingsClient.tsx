@@ -95,6 +95,17 @@ interface IncomeTransitionData {
   annualIncome?: number
 }
 
+interface GoalTargetData {
+  metric: string
+  targetValue: number
+  targetDate: string
+  startValue: number
+  startDate: string
+  currentValue?: number
+  description: string
+  monthlyNeeded?: number
+}
+
 interface Props {
   user: { name: string; email: string; createdAt: string }
   initialMembers: Member[]
@@ -104,9 +115,10 @@ interface Props {
   goalSetAt?: string | null
   previousGoals?: GoalHistoryEntry[]
   initialIncomeTransitions?: IncomeTransitionData[]
+  initialGoalTarget?: Record<string, unknown> | null
 }
 
-export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt, previousGoals = [], initialIncomeTransitions = [] }: Props) {
+export default function SettingsClient({ user, initialMembers, initialProperties, initialAccounts = [], initialGoal, goalSetAt, previousGoals = [], initialIncomeTransitions = [], initialGoalTarget }: Props) {
   const router = useRouter()
 
   // Profile state
@@ -122,6 +134,18 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [currentGoalSetAt, setCurrentGoalSetAt] = useState<string | null>(goalSetAt ?? null)
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalMsg, setGoalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Goal target state
+  const [goalTarget, setGoalTarget] = useState<GoalTargetData | null>(
+    initialGoalTarget ? (initialGoalTarget as unknown as GoalTargetData) : null
+  )
+  const [goalTargetProgress, setGoalTargetProgress] = useState<number>(0)
+  const [editingTarget, setEditingTarget] = useState(false)
+  const [editTargetValue, setEditTargetValue] = useState('')
+  const [editTargetDate, setEditTargetDate] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [targetSaving, setTargetSaving] = useState(false)
+  const [targetProposing, setTargetProposing] = useState(false)
 
   // Income transitions state
   const [incomeTransitions, setIncomeTransitions] = useState<IncomeTransitionData[]>(initialIncomeTransitions)
@@ -298,6 +322,92 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       setGoalMsg({ type: 'error', text: 'Network error.' })
     } finally {
       setGoalSaving(false)
+    }
+  }
+
+  // ─── Goal Target ────────────────────────────────────────────────────────
+
+  // Fetch goal target + progress on mount
+  const [goalTargetLoaded, setGoalTargetLoaded] = useState(false)
+  if (!goalTargetLoaded && selectedGoal && goalTarget) {
+    // Immediately mark as loaded, then kick off async fetch
+    setGoalTargetLoaded(true)
+    fetch('/api/profile/goal-target')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.goalTarget) {
+          setGoalTarget(data.goalTarget)
+          setGoalTargetProgress(data.progress ?? 0)
+        }
+      })
+      .catch(() => {})
+  }
+
+  function startEditTarget() {
+    if (!goalTarget) return
+    setEditTargetValue(String(goalTarget.targetValue))
+    setEditTargetDate(goalTarget.targetDate?.slice(0, 7) ?? '')
+    setEditDescription(goalTarget.description)
+    setEditingTarget(true)
+  }
+
+  function computeEditMonthlyNeeded(): number {
+    if (!goalTarget) return 0
+    const tv = parseFloat(editTargetValue)
+    if (!isFinite(tv)) return 0
+    const current = goalTarget.currentValue ?? goalTarget.startValue
+    const remaining = tv - current
+    if (remaining <= 0) return 0
+    const targetMonth = editTargetDate ? new Date(editTargetDate + '-01') : new Date(goalTarget.targetDate)
+    const now = new Date()
+    const months = (targetMonth.getFullYear() - now.getFullYear()) * 12 + (targetMonth.getMonth() - now.getMonth())
+    return months > 0 ? Math.round((remaining / months) * 100) / 100 : remaining
+  }
+
+  async function saveGoalTarget() {
+    if (!goalTarget) return
+    setTargetSaving(true)
+    try {
+      const tv = parseFloat(editTargetValue)
+      if (!isFinite(tv) || tv <= 0) return
+      const targetDate = editTargetDate ? editTargetDate + '-01' : goalTarget.targetDate
+      const monthlyNeeded = computeEditMonthlyNeeded()
+
+      const updated: GoalTargetData = {
+        ...goalTarget,
+        targetValue: tv,
+        targetDate,
+        description: editDescription || goalTarget.description,
+        monthlyNeeded,
+      }
+
+      const res = await fetch('/api/profile/goal-target', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goalTarget: updated }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setGoalTarget(data.goalTarget)
+      setEditingTarget(false)
+      router.refresh()
+    } finally {
+      setTargetSaving(false)
+    }
+  }
+
+  async function proposeGoalTarget() {
+    setTargetProposing(true)
+    try {
+      const res = await fetch('/api/profile/goal-target', { method: 'POST' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.goalTarget) {
+        setGoalTarget(data.goalTarget)
+        router.refresh()
+      }
+    } finally {
+      setTargetProposing(false)
     }
   }
 
@@ -947,6 +1057,145 @@ export default function SettingsClient({ user, initialMembers, initialProperties
           />
         )}
       </section>
+
+      {/* Goal Details — target editing */}
+      {selectedGoal && (
+        <section className="card">
+          <h2 className="font-display mb-1 text-base font-semibold text-fjord">Goal Details</h2>
+          <p className="mb-4 text-xs text-stone">Your concrete numeric target and timeline.</p>
+
+          {goalTarget ? (
+            editingTarget ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-fjord">
+                    {isPercentMetric(goalTarget.metric) ? 'Target Rate (%)' : 'Target Value ($)'}
+                  </label>
+                  <input
+                    type="number"
+                    step={isPercentMetric(goalTarget.metric) ? '1' : '0.01'}
+                    min="0"
+                    value={editTargetValue}
+                    onChange={(e) => setEditTargetValue(e.target.value)}
+                    className="input max-w-xs text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-fjord">Target Date</label>
+                  <input
+                    type="month"
+                    value={editTargetDate}
+                    onChange={(e) => setEditTargetDate(e.target.value)}
+                    className="input max-w-xs text-sm"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm text-stone">
+                    Monthly needed: <span className="font-mono font-medium text-fjord">
+                      {isPercentMetric(goalTarget.metric)
+                        ? `${computeEditMonthlyNeeded()}%`
+                        : `$${computeEditMonthlyNeeded().toLocaleString()}`}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-fjord">Description (optional)</label>
+                  <input
+                    type="text"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="input text-sm"
+                    placeholder="e.g. Save $20,000 by Dec 2027"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={saveGoalTarget} loading={targetSaving} loadingText="Saving...">
+                    Save Target
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setEditingTarget(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs text-stone">Metric</p>
+                    <p className="font-medium text-fjord">{metricLabel(goalTarget.metric)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-stone">Target</p>
+                    <p className="font-mono font-medium text-fjord">
+                      {isPercentMetric(goalTarget.metric)
+                        ? `${goalTarget.targetValue}%`
+                        : `$${goalTarget.targetValue.toLocaleString()}`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-stone">Target Date</p>
+                    <p className="font-medium text-fjord">
+                      {goalTarget.targetDate
+                        ? new Date(goalTarget.targetDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                        : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-stone">Monthly Needed</p>
+                    <p className="font-mono font-medium text-fjord">
+                      {isPercentMetric(goalTarget.metric)
+                        ? `${goalTarget.monthlyNeeded ?? 0}%`
+                        : `$${(goalTarget.monthlyNeeded ?? 0).toLocaleString()}`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-stone">Progress</p>
+                    <div className="mt-1">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-mist">
+                        <div
+                          className={`h-full rounded-full transition-all ${goalTargetProgress >= 50 ? 'bg-pine' : 'bg-birch'}`}
+                          style={{ width: `${Math.min(100, goalTargetProgress)}%` }}
+                        />
+                      </div>
+                      <p className="mt-0.5 text-xs text-stone">{goalTargetProgress}% complete</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-stone">Started</p>
+                    <p className="font-medium text-fjord">
+                      {goalTarget.startDate
+                        ? new Date(goalTarget.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={startEditTarget}
+                  className="mt-4 text-sm font-medium text-fjord hover:text-midnight hover:underline"
+                >
+                  Edit Target
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-stone">
+                No concrete target set yet. We can suggest one based on your spending data.
+              </p>
+              <Button
+                size="sm"
+                className="mt-3"
+                onClick={proposeGoalTarget}
+                loading={targetProposing}
+                loadingText="Analyzing..."
+                disabled={!selectedGoal}
+              >
+                Set Your Target
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* R10.1: Profile Management */}
       <section className="card">
@@ -1998,4 +2247,23 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       />
     </div>
   )
+}
+
+const METRIC_LABELS: Record<string, string> = {
+  savings_amount: 'Savings Amount',
+  savings_rate: 'Savings Rate',
+  debt_payoff: 'Debt Payoff',
+  debt_total: 'Debt Total',
+  net_worth_target: 'Net Worth Target',
+  net_worth_increase: 'Net Worth Increase',
+  categorization_pct: 'Categorization Rate',
+  category_spend: 'Category Spending',
+}
+
+function metricLabel(metric: string): string {
+  return METRIC_LABELS[metric] ?? metric
+}
+
+function isPercentMetric(metric: string): boolean {
+  return metric === 'savings_rate' || metric === 'categorization_pct'
 }

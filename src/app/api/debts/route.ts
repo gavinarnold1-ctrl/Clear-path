@@ -23,11 +23,6 @@ export async function GET() {
       property: true,
       category: true,
       account: { select: { id: true, name: true, type: true, balance: true, institution: true } },
-      transactions: {
-        select: { id: true, date: true, merchant: true, amount: true },
-        orderBy: { date: 'desc' },
-        take: 10,
-      },
     },
     orderBy: { currentBalance: 'desc' },
   })
@@ -54,6 +49,8 @@ export async function GET() {
       weightedAvgRate: Math.round(weightedRate * 10000) / 10000,
       count: debts.length,
     },
+  }, {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
   })
 }
 

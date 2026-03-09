@@ -12,5 +12,7 @@ export async function GET() {
     orderBy: { updatedAt: 'desc' },
   })
 
-  return NextResponse.json(mappings)
+  return NextResponse.json(mappings, {
+    headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=600' },
+  })
 }

@@ -25,7 +25,9 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json({ cards: userCards })
+  return NextResponse.json({ cards: userCards }, {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+  })
 }
 
 // POST /api/cards — assign a card program to an account

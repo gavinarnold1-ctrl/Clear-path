@@ -22,7 +22,9 @@ export async function GET() {
     orderBy: { name: 'asc' },
   })
 
-  return NextResponse.json(groups)
+  return NextResponse.json(groups, {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+  })
 }
 
 export async function POST(req: NextRequest) {

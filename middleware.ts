@@ -18,6 +18,9 @@ function getApiRateLimitGroup(pathname: string) {
   if (pathname === '/api/auth/demo' || pathname === '/api/auth/refresh') return 'login' as const
   if (pathname.startsWith('/api/plaid/')) return 'plaid' as const
   if (pathname.startsWith('/api/transactions/import')) return 'import' as const
+  if (pathname === '/api/transactions/export') return 'export' as const
+  if (pathname === '/api/budgets/generate') return 'budgetGenerate' as const
+  if (pathname === '/api/forecast') return 'forecast' as const
   return 'general' as const
 }
 

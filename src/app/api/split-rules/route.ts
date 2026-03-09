@@ -30,7 +30,9 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'asc' },
   })
 
-  return NextResponse.json(rules)
+  return NextResponse.json(rules, {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+  })
 }
 
 /**
