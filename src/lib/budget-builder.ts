@@ -297,6 +297,64 @@ function detectFrequency(dates: Date[]): string {
   return 'irregular'
 }
 
+// ─── Budget Scaffold ────────────────────────────────────────────────────────
+
+/**
+ * Standard budget slot names. The AI fills amounts and reasoning
+ * but uses these exact names for consistency across users.
+ * Only slots with matching transaction data get activated.
+ */
+const BUDGET_SCAFFOLD = {
+  fixed: [
+    { name: 'Mortgage', category: 'Housing', note: 'or Rent — use whichever matches' },
+    { name: 'Rent', category: 'Housing', note: 'or Mortgage — use whichever matches' },
+    { name: 'Auto Payment', category: 'Auto & Transport' },
+    { name: 'Auto Insurance', category: 'Auto & Transport' },
+    { name: 'Student Loan', category: 'Financial' },
+    { name: 'Gas & Electric', category: 'Bills & Utilities' },
+    { name: 'Internet & Phone', category: 'Bills & Utilities' },
+    { name: 'Water & Sewer', category: 'Bills & Utilities' },
+    { name: 'Insurance', category: 'Financial', note: 'Health, life, umbrella — NOT auto (separate slot)' },
+    { name: 'Gym & Fitness', category: 'Health & Wellness' },
+    { name: 'Subscriptions', category: 'Entertainment', note: 'Streaming, software, memberships — bundle into one' },
+    { name: 'Childcare', category: 'Other', note: 'Only if detected in transactions' },
+    { name: 'Loan Payment', category: 'Financial', note: 'Personal loans, HELOC, etc.' },
+  ],
+  flexible: [
+    { name: 'Groceries', category: 'Food & Dining' },
+    { name: 'Restaurants & Dining', category: 'Food & Dining' },
+    { name: 'Coffee Shops', category: 'Food & Dining' },
+    { name: 'Gas & Fuel', category: 'Auto & Transport' },
+    { name: 'Shopping', category: 'Shopping' },
+    { name: 'Clothing', category: 'Shopping' },
+    { name: 'Personal Care', category: 'Shopping' },
+    { name: 'Entertainment', category: 'Entertainment' },
+    { name: 'Medical', category: 'Health & Wellness' },
+    { name: 'Home Improvement', category: 'Housing' },
+    { name: 'Gifts & Donations', category: 'Gifts & Donations' },
+    { name: 'Travel & Vacation', category: 'Entertainment', note: 'Only if in flexible budget — else annual' },
+    { name: 'Miscellaneous', category: 'Other', note: 'Catch-all for uncategorized variable spending' },
+  ],
+  annual: [
+    { name: 'Vehicle Registration', category: 'Auto & Transport' },
+    { name: 'Property Tax', category: 'Housing' },
+    { name: 'HOA Dues', category: 'Housing', note: 'If paid annually or semi-annually' },
+    { name: 'Amazon Prime', category: 'Entertainment' },
+    { name: 'Annual Subscriptions', category: 'Entertainment', note: 'Any yearly subscription renewal' },
+    { name: 'Holiday Gifts', category: 'Gifts & Donations' },
+    { name: 'Vacation Fund', category: 'Entertainment' },
+    { name: 'Home Maintenance Reserve', category: 'Housing', note: '1% of home value rule of thumb' },
+    { name: 'Tax Preparation', category: 'Financial' },
+    { name: 'Medical Deductible', category: 'Health & Wellness', note: 'Set-aside for out-of-pocket max' },
+  ],
+} as const
+
+const VALID_CATEGORIES = [
+  'Housing', 'Bills & Utilities', 'Food & Dining', 'Auto & Transport',
+  'Health & Wellness', 'Shopping', 'Entertainment', 'Financial',
+  'Gifts & Donations', 'Other',
+] as const
+
 // ─── AI Budget Proposal ─────────────────────────────────────────────────────
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
@@ -395,6 +453,26 @@ ${benchmarks
 When proposing flexible budget amounts, compare the user's actual spending to these benchmarks. If the user spends significantly above the benchmark median, note this in the reasoning and suggest a target closer to the benchmark — but never below the user's minimum observed spend. If below benchmark, acknowledge they're already efficient in that category.`
     : ''
 }
+
+STANDARD BUDGET SLOT NAMES:
+Use these exact names when a matching expense is detected. Only include slots that have supporting transaction data. You may add unlisted slots if a significant recurring expense doesn't fit any standard name.
+
+FIXED slots (use exact name if detected):
+${BUDGET_SCAFFOLD.fixed.map(s => `- "${s.name}" → category: ${s.category}${'note' in s ? ` (${s.note})` : ''}`).join('\n')}
+
+FLEXIBLE slots (use exact name if detected):
+${BUDGET_SCAFFOLD.flexible.map(s => `- "${s.name}" → category: ${s.category}${'note' in s ? ` (${s.note})` : ''}`).join('\n')}
+
+ANNUAL slots (suggest if appropriate, even without explicit transaction data):
+${BUDGET_SCAFFOLD.annual.map(s => `- "${s.name}" → category: ${s.category}${'note' in s ? ` (${s.note})` : ''}`).join('\n')}
+
+NAMING RULES:
+- Use the EXACT standard name from above when a match exists. Do NOT rename "Groceries" to "Food Shopping" or "Grocery Budget".
+- For fixed expenses, match to the closest standard slot. If a user has "Xfinity Internet" charges, use the "Internet & Phone" slot name.
+- For detected expenses that don't fit any standard slot, create a new name following the pattern: specific, title-case, ≤3 words (e.g., "Pet Care", "Tolls & Parking").
+- Never append "Budget" to slot names. Say "Groceries" not "Grocery Budget".
+- The category field in your output must EXACTLY match one of the app's categories: ${VALID_CATEGORIES.join(', ')}.
+- The "name" field must use the standard slot name from STANDARD BUDGET SLOT NAMES when applicable.
 
 OUTPUT FORMAT — Return ONLY valid JSON with no markdown, no commentary, no text before or after the JSON object:
 {

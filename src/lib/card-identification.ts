@@ -81,6 +81,14 @@ function findBestMatch(
   account: AccountInfo,
   programs: ProgramWithBenefits[]
 ): CardSuggestion | null {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[CardID] Matching account:', {
+      name: account.name,
+      institution: account.institution,
+      normalizedText: normalizeText(`${account.institution ?? ''} ${account.name}`),
+    })
+  }
+
   const accountText = normalizeText(
     `${account.institution ?? ''} ${account.name}`
   )
@@ -139,7 +147,31 @@ function findBestMatch(
     }
   }
 
-  if (!bestMatch || bestMatch.confidence < 0.6) return null
+  // Tier 4: Institution-only match for credit cards
+  // If the Plaid institution matches a known card issuer, return the issuer's
+  // most popular card program as a low-confidence suggestion
+  if (!bestMatch || bestMatch.confidence < 0.45) {
+    const institutionName = normalizeText(account.institution || '')
+    if (institutionName) {
+      const issuerMatches = programs.filter((program) => {
+        const issuer = normalizeText(program.issuer)
+        return institutionName.includes(issuer) || issuer.includes(institutionName)
+      })
+
+      if (issuerMatches.length > 0) {
+        // Sort by annual fee descending as a proxy for "most likely" — premium cards
+        // are more commonly identified
+        const sorted = issuerMatches.sort((a, b) => (b.annualFee || 0) - (a.annualFee || 0))
+        bestMatch = {
+          program: sorted[0],
+          confidence: 0.5,
+          reason: `Issuer match: ${account.institution} is a ${sorted[0].issuer} card. Please confirm which card this is.`,
+        }
+      }
+    }
+  }
+
+  if (!bestMatch || bestMatch.confidence < 0.45) return null
 
   return {
     accountId: account.id,

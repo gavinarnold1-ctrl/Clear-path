@@ -97,7 +97,7 @@ export default function AttentionItems({ overBudgetItems, recalibration, benefit
 
         {unidentifiedCards > 0 && (
           <Link
-            href="/accounts"
+            href="/accounts/benefits"
             className="flex items-center justify-between rounded-card border border-birch/30 bg-birch/5 px-4 py-3 transition-colors hover:bg-birch/10"
           >
             <div>
