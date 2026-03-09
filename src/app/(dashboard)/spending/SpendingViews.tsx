@@ -2,7 +2,14 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import SpendingBreakdown from '@/components/dashboard/SpendingBreakdown'
+import dynamic from 'next/dynamic'
+
+const SpendingBreakdown = dynamic(() => import('@/components/dashboard/SpendingBreakdown'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-48 animate-pulse rounded-card bg-mist/30" />
+  ),
+})
 import { formatCurrency } from '@/lib/utils'
 
 interface SpendingGroup {

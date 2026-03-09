@@ -231,13 +231,13 @@ export function pitiBreakdown(
 }
 
 /**
- * Effective interest rate — the true cost of a mortgage including escrow.
- * (total monthly cost / loan balance) × 12
+ * Effective interest rate based on P&I payment (excludes escrow).
+ * (P&I monthly payment / loan balance) × 12
  */
 export function effectiveRate(
   currentBalance: number,
-  totalMonthlyPayment: number,
+  monthlyPIPayment: number,
 ): number {
-  if (currentBalance <= 0 || totalMonthlyPayment <= 0) return 0
-  return Math.round(((totalMonthlyPayment * 12) / currentBalance) * 10000) / 10000
+  if (currentBalance <= 0 || monthlyPIPayment <= 0) return 0
+  return Math.round(((monthlyPIPayment * 12) / currentBalance) * 10000) / 10000
 }

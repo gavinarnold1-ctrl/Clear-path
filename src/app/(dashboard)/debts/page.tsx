@@ -127,17 +127,18 @@ export default async function DebtsPage() {
       {debts.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href="/forecast"
+            href="/forecast?focus=debt"
             className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
           >
             See payoff timeline →
           </Link>
-          <Link
-            href="/budgets"
-            className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
-          >
-            Free up budget for debt payments →
-          </Link>
+          <div className="rounded-button border border-mist bg-frost/50 px-4 py-3 text-sm text-stone">
+            Review your{' '}
+            <Link href="/budgets" className="font-medium text-pine underline">
+              flexible budgets
+            </Link>{' '}
+            for categories you could reduce to free up money for extra debt payments.
+          </div>
         </div>
       )}
     </div>

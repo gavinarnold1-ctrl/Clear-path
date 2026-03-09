@@ -798,9 +798,11 @@ function GroupedDebtExtras({
 }) {
   const [showSchedule, setShowSchedule] = useState(false)
 
-  // Effective rate (total payment / balance annualized)
+  // Effective rate (P&I only — excludes escrow)
+  const totalEscrow = debts.reduce((s, d) => s + (d.escrowAmount ?? 0), 0)
+  const piOnlyPayment = totalPayment - totalEscrow
   const effRate = totalBalance > 0
-    ? calcEffectiveRate(totalBalance, totalPayment)
+    ? calcEffectiveRate(totalBalance, piOnlyPayment)
     : null
 
   // Combined equity/LTV across all units
@@ -1050,9 +1052,10 @@ function DebtPITIBreakdown({ debt, properties }: { debt: DebtRow; properties: Pr
 
   const totalBar = debt.minimumPayment
 
-  // Effective rate
+  // Effective rate (P&I only — excludes escrow)
+  const piPayment = debt.minimumPayment - (debt.escrowAmount ?? 0)
   const effRate = debt.type === 'MORTGAGE' && debt.currentBalance > 0
-    ? calcEffectiveRate(debt.currentBalance, debt.minimumPayment)
+    ? calcEffectiveRate(debt.currentBalance, piPayment)
     : null
 
   // Equity / LTV
@@ -1137,7 +1140,7 @@ function DebtPITIBreakdown({ debt, properties }: { debt: DebtRow; properties: Pr
               <div>
                 <span className="text-stone">Effective Rate: </span>
                 <span className="font-semibold text-fjord">{(effRate * 100).toFixed(2)}%</span>
-                <span className="ml-1 text-stone" title="Annual cost including escrow as a percentage of loan balance">
+                <span className="ml-1 text-stone" title="Effective interest rate based on actual P&I payment">
                   (nominal {(debt.interestRate * 100).toFixed(2)}%)
                 </span>
               </div>

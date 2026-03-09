@@ -135,7 +135,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
                                   <div
                                     className="h-full rounded-full"
                                     style={{
-                                      width: `${Math.round((cat.amount / group.amount) * 100)}%`,
+                                      width: `${group.amount > 0 ? Math.round((cat.amount / group.amount) * 100) : 0}%`,
                                       backgroundColor: CATEGORY_COLORS[gi % CATEGORY_COLORS.length],
                                     }}
                                   />
