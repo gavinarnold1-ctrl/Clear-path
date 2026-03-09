@@ -3,6 +3,7 @@ import { DM_Sans, JetBrains_Mono, Fraunces } from 'next/font/google'
 import { Suspense } from 'react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics } from '@vercel/analytics/next'
+import { JsonLd } from '@/components/JsonLd'
 import { ToastProvider } from '@/components/ui/ToastProvider'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { PostHogProvider } from '@/providers/PostHogProvider'
@@ -66,6 +67,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}>
       <body>
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: 'Oversikt',
+            url: 'https://oversikt.io',
+            description: 'Personal budgeting app for households with real financial complexity.',
+            founder: {
+              '@type': 'Person',
+              name: 'Gavin Arnold',
+            },
+          }}
+        />
         <PostHogProvider>
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-fjord focus:px-4 focus:py-2 focus:text-snow">
             Skip to content

@@ -1,18 +1,80 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { WaitlistForm } from './WaitlistForm'
+import { JsonLd } from '@/components/JsonLd'
 import { DemoButton } from './DemoButton'
 
 export const metadata: Metadata = {
-  title: 'Oversikt — Budget with purpose',
+  title: 'Oversikt — Budgeting for Households with Real Financial Complexity',
   description:
-    'Start with your goal. Oversikt builds a budget that gets you there, tracks your progress, and shows you what\u2019s left to spend. Free to start.',
+    'Free budgeting app with True Remaining, goal-driven budgets, property tracking, and AI insights. Built for dual-income households earning $110K–$200K who have outgrown YNAB and Mint.',
+  keywords: [
+    'budgeting app',
+    'personal finance',
+    'budget tracker',
+    'YNAB alternative',
+    'household budget',
+    'rental property budget',
+    'True Remaining',
+    'goal-driven budgeting',
+    'dual income budget',
+  ],
+  openGraph: {
+    title: 'Oversikt — Budgeting for Real Financial Complexity',
+    description:
+      'See what\'s true about your money. Free budgeting with True Remaining, property tracking, and AI insights.',
+    url: 'https://oversikt.io',
+    siteName: 'Oversikt',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Oversikt — Budgeting for Real Financial Complexity',
+    description:
+      'Free budgeting app with True Remaining, goal-driven budgets, and property tracking. Built for households that have outgrown YNAB.',
+  },
+  alternates: {
+    canonical: 'https://oversikt.io',
+  },
 }
 
 export default function HomePage() {
   return (
     <main>
-      {/* ── Section 1: Hero + Email Capture ──────────────────────────────── */}
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'Oversikt',
+          applicationCategory: 'FinanceApplication',
+          operatingSystem: 'Web',
+          url: 'https://oversikt.io',
+          description:
+            'Personal budgeting app for households with real financial complexity. Features True Remaining calculation, goal-driven budgets, property tracking, credit card benefits engine, and AI financial insights.',
+          featureList: [
+            'True Remaining calculation',
+            'Goal-driven budgeting',
+            'Property and rental income tracking',
+            'Credit card benefits optimization',
+            'AI financial insights',
+            'Bank sync via Plaid',
+            'Three-tier budget system',
+            'Monthly financial review',
+          ],
+          author: {
+            '@type': 'Person',
+            name: 'Gavin Arnold',
+          },
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'USD',
+            description: 'Free during early access. No credit card required.',
+          },
+        }}
+      />
+
+      {/* ── Section 1: Hero ──────────────────────────────────────────────── */}
       <section className="relative flex min-h-[90vh] flex-col items-center justify-center bg-gradient-to-br from-fjord to-midnight px-6 py-20 text-center">
         {/* Brand lockup */}
         <div className="mb-8 flex items-center justify-center gap-3">
@@ -37,23 +99,13 @@ export default function HomePage() {
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/register"
-            className="rounded-button bg-snow px-8 py-3 text-center text-sm font-medium text-fjord hover:bg-frost"
+            className="inline-flex items-center justify-center rounded-button bg-pine px-8 py-3 text-base font-medium text-snow shadow-sm transition-colors hover:bg-pine/90"
           >
-            Get started free
+            Start budgeting — free
           </Link>
           <DemoButton />
         </div>
-
-        {/* Inline waitlist */}
-        <div className="mx-auto mt-10 w-full max-w-md">
-          <p className="mb-3 text-sm text-snow/60">
-            Not ready yet? Get notified when we launch.
-          </p>
-          <WaitlistForm />
-          <p className="mt-3 text-xs text-snow/40">
-            No credit card required. We&apos;ll never spam you.
-          </p>
-        </div>
+        <p className="mt-4 text-xs text-snow/50">No credit card required</p>
 
         {/* Norwegian etymology */}
         <div className="mt-auto pt-16 text-center">
@@ -231,7 +283,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 6: Final CTA + Waitlist ──────────────────────────────── */}
+      {/* ── Section 6: Final CTA ─────────────────────────────────────────── */}
       <section className="bg-gradient-to-br from-fjord to-midnight px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-lg text-center">
           <h2 className="mb-4 font-display text-3xl tracking-tight text-snow sm:text-4xl">
@@ -241,23 +293,16 @@ export default function HomePage() {
             Join thousands who are done guessing and ready to see what&apos;s true.
           </p>
 
-          <div className="mb-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <div className="mb-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/register"
-              className="rounded-button bg-snow px-8 py-3 text-center text-sm font-medium text-fjord hover:bg-frost"
+              className="inline-flex items-center justify-center rounded-button bg-pine px-8 py-3 text-base font-medium text-snow shadow-sm transition-colors hover:bg-pine/90"
             >
-              Get started free
+              Start budgeting — free
             </Link>
             <DemoButton />
           </div>
-
-          <p className="mb-3 text-sm text-snow/60">
-            Want to follow along? Drop your email and we&apos;ll keep you posted.
-          </p>
-          <WaitlistForm />
-          <p className="mt-4 text-xs text-snow/40">
-            We&apos;ll never spam you. Just one email when it&apos;s your turn.
-          </p>
+          <p className="text-xs text-snow/50">Free during early access</p>
         </div>
       </section>
 
@@ -266,7 +311,19 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 text-center">
           <span className="font-display text-xl tracking-tight text-snow/70">oversikt</span>
 
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+            <Link href="/faq" className="text-snow/40 hover:text-snow/70">
+              FAQ
+            </Link>
+            <span className="text-snow/20">&middot;</span>
+            <Link href="/compare/ynab" className="text-snow/40 hover:text-snow/70">
+              vs YNAB
+            </Link>
+            <span className="text-snow/20">&middot;</span>
+            <Link href="/compare/monarch" className="text-snow/40 hover:text-snow/70">
+              vs Monarch
+            </Link>
+            <span className="text-snow/20">&middot;</span>
             <Link href="/security" className="text-snow/40 hover:text-snow/70">
               Security
             </Link>
