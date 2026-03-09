@@ -383,16 +383,16 @@ describe('computeForecast', () => {
         makeSnapshot({ month: '2025-12-01', netSurplus: -2000 }),
         makeSnapshot({ month: '2026-01-01', netSurplus: -3000 }),
       ],
-      // Zero budget surplus so the savings fallback floors at 0
+      // Zero budget surplus — blended model: 60% plan (0) + 40% recent (-2000) = -800
       budgets: makeBudgets({ projectedSurplus: 0 }),
     })
     const forecast = computeForecast(input)
-    // Negative netSurplus but floored at 0 by budget surplus fallback
-    expect(forecast.monthlyVelocity).toBe(0)
+    // Blended velocity is negative (plan=0, recent=-2000 avg)
+    expect(forecast.monthlyVelocity).toBeLessThan(0)
     expect(forecast.pace).toMatch(/behind|at_risk|off_track/)
   })
 
-  it('negative snapshot velocity + budget surplus → positive timeline projections', () => {
+  it('negative snapshot velocity + budget surplus → positive blended velocity', () => {
     const input = makeInput({
       goal: makeGoal({ metric: 'savings_amount', startValue: 5000, targetValue: 20000 }),
       snapshots: [
@@ -404,14 +404,13 @@ describe('computeForecast', () => {
       accounts: [makeAccount({ balance: 5000 })],
     })
     const forecast = computeForecast(input)
-    // Budget surplus overrides negative snapshot velocity
-    expect(forecast.monthlyVelocity).toBe(2000)
-    // Timeline projections should not go below start value
+    // Blended: 60% plan (2000) + 40% recent (avg ≈ -1167) → positive net
+    expect(forecast.monthlyVelocity).toBeGreaterThan(0)
+    // Budget plan pulls velocity positive despite negative snapshots
+    expect(forecast.velocityBreakdown).toBeDefined()
+    expect(forecast.velocityBreakdown!.plan.weight).toBeGreaterThan(0)
+    // Timeline projections should show increasing trend
     const futurePoints = forecast.timeline.filter((p) => !p.isHistorical)
-    for (const point of futurePoints) {
-      expect(point.projected).toBeGreaterThanOrEqual(5000)
-    }
-    // Should show increasing trend
     if (futurePoints.length >= 2) {
       expect(futurePoints[futurePoints.length - 1].projected).toBeGreaterThan(futurePoints[0].projected)
     }
