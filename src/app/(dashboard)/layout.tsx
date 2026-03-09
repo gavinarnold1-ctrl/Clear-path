@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { DEMO_USER_ID } from '@/lib/demo'
 import SidebarNav from '@/components/layout/SidebarNav'
 import type { NavGroup } from '@/components/layout/SidebarNav'
+import BottomTabBar from '@/components/layout/BottomTabBar'
 import { PostHogIdentify } from '@/components/analytics/PostHogIdentify'
 import { FeedbackWidget } from '@/components/feedback/FeedbackWidget'
 import { TokenRotation } from '@/components/auth/TokenRotation'
@@ -121,7 +122,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       )}
 
       {/* Main content — Snow background */}
-      <main id="main-content" className="flex-1 overflow-y-auto bg-snow p-4 pt-16 md:p-8 md:pt-8">
+      <main id="main-content" className="flex-1 overflow-y-auto bg-snow p-4 pb-20 md:p-8 md:pb-8">
         {isDemo && (
           <div className="mb-4 flex items-center justify-between rounded-card bg-birch/30 px-4 py-2.5 text-sm text-midnight">
             <span>
@@ -135,6 +136,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {children}
       </main>
 
+      <BottomTabBar logoutAction={logout} />
       <FeedbackWidget />
       <TokenRotation />
     </div>
