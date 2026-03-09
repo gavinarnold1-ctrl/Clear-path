@@ -6,13 +6,13 @@ export const metadata: Metadata = { title: 'Sign in' }
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-snow px-4">
-      <div className="card w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-fjord font-display text-sm text-snow">
+    <div className="flex min-h-dvh items-center justify-center bg-snow px-4 py-8">
+      <div className="card mx-auto w-full max-w-sm">
+        <div className="mb-6 flex items-center justify-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-fjord font-display text-base text-snow">
             O
           </span>
-          <Link href="/" className="font-display text-base text-fjord">
+          <Link href="/" className="font-display text-lg text-fjord">
             oversikt
           </Link>
         </div>

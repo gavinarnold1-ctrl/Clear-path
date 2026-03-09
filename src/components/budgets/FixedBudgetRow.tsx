@@ -58,14 +58,14 @@ export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAuto
       </div>
       <div className="text-right">
         {status === 'variance' && spent > 0 ? (
-          <span className="text-sm font-semibold text-birch">
+          <span className="font-mono text-sm font-semibold text-birch">
             {formatCurrency(spent)}{' '}
             <span className="text-xs text-stone">(was {formatCurrency(amount)})</span>
           </span>
         ) : status === 'missed' ? (
           <span className="text-sm font-semibold text-ember">MISSED</span>
         ) : (
-          <span className="text-sm font-semibold text-fjord">{formatCurrency(amount)}</span>
+          <span className="font-mono text-sm font-semibold text-fjord">{formatCurrency(amount)}</span>
         )}
       </div>
     </>

@@ -107,15 +107,15 @@ export default async function DebtsPage() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-stone">Total Debt</p>
-              <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(totalDebt)}</p>
+              <p className="mt-1 font-mono text-2xl font-bold text-fjord">{formatCurrency(totalDebt)}</p>
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-stone">Monthly Payments</p>
-              <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(totalPayments)}</p>
+              <p className="mt-1 font-mono text-2xl font-bold text-fjord">{formatCurrency(totalPayments)}</p>
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-stone">Avg Interest Rate</p>
-              <p className="mt-1 text-2xl font-bold text-fjord">{(weightedRate * 100).toFixed(2)}%</p>
+              <p className="mt-1 font-mono text-2xl font-bold text-fjord">{(weightedRate * 100).toFixed(2)}%</p>
             </div>
           </div>
         </div>
@@ -125,12 +125,12 @@ export default async function DebtsPage() {
 
       {/* Cross-links */}
       {debts.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href="/forecast?focus=debt"
-            className="rounded-button border border-mist bg-frost/50 px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
+            className="rounded-button border border-mist bg-frost/50 px-4 py-3 text-center text-sm font-medium text-fjord transition-colors hover:bg-frost hover:text-pine"
           >
-            See payoff timeline →
+            See payoff timeline &rarr;
           </Link>
           <div className="rounded-button border border-mist bg-frost/50 px-4 py-3 text-sm text-stone">
             Review your{' '}

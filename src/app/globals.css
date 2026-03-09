@@ -67,7 +67,8 @@
 
   /* Form input — Mist border, Fjord focus ring */
   .input {
-    @apply block w-full rounded-button border border-mist bg-snow px-3 py-2 text-sm shadow-sm placeholder:text-stone focus-visible:border-fjord focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-fjord/40;
+    @apply block w-full rounded-button border border-mist bg-snow px-3 py-2.5 text-base shadow-sm placeholder:text-stone focus-visible:border-fjord focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-fjord/40 sm:text-sm;
+    min-height: 48px;
   }
 
   /* Global focus-visible ring for all interactive elements */

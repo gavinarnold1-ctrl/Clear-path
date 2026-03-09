@@ -42,33 +42,33 @@ export default function TrueRemainingBanner({
 
   return (
     <div className={`mb-6 rounded-xl border-2 p-5 ${colorClass}`}>
-      <div className="mb-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4 sm:gap-x-6">
         <div>
           <p className="font-medium text-stone">{expectedIncome > 0 ? 'Expected Income' : 'Income'}</p>
-          <p className="text-lg font-semibold text-fjord">{formatCurrency(displayIncome)}</p>
+          <p className="font-mono text-lg font-semibold text-fjord">{formatCurrency(displayIncome)}</p>
           {expectedIncome > 0 && income !== expectedIncome && (
-            <p className="text-xs text-stone">{formatCurrency(income)} received</p>
+            <p className="font-mono text-xs text-stone">{formatCurrency(income)} received</p>
           )}
         </div>
         <div>
           <p className="font-medium text-stone">Fixed</p>
-          <p className="text-lg font-semibold text-fjord">{formatCurrency(fixedTotal)}</p>
+          <p className="font-mono text-lg font-semibold text-fjord">{formatCurrency(fixedTotal)}</p>
         </div>
         <div>
           <p className="font-medium text-stone">Flexible</p>
-          <p className={`text-lg font-semibold ${flexibleColorClass}`}>{formatCurrency(flexibleBudget)}</p>
-          <p className="text-xs text-stone">
+          <p className={`font-mono text-lg font-semibold ${flexibleColorClass}`}>{formatCurrency(flexibleBudget)}</p>
+          <p className="font-mono text-xs text-stone">
             {formatCurrency(flexibleSpent)} spent
           </p>
         </div>
         <div>
           <p className="font-medium text-stone">Annual Set-Aside</p>
-          <p className="text-lg font-semibold text-fjord">{formatCurrency(annualSetAside)}</p>
+          <p className="font-mono text-lg font-semibold text-fjord">{formatCurrency(annualSetAside)}</p>
         </div>
       </div>
       <div className="border-t border-mist pt-3">
         <p className="text-xs font-medium uppercase tracking-wide text-stone">True Remaining</p>
-        <p className={`text-3xl font-bold ${amountColorClass}`}>
+        <p className={`font-mono text-3xl font-bold ${amountColorClass}`}>
           {formatCurrency(trueRemaining)}
         </p>
       </div>

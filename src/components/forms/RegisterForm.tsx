@@ -45,15 +45,15 @@ export default function RegisterForm() {
         required
       />
 
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-3">
         <input
           id="tos"
           name="tos"
           type="checkbox"
-          className="mt-1 h-4 w-4 rounded-badge border-mist text-fjord accent-fjord focus:ring-fjord"
+          className="mt-0.5 h-5 w-5 shrink-0 rounded-badge border-mist text-fjord accent-fjord focus:ring-fjord"
           required
         />
-        <label htmlFor="tos" className="text-sm text-stone">
+        <label htmlFor="tos" className="text-sm leading-snug text-stone">
           I agree to the{' '}
           <a
             href="/terms"

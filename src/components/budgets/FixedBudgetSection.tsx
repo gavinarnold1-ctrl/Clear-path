@@ -92,7 +92,7 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
           <h2 className="text-lg font-semibold text-fjord">
             Fixed{' '}
             <span className="text-sm font-normal text-stone">
-              ({formatCurrency(total)}/mo &middot; {paidCount}/{budgets.length} paid)
+              (<span className="font-mono">{formatCurrency(total)}</span>/mo &middot; {paidCount}/{budgets.length} paid)
             </span>
           </h2>
           <span className="flex items-center gap-1 text-xs text-stone transition-colors hover:text-fjord">

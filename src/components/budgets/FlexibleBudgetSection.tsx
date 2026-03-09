@@ -90,11 +90,11 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
           <p className="mb-3 text-xs text-stone">Variable spending you control — track against a monthly limit</p>
 
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-sm font-semibold text-fjord">
+            <span className="font-mono text-sm font-semibold text-fjord">
               {formatCurrency(rollupSpent)}
               <span className="font-normal text-stone"> of {formatCurrency(rollupBudget)}</span>
             </span>
-            <span className={`text-sm font-semibold ${rollupColor}`}>{rollupPct}%</span>
+            <span className={`font-mono text-sm font-semibold ${rollupColor}`}>{rollupPct}%</span>
           </div>
           <ProgressBar value={rollupPct} paceMarker={rollupPace.paceMarkerPct} />
           <div className="mt-1 flex items-center justify-between text-xs">
