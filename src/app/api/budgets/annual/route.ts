@@ -43,7 +43,9 @@ export async function GET() {
     }
   })
 
-  return NextResponse.json(enriched)
+  return NextResponse.json(enriched, {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+  })
 }
 
 export async function POST(request: Request) {

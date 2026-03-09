@@ -16,7 +16,36 @@ export async function GET(req: NextRequest) {
       userId: session.userId,
       ...(tier && VALID_TIERS.has(tier) ? { tier: tier as 'FIXED' | 'FLEXIBLE' | 'ANNUAL' } : {}),
     },
-    include: { category: true, annualExpense: true },
+    select: {
+      id: true,
+      name: true,
+      amount: true,
+      tier: true,
+      period: true,
+      startDate: true,
+      endDate: true,
+      categoryId: true,
+      isAutoPay: true,
+      dueDay: true,
+      varianceLimit: true,
+      sortOrder: true,
+      category: {
+        select: { id: true, name: true, group: true, icon: true },
+      },
+      annualExpense: {
+        select: {
+          id: true,
+          name: true,
+          annualAmount: true,
+          dueMonth: true,
+          dueYear: true,
+          isRecurring: true,
+          funded: true,
+          status: true,
+          monthlySetAside: true,
+        },
+      },
+    },
     orderBy: { startDate: 'desc' },
   })
 

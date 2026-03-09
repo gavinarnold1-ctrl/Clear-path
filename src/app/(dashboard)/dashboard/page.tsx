@@ -5,7 +5,14 @@ import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import MonthPicker from './MonthPicker'
-import MonthlyChart from '@/components/dashboard/MonthlyChart'
+import dynamic from 'next/dynamic'
+
+const MonthlyChart = dynamic(() => import('@/components/dashboard/MonthlyChart'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 animate-pulse rounded-card bg-mist/30" />
+  ),
+})
 import ValueTracker from '@/components/dashboard/ValueTracker'
 import TrueRemainingBanner from '@/components/budgets/TrueRemainingBanner'
 import GetStarted from '@/components/onboarding/GetStarted'
@@ -127,7 +134,27 @@ export default async function DashboardPage({ searchParams }: Props) {
         startDate: { lte: now },
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
-      include: { category: true, annualExpense: true },
+      select: {
+        id: true,
+        name: true,
+        amount: true,
+        tier: true,
+        period: true,
+        startDate: true,
+        endDate: true,
+        categoryId: true,
+        category: {
+          select: { id: true, name: true, group: true },
+        },
+        annualExpense: {
+          select: {
+            id: true,
+            annualAmount: true,
+            monthlySetAside: true,
+            funded: true,
+          },
+        },
+      },
     }),
     // Current month expense transactions for live budget spent computation (exclude transfers)
     db.transaction.findMany({
