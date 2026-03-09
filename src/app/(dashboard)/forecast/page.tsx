@@ -7,14 +7,7 @@ import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { piBreakdown } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
-import dynamic from 'next/dynamic'
-
-const ForecastTimeline = dynamic(() => import('./ForecastTimeline'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-80 animate-pulse rounded-card bg-mist/30" />
-  ),
-})
+import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
 import type { Forecast, AssetClass, IncomeTransition, GoalTarget } from '@/types'
 
