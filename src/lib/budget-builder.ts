@@ -458,13 +458,13 @@ STANDARD BUDGET SLOT NAMES:
 Use these exact names when a matching expense is detected. Only include slots that have supporting transaction data. You may add unlisted slots if a significant recurring expense doesn't fit any standard name.
 
 FIXED slots (use exact name if detected):
-${BUDGET_SCAFFOLD.fixed.map(s => `- "${s.name}" → category: ${s.category}${s.note ? ` (${s.note})` : ''}`).join('\n')}
+${BUDGET_SCAFFOLD.fixed.map(s => `- "${s.name}" → category: ${s.category}${'note' in s ? ` (${s.note})` : ''}`).join('\n')}
 
 FLEXIBLE slots (use exact name if detected):
-${BUDGET_SCAFFOLD.flexible.map(s => `- "${s.name}" → category: ${s.category}${s.note ? ` (${s.note})` : ''}`).join('\n')}
+${BUDGET_SCAFFOLD.flexible.map(s => `- "${s.name}" → category: ${s.category}${'note' in s ? ` (${s.note})` : ''}`).join('\n')}
 
 ANNUAL slots (suggest if appropriate, even without explicit transaction data):
-${BUDGET_SCAFFOLD.annual.map(s => `- "${s.name}" → category: ${s.category}${s.note ? ` (${s.note})` : ''}`).join('\n')}
+${BUDGET_SCAFFOLD.annual.map(s => `- "${s.name}" → category: ${s.category}${'note' in s ? ` (${s.note})` : ''}`).join('\n')}
 
 NAMING RULES:
 - Use the EXACT standard name from above when a match exists. Do NOT rename "Groceries" to "Food Shopping" or "Grocery Budget".
