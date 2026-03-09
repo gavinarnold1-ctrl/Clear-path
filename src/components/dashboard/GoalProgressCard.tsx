@@ -82,6 +82,16 @@ export default function GoalProgressCard({
         </div>
       </div>
 
+      {/* Goal pace comparison */}
+      {target.monthlyNeeded != null && target.monthlyNeeded > 0 && (() => {
+        const paceInfo = getGoalPaceInfo(trueRemaining, target.monthlyNeeded)
+        return (
+          <p className={`mt-3 text-xs font-medium ${paceInfo.color}`}>
+            {paceInfo.label}
+          </p>
+        )
+      })()}
+
       {/* True Remaining — contextualized */}
       <div className="mt-4 rounded-lg bg-frost/50 px-4 py-3">
         <div className="flex items-baseline justify-between">
@@ -130,6 +140,21 @@ function getTrueRemainingContext(goal: PrimaryGoal, remaining: number, target: G
       return remaining >= monthly
         ? `${formatCurrency(remaining)} available for wealth-building \u2014 savings + debt reduction this month`
         : `${formatCurrency(monthly - remaining)} short of monthly wealth-building target`
+  }
+}
+
+function getGoalPaceInfo(actual: number, needed: number): { label: string; color: string } {
+  if (needed <= 0) return { label: 'No target set', color: 'text-stone' }
+  const delta = actual - needed
+  const ratio = actual / needed
+  if (ratio >= 1.10) {
+    return { label: `${formatCurrency(delta)}/mo ahead of target`, color: 'text-pine' }
+  } else if (ratio >= 0.95) {
+    return { label: 'On track — meeting your monthly target', color: 'text-pine' }
+  } else if (ratio >= 0.75) {
+    return { label: `${formatCurrency(Math.abs(delta))}/mo below target`, color: 'text-ember' }
+  } else {
+    return { label: `${formatCurrency(Math.abs(delta))}/mo behind — consider adjusting`, color: 'text-ember' }
   }
 }
 

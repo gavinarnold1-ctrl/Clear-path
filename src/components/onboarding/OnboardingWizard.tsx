@@ -221,7 +221,7 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
 function StepGoal({ value, onChange }: { value: PrimaryGoal | null; onChange: (v: PrimaryGoal) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">What matters most for your money right now?</h2>
+      <h2 className="mb-1 font-display text-xl font-bold text-fjord">What matters most for your money right now?</h2>
       <p className="mb-6 text-sm text-stone">
         This drives everything &mdash; your budget suggestions, insights, and progress tracking.
       </p>
@@ -262,7 +262,7 @@ function StepHousehold({
 }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">Who are you budgeting for?</h2>
+      <h2 className="mb-1 font-display text-xl font-bold text-fjord">Who are you budgeting for?</h2>
       <p className="mb-6 text-sm text-stone">Helps us set up the right tracking features.</p>
       <div className="space-y-2">
         {HOUSEHOLD_OPTIONS.map((opt) => (
@@ -303,7 +303,7 @@ function StepHousehold({
 function StepIncome({ value, onChange }: { value: IncomeRange | null; onChange: (v: IncomeRange) => void }) {
   return (
     <div>
-      <h2 className="mb-1 text-xl font-bold text-fjord">What&apos;s your household&apos;s approximate income?</h2>
+      <h2 className="mb-1 font-display text-xl font-bold text-fjord">What&apos;s your household&apos;s approximate income?</h2>
       <p className="mb-6 text-sm text-stone">
         This helps us personalize your benchmarks. We never store your exact salary.
       </p>

@@ -5,7 +5,7 @@ import { getSession } from '@/lib/session'
 import { getCachedForecast, getForecastAccuracy } from '@/lib/forecast-helpers'
 import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
-import { piBreakdown } from '@/lib/engines/amortization'
+import { piBreakdown, amortizationSchedule } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
 import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
@@ -150,24 +150,41 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
       </div>
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}
-      {focusDebt && debtPayoffData.length > 0 && (
-        <div className="card mb-6">
-          <h2 className="mb-4 text-base font-semibold text-fjord">Debt Payoff Timeline</h2>
-          <div className="space-y-3">
-            {debtPayoffData.map((debt) => {
-              const pi = piBreakdown(debt.currentBalance, debt.interestRate, debt.minimumPayment, debt.escrowAmount)
-              const payoffDate = pi.monthsRemaining != null
-                ? new Date(new Date().getFullYear(), new Date().getMonth() + pi.monthsRemaining, 1)
-                : null
-              const totalInterest = pi.monthsRemaining != null
-                ? pi.monthlyInterest * pi.monthsRemaining
-                : null
-              return (
+      {focusDebt && debtPayoffData.length > 0 && (() => {
+        const interestMap = new Map<string, number>()
+        const debtRows = debtPayoffData.map((debt) => {
+          const pi = piBreakdown(debt.currentBalance, debt.interestRate, debt.minimumPayment, debt.escrowAmount)
+          const payoffDate = pi.monthsRemaining != null
+            ? new Date(new Date().getFullYear(), new Date().getMonth() + pi.monthsRemaining, 1)
+            : null
+
+          let totalInterest: number | null = null
+          if (pi.monthsRemaining != null && pi.monthsRemaining > 0 && pi.piPayment > 0) {
+            const schedule = amortizationSchedule({
+              principal: Number(debt.currentBalance),
+              annualRate: Number(debt.interestRate),
+              termMonths: pi.monthsRemaining,
+            })
+            totalInterest = schedule.totalInterest
+          }
+
+          if (totalInterest != null) interestMap.set(debt.id, totalInterest)
+
+          return { debt, pi, payoffDate, totalInterest }
+        })
+
+        const totalInterestSum = Array.from(interestMap.values()).reduce((s, v) => s + v, 0)
+
+        return (
+          <div className="card mb-6">
+            <h2 className="mb-4 text-base font-semibold text-fjord">Debt Payoff Timeline</h2>
+            <div className="space-y-3">
+              {debtRows.map(({ debt, pi, payoffDate, totalInterest }) => (
                 <div key={debt.id} className="flex items-center justify-between rounded-lg border border-mist bg-frost/30 px-4 py-3">
                   <div>
                     <p className="text-sm font-medium text-fjord">{debt.name}</p>
                     <p className="text-xs text-stone">
-                      {formatCurrency(debt.currentBalance)} at {(debt.interestRate * 100).toFixed(1)}%
+                      <span className="font-mono">{formatCurrency(debt.currentBalance)}</span> at <span className="font-mono">{(debt.interestRate * 100).toFixed(1)}%</span>
                     </p>
                   </div>
                   <div className="text-right">
@@ -177,11 +194,11 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
                           {payoffDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-xs text-stone">
-                          {pi.monthsRemaining} months &middot; {formatCurrency(pi.monthlyPrincipal)}/mo principal
+                          {pi.monthsRemaining} months &middot; <span className="font-mono">{formatCurrency(pi.monthlyPrincipal)}</span>/mo principal
                         </p>
                         {totalInterest != null && totalInterest > 0 && (
                           <p className="text-xs text-ember">
-                            {formatCurrency(totalInterest)} remaining interest
+                            <span className="font-mono">{formatCurrency(totalInterest)}</span> interest to payoff
                           </p>
                         )}
                       </>
@@ -190,17 +207,25 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
                     )}
                   </div>
                 </div>
-              )
-            })}
-            <div className="flex items-center justify-between border-t border-mist pt-3">
-              <span className="text-sm font-semibold text-fjord">Total Debt</span>
-              <span className="font-mono text-sm font-semibold text-fjord">
-                {formatCurrency(debtPayoffData.reduce((s, d) => s + d.currentBalance, 0))}
-              </span>
+              ))}
+              <div className="flex items-center justify-between border-t border-mist pt-3">
+                <span className="text-sm font-semibold text-fjord">Total Debt</span>
+                <span className="font-mono text-sm font-semibold text-fjord">
+                  {formatCurrency(debtPayoffData.reduce((s, d) => s + d.currentBalance, 0))}
+                </span>
+              </div>
+              {totalInterestSum > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-stone">Total Interest to Payoff</span>
+                  <span className="font-mono text-sm text-ember">
+                    {formatCurrency(totalInterestSum)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Section 2: Pace Summary Cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

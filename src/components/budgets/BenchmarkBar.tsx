@@ -14,12 +14,12 @@ export default function BenchmarkBar({ benchmark, goalAware, primaryGoal }: Prop
     under: 'text-pine',
     at: 'text-stone',
     over: 'text-ember',
-    way_over: 'text-red-600',
+    way_over: 'text-ember',
   }
 
   return (
     <div className="mt-2 flex items-center gap-2 text-xs">
-      <span className="text-stone">
+      <span className="font-mono text-stone">
         vs bracket avg {formatCurrency(blsMonthlyAvg)}
       </span>
       <span className={`font-medium ${statusColors[status]}`}>

@@ -61,6 +61,7 @@ interface TransactionRow {
   property: { id: string; name: string } | null
   classification?: string
   annualExpenseId?: string | null
+  annualExpenseName?: string | null
   isPending?: boolean
   tags?: string | null
   splits?: SplitRow[]
@@ -87,12 +88,13 @@ interface Props {
   initialTier?: string
   initialCatchAll?: boolean
   initialBudgetName?: string
+  serverBudgetFiltered?: boolean
   refundedTxIds?: string[]
   initialTotal?: number
   isInsightView?: boolean
 }
 
-export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', refundedTxIds = [], initialTotal = 0, isInsightView = false }: Props) {
+export default function TransactionList({ transactions: initial, categories, accounts, householdMembers = [], properties = [], propertyGroups = [], initialCategoryId = '', initialMonth = '', initialPersonId = '', initialPropertyId = '', initialAccountId = '', initialSearch = '', initialClassification = '', initialAnnualExpenseId = '', initialAnnualExpenseName = '', initialUncategorized = false, initialBudgetId = '', initialTier = '', initialCatchAll = false, initialBudgetName = '', serverBudgetFiltered = false, refundedTxIds = [], initialTotal = 0, isInsightView = false }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -201,7 +203,9 @@ export default function TransactionList({ transactions: initial, categories, acc
   }, [searchText])
 
   // Fetch budget-specific transaction IDs when budgetId or catchAll is active
+  // Skip if server already filtered (serverBudgetFiltered prop)
   useEffect(() => {
+    if (serverBudgetFiltered) return
     if (!initialBudgetId && !initialCatchAll) return
 
     setBudgetFilterLoading(true)
@@ -219,7 +223,7 @@ export default function TransactionList({ transactions: initial, categories, acc
         setBudgetFilterLoading(false)
       })
       .catch(() => setBudgetFilterLoading(false))
-  }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName])
+  }, [initialBudgetId, initialCatchAll, filterMonth, initialBudgetName, serverBudgetFiltered])
 
   // Debounce search text for server-side filtering (300ms)
   useEffect(() => {
@@ -289,7 +293,17 @@ export default function TransactionList({ transactions: initial, categories, acc
 
   // Apply filters (declared early — used by selection helpers and render)
   const filteredTransactions = transactions.filter((tx) => {
-    // Budget-specific filter: when active, only show transactions the API computed for this budget
+    // Server-filtered budget mode: transactions are already the correct set
+    if (serverBudgetFiltered && isBudgetMode) {
+      // Only apply search filter on top of server-filtered results
+      if (searchText) {
+        const q = searchText.toLowerCase()
+        const haystack = [tx.merchant, tx.category?.name, tx.account?.name, tx.notes].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    }
+    // Client-side budget filter fallback (when server didn't filter)
     if (budgetTxIds !== null) {
       if (!budgetTxIds.has(tx.id)) return false
       // Still apply month filter for consistency
@@ -795,7 +809,7 @@ export default function TransactionList({ transactions: initial, categories, acc
               )}
             </h2>
             <p className="text-sm text-stone">
-              {budgetFilterLoading
+              {budgetFilterLoading && !serverBudgetFiltered
                 ? 'Loading budget transactions...'
                 : filteredTransactions.length === 0
                   ? 'No transactions match this budget.'
@@ -808,10 +822,10 @@ export default function TransactionList({ transactions: initial, categories, acc
             )}
           </div>
           <a
-            href="/transactions"
+            href="/budgets"
             className="text-xs text-stone hover:text-fjord"
           >
-            Clear filter
+            Back to Budgets
           </a>
         </div>
       )}
@@ -964,6 +978,9 @@ export default function TransactionList({ transactions: initial, categories, acc
                     {tx.classification === 'perk_reimbursement' && (
                       <span className="ml-1.5 rounded-badge bg-pine/15 px-1.5 py-0.5 text-[10px] font-medium text-pine">Card Perk</span>
                     )}
+                    {tx.annualExpenseId && (
+                      <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone" title={tx.annualExpenseName ?? 'Annual Plan'}>Annual Plan</span>
+                    )}
                   </p>
                   <span className={`shrink-0 text-sm font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {tx.amount < 0 ? '−' : '+'}{formatCurrency(Math.abs(tx.amount))}
@@ -1025,7 +1042,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     )}
                     <div className="flex gap-2 pt-1">
                       <button
-                        onClick={() => startEdit(tx)}
+                        onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
                         className="rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
                       >
                         Edit
@@ -1033,13 +1050,13 @@ export default function TransactionList({ transactions: initial, categories, acc
                       {deleteConfirmId === tx.id ? (
                         <span className="inline-flex items-center gap-1.5">
                           <button
-                            onClick={() => { handleDelete(tx.id); setDeleteConfirmId(null) }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); setDeleteConfirmId(null) }}
                             className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
                           >
                             Confirm Delete
                           </button>
                           <button
-                            onClick={() => setDeleteConfirmId(null)}
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null) }}
                             className="text-xs text-stone hover:text-fjord"
                           >
                             Cancel
@@ -1047,7 +1064,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                         </span>
                       ) : (
                         <button
-                          onClick={() => setDeleteConfirmId(tx.id)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(tx.id) }}
                           className="rounded-button border border-mist px-3 py-1.5 text-xs text-stone hover:text-ember"
                         >
                           Delete
@@ -1472,7 +1489,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                   </td>
                   <td className="px-4 py-3 text-stone" onClick={(e) => { if (!tx.categoryId) e.stopPropagation() }}>
                     {tx.category?.name ? (
-                      tx.category.name
+                      <span>
+                        {tx.category.name}
+                        {tx.annualExpenseId && (
+                          <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone" title={tx.annualExpenseName ?? 'Annual Plan'}>Annual Plan</span>
+                        )}
+                      </span>
                     ) : (
                       <select
                         value=""

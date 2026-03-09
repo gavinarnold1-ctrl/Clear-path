@@ -350,10 +350,10 @@ export default async function PropertiesPage({ searchParams }: Props) {
         <h1 className="font-display text-2xl font-semibold text-fjord">
           Properties & Businesses
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <AddPropertyButton accounts={accountsForWizard} />
           <MonthPicker currentMonth={monthParam} />
-          <Link href="/settings" className="text-sm text-stone hover:text-fjord">
+          <Link href="/settings" className="whitespace-nowrap text-sm text-stone hover:text-fjord">
             Manage in Settings
           </Link>
         </div>
