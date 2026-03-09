@@ -21,12 +21,13 @@ export default async function AnnualPlanningPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const [expenses, categories, allBudgets, incomeAgg, monthExpenses] = await Promise.all([
+  const [expenses, categories, allBudgets, incomeAgg, monthExpenses, properties] = await Promise.all([
     db.annualExpense.findMany({
       where: { userId: session.userId },
       include: {
         budget: { include: { category: true } },
         transactions: { select: { id: true, amount: true } },
+        property: { select: { id: true, name: true, type: true } },
       },
       orderBy: [{ dueYear: 'asc' }, { dueMonth: 'asc' }],
     }),
@@ -58,6 +59,11 @@ export default async function AnnualPlanningPage() {
         amount: { lt: 0 },
       },
       select: { categoryId: true, amount: true, annualExpenseId: true },
+    }),
+    db.property.findMany({
+      where: { userId: session.userId },
+      select: { id: true, name: true, type: true },
+      orderBy: { name: 'asc' },
     }),
   ])
 
@@ -185,6 +191,7 @@ export default async function AnnualPlanningPage() {
         trueRemaining={trueRemaining}
         monthlyBurden={monthlyBurden}
         categories={categoryOptions}
+        properties={properties}
       />
 
       <YearEndProjection expenses={enriched} monthlyBurden={monthlyBurden} />

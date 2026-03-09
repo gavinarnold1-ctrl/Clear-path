@@ -266,12 +266,16 @@ model AnnualExpense {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  propertyId   String?
+  property     Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
   @@index([userId, dueYear, dueMonth])
   @@index([budgetId])
+  @@index([propertyId])
 }
 
 model Insight {
@@ -449,6 +453,7 @@ model Property {
   // Existing relationships
   transactions      Transaction[]
   debts             Debt[]
+  annualExpenses    AnnualExpense[]
   accountLinks      AccountPropertyLink[]
   splitAllocations  SplitRule[]
   transactionSplits TransactionSplit[] @relation("TransactionSplitProperty")

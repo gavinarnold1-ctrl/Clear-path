@@ -161,6 +161,7 @@ export async function PATCH(
         isRecurring,
         notes: editNotes,
         categoryId,
+        propertyId,
       } = body
 
       const updateData: Record<string, unknown> = {}
@@ -170,6 +171,7 @@ export async function PATCH(
       if (dueYear !== undefined) updateData.dueYear = dueYear
       if (isRecurring !== undefined) updateData.isRecurring = isRecurring
       if (editNotes !== undefined) updateData.notes = editNotes?.trim() || null
+      if (propertyId !== undefined) updateData.propertyId = propertyId || null
 
       // Recalculate monthlySetAside if amount or due date changed
       if (annualAmount !== undefined || dueMonth !== undefined || dueYear !== undefined) {
@@ -190,7 +192,7 @@ export async function PATCH(
       const updated = await db.annualExpense.update({
         where: { id },
         data: updateData,
-        include: { budget: { include: { category: true } } },
+        include: { budget: { include: { category: true } }, property: { select: { id: true, name: true, type: true } } },
       })
 
       // Also update parent budget if name, category, or set-aside changed.

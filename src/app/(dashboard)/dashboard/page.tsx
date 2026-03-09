@@ -382,6 +382,25 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
+      {/* Quick navigation */}
+      <div className="mb-6 flex flex-wrap gap-2 text-xs">
+        {[
+          { href: '/monthly-review', label: 'Monthly Review' },
+          { href: '/forecast', label: 'Forecast' },
+          { href: '/debts', label: 'Debts' },
+          { href: '/properties', label: 'Properties' },
+          { href: '/spending', label: 'Spending' },
+        ].map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="rounded-full border border-mist px-3 py-1 text-stone transition-colors hover:border-fjord hover:text-fjord"
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+
       {/* Row 1: Goal Progress Hero */}
       {hasGoal && goalContext && userProfile?.primaryGoal ? (
         <GoalProgressCard
@@ -441,20 +460,27 @@ export default async function DashboardPage({ searchParams }: Props) {
 
       {/* Row 3: Budget Health Cards */}
       {hasBudgets && (
-        <BudgetHealthCards
-          fixedPaid={fixedPaidCount}
-          fixedTotal={fixedBudgets.length}
-          flexibleSpent={flexibleSpent}
-          flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
-          flexibleUnderBudget={flexibleUnderBudget}
-          primaryGoal={(userProfile?.primaryGoal as PrimaryGoal) ?? null}
-          annualFundProgress={annualFundProgress}
-          annualFundTotal={annualFundTotal}
-          totalDebt={totalDebt}
-          debtPayments={debtPayments}
-          categorizationPct={categorizationPct}
-          netWorth={netWorth}
-        />
+        <>
+          <BudgetHealthCards
+            fixedPaid={fixedPaidCount}
+            fixedTotal={fixedBudgets.length}
+            flexibleSpent={flexibleSpent}
+            flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
+            flexibleUnderBudget={flexibleUnderBudget}
+            primaryGoal={(userProfile?.primaryGoal as PrimaryGoal) ?? null}
+            annualFundProgress={annualFundProgress}
+            annualFundTotal={annualFundTotal}
+            totalDebt={totalDebt}
+            debtPayments={debtPayments}
+            categorizationPct={categorizationPct}
+            netWorth={netWorth}
+          />
+          <div className="mb-6 -mt-4 text-right">
+            <Link href="/budgets" className="text-xs font-medium text-fjord hover:underline">
+              Manage budgets →
+            </Link>
+          </div>
+        </>
       )}
 
       {/* Row 4: Attention Items */}
@@ -493,6 +519,11 @@ export default async function DashboardPage({ searchParams }: Props) {
       {/* Chart */}
       <div className="mb-8">
         <MonthlyChart data={chartSeries} goalMonthlySurplus={goalTarget?.monthlyNeeded} />
+        <div className="mt-2 text-right">
+          <Link href="/monthly-review" className="text-xs font-medium text-fjord hover:underline">
+            Monthly review →
+          </Link>
+        </div>
       </div>
 
       {/* Goal-driven cross-links */}

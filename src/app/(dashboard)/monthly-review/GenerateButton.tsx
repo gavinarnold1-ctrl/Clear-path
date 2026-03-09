@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { trackInsightsGenerated } from '@/lib/analytics'
 
@@ -19,12 +20,15 @@ export default function GenerateButton({ hasTransactions }: { hasTransactions: b
       if (!res.ok) {
         const data = await res.json()
         setError(data.error ?? 'Failed to generate insights')
+        toast.error('Failed to generate review')
         return
       }
       trackInsightsGenerated(0, 'unknown')
+      toast.success('Monthly review generated')
       router.refresh()
     } catch {
       setError('Network error. Please try again.')
+      toast.error('Failed to generate review')
     } finally {
       setLoading(false)
     }
