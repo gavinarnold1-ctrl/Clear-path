@@ -73,7 +73,7 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
             {fundedPct}% funded
           </span>
         </div>
-        <span className="text-sm text-stone">
+        <span className="font-mono text-sm text-stone">
           {formatCurrency(spent)} / {formatCurrency(ae.annualAmount)}
         </span>
       </div>
@@ -83,7 +83,7 @@ export default function AnnualBudgetRow({ name, categoryId, category, annualExpe
 
       <div className="mt-1 flex items-center justify-between text-xs">
         <span className="text-stone">
-          {formatCurrency(monthlyNeeded)}/mo set-aside
+          <span className="font-mono">{formatCurrency(monthlyNeeded)}</span>/mo set-aside
         </span>
         <span className={ALERT_STYLES[alert.level]}>{alert.message}</span>
       </div>

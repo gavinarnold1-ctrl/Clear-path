@@ -663,19 +663,19 @@ function GroupedDebtCard({
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <p className="text-xs text-stone">Total Balance</p>
-          <p className="text-lg font-bold text-fjord">{formatCurrency(totalBalance)}</p>
+          <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(totalBalance)}</p>
         </div>
         <div>
           <p className="text-xs text-stone">Rate</p>
-          <p className="text-lg font-bold text-fjord">{(avgRate * 100).toFixed(2)}%</p>
+          <p className="font-mono text-lg font-bold text-fjord">{(avgRate * 100).toFixed(2)}%</p>
         </div>
         <div>
           <p className="text-xs text-stone">Monthly Payment</p>
-          <p className="text-lg font-bold text-fjord">{formatCurrency(totalPayment)}/mo</p>
+          <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(totalPayment)}/mo</p>
         </div>
         <div>
           <p className="text-xs text-stone">Est. Remaining</p>
-          <p className="text-lg font-bold text-fjord">
+          <p className="font-mono text-lg font-bold text-fjord">
             {maxMonthsRemaining !== null
               ? `${Math.floor(maxMonthsRemaining / 12)}y ${maxMonthsRemaining % 12}m`
               : '—'}
@@ -961,19 +961,19 @@ function SingleDebtCard({
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <p className="text-xs text-stone">Balance</p>
-          <p className="text-lg font-bold text-fjord">{formatCurrency(debt.currentBalance)}</p>
+          <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.currentBalance)}</p>
         </div>
         <div>
           <p className="text-xs text-stone">Rate</p>
-          <p className="text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
+          <p className="font-mono text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
         </div>
         <div>
           <p className="text-xs text-stone">Monthly Payment</p>
-          <p className="text-lg font-bold text-fjord">{formatCurrency(debt.minimumPayment)}/mo</p>
+          <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.minimumPayment)}/mo</p>
         </div>
         <div>
           <p className="text-xs text-stone">Est. Remaining</p>
-          <p className="text-lg font-bold text-fjord">
+          <p className="font-mono text-lg font-bold text-fjord">
             {debt.monthsRemaining !== null
               ? `${Math.floor(debt.monthsRemaining / 12)}y ${debt.monthsRemaining % 12}m`
               : '—'}

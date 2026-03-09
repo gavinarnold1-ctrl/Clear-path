@@ -73,7 +73,7 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
             </svg>
           </Link>
         </div>
-        <span className="text-sm text-stone">
+        <span className="font-mono text-sm text-stone">
           <span className={pctColor}>{formatCurrency(spent)}</span>
           {' / '}
           {formatCurrency(amount)}

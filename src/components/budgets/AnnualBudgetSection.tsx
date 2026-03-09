@@ -43,7 +43,7 @@ export default function AnnualBudgetSection({ budgets }: Props) {
             <h2 className="text-lg font-semibold text-fjord">
               Annual{' '}
               <span className="text-sm font-normal text-stone">
-                ({formatCurrency(totalMonthly)}/mo &middot; {formatCurrency(totalFunded)}/{formatCurrency(totalPlanned)} funded)
+                (<span className="font-mono">{formatCurrency(totalMonthly)}</span>/mo &middot; <span className="font-mono">{formatCurrency(totalFunded)}</span>/<span className="font-mono">{formatCurrency(totalPlanned)}</span> funded)
               </span>
             </h2>
             <p className="text-sm text-stone group-open:hidden">Irregular expenses you plan and save for over time</p>

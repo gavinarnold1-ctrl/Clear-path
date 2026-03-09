@@ -27,7 +27,7 @@ export default function UnbudgetedSection({ categories }: Props) {
         <h2 className="text-lg font-semibold text-fjord">Unbudgeted</h2>
         <p className="text-sm text-stone">
           Categories with spending this month but no budget —{' '}
-          <span className="font-medium text-ember">{formatCurrency(totalUnbudgeted)}</span> total
+          <span className="font-mono font-medium text-ember">{formatCurrency(totalUnbudgeted)}</span> total
         </p>
       </div>
       <div className="card divide-y divide-mist">
@@ -44,7 +44,7 @@ export default function UnbudgetedSection({ categories }: Props) {
                 href={`/transactions?categoryId=${cat.categoryId}&month=${getCurrentMonth()}`}
                 className="text-sm font-semibold text-ember hover:underline"
               >
-                {formatCurrency(cat.spent)}
+                <span className="font-mono">{formatCurrency(cat.spent)}</span>
               </Link>
               <Link
                 href={`/budgets/new?categoryId=${cat.categoryId}&tier=FLEXIBLE`}
