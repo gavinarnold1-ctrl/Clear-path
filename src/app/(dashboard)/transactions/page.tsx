@@ -191,14 +191,14 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           <p className="text-sm text-fjord">{forecastSummary.transactions}</p>
         </div>
       )}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold text-fjord">Transactions</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <Button variant="secondary" href="/transactions/import">
             Import CSV
           </Button>
           <Button href="/transactions/new">
-            + Add transaction
+            + Add
           </Button>
         </div>
       </div>

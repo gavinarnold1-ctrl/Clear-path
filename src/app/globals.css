@@ -120,11 +120,12 @@
     width: 100%;
   }
 
-  /* Full-width primary/secondary buttons on mobile */
-  .btn-primary,
-  .btn-secondary,
-  .btn-success,
-  .btn-danger {
+  /* Full-width buttons in standalone forms on mobile (not in flex row layouts) */
+  form > .btn-primary,
+  form > .btn-secondary,
+  form > .btn-success,
+  form > .btn-danger,
+  .btn-full-mobile {
     width: 100%;
     justify-content: center;
   }
