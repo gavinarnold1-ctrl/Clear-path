@@ -20,10 +20,11 @@ const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
   { value: 'lump_sum_payment', label: 'Lump sum debt payment', fields: ['amount'] },
   { value: 'new_expense', label: 'New monthly expense', fields: ['amount'] },
   { value: 'new_debt', label: 'Take on new debt', fields: ['principal', 'rate', 'term'] },
+  { value: 'refinance', label: 'Refinance a debt', fields: ['rate', 'term'] },
   { value: 'property_value_change', label: 'Property value change', fields: ['newValue'] },
 ]
 
-type ScenarioTypeValue = 'new_expense' | 'new_debt' | 'income_change' | 'extra_debt_payment' | 'property_value_change' | 'lump_sum_payment' | 'cut_spending' | 'savings_boost'
+type ScenarioTypeValue = 'new_expense' | 'new_debt' | 'income_change' | 'extra_debt_payment' | 'property_value_change' | 'lump_sum_payment' | 'cut_spending' | 'savings_boost' | 'refinance'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -31,6 +32,14 @@ function formatCurrency(amount: number): string {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+function humanizeScenarioLabel(label: string): string {
+  // Turn "Custom cut_spending" or "cut-flexible-10" into readable labels
+  return label
+    .replace(/^Custom\s+/, '')
+    .replace(/[_-]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function ScenarioTypeIcon({ type }: { type: ForecastScenario['type'] }) {
@@ -115,6 +124,10 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
       } else if (customType === 'savings_boost') {
         params.amount = parseFloat(customAmount)
         params.description = `Save an extra ${formatCurrency(parseFloat(customAmount))}/mo`
+      } else if (customType === 'refinance') {
+        params.rate = parseFloat(customRate) / 100
+        params.term = parseInt(customTerm)
+        params.description = `Refinance to ${customRate}% for ${customTerm} months`
       }
 
       const res = await fetch('/api/forecast', {
@@ -172,7 +185,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                   <ScenarioTypeIcon type={scenario.type} />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-fjord">{scenario.label}</p>
+                      <p className="text-sm font-semibold text-fjord">{humanizeScenarioLabel(scenario.label)}</p>
                       {isActive && (
                         <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-[10px] font-medium text-pine">
                           Active
@@ -228,7 +241,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                           <p className={`font-mono text-sm font-semibold ${cumulativeImpact >= 0 ? 'text-pine' : 'text-ember'}`}>
                             {formatCurrency(Math.abs(cumulativeImpact))}
                           </p>
-                          <p className="text-[10px] uppercase text-stone">Total gain</p>
+                          <p className="text-[10px] uppercase text-stone">{cumulativeImpact >= 0 ? 'Total gain' : 'Total cost'}</p>
                         </div>
                       )}
                     </div>

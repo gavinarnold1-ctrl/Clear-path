@@ -81,12 +81,10 @@ function findBestMatch(
   account: AccountInfo,
   programs: ProgramWithBenefits[]
 ): CardSuggestion | null {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[CardID] Matching account:', {
-      name: account.name,
-      institution: account.institution,
-      normalizedText: normalizeText(`${account.institution ?? ''} ${account.name}`),
-    })
+  // Skip auto-matching for generic card names — they'll appear as unidentified
+  // for manual selection instead of matching the wrong program
+  if (isGenericCardName(account.name, account.institution)) {
+    return null
   }
 
   const accountText = normalizeText(
@@ -215,4 +213,39 @@ function findBestMatch(
 
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
+}
+
+/** Generic card names that carry no identifying information */
+const GENERIC_CARD_NAMES = [
+  'credit card',
+  'credit',
+  'card',
+  'plaid credit card',
+  'plaid card',
+  'visa',
+  'mastercard',
+  'visa credit card',
+  'mastercard credit card',
+  'debit card',
+]
+
+/**
+ * Check if an account name is too generic to auto-match.
+ * Generic names like "Credit Card" or just the bank name should
+ * fall through to the unidentified list for manual selection.
+ */
+function isGenericCardName(accountName: string, institution: string | null): boolean {
+  const normalized = normalizeText(accountName)
+
+  // Direct match against known generic names
+  if (GENERIC_CARD_NAMES.includes(normalized)) return true
+
+  // If the account name is just the institution name (or institution + generic suffix)
+  if (institution) {
+    const instNorm = normalizeText(institution)
+    const withoutInst = normalized.replace(instNorm, '').trim()
+    if (!withoutInst || GENERIC_CARD_NAMES.includes(withoutInst)) return true
+  }
+
+  return false
 }

@@ -18,6 +18,11 @@ const STRIP_PREFIXES = [
   /^chk\*\s*/i,         // Check: "CHK*MERCHANT"
   /^pos\s+(debit\s+)?/i, // POS prefix: "POS DEBIT MERCHANT"
   /^ach\s+(debit|credit)\s+/i, // ACH prefix
+  /^wpy\*\s*/i,         // WePay: "WPY*MERCHANT"
+  /^goo\*\s*/i,         // Google: "GOO*GOOGLE STORAGE"
+  /^amzn\s*\*?\s*/i,    // Amazon variants: "AMZN* MARKETPLACE"
+  /^apt\*\s*/i,         // Autopay: "APT*MERCHANT"
+  /^dbt\s+(purchase\s+)?/i, // Debit purchase: "DBT PURCHASE MERCHANT"
 ]
 
 /** Trailing noise patterns */
@@ -137,6 +142,35 @@ const CANONICAL_MAP: [RegExp, string][] = [
   // Pharmacy
   [/\bcvs\b/i, 'CVS'],
   [/\bwalgreens\b/i, 'Walgreens'],
+  // Insurance
+  [/\bgeico\b/i, 'GEICO'],
+  [/\bstate\s*farm\b/i, 'State Farm'],
+  [/\bprogressive\b/i, 'Progressive'],
+  [/\ballstate\b/i, 'Allstate'],
+  // Fitness
+  [/\bplanet\s*fitness\b/i, 'Planet Fitness'],
+  [/\bequinox\b/i, 'Equinox'],
+  [/\borangetheory\b|\botf\b/i, 'Orangetheory'],
+  [/\bpeloton\b/i, 'Peloton'],
+  // Streaming / Digital
+  [/\bamazon\s*prime\s*video\b/i, 'Prime Video'],
+  [/\bmax\s*(\(hbo\))?\b/i, 'Max'],
+  [/\bhbo\s*max\b/i, 'Max'],
+  [/\bparamount\s*\+?\b/i, 'Paramount+'],
+  [/\bpeacock\b/i, 'Peacock'],
+  // Grocery (additional)
+  [/\bh[\s-]*e[\s-]*b\b/i, 'H-E-B'],
+  [/\bwegmans\b/i, 'Wegmans'],
+  [/\bsprouts\b/i, 'Sprouts'],
+  // Home improvement
+  [/\bmenards\b/i, 'Menards'],
+  [/\bikea\b/i, 'IKEA'],
+  // Travel
+  [/\bairbnb\b/i, 'Airbnb'],
+  [/\bbooking\.com\b/i, 'Booking.com'],
+  [/\bdelta\s*(air)?\s*(lines?)?\b/i, 'Delta Airlines'],
+  [/\bunited\s*(air)?\s*(lines?)?\b/i, 'United Airlines'],
+  [/\bsouthwest\s*(air)?\s*(lines?)?\b/i, 'Southwest Airlines'],
 ]
 
 /**
@@ -152,4 +186,19 @@ export function canonicalizeMerchant(raw: string): string {
     }
   }
   return lower
+}
+
+/**
+ * Full cleanup pipeline: normalize → canonicalize → return display-ready name.
+ * Use this as the single entry point for merchant name display.
+ */
+export function cleanMerchantName(raw: string): string {
+  const normalized = normalizeMerchant(raw)
+  const lower = normalized.toLowerCase()
+  for (const [pattern, canonical] of CANONICAL_MAP) {
+    if (pattern.test(lower)) {
+      return canonical
+    }
+  }
+  return normalized
 }

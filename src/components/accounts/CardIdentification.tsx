@@ -26,13 +26,19 @@ export default function CardIdentification() {
 
   useEffect(() => {
     fetch('/api/cards/suggestions')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load card suggestions (${res.status})`)
+        return res.json()
+      })
       .then((data) => {
         setSuggestions(data.suggestions ?? [])
         setPrograms(data.programs ?? [])
         setUnidentifiedAccounts(data.unidentifiedAccounts ?? [])
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('[CardIdentification]', err)
+        setError(err instanceof Error ? err.message : 'Failed to load card suggestions')
+      })
       .finally(() => setLoading(false))
   }, [])
 
