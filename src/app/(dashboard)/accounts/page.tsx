@@ -30,11 +30,11 @@ export default async function AccountsPage() {
       orderBy: { name: 'asc' },
     }),
     db.property.findMany({
-      where: { userId: session.userId, currentValue: { not: null } },
+      where: { userId: session.userId },
       select: { id: true, name: true, currentValue: true, loanBalance: true },
     }),
     db.accountPropertyLink.findMany({
-      where: { account: { userId: session.userId }, property: { currentValue: { not: null } } },
+      where: { account: { userId: session.userId } },
       select: { accountId: true },
     }),
   ])

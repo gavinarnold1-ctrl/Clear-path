@@ -26,6 +26,7 @@ import type {
   ForecastAccuracyPoint,
   DebtForForecast,
   VelocityBreakdown,
+  MonthlyBreakdownRow,
 } from '@/types'
 
 // ── 3A: Asset class defaults ────────────────────────────────────────────────
@@ -515,7 +516,7 @@ export function generateDefaultScenarios(input: ForecastInput): ForecastScenario
   const archetype = goal.archetype ?? 'save_more'
   const scenarios: ForecastScenario[] = []
 
-  const baseline = computeForecastLight(input)
+  const baseline = computeForecast(input)
 
   switch (archetype) {
     case 'save_more': {
@@ -572,26 +573,32 @@ export function generateDefaultScenarios(input: ForecastInput): ForecastScenario
         const highRateDebts = debts.filter((d) => d.interestRate > 0.05 && d.type === 'MORTGAGE')
         for (const debt of highRateDebts.slice(0, 1)) {
           const newRate = 0.052
-          const oldPayment = debt.minimumPayment
-          const newPayment = monthlyPayment(debt.balance, newRate, 360)
-          const savings = oldPayment - newPayment
+          const newPmt = monthlyPayment(debt.balance, newRate, 360)
+          const oldPmt = debt.minimumPayment
+          const savings = oldPmt - newPmt
           if (savings > 0) {
-            scenarios.push({
-              id: `refinance-${debt.id}`,
-              label: `Refinance ${debt.name}`,
-              description: `Refinance from ${(debt.interestRate * 100).toFixed(1)}% to ${(newRate * 100).toFixed(1)}%`,
-              type: 'refinance',
-              impact: {
-                newProjectedDate: null,
-                daysSaved: Math.round(savings * 30 / (debt.balance * debt.interestRate / 12 + 1)),
-                monthlyImpactOnTrueRemaining: round2(savings),
-                monthlyImpactOnGoal: round2(savings),
-                totalInterestImpact: round2(savings * 360),
-                newMonthlyPayment: round2(newPayment),
-                budgetCategoriesAffected: [],
-                annualExpensesAffected: [],
+            const refiInput: ForecastInput = {
+              ...input,
+              debts: debts.map((d) =>
+                d.id === debt.id ? { ...d, interestRate: newRate, minimumPayment: newPmt } : d
+              ),
+              budgets: {
+                ...budgets,
+                fixedTotal: budgets.fixedTotal - oldPmt + newPmt,
+                totalBudgeted: budgets.totalBudgeted - oldPmt + newPmt,
+                projectedSurplus: budgets.projectedSurplus + savings,
               },
-            })
+            }
+            scenarios.push(
+              buildScenario(
+                `refinance-${debt.id}`,
+                `Refinance ${debt.name}`,
+                `Refinance from ${(debt.interestRate * 100).toFixed(1)}% to ${(newRate * 100).toFixed(1)}%`,
+                'refinance',
+                baseline,
+                refiInput,
+              ),
+            )
           }
         }
       }
@@ -807,20 +814,36 @@ function determinePace(
   let paceDetail: string
   let daysAhead = 0
 
+  // Compute months early/late based on velocity vs required
+  const monthsDelta = effectiveRequired > 0 && effectiveVelocity > 0
+    ? Math.round(monthsToTarget - (goal.targetValue - currentValue) / effectiveVelocity)
+    : 0
+  const monthsEarlyLate = monthsDelta > 0
+    ? `${monthsDelta} month${monthsDelta !== 1 ? 's' : ''} early`
+    : monthsDelta < 0
+    ? `${Math.abs(monthsDelta)} month${Math.abs(monthsDelta) !== 1 ? 's' : ''} late`
+    : null
+
   if (ratio > 1.1) {
     pace = 'ahead'
     const monthsAhead = monthsToTarget > 0 ? (currentValue - goal.startValue) / effectiveRequired - (monthsFromDate(new Date(goal.startDate), new Date())) : 0
     daysAhead = Math.round(monthsAhead * 30)
-    paceDetail = `Progressing ${((ratio - 1) * 100).toFixed(0)}% faster than needed`
+    paceDetail = monthsEarlyLate
+      ? `Progressing ${((ratio - 1) * 100).toFixed(0)}% faster than needed — on pace to finish ${monthsEarlyLate}`
+      : `Progressing ${((ratio - 1) * 100).toFixed(0)}% faster than needed`
   } else if (ratio >= 0.9) {
     pace = 'on_track'
     paceDetail = 'On track to reach your goal on time'
   } else if (ratio >= 0.7) {
     pace = 'behind'
-    paceDetail = `${((1 - ratio) * 100).toFixed(0)}% below the required pace`
+    paceDetail = monthsEarlyLate
+      ? `${((1 - ratio) * 100).toFixed(0)}% below the required pace — projected ${monthsEarlyLate}`
+      : `${((1 - ratio) * 100).toFixed(0)}% below the required pace`
   } else if (ratio >= 0.5) {
     pace = 'at_risk'
-    paceDetail = `Significantly behind — ${((1 - ratio) * 100).toFixed(0)}% below required pace`
+    paceDetail = monthsEarlyLate
+      ? `Significantly behind — projected ${monthsEarlyLate}`
+      : `Significantly behind — ${((1 - ratio) * 100).toFixed(0)}% below required pace`
   } else {
     pace = 'off_track'
     paceDetail = effectiveVelocity <= 0
@@ -1022,8 +1045,22 @@ function generateTabSummaries(
     pace === 'behind' ? 'slightly behind' :
     pace === 'at_risk' ? 'at risk' : 'off track'
 
-  // Build income transition context string
+  // Compute months early/late for display
   const now = new Date()
+  const targetDate = new Date(goal.targetDate)
+  let earlyLateNote = ''
+  if (projectedDate) {
+    const projDate = new Date(projectedDate)
+    const monthsDiff = monthsBetween(projDate, targetDate)
+    if (Math.abs(monthsDiff) >= 1) {
+      const absMonths = Math.round(Math.abs(monthsDiff))
+      earlyLateNote = monthsDiff > 0
+        ? ` Projected to finish ${absMonths} month${absMonths !== 1 ? 's' : ''} early.`
+        : ` Projected to finish ${absMonths} month${absMonths !== 1 ? 's' : ''} late.`
+    }
+  }
+
+  // Build income transition context string
   const futureTransitions = (incomeTransitions ?? []).filter((t) => new Date(t.date) > now)
   const nextTransition = futureTransitions.length > 0
     ? futureTransitions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
@@ -1032,7 +1069,7 @@ function generateTabSummaries(
     ? ` Upcoming income change: "${nextTransition.label}" in ${new Date(nextTransition.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} (${formatDollar(nextTransition.monthlyIncome)}/mo).`
     : ''
 
-  const dashboard = `Goal is ${progressPct}% complete and ${paceLabel}. ${velocity > 0 ? `Averaging ${formatDollar(velocity)}/mo progress.` : 'No measurable progress yet.'}${transitionNote}`
+  const dashboard = `Goal is ${progressPct}% complete and ${paceLabel}. ${velocity > 0 ? `Averaging ${formatDollar(velocity)}/mo progress.` : 'No measurable progress yet.'}${earlyLateNote}${transitionNote}`
 
   const budgetSurplus = budgets.projectedSurplus
   const budgetMsg = budgetSurplus > 0
@@ -1106,12 +1143,39 @@ function buildScenario(
   label: string,
   description: string,
   type: ForecastScenario['type'],
-  baseline: Pick<Forecast, 'projectedDate' | 'monthlyVelocity'>,
+  baseline: Forecast,
   modifiedInput: ForecastInput,
 ): ForecastScenario {
-  const modified = computeForecastLight(modifiedInput)
+  const modified = computeForecast(modifiedInput)
   const baselineDays = baseline.projectedDate ? daysBetween(new Date(), new Date(baseline.projectedDate)) : 0
   const modifiedDays = modified.projectedDate ? daysBetween(new Date(), new Date(modified.projectedDate)) : 0
+
+  // Build monthly breakdown (capped at 36 months)
+  const startValue = modifiedInput.goal?.startValue ?? 0
+  const maxLen = Math.min(36, Math.max(baseline.timeline.length, modified.timeline.length))
+  const monthlyBreakdown: MonthlyBreakdownRow[] = []
+  let cumulative = 0
+
+  for (let i = 0; i < maxLen; i++) {
+    const basePoint = baseline.timeline[i] ?? baseline.timeline[baseline.timeline.length - 1]
+    const scenarioPoint = modified.timeline[i] ?? modified.timeline[modified.timeline.length - 1]
+    const baseCurrent = basePoint?.projected ?? 0
+    const scenarioCurrent = scenarioPoint?.projected ?? 0
+    const basePrev = i > 0 ? (baseline.timeline[i - 1]?.projected ?? 0) : startValue
+    const scenarioPrev = i > 0 ? (modified.timeline[i - 1]?.projected ?? 0) : startValue
+    const baseGain = baseCurrent - basePrev
+    const scenarioGain = scenarioCurrent - scenarioPrev
+    const delta = scenarioGain - baseGain
+    cumulative += delta
+
+    monthlyBreakdown.push({
+      month: (baseline.timeline[i] ?? modified.timeline[i])?.month ?? '',
+      baselineValue: round2(baseGain),
+      scenarioValue: round2(scenarioGain),
+      delta: round2(delta),
+      cumulativeImpact: round2(cumulative),
+    })
+  }
 
   return {
     id,
@@ -1126,6 +1190,10 @@ function buildScenario(
       budgetCategoriesAffected: [],
       annualExpensesAffected: [],
     },
+    scenarioTimeline: modified.timeline,
+    monthlyBreakdown,
+    baselineProjectedDate: baseline.projectedDate ?? null,
+    scenarioProjectedDate: modified.projectedDate ?? null,
   }
 }
 
@@ -1134,7 +1202,7 @@ function buildDebtExtraScenario(
   label: string,
   extra: number,
   debts: DebtForForecast[],
-  baseline: Pick<Forecast, 'projectedDate' | 'monthlyVelocity'>,
+  baseline: Forecast,
   input: ForecastInput,
 ): ForecastScenario {
   // Apply extra to highest-rate debt
@@ -1157,31 +1225,26 @@ function buildDebtExtraScenario(
     }
   }
 
-  // Estimate interest savings
-  const monthlyRate = target.interestRate / 12
-  const currentMonthlyInterest = target.balance * monthlyRate
-  const basePrincipal = target.minimumPayment - currentMonthlyInterest
-  const newPrincipal = basePrincipal + extra
-  const baseMonths = basePrincipal > 0 ? Math.ceil(target.balance / basePrincipal) : 999
-  const newMonths = newPrincipal > 0 ? Math.ceil(target.balance / newPrincipal) : 999
-  const monthsSaved = Math.max(0, baseMonths - newMonths)
-  const interestSaved = monthsSaved * currentMonthlyInterest
-
-  return {
-    id,
-    label,
-    description: `Add ${formatDollar(extra)}/mo extra to ${target.name} (${(target.interestRate * 100).toFixed(1)}%)`,
-    type: 'debt',
-    impact: {
-      newProjectedDate: baseline.projectedDate,
-      daysSaved: monthsSaved * 30,
-      monthlyImpactOnTrueRemaining: round2(-extra),
-      monthlyImpactOnGoal: round2(extra),
-      totalInterestImpact: round2(-interestSaved),
-      budgetCategoriesAffected: [],
-      annualExpensesAffected: [],
+  // Build modified input with extra payment
+  const modifiedInput: ForecastInput = {
+    ...input,
+    debts: input.debts.map((d) =>
+      d.id === target.id ? { ...d, minimumPayment: d.minimumPayment + extra } : d
+    ),
+    budgets: {
+      ...input.budgets,
+      projectedSurplus: input.budgets.projectedSurplus - extra,
     },
   }
+
+  return buildScenario(
+    id,
+    label,
+    `Add ${formatDollar(extra)}/mo extra to ${target.name} (${(target.interestRate * 100).toFixed(1)}%)`,
+    'debt',
+    baseline,
+    modifiedInput,
+  )
 }
 
 // ── 3J: Forecast accuracy tracking ─────────────────────────────────────────

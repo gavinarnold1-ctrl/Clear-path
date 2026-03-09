@@ -58,22 +58,38 @@ export async function POST(req: NextRequest) {
   const modifiedForecast = computeForecast(modifiedInput)
 
   // Build month-by-month breakdown, handling timeline length mismatches
-  const maxLen = Math.max(baseline.timeline.length, modifiedForecast.timeline.length)
+  // Cap at 36 months to keep the table manageable
+  const maxLen = Math.min(36, Math.max(baseline.timeline.length, modifiedForecast.timeline.length))
   const monthlyBreakdown: MonthlyBreakdownRow[] = []
   let cumulative = 0
+  const startValue = input.goal?.startValue ?? 0
 
   for (let i = 0; i < maxLen; i++) {
     const basePoint = baseline.timeline[i] ?? baseline.timeline[baseline.timeline.length - 1]
     const scenarioPoint = modifiedForecast.timeline[i] ?? modifiedForecast.timeline[modifiedForecast.timeline.length - 1]
-    const baseValue = basePoint?.projected ?? basePoint?.actual ?? 0
-    const scenarioValue = scenarioPoint?.projected ?? scenarioPoint?.actual ?? 0
-    const delta = scenarioValue - baseValue
+
+    // Extract cumulative projected values
+    const baseCurrent = basePoint?.projected ?? basePoint?.actual ?? 0
+    const scenarioCurrent = scenarioPoint?.projected ?? scenarioPoint?.actual ?? 0
+
+    // Compute monthly gains by diffing consecutive cumulative values
+    const basePrev = i > 0
+      ? (baseline.timeline[i - 1]?.projected ?? baseline.timeline[i - 1]?.actual ?? 0)
+      : startValue
+    const scenarioPrev = i > 0
+      ? (modifiedForecast.timeline[i - 1]?.projected ?? modifiedForecast.timeline[i - 1]?.actual ?? 0)
+      : startValue
+    const baseMonthlyGain = baseCurrent - basePrev
+    const scenarioMonthlyGain = scenarioCurrent - scenarioPrev
+
+    // Delta = how much more (or less) the scenario gains this month vs baseline
+    const delta = scenarioMonthlyGain - baseMonthlyGain
     cumulative += delta
 
     monthlyBreakdown.push({
       month: (baseline.timeline[i] ?? modifiedForecast.timeline[i])?.month ?? basePoint?.month ?? '',
-      baselineValue: baseValue,
-      scenarioValue: scenarioValue,
+      baselineValue: Math.round(baseMonthlyGain * 100) / 100,
+      scenarioValue: Math.round(scenarioMonthlyGain * 100) / 100,
       delta: Math.round(delta * 100) / 100,
       cumulativeImpact: Math.round(cumulative * 100) / 100,
     })
@@ -230,20 +246,17 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     status: ae.status,
   }))
 
-  // Map properties — filter out properties without a known current value
-  // (null currentValue with a loanBalance would produce negative equity)
-  const propertyData: PropertyForForecast[] = properties
-    .filter((p) => p.currentValue != null && p.currentValue > 0)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      currentValue: p.currentValue!,
-      loanBalance: p.loanBalance,
-      interestRate: p.interestRate,
-      monthlyPayment: p.monthlyPayment,
-      appreciationRate: p.appreciationRate ?? 0.03,
-      monthlyRentalIncome: Number(p.monthlyRentalIncome) || 0,
-    }))
+  // Map properties — include all properties, treating null currentValue as 0
+  const propertyData: PropertyForForecast[] = properties.map((p) => ({
+    id: p.id,
+    name: p.name,
+    currentValue: p.currentValue ?? 0,
+    loanBalance: p.loanBalance,
+    interestRate: p.interestRate,
+    monthlyPayment: p.monthlyPayment,
+    appreciationRate: p.appreciationRate ?? 0.03,
+    monthlyRentalIncome: Number(p.monthlyRentalIncome) || 0,
+  }))
 
   // Map income transitions
   const incomeTransitionData: IncomeTransition[] = Array.isArray(profile.incomeTransitions)
@@ -382,6 +395,35 @@ function applyScenario(
       modified.budgets = {
         ...input.budgets,
         projectedSurplus: input.budgets.projectedSurplus + amount,
+      }
+      break
+    }
+    case 'refinance': {
+      const newRate = Number(params?.rate ?? 0.05)
+      const newTerm = Number(params?.term ?? 360)
+      const targetDebtId = params?.debtId as string | undefined
+
+      // Find target debt (specific or highest-rate)
+      const target = targetDebtId
+        ? input.debts.find((d) => d.id === targetDebtId)
+        : [...input.debts].sort((a, b) => b.interestRate - a.interestRate)[0]
+
+      if (target) {
+        const newPmt = monthlyPayment(target.balance, newRate, newTerm)
+        const oldPmt = target.minimumPayment
+        const savings = oldPmt - newPmt
+
+        modified.debts = input.debts.map((d) =>
+          d.id === target.id
+            ? { ...d, interestRate: newRate, minimumPayment: newPmt }
+            : d
+        )
+        modified.budgets = {
+          ...input.budgets,
+          fixedTotal: input.budgets.fixedTotal - oldPmt + newPmt,
+          totalBudgeted: input.budgets.totalBudgeted - oldPmt + newPmt,
+          projectedSurplus: input.budgets.projectedSurplus + savings,
+        }
       }
       break
     }
