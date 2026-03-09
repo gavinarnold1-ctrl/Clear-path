@@ -499,6 +499,8 @@ export function computeScenarioImpact(
   return {
     newProjectedDate: modified.projectedDate,
     daysSaved: baselineDays - modifiedDays,
+    makesGoalAchievable: !baselineForecast.projectedDate && !!modified.projectedDate,
+    velocityChange: round2(modified.monthlyVelocity - baselineForecast.monthlyVelocity),
     monthlyImpactOnTrueRemaining: round2(modified.monthlyVelocity - baselineForecast.monthlyVelocity),
     monthlyImpactOnGoal: round2(modified.requiredVelocity - baselineForecast.requiredVelocity),
     budgetCategoriesAffected: [],

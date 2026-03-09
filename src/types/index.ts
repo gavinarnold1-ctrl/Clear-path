@@ -427,6 +427,8 @@ export interface ForecastScenario {
   impact: {
     newProjectedDate: string | null
     daysSaved: number
+    makesGoalAchievable?: boolean
+    velocityChange?: number
     monthlyImpactOnTrueRemaining: number
     monthlyImpactOnGoal: number
     totalInterestImpact?: number
