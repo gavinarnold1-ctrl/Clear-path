@@ -45,7 +45,7 @@ export default function MonthlyForecast({ expenses, monthlySetAside }: Props) {
 
   return (
     <div className="card mb-6">
-      <h2 className="mb-4 text-lg font-semibold text-fjord">
+      <h2 className="mb-4 font-display text-lg font-semibold text-fjord">
         {currentYear} Forecast
       </h2>
 

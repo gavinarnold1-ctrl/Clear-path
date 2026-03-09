@@ -1034,7 +1034,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     <div className="space-y-8">
       {/* Financial Goal — first section for prominence */}
       <section className="card">
-        <h2 className="mb-1 text-base font-semibold text-fjord">Financial Goal</h2>
+        <h2 className="mb-1 font-display text-base font-semibold text-fjord">Financial Goal</h2>
         <p className="mb-4 text-xs text-stone">
           This drives your budget suggestions, insights, and progress tracking.
           {currentGoalSetAt && (
@@ -1216,7 +1216,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* R10.1: Profile Management */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Profile</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Profile</h2>
         <div className="space-y-3">
           <div>
             <label htmlFor="settings-name" className="mb-1 block text-sm font-medium text-fjord">Name</label>
@@ -1280,7 +1280,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* R10.2: Household Members */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Household Members</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Household Members</h2>
         {members.length === 0 ? (
           <p className="mb-3 text-sm text-stone">No household members yet.</p>
         ) : (
@@ -1333,7 +1333,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* R10.3: Properties & Entities */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Properties &amp; Entities</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Properties &amp; Entities</h2>
         {properties.length === 0 ? (
           <p className="mb-3 text-sm text-stone">No properties yet.</p>
         ) : (
@@ -1564,7 +1564,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* Property Groups */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Property Groups</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Property Groups</h2>
         <p className="mb-3 text-sm text-stone">
           Group properties together and define split rules for shared expenses.
         </p>
@@ -1884,7 +1884,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* R10.4: Connected Accounts (placeholder) */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Connected Accounts</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Connected Accounts</h2>
         <p className="text-sm text-stone">
           Connect your bank accounts on the{' '}
           <a href="/accounts" className="font-medium text-fjord hover:text-midnight underline">Accounts page</a>
@@ -1897,7 +1897,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* Income Transitions */}
       <section className="card">
-        <h2 className="mb-2 text-base font-semibold text-fjord">Planned Income Changes</h2>
+        <h2 className="mb-2 font-display text-base font-semibold text-fjord">Planned Income Changes</h2>
         <p className="mb-4 text-sm text-stone">
           Add expected income changes (new job, raise, leave) so the forecast engine can project their impact.
         </p>
@@ -2019,7 +2019,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* R10.5: Data Export */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Export Data</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Export Data</h2>
         <p className="mb-3 text-sm text-stone">
           Download all your transactions as a CSV file.
         </p>
@@ -2030,7 +2030,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* Smart Category Learning */}
       <section className="card">
-        <h2 className="mb-2 text-base font-semibold text-fjord">Learned Categories</h2>
+        <h2 className="mb-2 font-display text-base font-semibold text-fjord">Learned Categories</h2>
         <p className="mb-3 text-sm text-stone">
           When you reclassify a transaction, the app learns and auto-categorizes future transactions
           from the same merchant. Mappings shown below.
@@ -2080,7 +2080,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       {/* Account-Property Links */}
       {initialAccounts.length > 0 && properties.length > 0 && (
         <section className="card">
-          <h2 className="mb-4 text-base font-semibold text-fjord">Account-Property Links</h2>
+          <h2 className="mb-4 font-display text-base font-semibold text-fjord">Account-Property Links</h2>
           <p className="mb-4 text-sm text-stone">
             Link accounts to properties so transactions from that account are automatically attributed to the linked property.
           </p>
@@ -2155,7 +2155,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* Data Tools */}
       <section className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Data Tools</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">Data Tools</h2>
 
         {/* Fix Classifications */}
         <div className="mb-5">
@@ -2217,7 +2217,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
 
       {/* R10.6: Delete Account */}
       <section className="card border-ember/30">
-        <h2 className="mb-2 text-base font-semibold text-ember">Danger Zone</h2>
+        <h2 className="mb-2 font-display text-base font-semibold text-ember">Danger Zone</h2>
         <p className="mb-4 text-sm text-stone">
           Permanently delete your account and all associated data. This cannot be undone.
         </p>

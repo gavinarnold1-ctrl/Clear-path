@@ -52,7 +52,7 @@ export default function YearEndProjection({
 
   return (
     <div className="card">
-      <h2 className="mb-3 text-lg font-semibold text-fjord">Year-End Projection</h2>
+      <h2 className="mb-3 font-display text-lg font-semibold text-fjord">Year-End Projection</h2>
       <p className="mb-3 text-sm text-stone">
         If you maintain {formatCurrency(monthlyBurden)}/mo set-aside:
       </p>

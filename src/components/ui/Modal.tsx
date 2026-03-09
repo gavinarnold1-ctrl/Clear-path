@@ -40,7 +40,7 @@ export function Modal({ open, onClose, title, description, children, actions, va
       }}
     >
       <div className="p-6">
-        <h2 className={`text-lg font-semibold ${variant === 'danger' ? 'text-ember' : 'text-fjord'}`}>
+        <h2 className={`font-display text-lg font-semibold ${variant === 'danger' ? 'text-ember' : 'text-fjord'}`}>
           {title}
         </h2>
         {description && <p className="mt-2 text-sm text-stone">{description}</p>}

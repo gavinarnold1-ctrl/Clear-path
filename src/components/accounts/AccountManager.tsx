@@ -366,7 +366,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
       {/* Net worth banner */}
       <div className="mb-6 rounded-xl border border-mist bg-frost px-6 py-4">
         <p className="text-sm text-midnight">Net worth</p>
-        <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-midnight' : 'text-expense'}`}>
+        <p className={`font-mono text-3xl font-bold ${totalBalance >= 0 ? 'text-midnight' : 'text-expense'}`}>
           {formatCurrency(totalBalance)}
         </p>
         {propertyEquity > 0 && (
@@ -475,56 +475,88 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                   </div>
                 </div>
               ) : (
-                <div key={acct.id} className="card flex items-center justify-between">
-                  <Link href={`/transactions?accountId=${acct.id}`} className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-fjord">{acct.name}</p>
-                      {!acct.isManual ? (
-                        <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">
-                          Connected
-                        </span>
-                      ) : (
-                        <span className="rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">
-                          Manual
-                        </span>
-                      )}
+                <div key={acct.id} className="card">
+                  {/* Mobile: stacked layout */}
+                  <div className="md:hidden">
+                    <Link href={`/transactions?accountId=${acct.id}`} className="block">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-fjord">{acct.name}</p>
+                            {!acct.isManual ? (
+                              <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">Connected</span>
+                            ) : (
+                              <span className="rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">Manual</span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-xs text-stone">
+                            {TYPE_LABELS[acct.type] ?? acct.type}
+                            {acct.institution && <span> &middot; {acct.institution}</span>}
+                            {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
+                          </p>
+                        </div>
+                        <p className={`font-mono text-lg font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
+                          {formatCurrency(acct.balance, acct.currency)}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="mt-2 flex items-center justify-between border-t border-mist pt-2">
+                      <span className="text-xs text-stone">{acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
+                        {!acct.isManual && acct.plaidLastSynced && <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        {!acct.isManual && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); syncAccount(acct.id) }}
+                            disabled={syncingAccountId === acct.id}
+                            className="text-xs text-pine hover:text-pine/80 disabled:opacity-50"
+                          >
+                            {syncingAccountId === acct.id ? 'Syncing...' : 'Sync'}
+                          </button>
+                        )}
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(acct) }} className="text-xs text-stone hover:text-fjord">Edit</button>
+                        <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(acct) }} className="text-xs text-stone hover:text-ember">Delete</button>
+                      </div>
                     </div>
-                    <p className="text-xs text-stone">
-                      {TYPE_LABELS[acct.type] ?? acct.type}
-                      {acct.institution && <span> &middot; {acct.institution}</span>}
-                      {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
-                      {' '}&middot; {acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
-                      {!acct.isManual && acct.plaidLastSynced && (
-                        <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>
-                      )}
-                    </p>
-                  </Link>
-                  <div className="flex items-center gap-4">
-                    <p className={`text-xl font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
-                      {formatCurrency(acct.balance, acct.currency)}
-                    </p>
-                    <div className="flex items-center gap-3">
-                      {!acct.isManual && (
-                        <button
-                          onClick={() => syncAccount(acct.id)}
-                          disabled={syncingAccountId === acct.id}
-                          className="text-xs text-pine hover:text-pine/80 disabled:opacity-50"
-                        >
-                          {syncingAccountId === acct.id ? 'Syncing...' : 'Sync Now'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => startEdit(acct)}
-                        className="text-xs text-stone hover:text-fjord"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(acct)}
-                        className="text-xs text-stone hover:text-ember"
-                      >
-                        Delete
-                      </button>
+                  </div>
+                  {/* Desktop: horizontal layout */}
+                  <div className="hidden md:flex md:items-center md:justify-between">
+                    <Link href={`/transactions?accountId=${acct.id}`} className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-fjord">{acct.name}</p>
+                        {!acct.isManual ? (
+                          <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">Connected</span>
+                        ) : (
+                          <span className="rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">Manual</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-stone">
+                        {TYPE_LABELS[acct.type] ?? acct.type}
+                        {acct.institution && <span> &middot; {acct.institution}</span>}
+                        {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
+                        {' '}&middot; {acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
+                        {!acct.isManual && acct.plaidLastSynced && (
+                          <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>
+                        )}
+                      </p>
+                    </Link>
+                    <div className="flex items-center gap-4">
+                      <p className={`font-mono text-xl font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
+                        {formatCurrency(acct.balance, acct.currency)}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        {!acct.isManual && (
+                          <button
+                            onClick={() => syncAccount(acct.id)}
+                            disabled={syncingAccountId === acct.id}
+                            className="text-xs text-pine hover:text-pine/80 disabled:opacity-50"
+                          >
+                            {syncingAccountId === acct.id ? 'Syncing...' : 'Sync Now'}
+                          </button>
+                        )}
+                        <button onClick={() => startEdit(acct)} className="text-xs text-stone hover:text-fjord">Edit</button>
+                        <button onClick={() => setDeleteTarget(acct)} className="text-xs text-stone hover:text-ember">Delete</button>
+                      </div>
                     </div>
                   </div>
                 </div>

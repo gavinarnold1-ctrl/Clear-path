@@ -55,7 +55,7 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
 
   return (
     <div className="mb-8">
-      <h2 className="mb-3 text-lg font-semibold text-fjord">Expenses</h2>
+      <h2 className="mb-3 font-display text-lg font-semibold text-fjord">Expenses</h2>
 
       {active.length === 0 && completed.length === 0 ? (
         <div className="card py-10 text-center">

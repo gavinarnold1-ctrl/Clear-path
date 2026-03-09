@@ -45,7 +45,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Bar chart */}
       <div className="card lg:col-span-1">
-        <h2 className="mb-4 text-base font-semibold text-fjord">By Group</h2>
+        <h2 className="mb-4 font-display text-base font-semibold text-fjord">By Group</h2>
         {data.length === 0 ? (
           <p className="text-sm text-stone">No expenses this month.</p>
         ) : (
@@ -73,7 +73,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
           </div>
         )}
         <p className="mt-2 text-center text-sm text-stone">
-          Total: <span className="font-semibold text-expense">{formatCurrency(totalSpent)}</span>
+          Total: <span className="font-mono font-semibold text-expense">{formatCurrency(totalSpent)}</span>
         </p>
       </div>
 
@@ -102,7 +102,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="whitespace-nowrap font-semibold text-fjord">{formatCurrency(group.amount)}</span>
+                    <span className="whitespace-nowrap font-mono font-semibold text-fjord">{formatCurrency(group.amount)}</span>
                     <span className="whitespace-nowrap text-xs text-stone">
                       {totalSpent > 0 ? `${((group.amount / totalSpent) * 100).toFixed(1)}%` : '—'}
                     </span>
@@ -113,7 +113,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
                 {expandedGroup === group.group && (
                   <div className="border-t border-mist">
                     <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-mist">
                         {group.categories.map(cat => {
                           const catHref = cat.id && currentMonth
                             ? `/transactions?categoryId=${cat.id}&month=${currentMonth}`
@@ -127,7 +127,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
                                   cat.name
                                 )}
                               </td>
-                              <td className="px-4 py-2 text-right text-stone">
+                              <td className="px-4 py-2 text-right font-mono text-stone">
                                 {formatCurrency(cat.amount)}
                               </td>
                               <td className="w-24 px-4 py-2">
