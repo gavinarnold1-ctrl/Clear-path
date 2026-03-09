@@ -5,12 +5,13 @@
  * Usage: npx tsx scripts/regenerate-snapshots.ts
  */
 
+import { Prisma } from '@prisma/client'
 import { db } from '../src/lib/db'
 import { createMonthlySnapshot } from '../src/lib/snapshots'
 
 async function main() {
   const users = await db.userProfile.findMany({
-    where: { goalTarget: { not: null } },
+    where: { goalTarget: { not: Prisma.JsonNull } },
     select: { userId: true },
   })
 
