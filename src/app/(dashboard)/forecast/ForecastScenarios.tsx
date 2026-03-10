@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import type { ForecastScenario, ForecastPoint } from '@/types'
+import type { ForecastScenario } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
 interface Props {
   scenarios: ForecastScenario[]
-  onScenarioSelect?: (scenario: ForecastScenario) => void
-  onScenarioClear?: () => void
+  customScenarios: ForecastScenario[]
+  activeScenarioIds: string[]
+  onScenarioToggle: (scenarioId: string) => void
+  onCustomScenarioAdd: (scenario: ForecastScenario) => void
+  onCustomScenarioRemove: (id: string) => void
   baselineProjectedDate?: string | null
 }
 
@@ -39,7 +42,6 @@ function formatGoalDate(iso: string): string {
 }
 
 function humanizeScenarioLabel(label: string): string {
-  // Turn "Custom cut_spending" or "cut-flexible-10" into readable labels
   return label
     .replace(/^Custom\s+/, '')
     .replace(/[_-]/g, ' ')
@@ -58,8 +60,15 @@ function ScenarioTypeIcon({ type }: { type: ForecastScenario['type'] }) {
   return <span className="text-lg">{icons[type] ?? '📊'}</span>
 }
 
-export default function ForecastScenarios({ scenarios, onScenarioSelect, onScenarioClear, baselineProjectedDate }: Props) {
-  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null)
+export default function ForecastScenarios({
+  scenarios,
+  customScenarios,
+  activeScenarioIds,
+  onScenarioToggle,
+  onCustomScenarioAdd,
+  onCustomScenarioRemove,
+  baselineProjectedDate,
+}: Props) {
   const [expandedBreakdownId, setExpandedBreakdownId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [customType, setCustomType] = useState<ScenarioTypeValue>('new_expense')
@@ -71,26 +80,16 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
   const [customNewValue, setCustomNewValue] = useState('')
   const [customPercentage, setCustomPercentage] = useState('10')
   const [loading, setLoading] = useState(false)
-  const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
 
   const allScenarios = [...scenarios, ...customScenarios]
+  const customIds = new Set(customScenarios.map(s => s.id))
 
-  function handleShowOnChart(scenario: ForecastScenario) {
-    if (activeScenarioId === scenario.id) {
-      setActiveScenarioId(null)
-      onScenarioClear?.()
-    } else {
-      setActiveScenarioId(scenario.id)
-      onScenarioSelect?.(scenario)
+  function handleToggle(scenarioId: string) {
+    if (!activeScenarioIds.includes(scenarioId) && activeScenarioIds.length >= 4) {
+      // Could show a toast here, but for now just don't add
+      return
     }
-  }
-
-  function handleRemoveScenario(id: string) {
-    setCustomScenarios((prev) => prev.filter((s) => s.id !== id))
-    if (activeScenarioId === id) {
-      setActiveScenarioId(null)
-      onScenarioClear?.()
-    }
+    onScenarioToggle(scenarioId)
   }
 
   async function handleCreateScenario() {
@@ -142,7 +141,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
 
       if (res.ok) {
         const data = await res.json()
-        setCustomScenarios((prev) => [...prev, data.scenario])
+        onCustomScenarioAdd(data.scenario)
         trackScenarioCustomized(customType, customLabel || customType)
         setShowForm(false)
         setCustomLabel('')
@@ -164,11 +163,10 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
       <div className="space-y-3">
         {allScenarios.map((scenario) => {
           const { impact } = scenario
-          const isActive = activeScenarioId === scenario.id
+          const isActive = activeScenarioIds.includes(scenario.id)
           const isBreakdownExpanded = expandedBreakdownId === scenario.id
-          const isCustom = customScenarios.some((s) => s.id === scenario.id)
+          const isCustom = customIds.has(scenario.id)
 
-          // Stat pill values
           const monthlyImpact = impact.monthlyImpactOnTrueRemaining
           const monthsSaved = impact.daysSaved !== 0 ? Math.round(impact.daysSaved / 30) : 0
           const cumulativeImpact = scenario.monthlyBreakdown?.length
@@ -254,12 +252,12 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {scenario.scenarioTimeline && (
                         <button
-                          onClick={() => handleShowOnChart(scenario)}
+                          onClick={() => handleToggle(scenario.id)}
                           className={`text-xs font-medium transition-colors ${
                             isActive ? 'text-pine' : 'text-fjord hover:text-pine'
                           }`}
                         >
-                          {isActive ? 'Showing on chart \u2713' : 'Show on chart'}
+                          {isActive ? 'On chart \u2713' : 'Add to chart'}
                         </button>
                       )}
 
@@ -274,7 +272,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
 
                       {isCustom && (
                         <button
-                          onClick={() => handleRemoveScenario(scenario.id)}
+                          onClick={() => onCustomScenarioRemove(scenario.id)}
                           className="text-xs text-stone transition-colors hover:text-ember"
                         >
                           Remove
@@ -311,7 +309,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
           </button>
         ) : (
           <div className="rounded-card border border-mist bg-frost/50 p-4">
-            <p className="mb-3 text-sm font-semibold text-fjord">Custom Scenario</p>
+            <p className="mb-3 text-sm font-semibold text-fjord">Custom scenario</p>
 
             <div className="space-y-3">
               <div>
