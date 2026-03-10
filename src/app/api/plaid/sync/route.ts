@@ -15,17 +15,18 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json().catch(() => ({}))
-    const { accountId, itemId } = body as { accountId?: string; itemId?: string }
+    const { accountId, itemId, itemIds } = body as { accountId?: string; itemId?: string; itemIds?: string[] }
 
     // Find all Plaid-connected accounts for this user, grouped by itemId
-    const plaidAccounts = await db.account.findMany({
-      where: {
-        userId: session.userId,
-        plaidItemId: { not: null },
-        ...(accountId ? { id: accountId } : {}),
-        ...(itemId ? { plaidItemId: itemId } : {}),
-      },
-    })
+    const where: Record<string, unknown> = {
+      userId: session.userId,
+      plaidItemId: { not: null },
+    }
+    if (accountId) where.id = accountId
+    if (itemId) where.plaidItemId = itemId
+    if (itemIds && itemIds.length > 0) where.plaidItemId = { in: itemIds }
+
+    const plaidAccounts = await db.account.findMany({ where })
 
     if (plaidAccounts.length === 0) {
       return NextResponse.json({ error: 'No Plaid-connected accounts found' }, { status: 404 })
