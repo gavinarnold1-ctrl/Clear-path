@@ -270,6 +270,8 @@ export interface ForecastInput {
   annualExpenses: AnnualExpenseForForecast[]
   properties?: PropertyForForecast[]
   incomeTransitions?: IncomeTransition[]
+  /** @internal Skip scenario generation to prevent infinite recursion */
+  _skipScenarios?: boolean
 }
 
 export interface MonthlySnapshotData {

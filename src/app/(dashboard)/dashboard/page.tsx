@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { formatCurrency } from '@/lib/utils'
 import MonthPicker from './MonthPicker'
 import MonthlyChart from '@/components/dashboard/MonthlyChartLazy'
 import ValueTracker from '@/components/dashboard/ValueTracker'
@@ -16,11 +15,9 @@ import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
-import GoalCrossLinks from '@/components/dashboard/GoalCrossLinks'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
 import AttentionItems from '@/components/dashboard/AttentionItems'
 import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
-import CardNudgeBanner from '@/components/dashboard/CardNudgeBanner'
 
 export const metadata: Metadata = { title: 'Overview' }
 export const revalidate = 60
@@ -49,7 +46,6 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   const startDate = new Date(year, month, 1)
   const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999)
-  const monthLabel = startDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
 
   // Previous month for comparison
   const prevStart = new Date(year, month - 1, 1)
@@ -403,6 +399,9 @@ export default async function DashboardPage({ searchParams }: Props) {
     .map(b => ({ name: b.category?.name ?? b.name, overBy: b.spent - b.amount }))
     .sort((a, b) => b.overBy - a.overBy)
 
+  const primaryGoal = (userProfile?.primaryGoal as PrimaryGoal) ?? null
+  const flexibleBudgetTotal = flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -412,76 +411,48 @@ export default async function DashboardPage({ searchParams }: Props) {
         <MonthPicker currentMonth={currentMonth} />
       </div>
 
-      {/* Quick navigation */}
-      <div className="mb-6 flex flex-wrap gap-2 text-xs">
-        {[
-          { href: '/monthly-review', label: 'Monthly Review' },
-          { href: '/forecast', label: 'Forecast' },
-          { href: '/debts', label: 'Debts' },
-          { href: '/properties', label: 'Properties' },
-          { href: '/spending', label: 'Spending' },
-        ].map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="rounded-full border border-mist px-3 py-1 text-stone transition-colors hover:border-fjord hover:text-fjord"
-          >
-            {label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Row 1: Goal Progress Hero */}
-      {hasGoal && goalContext && userProfile?.primaryGoal ? (
-        <GoalProgressCard
-          goal={userProfile.primaryGoal as PrimaryGoal}
-          goalLabel={goalContext.goalLabel}
-          target={goalTarget}
-          trueRemaining={trueRemaining}
-        />
-      ) : (
-        <div className="card mb-6 text-center">
-          <p className="text-lg font-semibold text-fjord">
-            Set a goal to see your budget working toward something specific
-          </p>
-          <p className="mt-2 text-sm text-stone">
-            A goal transforms your dashboard from a financial report into a progress tracker.
-          </p>
-          <Link
-            href="/settings"
-            className="mt-4 inline-block rounded-button bg-fjord px-6 py-2 text-sm font-medium text-snow hover:bg-midnight"
-          >
-            Choose your goal
-          </Link>
-        </div>
-      )}
-
-      {/* Card identification nudge */}
-      {unidentifiedCards > 0 && <CardNudgeBanner count={unidentifiedCards} />}
-
-      {/* Row 2: True Remaining (supporting) */}
+      {/* Row 1: Hero — True Remaining + Goal Progress side by side */}
       {hasBudgets ? (
-        <>
-          <TrueRemainingBanner
-            income={monthlyIncome}
-            expectedIncome={userProfile?.expectedMonthlyIncome ?? prevIncome}
-            fixedTotal={fixedTotal}
-            flexibleSpent={flexibleSpent}
-            flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
-            annualSetAside={annualSetAside}
-          />
-          {goalTarget && trueRemaining > 0 && (
-            <p className="-mt-4 mb-6 px-5 text-xs text-stone">
-              {userProfile?.primaryGoal === 'save_more' && `If saved, that's ${formatCurrency(trueRemaining)} closer to your savings goal this month`}
-              {userProfile?.primaryGoal === 'pay_off_debt' && `${formatCurrency(trueRemaining)} available for extra debt payments`}
-              {userProfile?.primaryGoal === 'spend_smarter' && 'Proof that your spending optimization is working'}
-              {userProfile?.primaryGoal === 'gain_visibility' && 'Your actual spending freedom after all commitments'}
-              {userProfile?.primaryGoal === 'build_wealth' && `${formatCurrency(trueRemaining)} available for wealth-building moves`}
-            </p>
-          )}
-        </>
+        <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <TrueRemainingBanner
+              income={monthlyIncome}
+              expectedIncome={userProfile?.expectedMonthlyIncome ?? null}
+              fixedTotal={fixedTotal}
+              flexibleSpent={flexibleSpent}
+              flexibleBudget={flexibleBudgetTotal}
+              annualSetAside={annualSetAside}
+              primaryGoal={primaryGoal}
+            />
+          </div>
+          <div className="lg:col-span-5">
+            {hasGoal && goalContext && userProfile?.primaryGoal ? (
+              <GoalProgressCard
+                goal={userProfile.primaryGoal as PrimaryGoal}
+                goalLabel={goalContext.goalLabel}
+                target={goalTarget}
+                trueRemaining={trueRemaining}
+              />
+            ) : (
+              <div className="flex h-full flex-col justify-center rounded-card border border-mist bg-frost/30 p-4 text-center">
+                <p className="text-sm font-semibold text-fjord">
+                  Set a goal to track progress
+                </p>
+                <p className="mt-1 text-xs text-stone">
+                  Your dashboard becomes a progress tracker instead of a report.
+                </p>
+                <Link
+                  href="/settings"
+                  className="mt-3 inline-block rounded-button bg-fjord px-4 py-1.5 text-xs font-medium text-snow hover:bg-midnight"
+                >
+                  Choose your goal
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
-        <div className="mb-6 rounded-xl border-2 border-mist bg-frost/50 p-5">
+        <div className="mb-6 rounded-card border-2 border-mist bg-frost/50 p-5">
           <p className="text-sm text-stone">
             Set up budgets to see your True Remaining — what you can actually spend.{' '}
             <Link href="/budgets/new" className="font-medium text-fjord hover:underline">
@@ -491,16 +462,16 @@ export default async function DashboardPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Row 3: Budget Health Cards */}
+      {/* Row 2: Budget Health Cards */}
       {hasBudgets && (
         <>
           <BudgetHealthCards
             fixedPaid={fixedPaidCount}
             fixedTotal={fixedBudgets.length}
             flexibleSpent={flexibleSpent}
-            flexibleBudget={flexibleBudgets.reduce((sum, b) => sum + b.amount, 0)}
+            flexibleBudget={flexibleBudgetTotal}
             flexibleUnderBudget={flexibleUnderBudget}
-            primaryGoal={(userProfile?.primaryGoal as PrimaryGoal) ?? null}
+            primaryGoal={primaryGoal}
             annualFundProgress={annualFundProgress}
             annualFundTotal={annualFundTotal}
             totalDebt={totalDebt}
@@ -510,13 +481,13 @@ export default async function DashboardPage({ searchParams }: Props) {
           />
           <div className="mb-6 -mt-4 text-right">
             <Link href="/budgets" className="text-xs font-medium text-fjord hover:underline">
-              Manage budgets →
+              Manage budgets &rarr;
             </Link>
           </div>
         </>
       )}
 
-      {/* Row 4: Attention Items */}
+      {/* Row 3: Attention Items */}
       <AttentionItems
         overBudgetItems={overBudgetItems}
         recalibration={recalibration}
@@ -528,43 +499,15 @@ export default async function DashboardPage({ searchParams }: Props) {
       {/* Goal Recalibration Banner */}
       {recalibration && <RecalibrationWrapper suggestion={recalibration} />}
 
-      {/* Income surplus insight */}
-      {(() => {
-        const expectedIncome = userProfile?.expectedMonthlyIncome
-        if (!expectedIncome || expectedIncome <= 0 || monthlyIncome <= expectedIncome) return null
-        const surplus = monthlyIncome - expectedIncome
-        return (
-          <div className="mb-8 rounded-xl border border-pine/30 bg-pine/5 p-5">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 text-lg">&#x1f4b0;</span>
-              <div>
-                <p className="text-sm font-semibold text-pine">
-                  You received {formatCurrency(surplus)} more than expected this month
-                </p>
-                <p className="mt-1 text-sm text-stone">
-                  Your actual income of {formatCurrency(monthlyIncome)} exceeded your expected monthly income of {formatCurrency(expectedIncome)}.
-                </p>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Chart */}
       <div className="mb-8">
         <MonthlyChart data={chartSeries} goalMonthlySurplus={goalTarget?.monthlyNeeded} />
         <div className="mt-2 text-right">
           <Link href="/monthly-review" className="text-xs font-medium text-fjord hover:underline">
-            Monthly review →
+            Monthly review &rarr;
           </Link>
         </div>
       </div>
-
-      {/* Goal-driven cross-links */}
-      <GoalCrossLinks
-        primaryGoal={(userProfile?.primaryGoal as PrimaryGoal) ?? null}
-        showMonthlyReviewCTA={now.getDate() <= 7}
-      />
 
       {/* Value tracker — at bottom */}
       <div>

@@ -181,6 +181,13 @@ export default function OnboardingWizard({ initialStep, initialAnswers }: Props)
         )}
       </div>
 
+      {/* Early access note — first step only */}
+      {step === 0 && (
+        <p className="mt-4 text-center text-xs text-stone">
+          Oversikt is free during early access. When pricing launches, early users get a founding member rate &mdash; locked in for life.
+        </p>
+      )}
+
       {/* Navigation */}
       <div className="mt-6 flex items-center justify-between">
         {step > 0 ? (

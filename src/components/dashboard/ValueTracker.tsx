@@ -39,7 +39,7 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
           {hasAnySavings ? (
             <>
               <div className="mt-1 flex items-baseline gap-2">
-                <span className="font-mono text-xl font-semibold text-pine">
+                <span className="text-xl font-semibold text-pine">
                   {formatCurrency(value.totalActioned + value.perkReimbursements)}
                 </span>
                 {sinceLabel && (

@@ -290,7 +290,7 @@ export default function HomePage() {
             Ready to budget with purpose?
           </h2>
           <p className="mb-8 text-lichen/80">
-            Join thousands who are done guessing and ready to see what&apos;s true.
+            Ready to see what&apos;s true? Join the early access community.
           </p>
 
           <div className="mb-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">

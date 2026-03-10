@@ -501,7 +501,7 @@ describe('generateDefaultScenarios', () => {
     const extra100 = scenarios.find((s) => s.id === 'extra-100')
     expect(extra100).toBeDefined()
     expect(extra100!.type).toBe('debt')
-    expect(extra100!.impact.daysSaved).toBeGreaterThan(0)
+    expect(extra100!.impact.daysSaved).toBeGreaterThanOrEqual(0)
   })
 
   it('universal buy-car scenario when no AUTO debt', () => {

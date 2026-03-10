@@ -1,12 +1,14 @@
 import { formatCurrency } from '@/lib/utils'
+import type { PrimaryGoal } from '@/types'
 
 interface TrueRemainingProps {
   income: number
-  expectedIncome: number
+  expectedIncome: number | null
   fixedTotal: number
   flexibleSpent: number
   flexibleBudget: number
   annualSetAside: number
+  primaryGoal?: PrimaryGoal | null
 }
 
 export default function TrueRemainingBanner({
@@ -14,24 +16,20 @@ export default function TrueRemainingBanner({
   expectedIncome,
   fixedTotal,
   flexibleSpent,
-  flexibleBudget,
   annualSetAside,
+  primaryGoal,
 }: TrueRemainingProps) {
-  const displayIncome = expectedIncome > 0 ? expectedIncome : income
+  const displayIncome = expectedIncome && expectedIncome > 0 ? expectedIncome : income
   const trueRemaining = displayIncome - fixedTotal - flexibleSpent - annualSetAside
   const incomeRatio = displayIncome > 0 ? trueRemaining / displayIncome : 0
 
-  // Flexible budget color: green if on track, ember if exceeding
-  const flexibleOnTrack = flexibleSpent <= flexibleBudget
-  const flexibleColorClass = flexibleOnTrack ? 'text-pine' : 'text-ember'
-
   // Color coding based on remaining percentage of income
-  const colorClass =
+  const borderColor =
     incomeRatio > 0.2
-      ? 'border-pine/30 bg-pine/10'
+      ? 'border-pine/30'
       : incomeRatio > 0.05
-        ? 'border-birch/30 bg-birch/10'
-        : 'border-ember/30 bg-ember/10'
+        ? 'border-birch/30'
+        : 'border-ember/30'
 
   const amountColorClass =
     incomeRatio > 0.2
@@ -40,38 +38,60 @@ export default function TrueRemainingBanner({
         ? 'text-birch'
         : 'text-ember'
 
+  // Contextual subtitle based on goal
+  const subtitle = getSubtitle(primaryGoal ?? null, trueRemaining)
+
+  // Income line: show "of $X expected" if expected differs from received
+  const hasExpected = expectedIncome != null && expectedIncome > 0
+  const incomeBelow = hasExpected && income < expectedIncome!
+
   return (
-    <div className={`mb-6 rounded-xl border-2 p-5 ${colorClass}`}>
-      <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4 sm:gap-x-6">
-        <div>
-          <p className="font-medium text-stone">{expectedIncome > 0 ? 'Expected Income' : 'Income'}</p>
-          <p className="font-mono text-lg font-semibold text-fjord">{formatCurrency(displayIncome)}</p>
-          {expectedIncome > 0 && income !== expectedIncome && (
-            <p className="font-mono text-xs text-stone">{formatCurrency(income)} received</p>
+    <div className={`rounded-card border-2 ${borderColor} bg-snow p-5`}>
+      {/* Hero number */}
+      <p className="text-xs font-medium text-stone">True remaining</p>
+      <p className={`font-display text-4xl font-bold tracking-tight ${amountColorClass}`}>
+        {formatCurrency(trueRemaining)}
+      </p>
+      <p className="mt-1 text-sm text-stone">{subtitle}</p>
+
+      {/* Visible equation */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone">
+        <span className="font-medium text-fjord">
+          {formatCurrency(income)}
+          {incomeBelow && (
+            <span className="font-normal text-stone"> of {formatCurrency(expectedIncome!)} expected</span>
           )}
-        </div>
-        <div>
-          <p className="font-medium text-stone">Fixed</p>
-          <p className="font-mono text-lg font-semibold text-fjord">{formatCurrency(fixedTotal)}</p>
-        </div>
-        <div>
-          <p className="font-medium text-stone">Flexible</p>
-          <p className={`font-mono text-lg font-semibold ${flexibleColorClass}`}>{formatCurrency(flexibleBudget)}</p>
-          <p className="font-mono text-xs text-stone">
-            {formatCurrency(flexibleSpent)} spent
-          </p>
-        </div>
-        <div>
-          <p className="font-medium text-stone">Annual Set-Aside</p>
-          <p className="font-mono text-lg font-semibold text-fjord">{formatCurrency(annualSetAside)}</p>
-        </div>
-      </div>
-      <div className="border-t border-mist pt-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-stone">True Remaining</p>
-        <p className={`font-mono text-3xl font-bold ${amountColorClass}`}>
-          {formatCurrency(trueRemaining)}
-        </p>
+        </span>
+        <span>&minus;</span>
+        <span>{formatCurrency(fixedTotal)} fixed</span>
+        <span>&minus;</span>
+        <span>{formatCurrency(flexibleSpent)} flexible</span>
+        {annualSetAside > 0 && (
+          <>
+            <span>&minus;</span>
+            <span>{formatCurrency(annualSetAside)} annual</span>
+          </>
+        )}
       </div>
     </div>
   )
+}
+
+function getSubtitle(goal: PrimaryGoal | null, remaining: number): string {
+  if (remaining <= 0) return 'All committed — review flexible spending for room'
+
+  switch (goal) {
+    case 'save_more':
+      return 'Available to save this month'
+    case 'pay_off_debt':
+      return 'Available for extra debt payments'
+    case 'spend_smarter':
+      return 'Your spending freedom after all commitments'
+    case 'gain_visibility':
+      return 'What you can actually spend'
+    case 'build_wealth':
+      return 'Available for wealth-building moves'
+    default:
+      return 'What you can actually spend'
+  }
 }
