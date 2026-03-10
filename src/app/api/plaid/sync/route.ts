@@ -339,6 +339,39 @@ export async function POST(request: Request) {
             plaidLastSynced: new Date(),
           },
         })
+
+        // Balance refresh for this item (matches cron behavior)
+        try {
+          const balanceResponse = await plaidClient.accountsBalanceGet({
+            access_token: accessToken,
+          })
+          for (const plaidAccount of balanceResponse.data.accounts) {
+            const ourAccount = accounts.find(a => a.plaidAccountId === plaidAccount.account_id)
+            if (!ourAccount) continue
+
+            const balance = plaidAccount.type === 'depository'
+              ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
+              : (plaidAccount.balances.current ?? 0)
+
+            await db.account.update({
+              where: { id: ourAccount.id },
+              data: { balance, plaidLastSynced: new Date() },
+            })
+
+            // Sync linked Debt balance
+            const linkedDebt = await db.debt.findUnique({
+              where: { accountId: ourAccount.id },
+            })
+            if (linkedDebt) {
+              await db.debt.update({
+                where: { id: linkedDebt.id },
+                data: { currentBalance: Math.abs(balance) },
+              })
+            }
+          }
+        } catch (balErr) {
+          console.error(`Balance refresh failed for item ${itemKey}:`, balErr)
+        }
       } catch (itemError) {
         console.error(`Plaid sync failed for item ${itemKey}:`, itemError)
         // Continue syncing other items — don't let one stale item break the whole sync

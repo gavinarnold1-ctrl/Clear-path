@@ -7,9 +7,8 @@ import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { piBreakdown, amortizationSchedule } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
-import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastInteractive from './ForecastInteractive'
-import type { Forecast, AssetClass, IncomeTransition, GoalTarget } from '@/types'
+import type { Forecast, IncomeTransition, GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Forecast' }
 
@@ -124,7 +123,6 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
     : 'Not projected'
 
   const goalTarget = profile?.goalTarget as GoalTarget | null
-  const isNetWorthGoal = goalTarget?.metric === 'net_worth_target' || goalTarget?.metric === 'net_worth_increase'
   const isSavingsGoal = goalTarget?.metric === 'savings_amount'
 
   // Calculate months ahead/behind
@@ -142,7 +140,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         <PaceIcon pace={pace} />
       </div>
 
-      {/* Section 1: Interactive Chart + Scenarios (chart overlay wired) */}
+      {/* Section 1: Interactive Chart + Scenarios + Summary Cards + Asset Growth */}
       <ForecastInteractive
         timeline={timeline}
         targetValue={goalTarget?.targetValue ?? forecast.projectedValue}
@@ -153,6 +151,26 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         baselineMonthlyVelocity={monthlyVelocity}
         currentValue={currentValue}
         debts={debtPayoffData}
+        summaryCards={{
+          monthlyVelocity,
+          requiredVelocity,
+          projectedDateLabel,
+          confidence,
+          confidenceDetail: velocityBreakdown && velocityBreakdown.monthsOfData < 3
+            ? 'Based on your budget plan \u2014 forecast will calibrate as data accumulates'
+            : velocityBreakdown && velocityBreakdown.monthsOfData < 6
+              ? 'Blending your budget plan with recent spending patterns'
+              : velocityBreakdown && velocityBreakdown.monthsOfData >= 6
+                ? 'Calibrated from budget plan, recent behavior, and long-term trends'
+                : confidenceReason,
+          monthsDiff,
+        }}
+        assetGrowth={assetGrowth}
+        assetClassLabels={Object.fromEntries(
+          Object.entries(ASSET_CLASS_DEFAULTS).map(([k, v]) => [k, v.label])
+        )}
+        propertyEquityGrowth={propertyEquityGrowth ?? null}
+        isSavingsGoal={isSavingsGoal}
       />
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}
@@ -233,93 +251,6 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         )
       })()}
 
-      {/* Section 2: Pace Summary Cards */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Velocity Breakdown Card */}
-        <div className="card sm:col-span-2 lg:col-span-1">
-          <p className="text-xs font-medium text-stone">Monthly savings estimate</p>
-          <p className={`mt-1 font-mono text-2xl font-medium ${monthlyVelocity >= 0 ? 'text-pine' : 'text-ember'}`}>
-            {monthlyVelocity < 0 ? '-' : ''}{formatCurrency(Math.abs(monthlyVelocity))}
-          </p>
-          <p className="mt-1 text-xs text-stone">/month blended estimate</p>
-          {velocityBreakdown && (
-            <div className="mt-3 space-y-1.5 border-t border-mist pt-2">
-              {velocityBreakdown.plan.weight > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone">Budget plan</span>
-                  <span className="font-mono text-fjord">
-                    {formatCurrency(velocityBreakdown.plan.value)} ({Math.round(velocityBreakdown.plan.weight * 100)}%)
-                  </span>
-                </div>
-              )}
-              {velocityBreakdown.recent.weight > 0 && velocityBreakdown.recent.value != null && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone">Recent (3mo)</span>
-                  <span className="font-mono text-fjord">
-                    {formatCurrency(velocityBreakdown.recent.value)} ({Math.round(velocityBreakdown.recent.weight * 100)}%)
-                  </span>
-                </div>
-              )}
-              {velocityBreakdown.trend.weight > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone">Historical trend</span>
-                  <span className="font-mono text-fjord">
-                    {formatCurrency(velocityBreakdown.trend.value)} ({Math.round(velocityBreakdown.trend.weight * 100)}%)
-                  </span>
-                </div>
-              )}
-              {velocityBreakdown.anomalyCount > 0 && (
-                <p className="pt-1 text-[10px] italic text-stone">
-                  Excluding {velocityBreakdown.anomalyCount} anomalous month{velocityBreakdown.anomalyCount > 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <p className="text-xs font-medium text-stone">Needed monthly</p>
-          <p className="mt-1 font-mono text-2xl font-medium text-fjord">
-            {formatCurrency(Math.abs(requiredVelocity))}
-          </p>
-          <p className="mt-1 text-xs text-stone">/month to stay on track</p>
-        </div>
-        <div className="card">
-          <p className="text-xs font-medium text-stone">Projected completion</p>
-          <p className="mt-1 font-mono text-xl font-medium text-fjord">{projectedDateLabel}</p>
-          {monthsDiff !== 0 && (
-            <p className={`mt-1 text-xs font-medium ${monthsDiff > 0 ? 'text-pine' : 'text-ember'}`}>
-              {Math.abs(monthsDiff)} month{Math.abs(monthsDiff) !== 1 ? 's' : ''}{' '}
-              {monthsDiff > 0 ? 'early' : 'late'}
-            </p>
-          )}
-        </div>
-        <div className="card">
-          <p className="text-xs font-medium text-stone">Confidence</p>
-          <p className="mt-1">
-            <span
-              className={`inline-flex items-center rounded-badge px-2 py-0.5 text-sm font-medium ${
-                confidence === 'high'
-                  ? 'bg-pine/10 text-pine'
-                  : confidence === 'medium'
-                    ? 'bg-birch/20 text-midnight'
-                    : 'bg-ember/10 text-ember'
-              }`}
-            >
-              {confidence.charAt(0).toUpperCase() + confidence.slice(1)}
-            </span>
-          </p>
-          <p className="mt-1 text-xs text-stone">
-            {velocityBreakdown && velocityBreakdown.monthsOfData < 3
-              ? 'Based on your budget plan \u2014 forecast will calibrate as data accumulates'
-              : velocityBreakdown && velocityBreakdown.monthsOfData < 6
-                ? 'Blending your budget plan with recent spending patterns'
-                : velocityBreakdown && velocityBreakdown.monthsOfData >= 6
-                  ? 'Calibrated from budget plan, recent behavior, and long-term trends'
-                  : confidenceReason}
-          </p>
-        </div>
-      </div>
-
       {/* Progress bar */}
       <div className="card mb-6">
         <div className="mb-2 flex items-center justify-between text-sm">
@@ -396,74 +327,6 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Section 4: Asset Growth Breakdown */}
-      {assetGrowth.length > 0 && (
-        <div className="card mb-6">
-          <h2 className="mb-4 text-base font-semibold text-fjord">Asset Growth Projections (12mo)</h2>
-          <div className="space-y-3">
-            {assetGrowth.map((ag) => (
-              <div key={ag.accountId} className="flex items-center justify-between rounded-lg border border-mist bg-frost/30 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-fjord">{ag.accountName}</p>
-                  <p className="text-xs text-stone">
-                    {ASSET_CLASS_DEFAULTS[ag.assetClass as AssetClass]?.label ?? ag.assetClass}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-fjord">
-                    {formatCurrency(ag.currentBalance)} → {formatCurrency(ag.projectedBalance12mo)}
-                  </p>
-                  <p className={`text-xs font-medium ${ag.expectedGrowth >= 0 ? 'text-pine' : 'text-ember'}`}>
-                    {ag.expectedGrowth >= 0 ? '+' : ''}{formatCurrency(ag.expectedGrowth)}
-                  </p>
-                  <p className="text-xs text-stone">
-                    Range: {formatCurrency(ag.uncertaintyRange.low)} – {formatCurrency(ag.uncertaintyRange.high)}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <div className="flex items-center justify-between border-t border-mist pt-3">
-              <span className="text-sm font-semibold text-fjord">Total Projected Growth</span>
-              <span className="font-mono text-sm font-semibold text-pine">
-                +{formatCurrency(assetGrowth.reduce((s, a) => s + a.expectedGrowth, 0))}
-              </span>
-            </div>
-            {propertyEquityGrowth && propertyEquityGrowth.annualTotal > 0 && (
-              <div className="border-t border-mist pt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-fjord">Property Equity Growth</p>
-                    <p className="text-xs text-stone">
-                      {isSavingsGoal
-                        ? 'Not included in savings target — shown for context'
-                        : `${propertyEquityGrowth.properties.length} propert${propertyEquityGrowth.properties.length === 1 ? 'y' : 'ies'} — appreciation + paydown`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-pine">
-                      +{formatCurrency(propertyEquityGrowth.annualTotal)}/yr
-                    </p>
-                  </div>
-                </div>
-                {propertyEquityGrowth.properties.length > 1 && (
-                  <div className="space-y-1 pl-2">
-                    {propertyEquityGrowth.properties.map((p) => (
-                      <div key={p.name} className="flex items-center justify-between text-xs text-stone">
-                        <span>{p.name}</span>
-                        <span>
-                          +{formatCurrency(p.appreciation)} appreciation
-                          {p.principalPaydown > 0 ? ` + ${formatCurrency(p.principalPaydown)} paydown` : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
