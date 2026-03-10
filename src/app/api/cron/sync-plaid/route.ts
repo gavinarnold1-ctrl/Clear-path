@@ -6,6 +6,10 @@ import { decrypt } from '@/lib/encryption'
 import { normalizeMerchant, canonicalizeMerchant } from '@/lib/normalize-merchant'
 import type { RemovedTransaction } from 'plaid'
 
+// TODO: Vercel Hobby crons are unreliable (0 executions observed).
+// Phase A fallback: BackgroundSyncTrigger.tsx syncs stale items on dashboard load.
+// Phase B (webhooks) will replace polling entirely.
+// External backup: cron-job.org → GET this route with Authorization: Bearer <CRON_SECRET>
 export async function GET(req: NextRequest) {
   // Verify request is from Vercel Cron (production) or allow in development
   const authHeader = req.headers.get('authorization')

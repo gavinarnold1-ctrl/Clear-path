@@ -18,6 +18,7 @@ import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
 import AttentionItems from '@/components/dashboard/AttentionItems'
 import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
+import BackgroundSyncTrigger from '@/components/dashboard/BackgroundSyncTrigger'
 
 export const metadata: Metadata = { title: 'Overview' }
 export const revalidate = 60
@@ -199,6 +200,24 @@ export default async function DashboardPage({ searchParams }: Props) {
       db.transaction.count({ where: { userId: session.userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, categoryId: { not: null } } }),
     ]),
   ])
+
+  // Plaid staleness check — trigger background sync if any item hasn't synced in 12+ hours
+  const STALE_THRESHOLD_MS = 12 * 60 * 60 * 1000
+  const plaidAccounts = accounts.filter(a => a.plaidItemId)
+  const itemGroups = new Map<string, { lastSynced: Date | null }>()
+  for (const account of plaidAccounts) {
+    const existing = itemGroups.get(account.plaidItemId!)
+    if (!existing || !account.plaidLastSynced ||
+        (existing.lastSynced && account.plaidLastSynced < existing.lastSynced)) {
+      itemGroups.set(account.plaidItemId!, { lastSynced: account.plaidLastSynced })
+    }
+  }
+  const staleItemIds: string[] = []
+  for (const [itemId, { lastSynced }] of itemGroups) {
+    if (!lastSynced || (now.getTime() - lastSynced.getTime()) > STALE_THRESHOLD_MS) {
+      staleItemIds.push(itemId)
+    }
+  }
 
   // Count unidentified credit cards for dashboard nudge
   const unidentifiedCards = await db.account.count({
@@ -404,6 +423,8 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   return (
     <div>
+      {staleItemIds.length > 0 && <BackgroundSyncTrigger staleItemIds={staleItemIds} />}
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-medium text-fjord">
           {session.name ? `Welcome back, ${session.name.split(' ')[0]}` : 'Overview'}
