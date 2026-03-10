@@ -73,7 +73,7 @@ export default function BottomTabBar({ logoutAction }: BottomTabBarProps) {
             <div className="h-1 w-10 rounded-full bg-mist" />
           </div>
 
-          <nav className="px-4 pb-4">
+          <nav className="max-h-[60vh] overflow-y-auto px-4 pb-4">
             {MORE_ITEMS.map(({ href, label }) => (
               <Link
                 key={href}

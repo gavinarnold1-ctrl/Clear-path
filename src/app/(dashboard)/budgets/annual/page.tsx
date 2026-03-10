@@ -155,7 +155,7 @@ export default async function AnnualPlanningPage() {
 
       {forecastSummary && (
         <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
-          <span className="text-xs font-medium uppercase text-stone">Annual Plan ↔ Goal</span>
+          <span className="text-xs font-medium text-stone">Annual plan · Goal connection</span>
           <p className="text-sm text-fjord">{forecastSummary.annualPlan}</p>
         </div>
       )}

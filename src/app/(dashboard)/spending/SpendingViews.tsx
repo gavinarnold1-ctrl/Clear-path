@@ -117,8 +117,16 @@ export default function SpendingViews({
 }
 
 const BAR_COLORS = [
-  '#2D5F3E', '#1B3A4B', '#C4704B', '#D4C5A9', '#A3B8A0',
-  '#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#22c55e',
+  '#1B3A4B', // fjord
+  '#2D5F3E', // pine
+  '#C4704B', // ember
+  '#D4C5A9', // birch
+  '#6B8A7A', // pine muted
+  '#8B6F5C', // ember muted
+  '#4A6B7A', // fjord light
+  '#9BA88F', // sage
+  '#B8967A', // warm tan
+  '#7A8B9A', // cool slate
 ]
 
 function BarBreakdown({

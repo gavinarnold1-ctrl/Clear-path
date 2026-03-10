@@ -245,7 +245,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-fjord">Monthly Review</h1>
+        <h1 className="font-display text-2xl font-bold text-fjord">Monthly Review</h1>
         <div className="flex items-center gap-3">
           {availableMonths.length > 0 && (
             <MonthSelector

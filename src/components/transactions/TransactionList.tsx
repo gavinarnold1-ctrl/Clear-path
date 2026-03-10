@@ -1040,7 +1040,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
                     {tx.splits && tx.splits.length > 0 && (
                       <div className="mt-1 rounded-button bg-frost/50 px-2 py-1.5">
-                        <p className="mb-1 text-[10px] font-medium uppercase text-stone">Split Allocations</p>
+                        <p className="mb-1 text-[10px] font-medium text-stone">Split allocations</p>
                         {tx.splits.map((split) => (
                           <div key={split.id} className="flex items-center justify-between text-xs">
                             <span className="text-fjord">{split.property?.name ?? 'Unknown'}</span>

@@ -96,7 +96,7 @@ export default async function DebtsPage() {
       {/* Forecast context */}
       {forecastSummary && (
         <div className="mb-4 rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
-          <span className="text-xs font-medium uppercase text-stone">Debt ↔ Goal</span>
+          <span className="text-xs font-medium text-stone">Debt · Goal connection</span>
           <p className="text-sm text-fjord">{forecastSummary.debts}</p>
         </div>
       )}
