@@ -55,18 +55,16 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
     ? (profile.incomeTransitions as unknown as IncomeTransition[])
     : []
 
-  // Fetch debt payoff data when coming from debts page
-  const debtPayoffData = focusDebt
-    ? await db.debt.findMany({
-        where: { userId: session.userId },
-        orderBy: { interestRate: 'desc' },
-        select: {
-          id: true, name: true, type: true,
-          currentBalance: true, interestRate: true,
-          minimumPayment: true, escrowAmount: true,
-        },
-      })
-    : []
+  // Always fetch debts — used for debt payoff timeline and scenario dropdowns
+  const debtPayoffData = await db.debt.findMany({
+    where: { userId: session.userId },
+    orderBy: { interestRate: 'desc' },
+    select: {
+      id: true, name: true, type: true,
+      currentBalance: true, interestRate: true,
+      minimumPayment: true, escrowAmount: true,
+    },
+  })
 
   if (!forecast) {
     return (
@@ -154,6 +152,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         baselineProjectedDate={projectedDate ?? null}
         baselineMonthlyVelocity={monthlyVelocity}
         currentValue={currentValue}
+        debts={debtPayoffData}
       />
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}

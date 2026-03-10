@@ -5,6 +5,16 @@ import type { ForecastScenario } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
+interface DebtSummary {
+  id: string
+  name: string
+  type: string
+  currentBalance: number
+  interestRate: number
+  minimumPayment: number
+  escrowAmount: number | null
+}
+
 interface Props {
   scenarios: ForecastScenario[]
   customScenarios: ForecastScenario[]
@@ -13,6 +23,7 @@ interface Props {
   onCustomScenarioAdd: (scenario: ForecastScenario) => void
   onCustomScenarioRemove: (id: string) => void
   baselineProjectedDate?: string | null
+  debts?: DebtSummary[]
 }
 
 const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
@@ -68,6 +79,7 @@ export default function ForecastScenarios({
   onCustomScenarioAdd,
   onCustomScenarioRemove,
   baselineProjectedDate,
+  debts = [],
 }: Props) {
   const [expandedBreakdownId, setExpandedBreakdownId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -79,6 +91,7 @@ export default function ForecastScenarios({
   const [customTerm, setCustomTerm] = useState('60')
   const [customNewValue, setCustomNewValue] = useState('')
   const [customPercentage, setCustomPercentage] = useState('10')
+  const [customDebtId, setCustomDebtId] = useState('')
   const [loading, setLoading] = useState(false)
 
   const allScenarios = [...scenarios, ...customScenarios]
@@ -114,13 +127,21 @@ export default function ForecastScenarios({
         params.description = `${parseFloat(customAmount) >= 0 ? 'Increase' : 'Decrease'} income by ${formatCurrency(Math.abs(parseFloat(customAmount)))}/mo`
       } else if (customType === 'extra_debt_payment') {
         params.amount = parseFloat(customAmount)
-        params.description = `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward highest-rate debt`
+        if (customDebtId) params.debtId = customDebtId
+        const targetDebt = debts.find(d => d.id === customDebtId)
+        params.description = targetDebt
+          ? `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward ${targetDebt.name}`
+          : `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward highest-rate debt`
       } else if (customType === 'property_value_change') {
         params.newValue = parseFloat(customNewValue)
         params.description = `Set property value to ${formatCurrency(parseFloat(customNewValue))}`
       } else if (customType === 'lump_sum_payment') {
         params.amount = parseFloat(customAmount)
-        params.description = `One-time ${formatCurrency(parseFloat(customAmount))} payment toward debt`
+        if (customDebtId) params.debtId = customDebtId
+        const targetDebt = debts.find(d => d.id === customDebtId)
+        params.description = targetDebt
+          ? `One-time ${formatCurrency(parseFloat(customAmount))} payment toward ${targetDebt.name}`
+          : `One-time ${formatCurrency(parseFloat(customAmount))} payment toward debt`
       } else if (customType === 'cut_spending') {
         params.percentage = parseFloat(customPercentage)
         params.description = `Reduce flexible spending by ${customPercentage}%`
@@ -130,7 +151,11 @@ export default function ForecastScenarios({
       } else if (customType === 'refinance') {
         params.rate = parseFloat(customRate) / 100
         params.term = parseInt(customTerm)
-        params.description = `Refinance to ${customRate}% for ${customTerm} months`
+        if (customDebtId) params.debtId = customDebtId
+        const targetDebt = debts.find(d => d.id === customDebtId)
+        params.description = targetDebt
+          ? `Refinance ${targetDebt.name} to ${customRate}% for ${customTerm} months`
+          : `Refinance to ${customRate}% for ${customTerm} months`
       }
 
       const res = await fetch('/api/forecast', {
@@ -148,6 +173,7 @@ export default function ForecastScenarios({
         setCustomAmount('')
         setCustomPrincipal('')
         setCustomNewValue('')
+        setCustomDebtId('')
       }
     } catch {
       // silently fail
@@ -385,6 +411,68 @@ export default function ForecastScenarios({
                 </div>
               )}
 
+              {/* Debt selector for debt-linked scenario types */}
+              {(customType === 'refinance' || customType === 'lump_sum_payment' || customType === 'extra_debt_payment') && debts.length > 0 && (() => {
+                const filteredDebts = customType === 'refinance'
+                  ? debts.filter(d => d.type === 'MORTGAGE')
+                  : debts
+                return (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone">
+                      {customType === 'refinance' ? 'Select mortgage' : 'Select debt'}
+                    </label>
+                    <select
+                      value={customDebtId}
+                      onChange={(e) => setCustomDebtId(e.target.value)}
+                      className="input w-full text-sm"
+                    >
+                      <option value="">
+                        {customType === 'refinance'
+                          ? 'Highest-rate mortgage'
+                          : 'Highest-rate debt'}
+                      </option>
+                      {filteredDebts.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} — {formatCurrency(d.currentBalance)} at {(d.interestRate * 100).toFixed(1)}%
+                          {d.minimumPayment > 0 ? ` (${formatCurrency(d.minimumPayment)}/mo)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {filteredDebts.length === 0 && customType === 'refinance' && (
+                      <p className="mt-1 text-[10px] text-ember">No mortgages found. Add a mortgage debt first.</p>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Rate/term fields for refinance (no principal needed) */}
+              {customType === 'refinance' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone">New rate (%)</label>
+                    <input
+                      type="number"
+                      value={customRate}
+                      onChange={(e) => setCustomRate(e.target.value)}
+                      placeholder="5"
+                      step="0.1"
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone">New term (months)</label>
+                    <input
+                      type="number"
+                      value={customTerm}
+                      onChange={(e) => setCustomTerm(e.target.value)}
+                      placeholder="360"
+                      step="1"
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
               {selectedType?.fields.includes('principal') && (
                 <>
                   <div>
@@ -444,6 +532,15 @@ export default function ForecastScenarios({
           </div>
         )}
       </div>
+
+      {/* Link to debts page when debts exist */}
+      {debts.length > 0 && (
+        <div className="mt-3 text-center">
+          <a href="/debts" className="text-xs font-medium text-fjord hover:text-pine transition-colors">
+            View debt details &rarr;
+          </a>
+        </div>
+      )}
     </div>
   )
 }

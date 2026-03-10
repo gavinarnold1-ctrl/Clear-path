@@ -13,6 +13,16 @@ interface CombinedScenarioMetrics {
   activeCount: number
 }
 
+interface DebtSummary {
+  id: string
+  name: string
+  type: string
+  currentBalance: number
+  interestRate: number
+  minimumPayment: number
+  escrowAmount: number | null
+}
+
 interface Props {
   timeline: ForecastPoint[]
   targetValue: number
@@ -22,6 +32,7 @@ interface Props {
   baselineProjectedDate: string | null
   baselineMonthlyVelocity: number
   currentValue: number
+  debts?: DebtSummary[]
 }
 
 function formatCurrency(amount: number): string {
@@ -41,6 +52,7 @@ export default function ForecastInteractive({
   baselineProjectedDate,
   baselineMonthlyVelocity,
   currentValue,
+  debts = [],
 }: Props) {
   const [activeScenarioIds, setActiveScenarioIds] = useState<string[]>([])
 
@@ -188,6 +200,7 @@ export default function ForecastInteractive({
           onCustomScenarioAdd={handleCustomScenarioAdd}
           onCustomScenarioRemove={handleCustomScenarioRemove}
           baselineProjectedDate={baselineProjectedDate}
+          debts={debts}
         />
       </div>
     </>
