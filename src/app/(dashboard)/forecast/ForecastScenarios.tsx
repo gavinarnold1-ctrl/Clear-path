@@ -93,7 +93,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
     setLoading(true)
     try {
       const params: Record<string, unknown> = {
-        label: customLabel || `Custom ${customType}`,
+        label: customLabel || `Custom ${SCENARIO_TYPES.find((t) => t.value === customType)?.label ?? 'scenario'}`,
         description: '',
       }
 
