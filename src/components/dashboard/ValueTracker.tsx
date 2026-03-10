@@ -7,7 +7,35 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
   const hasAnySavings = value.totalActioned > 0 || value.perkReimbursements > 0
   const hasPotential = value.totalIdentified > value.totalActioned
 
-  // Nothing at all — prompt to generate first review
+  // Check if user has 2+ months of data
+  const monthsActive = value.since
+    ? Math.ceil((Date.now() - value.since.getTime()) / (30 * 24 * 60 * 60 * 1000))
+    : 0
+  const hasEnoughData = monthsActive >= 2
+
+  // State 1: Not enough data (< 2 months)
+  if (!hasEnoughData && value.totalIdentified === 0 && !hasCardBenefits) {
+    return (
+      <div className="card flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-fjord">Savings tracker</p>
+          <p className="mt-1 text-xs text-stone">
+            {value.since
+              ? 'Tracking your progress \u2014 savings data will appear after 2 months of use.'
+              : 'Generate your first AI review to discover savings opportunities.'}
+          </p>
+        </div>
+        <Link
+          href="/monthly-review"
+          className="shrink-0 rounded-button bg-frost px-3 py-1.5 text-sm font-medium text-fjord hover:bg-mist"
+        >
+          Monthly Review
+        </Link>
+      </div>
+    )
+  }
+
+  // State 2: Has data but no proven savings yet
   if (value.totalIdentified === 0 && !hasCardBenefits) {
     return (
       <div className="card flex items-center justify-between">
