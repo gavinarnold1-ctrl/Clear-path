@@ -438,6 +438,7 @@ export interface ForecastScenario {
     budgetCategoriesAffected: string[]
     annualExpensesAffected: string[]
   }
+  recommended?: boolean
   scenarioTimeline?: ForecastPoint[]
   monthlyBreakdown?: MonthlyBreakdownRow[]
   baselineProjectedDate?: string | null

@@ -7,8 +7,8 @@ import { formatCurrency } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { piBreakdown, amortizationSchedule } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
-import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastInteractive from './ForecastInteractive'
+import type { SummaryCardData } from './ForecastInteractive'
 import type { Forecast, AssetClass, IncomeTransition, GoalTarget } from '@/types'
 
 export const metadata: Metadata = { title: 'Forecast' }
@@ -124,7 +124,6 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
     : 'Not projected'
 
   const goalTarget = profile?.goalTarget as GoalTarget | null
-  const isNetWorthGoal = goalTarget?.metric === 'net_worth_target' || goalTarget?.metric === 'net_worth_increase'
   const isSavingsGoal = goalTarget?.metric === 'savings_amount'
 
   // Calculate months ahead/behind
@@ -134,6 +133,28 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         (new Date(targetDate).getTime() - new Date(projectedDate).getTime()) / (1000 * 60 * 60 * 24 * 30),
       )
     : 0
+
+  // Build summary card data for ForecastInteractive
+  const summaryCards: SummaryCardData = {
+    monthlyVelocity,
+    requiredVelocity,
+    projectedDate: projectedDate ?? null,
+    projectedDateLabel,
+    monthsDiff,
+    confidence,
+    confidenceReason: velocityBreakdown && velocityBreakdown.monthsOfData < 3
+      ? 'Based on your budget plan \u2014 forecast will calibrate as data accumulates'
+      : velocityBreakdown && velocityBreakdown.monthsOfData < 6
+        ? 'Blending your budget plan with recent spending patterns'
+        : velocityBreakdown && velocityBreakdown.monthsOfData >= 6
+          ? 'Calibrated from budget plan, recent behavior, and long-term trends'
+          : confidenceReason,
+    velocityBreakdown: velocityBreakdown ?? null,
+    pace,
+    paceDetail,
+    progressPercent,
+    currentValue,
+  }
 
   return (
     <div>
@@ -153,6 +174,8 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         baselineMonthlyVelocity={monthlyVelocity}
         currentValue={currentValue}
         debts={debtPayoffData}
+        summaryCards={summaryCards}
+        assetGrowth={assetGrowth}
       />
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}
@@ -233,110 +256,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         )
       })()}
 
-      {/* Section 2: Pace Summary Cards */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Velocity Breakdown Card */}
-        <div className="card sm:col-span-2 lg:col-span-1">
-          <p className="text-xs font-medium text-stone">Monthly savings estimate</p>
-          <p className={`mt-1 font-mono text-2xl font-medium ${monthlyVelocity >= 0 ? 'text-pine' : 'text-ember'}`}>
-            {monthlyVelocity < 0 ? '-' : ''}{formatCurrency(Math.abs(monthlyVelocity))}
-          </p>
-          <p className="mt-1 text-xs text-stone">/month blended estimate</p>
-          {velocityBreakdown && (
-            <div className="mt-3 space-y-1.5 border-t border-mist pt-2">
-              {velocityBreakdown.plan.weight > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone">Budget plan</span>
-                  <span className="font-mono text-fjord">
-                    {formatCurrency(velocityBreakdown.plan.value)} ({Math.round(velocityBreakdown.plan.weight * 100)}%)
-                  </span>
-                </div>
-              )}
-              {velocityBreakdown.recent.weight > 0 && velocityBreakdown.recent.value != null && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone">Recent (3mo)</span>
-                  <span className="font-mono text-fjord">
-                    {formatCurrency(velocityBreakdown.recent.value)} ({Math.round(velocityBreakdown.recent.weight * 100)}%)
-                  </span>
-                </div>
-              )}
-              {velocityBreakdown.trend.weight > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-stone">Historical trend</span>
-                  <span className="font-mono text-fjord">
-                    {formatCurrency(velocityBreakdown.trend.value)} ({Math.round(velocityBreakdown.trend.weight * 100)}%)
-                  </span>
-                </div>
-              )}
-              {velocityBreakdown.anomalyCount > 0 && (
-                <p className="pt-1 text-[10px] italic text-stone">
-                  Excluding {velocityBreakdown.anomalyCount} anomalous month{velocityBreakdown.anomalyCount > 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <p className="text-xs font-medium text-stone">Needed monthly</p>
-          <p className="mt-1 font-mono text-2xl font-medium text-fjord">
-            {formatCurrency(Math.abs(requiredVelocity))}
-          </p>
-          <p className="mt-1 text-xs text-stone">/month to stay on track</p>
-        </div>
-        <div className="card">
-          <p className="text-xs font-medium text-stone">Projected completion</p>
-          <p className="mt-1 font-mono text-xl font-medium text-fjord">{projectedDateLabel}</p>
-          {monthsDiff !== 0 && (
-            <p className={`mt-1 text-xs font-medium ${monthsDiff > 0 ? 'text-pine' : 'text-ember'}`}>
-              {Math.abs(monthsDiff)} month{Math.abs(monthsDiff) !== 1 ? 's' : ''}{' '}
-              {monthsDiff > 0 ? 'early' : 'late'}
-            </p>
-          )}
-        </div>
-        <div className="card">
-          <p className="text-xs font-medium text-stone">Confidence</p>
-          <p className="mt-1">
-            <span
-              className={`inline-flex items-center rounded-badge px-2 py-0.5 text-sm font-medium ${
-                confidence === 'high'
-                  ? 'bg-pine/10 text-pine'
-                  : confidence === 'medium'
-                    ? 'bg-birch/20 text-midnight'
-                    : 'bg-ember/10 text-ember'
-              }`}
-            >
-              {confidence.charAt(0).toUpperCase() + confidence.slice(1)}
-            </span>
-          </p>
-          <p className="mt-1 text-xs text-stone">
-            {velocityBreakdown && velocityBreakdown.monthsOfData < 3
-              ? 'Based on your budget plan \u2014 forecast will calibrate as data accumulates'
-              : velocityBreakdown && velocityBreakdown.monthsOfData < 6
-                ? 'Blending your budget plan with recent spending patterns'
-                : velocityBreakdown && velocityBreakdown.monthsOfData >= 6
-                  ? 'Calibrated from budget plan, recent behavior, and long-term trends'
-                  : confidenceReason}
-          </p>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="card mb-6">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-medium text-fjord">{paceDetail}</span>
-          <span className="font-mono text-stone">{progressPercent.toFixed(1)}%</span>
-        </div>
-        <div className="h-3 w-full overflow-hidden rounded-bar bg-mist">
-          <div
-            className={`h-full rounded-bar transition-all ${pace === 'ahead' || pace === 'on_track' ? 'bg-pine' : pace === 'behind' ? 'bg-birch' : 'bg-ember'}`}
-            style={{ width: `${Math.min(100, progressPercent)}%` }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-stone">
-          <span>{formatCurrency(currentValue)}</span>
-          <span>Target: {formatCurrency(goalTarget?.targetValue ?? forecast.projectedValue)}</span>
-        </div>
-      </div>
+      {/* Summary cards + progress bar now rendered inside ForecastInteractive (scenario-reactive) */}
 
       {/* Section 3: Forecast Accuracy */}
       {accuracy && accuracy.points.length > 0 && (
@@ -505,59 +425,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         </div>
       )}
 
-      {/* Section 5: Scenarios are now rendered inside ForecastInteractive above */}
-
-      {/* Section 6: Monthly Breakdown Table */}
-      <div className="card">
-        <h2 className="mb-4 text-base font-semibold text-fjord">Monthly Breakdown</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-mist text-left text-xs font-medium text-stone">
-                <th className="pb-2 pr-4">Month</th>
-                <th className="pb-2 pr-4 text-right">Projected</th>
-                <th className="pb-2 pr-4 text-right">On Plan</th>
-                <th className="pb-2 pr-4 text-right">Actual</th>
-                <th className="pb-2 text-right">Delta</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-mist/50">
-              {timeline.slice(0, 24).map((point) => {
-                const delta = point.projected - point.onPlan
-                const isProjectedCompletion =
-                  projectedDate && point.month === projectedDate.slice(0, 7)
-                return (
-                  <tr
-                    key={point.month}
-                    className={isProjectedCompletion ? 'bg-pine/5' : ''}
-                  >
-                    <td className="py-2 pr-4 text-fjord">
-                      {point.month}
-                      {point.isHistorical && (
-                        <span className="ml-1 text-xs text-stone">(past)</span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-4 text-right font-mono text-fjord">
-                      {formatCurrency(point.projected)}
-                    </td>
-                    <td className="py-2 pr-4 text-right font-mono text-stone">
-                      {formatCurrency(point.onPlan)}
-                    </td>
-                    <td className="py-2 pr-4 text-right font-mono text-fjord">
-                      {point.actual != null ? formatCurrency(point.actual) : '—'}
-                    </td>
-                    <td
-                      className={`py-2 text-right font-mono text-xs ${delta >= 0 ? 'text-pine' : 'text-ember'}`}
-                    >
-                      {delta >= 0 ? '+' : ''}{formatCurrency(delta)}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Scenarios + monthly breakdown now rendered inside ForecastInteractive above */}
     </div>
   )
 }

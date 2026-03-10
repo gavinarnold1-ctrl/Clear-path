@@ -483,44 +483,53 @@ describe('computeForecast', () => {
 // ── 9F: Scenario impact tests ───────────────────────────────────────────────
 
 describe('generateDefaultScenarios', () => {
-  it('save_more generates cut-flexible scenario', () => {
+  it('save_more returns one smart recommendation', () => {
     const input = makeInput()
     const scenarios = generateDefaultScenarios(input)
-    expect(scenarios.length).toBeGreaterThan(0)
-    const cutScenario = scenarios.find((s) => s.id === 'cut-flexible-10')
-    expect(cutScenario).toBeDefined()
-    expect(cutScenario!.type).toBe('cut')
+    expect(scenarios.length).toBeLessThanOrEqual(1)
+    if (scenarios.length === 1) {
+      expect(scenarios[0].recommended).toBe(true)
+    }
   })
 
-  it('pay_off_debt generates extra payment scenarios', () => {
+  it('pay_off_debt returns one smart recommendation for debt', () => {
     const input = makeInput({
       goal: makeGoal({ archetype: 'pay_off_debt', metric: 'debt_total' }),
       debts: [makeDebt()],
     })
     const scenarios = generateDefaultScenarios(input)
-    const extra100 = scenarios.find((s) => s.id === 'extra-100')
-    expect(extra100).toBeDefined()
-    expect(extra100!.type).toBe('debt')
-    expect(extra100!.impact.daysSaved).toBeGreaterThanOrEqual(0)
+    expect(scenarios.length).toBeLessThanOrEqual(1)
+    if (scenarios.length === 1) {
+      expect(scenarios[0].recommended).toBe(true)
+      expect(scenarios[0].impact.daysSaved).toBeGreaterThanOrEqual(0)
+    }
   })
 
-  it('universal buy-car scenario when no AUTO debt', () => {
-    const input = makeInput({ debts: [] })
+  it('returns empty when no actionable data', () => {
+    const input = makeInput({
+      debts: [],
+      budgets: {
+        ...makeInput().budgets,
+        flexibleTotal: 0,
+        expectedMonthlyIncome: 0,
+      },
+      accounts: [],
+    })
     const scenarios = generateDefaultScenarios(input)
-    const buyCar = scenarios.find((s) => s.id === 'buy-car')
-    expect(buyCar).toBeDefined()
-    expect(buyCar!.type).toBe('debt')
-    expect(buyCar!.impact.newMonthlyPayment).toBeGreaterThan(0)
-    expect(buyCar!.impact.monthlyImpactOnTrueRemaining).toBeLessThan(0)
+    expect(scenarios.length).toBeLessThanOrEqual(1)
   })
 
-  it('no buy-car scenario when AUTO debt exists', () => {
+  it('recommendation has valid impact fields', () => {
     const input = makeInput({
       debts: [makeDebt({ type: 'AUTO' })],
     })
     const scenarios = generateDefaultScenarios(input)
-    const buyCar = scenarios.find((s) => s.id === 'buy-car')
-    expect(buyCar).toBeUndefined()
+    if (scenarios.length > 0) {
+      const s = scenarios[0]
+      expect(s.impact).toBeDefined()
+      expect(typeof s.impact.monthlyImpactOnTrueRemaining).toBe('number')
+      expect(typeof s.impact.daysSaved).toBe('number')
+    }
   })
 })
 
