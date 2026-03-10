@@ -35,6 +35,14 @@ interface Props {
   debts?: DebtSummary[]
 }
 
+const SAVINGS_RISK_OPTIONS = [
+  { id: 'hysa', label: 'HYSA', rate: 4.5, description: 'High-yield savings account. FDIC insured, no risk to principal.' },
+  { id: 'cd', label: 'CD', rate: 4.8, description: 'Certificate of deposit. Locked term, slightly higher yield.' },
+  { id: 'bonds', label: 'Bonds', rate: 4.0, description: 'Bond funds. Low volatility, some interest rate risk.' },
+  { id: 'index', label: 'Index', rate: 10.0, description: 'S&P 500 index fund. Historical average ~10%/yr, volatile short-term.' },
+  { id: 'growth', label: 'Growth', rate: 12.0, description: 'Growth equities. Higher potential return with higher risk.' },
+]
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -55,6 +63,7 @@ export default function ForecastInteractive({
   debts = [],
 }: Props) {
   const [activeScenarioIds, setActiveScenarioIds] = useState<string[]>([])
+  const [savingsRisk, setSavingsRisk] = useState<string>('hysa')
 
   // All scenarios including custom ones added by ForecastScenarios
   const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
@@ -188,6 +197,37 @@ export default function ForecastInteractive({
           </button>
         </div>
       )}
+
+      {/* Savings Growth Assumption */}
+      <div className="card mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-fjord">Growth assumption</h2>
+          <span className="font-mono text-sm text-pine">
+            {SAVINGS_RISK_OPTIONS.find(o => o.id === savingsRisk)?.rate ?? 0}%/yr
+          </span>
+        </div>
+        <div className="flex rounded-button bg-frost overflow-hidden border border-mist">
+          {SAVINGS_RISK_OPTIONS.map(option => (
+            <button
+              key={option.id}
+              onClick={() => setSavingsRisk(option.id)}
+              className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                savingsRisk === option.id
+                  ? 'bg-fjord text-snow'
+                  : 'text-stone hover:text-fjord'
+              }`}
+            >
+              <div>{option.label}</div>
+              <div className={`text-[10px] font-mono ${savingsRisk === option.id ? 'text-snow/70' : 'text-stone/70'}`}>
+                {option.rate}%
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] text-stone">
+          {SAVINGS_RISK_OPTIONS.find(o => o.id === savingsRisk)?.description}
+        </p>
+      </div>
 
       {/* What-If Scenarios */}
       <div className="card mb-6">
