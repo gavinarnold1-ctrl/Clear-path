@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   const baseline = computeForecast(input)
+  const delayMonths = Number(params?.delayMonths ?? 0)
 
   // Build modified input based on scenario type
   const modifiedInput = applyScenario(input, scenarioType, params)
@@ -57,16 +58,50 @@ export async function POST(req: NextRequest) {
   // Compute the full modified forecast (for timeline + projected date)
   const modifiedForecast = computeForecast(modifiedInput)
 
+  // For delayed scenarios, build a hybrid timeline:
+  // baseline values for months 0..(delayMonths-1), then scenario values shifted
+  let effectiveForecast = modifiedForecast
+  if (delayMonths > 0 && delayMonths < baseline.timeline.length) {
+    const hybridTimeline = baseline.timeline.map((basePoint, i) => {
+      if (i < delayMonths) return { ...basePoint }
+      // After delay: use scenario delta applied to the baseline at this point
+      const scenarioPoint = modifiedForecast.timeline[i - delayMonths]
+      const baseAtDelay = baseline.timeline[delayMonths - 1]
+      if (!scenarioPoint || !baseAtDelay) return { ...basePoint }
+      const scenarioDelta = (scenarioPoint.projected ?? 0) - (baseline.timeline[i - delayMonths]?.projected ?? 0)
+      return {
+        ...basePoint,
+        projected: (basePoint.projected ?? 0) + scenarioDelta,
+      }
+    })
+
+    // Find new projected date after delay
+    let hybridProjectedDate: string | null = null
+    const targetVal = input.goal?.targetValue ?? 0
+    for (const point of hybridTimeline) {
+      if (!point.isHistorical && point.projected >= targetVal) {
+        hybridProjectedDate = point.month
+        break
+      }
+    }
+
+    effectiveForecast = {
+      ...modifiedForecast,
+      timeline: hybridTimeline,
+      projectedDate: hybridProjectedDate,
+    }
+  }
+
   // Build month-by-month breakdown, handling timeline length mismatches
   // Cap at 36 months to keep the table manageable
-  const maxLen = Math.min(36, Math.max(baseline.timeline.length, modifiedForecast.timeline.length))
+  const maxLen = Math.min(36, Math.max(baseline.timeline.length, effectiveForecast.timeline.length))
   const monthlyBreakdown: MonthlyBreakdownRow[] = []
   let cumulative = 0
   const startValue = input.goal?.startValue ?? 0
 
   for (let i = 0; i < maxLen; i++) {
     const basePoint = baseline.timeline[i] ?? baseline.timeline[baseline.timeline.length - 1]
-    const scenarioPoint = modifiedForecast.timeline[i] ?? modifiedForecast.timeline[modifiedForecast.timeline.length - 1]
+    const scenarioPoint = effectiveForecast.timeline[i] ?? effectiveForecast.timeline[effectiveForecast.timeline.length - 1]
 
     // Extract cumulative projected values
     const baseCurrent = basePoint?.projected ?? basePoint?.actual ?? 0
@@ -77,7 +112,7 @@ export async function POST(req: NextRequest) {
       ? (baseline.timeline[i - 1]?.projected ?? baseline.timeline[i - 1]?.actual ?? 0)
       : startValue
     const scenarioPrev = i > 0
-      ? (modifiedForecast.timeline[i - 1]?.projected ?? modifiedForecast.timeline[i - 1]?.actual ?? 0)
+      ? (effectiveForecast.timeline[i - 1]?.projected ?? effectiveForecast.timeline[i - 1]?.actual ?? 0)
       : startValue
     const baseMonthlyGain = baseCurrent - basePrev
     const scenarioMonthlyGain = scenarioCurrent - scenarioPrev
@@ -87,7 +122,7 @@ export async function POST(req: NextRequest) {
     cumulative += delta
 
     monthlyBreakdown.push({
-      month: (baseline.timeline[i] ?? modifiedForecast.timeline[i])?.month ?? basePoint?.month ?? '',
+      month: (baseline.timeline[i] ?? effectiveForecast.timeline[i])?.month ?? basePoint?.month ?? '',
       baselineValue: Math.round(baseMonthlyGain * 100) / 100,
       scenarioValue: Math.round(scenarioMonthlyGain * 100) / 100,
       delta: Math.round(delta * 100) / 100,
@@ -107,10 +142,11 @@ export async function POST(req: NextRequest) {
     description: params?.description ?? '',
     type: scenarioType,
     impact,
-    scenarioTimeline: modifiedForecast.timeline,
+    scenarioTimeline: effectiveForecast.timeline,
     monthlyBreakdown,
     baselineProjectedDate: baseline.projectedDate ?? null,
-    scenarioProjectedDate: modifiedForecast.projectedDate ?? null,
+    scenarioProjectedDate: effectiveForecast.projectedDate ?? null,
+    delayMonths: delayMonths > 0 ? delayMonths : undefined,
     narrativeSummary,
   }
 

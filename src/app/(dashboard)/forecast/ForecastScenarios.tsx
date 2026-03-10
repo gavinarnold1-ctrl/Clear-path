@@ -92,6 +92,7 @@ export default function ForecastScenarios({
   const [customNewValue, setCustomNewValue] = useState('')
   const [customPercentage, setCustomPercentage] = useState('10')
   const [customDebtId, setCustomDebtId] = useState('')
+  const [customDelayMonths, setCustomDelayMonths] = useState('0')
   const [loading, setLoading] = useState(false)
 
   const allScenarios = [...scenarios, ...customScenarios]
@@ -158,6 +159,12 @@ export default function ForecastScenarios({
           : `Refinance to ${customRate}% for ${customTerm} months`
       }
 
+      const delay = parseInt(customDelayMonths)
+      if (delay > 0) {
+        params.delayMonths = delay
+        params.description = `${params.description} (starts in ${delay} month${delay !== 1 ? 's' : ''})`
+      }
+
       const res = await fetch('/api/forecast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,6 +181,7 @@ export default function ForecastScenarios({
         setCustomPrincipal('')
         setCustomNewValue('')
         setCustomDebtId('')
+        setCustomDelayMonths('0')
       }
     } catch {
       // silently fail
@@ -237,6 +245,15 @@ export default function ForecastScenarios({
                         Makes goal achievable
                       </span>
                     )}
+                    {/* Delayed scenario badge */}
+                    {(() => {
+                      const delay = (scenario as ForecastScenario & { delayMonths?: number }).delayMonths
+                      return delay != null && delay > 0 ? (
+                        <span className="mt-1.5 ml-1 inline-block rounded-badge bg-birch/20 px-2 py-0.5 text-[10px] font-medium text-midnight">
+                          Starts in {delay} month{delay !== 1 ? 's' : ''}
+                        </span>
+                      ) : null
+                    })()}
 
                     {/* Primary: Goal date shift */}
                     <div className="mt-3">
@@ -512,6 +529,24 @@ export default function ForecastScenarios({
                   </div>
                 </>
               )}
+
+              {/* When does this start? (delay) */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone">When does this start?</label>
+                <select
+                  value={customDelayMonths}
+                  onChange={(e) => setCustomDelayMonths(e.target.value)}
+                  className="input w-full text-sm"
+                >
+                  <option value="0">Immediately</option>
+                  <option value="1">In 1 month</option>
+                  <option value="2">In 2 months</option>
+                  <option value="3">In 3 months</option>
+                  <option value="6">In 6 months</option>
+                  <option value="12">In 1 year</option>
+                  <option value="24">In 2 years</option>
+                </select>
+              </div>
 
               <div className="flex gap-2 pt-1">
                 <button
