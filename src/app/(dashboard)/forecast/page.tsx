@@ -152,6 +152,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         incomeTransitions={incomeTransitions}
         scenarios={scenarios}
         baselineProjectedDate={projectedDate ?? null}
+        baselineMonthlyVelocity={monthlyVelocity}
       />
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}
