@@ -1,9 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
 import type { ForecastPoint, ForecastScenario, IncomeTransition } from '@/types'
+
+interface CombinedScenarioMetrics {
+  monthlyDelta: number
+  totalImpact: number
+  projectedDate: string | null
+  monthsShift: number
+  activeCount: number
+}
+
+interface DebtSummary {
+  id: string
+  name: string
+  type: string
+  currentBalance: number
+  interestRate: number
+  minimumPayment: number
+  escrowAmount: number | null
+}
 
 interface Props {
   timeline: ForecastPoint[]
@@ -12,6 +30,25 @@ interface Props {
   incomeTransitions: IncomeTransition[]
   scenarios: ForecastScenario[]
   baselineProjectedDate: string | null
+  baselineMonthlyVelocity: number
+  currentValue: number
+  debts?: DebtSummary[]
+}
+
+const SAVINGS_RISK_OPTIONS = [
+  { id: 'hysa', label: 'HYSA', rate: 4.5, description: 'High-yield savings account. FDIC insured, no risk to principal.' },
+  { id: 'cd', label: 'CD', rate: 4.8, description: 'Certificate of deposit. Locked term, slightly higher yield.' },
+  { id: 'bonds', label: 'Bonds', rate: 4.0, description: 'Bond funds. Low volatility, some interest rate risk.' },
+  { id: 'index', label: 'Index', rate: 10.0, description: 'S&P 500 index fund. Historical average ~10%/yr, volatile short-term.' },
+  { id: 'growth', label: 'Growth', rate: 12.0, description: 'Growth equities. Higher potential return with higher risk.' },
+]
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(amount)
 }
 
 export default function ForecastInteractive({
@@ -21,8 +58,102 @@ export default function ForecastInteractive({
   incomeTransitions,
   scenarios,
   baselineProjectedDate,
+  baselineMonthlyVelocity,
+  currentValue,
+  debts = [],
 }: Props) {
-  const [activeScenarioTimeline, setActiveScenarioTimeline] = useState<ForecastPoint[] | null>(null)
+  const [activeScenarioIds, setActiveScenarioIds] = useState<string[]>([])
+  const [savingsRisk, setSavingsRisk] = useState<string>('hysa')
+
+  // All scenarios including custom ones added by ForecastScenarios
+  const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
+  const allScenarios = useMemo(() => [...scenarios, ...customScenarios], [scenarios, customScenarios])
+
+  const handleScenarioToggle = useCallback((scenarioId: string) => {
+    setActiveScenarioIds(prev => {
+      if (prev.includes(scenarioId)) {
+        return prev.filter(id => id !== scenarioId)
+      }
+      if (prev.length >= 4) return prev // Cap at 4
+      return [...prev, scenarioId]
+    })
+  }, [])
+
+  const handleClearAll = useCallback(() => {
+    setActiveScenarioIds([])
+  }, [])
+
+  const handleCustomScenarioAdd = useCallback((scenario: ForecastScenario) => {
+    setCustomScenarios(prev => [...prev, scenario])
+  }, [])
+
+  const handleCustomScenarioRemove = useCallback((id: string) => {
+    setCustomScenarios(prev => prev.filter(s => s.id !== id))
+    setActiveScenarioIds(prev => prev.filter(sid => sid !== id))
+  }, [])
+
+  // Compute combined timeline from active scenarios using delta stacking (Approach A)
+  const { combinedTimeline, combinedMetrics } = useMemo(() => {
+    const activeScenarios = allScenarios.filter(s => activeScenarioIds.includes(s.id))
+    if (activeScenarios.length === 0) {
+      return { combinedTimeline: null, combinedMetrics: null }
+    }
+
+    // Sum monthly deltas from all active scenarios
+    const combinedMonthlyDelta = activeScenarios.reduce(
+      (sum, s) => sum + (s.impact.monthlyImpactOnTrueRemaining ?? 0), 0
+    )
+
+    // Sum total impact from breakdown data
+    const totalImpact = activeScenarios.reduce((sum, s) => {
+      const lastRow = s.monthlyBreakdown?.[s.monthlyBreakdown.length - 1]
+      return sum + (lastRow?.cumulativeImpact ?? 0)
+    }, 0)
+
+    // Build combined timeline by applying delta to baseline
+    const combinedVelocity = baselineMonthlyVelocity + combinedMonthlyDelta
+    let projectedDate: string | null = null
+    let cumulativeValue = currentValue
+
+    const combinedTl: ForecastPoint[] = timeline.map((point, i) => {
+      if (point.isHistorical) {
+        return { ...point, projected: point.actual ?? point.projected }
+      }
+      cumulativeValue += combinedVelocity
+      if (!projectedDate && cumulativeValue >= targetValue) {
+        projectedDate = point.month
+      }
+      return {
+        ...point,
+        projected: Math.max(0, point.projected + combinedMonthlyDelta * (i + 1)),
+      }
+    })
+
+    // If single scenario and it has its own timeline, use that (more accurate)
+    const finalTimeline = activeScenarios.length === 1 && activeScenarios[0].scenarioTimeline
+      ? activeScenarios[0].scenarioTimeline
+      : combinedTl
+
+    // Compute months shift
+    let monthsShift = 0
+    if (baselineProjectedDate && projectedDate) {
+      const bDate = new Date(baselineProjectedDate)
+      const sDate = new Date(projectedDate)
+      monthsShift = (bDate.getFullYear() - sDate.getFullYear()) * 12 + (bDate.getMonth() - sDate.getMonth())
+    } else if (activeScenarios.length === 1) {
+      monthsShift = Math.round((activeScenarios[0].impact.daysSaved ?? 0) / 30)
+    }
+
+    const metrics: CombinedScenarioMetrics = {
+      monthlyDelta: combinedMonthlyDelta,
+      totalImpact,
+      projectedDate,
+      monthsShift,
+      activeCount: activeScenarios.length,
+    }
+
+    return { combinedTimeline: finalTimeline, combinedMetrics: metrics }
+  }, [activeScenarioIds, allScenarios, timeline, baselineMonthlyVelocity, baselineProjectedDate, currentValue, targetValue])
 
   return (
     <>
@@ -33,24 +164,87 @@ export default function ForecastInteractive({
           targetValue={targetValue}
           targetDate={targetDate}
           incomeTransitions={incomeTransitions}
-          scenarioTimeline={activeScenarioTimeline ?? undefined}
+          scenarioTimeline={combinedTimeline ?? undefined}
         />
       </div>
 
-      {/* What-If Scenarios — only render if there are default or the section should always be visible */}
+      {/* Combined scenario summary bar */}
+      {combinedMetrics && combinedMetrics.activeCount > 0 && (
+        <div className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-card border px-4 py-2.5 ${
+          combinedMetrics.monthlyDelta >= 0
+            ? 'border-pine/20 bg-pine/5'
+            : 'border-ember/20 bg-ember/5'
+        }`}>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className={`font-semibold ${combinedMetrics.monthlyDelta >= 0 ? 'text-pine' : 'text-ember'}`}>
+              Combined: {combinedMetrics.monthlyDelta >= 0 ? '+' : ''}{formatCurrency(combinedMetrics.monthlyDelta)}/mo
+            </span>
+            {combinedMetrics.monthsShift !== 0 && (
+              <span className="text-stone">
+                Goal {Math.abs(combinedMetrics.monthsShift)} month{Math.abs(combinedMetrics.monthsShift) !== 1 ? 's' : ''}{' '}
+                {combinedMetrics.monthsShift > 0 ? 'earlier' : 'later'}
+              </span>
+            )}
+            <span className="text-xs text-stone">
+              {combinedMetrics.activeCount} scenario{combinedMetrics.activeCount !== 1 ? 's' : ''} active
+            </span>
+          </div>
+          <button
+            onClick={handleClearAll}
+            className="text-xs font-medium text-fjord hover:text-pine"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Savings Growth Assumption */}
+      <div className="card mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-fjord">Growth assumption</h2>
+          <span className="font-mono text-sm text-pine">
+            {SAVINGS_RISK_OPTIONS.find(o => o.id === savingsRisk)?.rate ?? 0}%/yr
+          </span>
+        </div>
+        <div className="flex rounded-button bg-frost overflow-hidden border border-mist">
+          {SAVINGS_RISK_OPTIONS.map(option => (
+            <button
+              key={option.id}
+              onClick={() => setSavingsRisk(option.id)}
+              className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                savingsRisk === option.id
+                  ? 'bg-fjord text-snow'
+                  : 'text-stone hover:text-fjord'
+              }`}
+            >
+              <div>{option.label}</div>
+              <div className={`text-[10px] font-mono ${savingsRisk === option.id ? 'text-snow/70' : 'text-stone/70'}`}>
+                {option.rate}%
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] text-stone">
+          {SAVINGS_RISK_OPTIONS.find(o => o.id === savingsRisk)?.description}
+        </p>
+      </div>
+
+      {/* What-If Scenarios */}
       <div className="card mb-6">
         <h2 className="mb-4 text-base font-semibold text-fjord">What-If Scenarios</h2>
         <ForecastScenarios
           scenarios={scenarios}
-          onScenarioSelect={(scenario) => {
-            setActiveScenarioTimeline(scenario.scenarioTimeline || null)
-          }}
-          onScenarioClear={() => {
-            setActiveScenarioTimeline(null)
-          }}
+          customScenarios={customScenarios}
+          activeScenarioIds={activeScenarioIds}
+          onScenarioToggle={handleScenarioToggle}
+          onCustomScenarioAdd={handleCustomScenarioAdd}
+          onCustomScenarioRemove={handleCustomScenarioRemove}
           baselineProjectedDate={baselineProjectedDate}
+          debts={debts}
         />
       </div>
     </>
   )
 }
+
+export type { CombinedScenarioMetrics }

@@ -24,7 +24,11 @@ export async function createTransaction(
   const accountId = (formData.get('accountId') as string) || null
   const categoryId = (formData.get('categoryId') as string) || null
   const householdMemberId = (formData.get('householdMemberId') as string) || null
-  const propertyId = (formData.get('propertyId') as string) || null
+  let propertyId = (formData.get('propertyId') as string) || null
+  // Strip group: prefix if accidentally sent — splits handle group attribution
+  if (propertyId?.startsWith('group:')) {
+    propertyId = null
+  }
   const notes = (formData.get('notes') as string)?.trim() || null
   const tags = (formData.get('tags') as string)?.trim() || null
   const splitAllocationsRaw = (formData.get('splitAllocations') as string) || null

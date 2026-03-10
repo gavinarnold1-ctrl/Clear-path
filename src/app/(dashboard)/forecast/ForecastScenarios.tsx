@@ -1,15 +1,29 @@
 'use client'
 
 import { useState } from 'react'
-import type { ForecastScenario, ForecastPoint } from '@/types'
+import type { ForecastScenario } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
+interface DebtSummary {
+  id: string
+  name: string
+  type: string
+  currentBalance: number
+  interestRate: number
+  minimumPayment: number
+  escrowAmount: number | null
+}
+
 interface Props {
   scenarios: ForecastScenario[]
-  onScenarioSelect?: (scenario: ForecastScenario) => void
-  onScenarioClear?: () => void
+  customScenarios: ForecastScenario[]
+  activeScenarioIds: string[]
+  onScenarioToggle: (scenarioId: string) => void
+  onCustomScenarioAdd: (scenario: ForecastScenario) => void
+  onCustomScenarioRemove: (id: string) => void
   baselineProjectedDate?: string | null
+  debts?: DebtSummary[]
 }
 
 const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
@@ -39,7 +53,6 @@ function formatGoalDate(iso: string): string {
 }
 
 function humanizeScenarioLabel(label: string): string {
-  // Turn "Custom cut_spending" or "cut-flexible-10" into readable labels
   return label
     .replace(/^Custom\s+/, '')
     .replace(/[_-]/g, ' ')
@@ -58,8 +71,16 @@ function ScenarioTypeIcon({ type }: { type: ForecastScenario['type'] }) {
   return <span className="text-lg">{icons[type] ?? '📊'}</span>
 }
 
-export default function ForecastScenarios({ scenarios, onScenarioSelect, onScenarioClear, baselineProjectedDate }: Props) {
-  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null)
+export default function ForecastScenarios({
+  scenarios,
+  customScenarios,
+  activeScenarioIds,
+  onScenarioToggle,
+  onCustomScenarioAdd,
+  onCustomScenarioRemove,
+  baselineProjectedDate,
+  debts = [],
+}: Props) {
   const [expandedBreakdownId, setExpandedBreakdownId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [customType, setCustomType] = useState<ScenarioTypeValue>('new_expense')
@@ -70,27 +91,19 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
   const [customTerm, setCustomTerm] = useState('60')
   const [customNewValue, setCustomNewValue] = useState('')
   const [customPercentage, setCustomPercentage] = useState('10')
+  const [customDebtId, setCustomDebtId] = useState('')
+  const [customDelayMonths, setCustomDelayMonths] = useState('0')
   const [loading, setLoading] = useState(false)
-  const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
 
   const allScenarios = [...scenarios, ...customScenarios]
+  const customIds = new Set(customScenarios.map(s => s.id))
 
-  function handleShowOnChart(scenario: ForecastScenario) {
-    if (activeScenarioId === scenario.id) {
-      setActiveScenarioId(null)
-      onScenarioClear?.()
-    } else {
-      setActiveScenarioId(scenario.id)
-      onScenarioSelect?.(scenario)
+  function handleToggle(scenarioId: string) {
+    if (!activeScenarioIds.includes(scenarioId) && activeScenarioIds.length >= 4) {
+      // Could show a toast here, but for now just don't add
+      return
     }
-  }
-
-  function handleRemoveScenario(id: string) {
-    setCustomScenarios((prev) => prev.filter((s) => s.id !== id))
-    if (activeScenarioId === id) {
-      setActiveScenarioId(null)
-      onScenarioClear?.()
-    }
+    onScenarioToggle(scenarioId)
   }
 
   async function handleCreateScenario() {
@@ -115,13 +128,21 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
         params.description = `${parseFloat(customAmount) >= 0 ? 'Increase' : 'Decrease'} income by ${formatCurrency(Math.abs(parseFloat(customAmount)))}/mo`
       } else if (customType === 'extra_debt_payment') {
         params.amount = parseFloat(customAmount)
-        params.description = `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward highest-rate debt`
+        if (customDebtId) params.debtId = customDebtId
+        const targetDebt = debts.find(d => d.id === customDebtId)
+        params.description = targetDebt
+          ? `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward ${targetDebt.name}`
+          : `Add ${formatCurrency(parseFloat(customAmount))}/mo extra toward highest-rate debt`
       } else if (customType === 'property_value_change') {
         params.newValue = parseFloat(customNewValue)
         params.description = `Set property value to ${formatCurrency(parseFloat(customNewValue))}`
       } else if (customType === 'lump_sum_payment') {
         params.amount = parseFloat(customAmount)
-        params.description = `One-time ${formatCurrency(parseFloat(customAmount))} payment toward debt`
+        if (customDebtId) params.debtId = customDebtId
+        const targetDebt = debts.find(d => d.id === customDebtId)
+        params.description = targetDebt
+          ? `One-time ${formatCurrency(parseFloat(customAmount))} payment toward ${targetDebt.name}`
+          : `One-time ${formatCurrency(parseFloat(customAmount))} payment toward debt`
       } else if (customType === 'cut_spending') {
         params.percentage = parseFloat(customPercentage)
         params.description = `Reduce flexible spending by ${customPercentage}%`
@@ -131,7 +152,17 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
       } else if (customType === 'refinance') {
         params.rate = parseFloat(customRate) / 100
         params.term = parseInt(customTerm)
-        params.description = `Refinance to ${customRate}% for ${customTerm} months`
+        if (customDebtId) params.debtId = customDebtId
+        const targetDebt = debts.find(d => d.id === customDebtId)
+        params.description = targetDebt
+          ? `Refinance ${targetDebt.name} to ${customRate}% for ${customTerm} months`
+          : `Refinance to ${customRate}% for ${customTerm} months`
+      }
+
+      const delay = parseInt(customDelayMonths)
+      if (delay > 0) {
+        params.delayMonths = delay
+        params.description = `${params.description} (starts in ${delay} month${delay !== 1 ? 's' : ''})`
       }
 
       const res = await fetch('/api/forecast', {
@@ -142,13 +173,15 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
 
       if (res.ok) {
         const data = await res.json()
-        setCustomScenarios((prev) => [...prev, data.scenario])
+        onCustomScenarioAdd(data.scenario)
         trackScenarioCustomized(customType, customLabel || customType)
         setShowForm(false)
         setCustomLabel('')
         setCustomAmount('')
         setCustomPrincipal('')
         setCustomNewValue('')
+        setCustomDebtId('')
+        setCustomDelayMonths('0')
       }
     } catch {
       // silently fail
@@ -164,11 +197,10 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
       <div className="space-y-3">
         {allScenarios.map((scenario) => {
           const { impact } = scenario
-          const isActive = activeScenarioId === scenario.id
+          const isActive = activeScenarioIds.includes(scenario.id)
           const isBreakdownExpanded = expandedBreakdownId === scenario.id
-          const isCustom = customScenarios.some((s) => s.id === scenario.id)
+          const isCustom = customIds.has(scenario.id)
 
-          // Stat pill values
           const monthlyImpact = impact.monthlyImpactOnTrueRemaining
           const monthsSaved = impact.daysSaved !== 0 ? Math.round(impact.daysSaved / 30) : 0
           const cumulativeImpact = scenario.monthlyBreakdown?.length
@@ -190,11 +222,18 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-fjord">{humanizeScenarioLabel(scenario.label)}</p>
-                      {isActive && (
-                        <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-[10px] font-medium text-pine">
-                          Active
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {(scenario as ForecastScenario & { recommended?: boolean }).recommended && (
+                          <span className="rounded-badge bg-pine/20 px-2 py-0.5 text-[10px] font-medium text-pine">
+                            Recommended
+                          </span>
+                        )}
+                        {isActive && (
+                          <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-[10px] font-medium text-pine">
+                            Active
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Narrative summary */}
@@ -213,6 +252,15 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                         Makes goal achievable
                       </span>
                     )}
+                    {/* Delayed scenario badge */}
+                    {(() => {
+                      const delay = (scenario as ForecastScenario & { delayMonths?: number }).delayMonths
+                      return delay != null && delay > 0 ? (
+                        <span className="mt-1.5 ml-1 inline-block rounded-badge bg-birch/20 px-2 py-0.5 text-[10px] font-medium text-midnight">
+                          Starts in {delay} month{delay !== 1 ? 's' : ''}
+                        </span>
+                      ) : null
+                    })()}
 
                     {/* Primary: Goal date shift */}
                     <div className="mt-3">
@@ -254,12 +302,12 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {scenario.scenarioTimeline && (
                         <button
-                          onClick={() => handleShowOnChart(scenario)}
+                          onClick={() => handleToggle(scenario.id)}
                           className={`text-xs font-medium transition-colors ${
                             isActive ? 'text-pine' : 'text-fjord hover:text-pine'
                           }`}
                         >
-                          {isActive ? 'Showing on chart \u2713' : 'Show on chart'}
+                          {isActive ? 'On chart \u2713' : 'Add to chart'}
                         </button>
                       )}
 
@@ -274,7 +322,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
 
                       {isCustom && (
                         <button
-                          onClick={() => handleRemoveScenario(scenario.id)}
+                          onClick={() => onCustomScenarioRemove(scenario.id)}
                           className="text-xs text-stone transition-colors hover:text-ember"
                         >
                           Remove
@@ -311,7 +359,7 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
           </button>
         ) : (
           <div className="rounded-card border border-mist bg-frost/50 p-4">
-            <p className="mb-3 text-sm font-semibold text-fjord">Custom Scenario</p>
+            <p className="mb-3 text-sm font-semibold text-fjord">Custom scenario</p>
 
             <div className="space-y-3">
               <div>
@@ -387,6 +435,68 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                 </div>
               )}
 
+              {/* Debt selector for debt-linked scenario types */}
+              {(customType === 'refinance' || customType === 'lump_sum_payment' || customType === 'extra_debt_payment') && debts.length > 0 && (() => {
+                const filteredDebts = customType === 'refinance'
+                  ? debts.filter(d => d.type === 'MORTGAGE')
+                  : debts
+                return (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone">
+                      {customType === 'refinance' ? 'Select mortgage' : 'Select debt'}
+                    </label>
+                    <select
+                      value={customDebtId}
+                      onChange={(e) => setCustomDebtId(e.target.value)}
+                      className="input w-full text-sm"
+                    >
+                      <option value="">
+                        {customType === 'refinance'
+                          ? 'Highest-rate mortgage'
+                          : 'Highest-rate debt'}
+                      </option>
+                      {filteredDebts.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} — {formatCurrency(d.currentBalance)} at {(d.interestRate * 100).toFixed(1)}%
+                          {d.minimumPayment > 0 ? ` (${formatCurrency(d.minimumPayment)}/mo)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {filteredDebts.length === 0 && customType === 'refinance' && (
+                      <p className="mt-1 text-[10px] text-ember">No mortgages found. Add a mortgage debt first.</p>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Rate/term fields for refinance (no principal needed) */}
+              {customType === 'refinance' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone">New rate (%)</label>
+                    <input
+                      type="number"
+                      value={customRate}
+                      onChange={(e) => setCustomRate(e.target.value)}
+                      placeholder="5"
+                      step="0.1"
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone">New term (months)</label>
+                    <input
+                      type="number"
+                      value={customTerm}
+                      onChange={(e) => setCustomTerm(e.target.value)}
+                      placeholder="360"
+                      step="1"
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
               {selectedType?.fields.includes('principal') && (
                 <>
                   <div>
@@ -427,6 +537,24 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                 </>
               )}
 
+              {/* When does this start? (delay) */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone">When does this start?</label>
+                <select
+                  value={customDelayMonths}
+                  onChange={(e) => setCustomDelayMonths(e.target.value)}
+                  className="input w-full text-sm"
+                >
+                  <option value="0">Immediately</option>
+                  <option value="1">In 1 month</option>
+                  <option value="2">In 2 months</option>
+                  <option value="3">In 3 months</option>
+                  <option value="6">In 6 months</option>
+                  <option value="12">In 1 year</option>
+                  <option value="24">In 2 years</option>
+                </select>
+              </div>
+
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={handleCreateScenario}
@@ -446,6 +574,15 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
           </div>
         )}
       </div>
+
+      {/* Link to debts page when debts exist */}
+      {debts.length > 0 && (
+        <div className="mt-3 text-center">
+          <a href="/debts" className="text-xs font-medium text-fjord hover:text-pine transition-colors">
+            View debt details &rarr;
+          </a>
+        </div>
+      )}
     </div>
   )
 }
