@@ -438,8 +438,8 @@ export function computeForecast(input: ForecastInput): Forecast {
     propertyEquityGrowth = computePropertyEquityGrowth(properties)
   }
 
-  // 9. Generate scenarios
-  const scenarios = generateDefaultScenarios(input)
+  // 9. Generate scenarios (skip when called recursively to prevent stack overflow)
+  const scenarios = input._skipScenarios ? [] : generateDefaultScenarios(input)
 
   // 10. Compute confidence
   const { confidence, confidenceReason } = computeConfidence(snapshots, monthlyVelocity)
@@ -488,7 +488,7 @@ export function computeScenarioImpact(
   baselineForecast: Forecast,
   modifiedInput: ForecastInput,
 ): ForecastScenario['impact'] {
-  const modified = computeForecast(modifiedInput)
+  const modified = computeForecast({ ...modifiedInput, _skipScenarios: true })
 
   const baselineDays = baselineForecast.projectedDate
     ? daysBetween(new Date(), new Date(baselineForecast.projectedDate))
@@ -516,7 +516,7 @@ export function generateDefaultScenarios(input: ForecastInput): ForecastScenario
   const archetype = goal.archetype ?? 'save_more'
   const scenarios: ForecastScenario[] = []
 
-  const baseline = computeForecast(input)
+  const baseline = computeForecast({ ...input, _skipScenarios: true })
 
   switch (archetype) {
     case 'save_more': {
@@ -1146,7 +1146,7 @@ function buildScenario(
   baseline: Forecast,
   modifiedInput: ForecastInput,
 ): ForecastScenario {
-  const modified = computeForecast(modifiedInput)
+  const modified = computeForecast({ ...modifiedInput, _skipScenarios: true })
   const baselineDays = baseline.projectedDate ? daysBetween(new Date(), new Date(baseline.projectedDate)) : 0
   const modifiedDays = modified.projectedDate ? daysBetween(new Date(), new Date(modified.projectedDate)) : 0
 
