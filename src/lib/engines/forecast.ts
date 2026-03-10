@@ -696,6 +696,17 @@ export function generateDefaultScenarios(input: ForecastInput): ForecastScenario
     })
   }
 
+  // Mark the highest-impact positive scenario as recommended
+  const positiveScenarios = scenarios.filter(s => s.impact.daysSaved > 0 || s.impact.monthlyImpactOnTrueRemaining > 0)
+  if (positiveScenarios.length > 0) {
+    const best = positiveScenarios.reduce((a, b) => {
+      const aScore = a.impact.daysSaved + (a.impact.monthlyImpactOnTrueRemaining * 12)
+      const bScore = b.impact.daysSaved + (b.impact.monthlyImpactOnTrueRemaining * 12)
+      return bScore > aScore ? b : a
+    })
+    ;(best as ForecastScenario & { recommended?: boolean }).recommended = true
+  }
+
   return scenarios
 }
 

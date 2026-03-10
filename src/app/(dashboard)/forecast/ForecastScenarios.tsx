@@ -222,11 +222,18 @@ export default function ForecastScenarios({
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-fjord">{humanizeScenarioLabel(scenario.label)}</p>
-                      {isActive && (
-                        <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-[10px] font-medium text-pine">
-                          Active
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {(scenario as ForecastScenario & { recommended?: boolean }).recommended && (
+                          <span className="rounded-badge bg-pine/20 px-2 py-0.5 text-[10px] font-medium text-pine">
+                            Recommended
+                          </span>
+                        )}
+                        {isActive && (
+                          <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-[10px] font-medium text-pine">
+                            Active
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Narrative summary */}
