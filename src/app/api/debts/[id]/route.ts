@@ -113,6 +113,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   revalidatePath('/debts')
+  revalidatePath('/forecast')
+  revalidatePath('/dashboard')
   return NextResponse.json(updated)
 }
 
@@ -129,5 +131,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   await db.debt.delete({ where: { id } })
 
   revalidatePath('/debts')
+  revalidatePath('/forecast')
+  revalidatePath('/dashboard')
   return new NextResponse(null, { status: 204 })
 }

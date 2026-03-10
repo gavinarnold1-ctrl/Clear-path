@@ -139,5 +139,7 @@ export async function POST(req: NextRequest) {
   const pi = piBreakdown(debt.currentBalance, debt.interestRate, debt.minimumPayment, debt.escrowAmount)
 
   revalidatePath('/debts')
+  revalidatePath('/forecast')
+  revalidatePath('/dashboard')
   return NextResponse.json({ ...debt, ...pi }, { status: 201 })
 }

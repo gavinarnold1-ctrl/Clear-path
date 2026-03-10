@@ -85,10 +85,9 @@
     @apply outline-none ring-2 ring-fjord/40 ring-offset-2;
   }
 
-  /* All-caps label for section headings */
+  /* Section heading label */
   .label-caps {
-    @apply font-body text-[11px] font-semibold uppercase tracking-widest text-stone;
-    letter-spacing: 0.1em;
+    @apply font-body text-[11px] font-semibold text-stone;
   }
 
   /* Progress bar fill animation */

@@ -1210,7 +1210,7 @@ export default function TransactionList({ transactions: initial, categories, acc
               </ColumnHeader>
               {householdMembers.length > 0 && (
                 <th className="group relative hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
-                  <button onClick={() => toggleFilter('person')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
+                  <button onClick={() => toggleFilter('person')} className="flex items-center gap-1 text-xs hover:text-fjord">
                     Person
                     {hasPersonFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
                     <span className="h-3 w-3 text-stone/50">&#x25BE;</span>
@@ -1239,7 +1239,7 @@ export default function TransactionList({ transactions: initial, categories, acc
               )}
               {properties.length > 0 && (
                 <th className="group relative hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
-                  <button onClick={() => toggleFilter('property')} className="flex items-center gap-1 text-xs uppercase tracking-wider hover:text-fjord">
+                  <button onClick={() => toggleFilter('property')} className="flex items-center gap-1 text-xs hover:text-fjord">
                     Property
                     {hasPropertyFilter && <span className="h-1.5 w-1.5 rounded-full bg-pine" />}
                     <span className="h-3 w-3 text-stone/50">&#x25BE;</span>
@@ -1274,7 +1274,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </th>
               )}
               <th className="hidden px-4 py-3 text-left font-medium text-stone lg:table-cell">
-                <span className="text-xs uppercase tracking-wider">Budget</span>
+                <span className="text-xs">Budget</span>
               </th>
               <ColumnHeader
                 label="Amount"
@@ -1991,7 +1991,7 @@ function ColumnHeader({
       <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
         <button
           onClick={() => onSort(column)}
-          className="flex items-center gap-0.5 text-xs uppercase tracking-wider hover:text-fjord"
+          className="flex items-center gap-0.5 text-xs hover:text-fjord"
         >
           {label}
           {sortColumn === column && (

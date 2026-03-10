@@ -95,12 +95,10 @@ export default function MonthlyBreakdownTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-mist bg-snow text-left text-xs uppercase tracking-wide text-stone">
+            <tr className="border-b border-mist bg-snow text-left text-xs text-stone">
               <th className="min-w-[80px] pb-2 pr-3 pt-1">Month</th>
-              <th className="min-w-[80px] pb-2 pr-3 pt-1 text-right">Baseline</th>
-              <th className="min-w-[80px] pb-2 pr-3 pt-1 text-right">Scenario</th>
-              <th className="min-w-[70px] pb-2 pr-3 pt-1 text-right">&Delta;/mo</th>
-              <th className="min-w-[80px] pb-2 pt-1 text-right">Cumulative</th>
+              <th className="min-w-[80px] pb-2 pr-3 pt-1 text-right">Monthly savings</th>
+              <th className="min-w-[80px] pb-2 pt-1 text-right">Cumulative toward goal</th>
             </tr>
           </thead>
           <tbody>
@@ -110,17 +108,11 @@ export default function MonthlyBreakdownTable({
                 className="border-b border-mist/50 hover:bg-frost/30"
               >
                 <td className="py-1.5 pr-3 text-sm text-fjord">{formatMonth(row.month)}</td>
-                <td className="py-1.5 pr-3 text-right font-mono text-sm text-fjord">
-                  {formatCompactCurrency(row.baselineValue)}
-                </td>
-                <td className="py-1.5 pr-3 text-right font-mono text-sm text-fjord">
+                <td className={`py-1.5 pr-3 text-right font-mono text-sm ${deltaColor(row.scenarioValue, isDebtMetric)}`}>
                   {formatCompactCurrency(row.scenarioValue)}
                 </td>
-                <td className={`py-1.5 pr-3 text-right font-mono text-sm ${deltaColor(row.delta, isDebtMetric)}`}>
-                  {formatDelta(row.delta)}
-                </td>
                 <td className={`py-1.5 text-right font-mono text-sm font-medium ${deltaColor(row.cumulativeImpact, isDebtMetric)}`}>
-                  {formatDelta(row.cumulativeImpact)}
+                  {formatCompactCurrency(row.cumulativeImpact)}
                 </td>
               </tr>
             ))}
@@ -128,7 +120,7 @@ export default function MonthlyBreakdownTable({
             {/* Goal-reached summary row */}
             {goalInfo && (
               <tr className="border-t-2 border-pine/30 bg-pine/10">
-                <td colSpan={5} className="py-2 text-center text-xs font-medium text-pine">
+                <td colSpan={3} className="py-2 text-center text-xs font-medium text-pine">
                   {goalInfo}
                 </td>
               </tr>

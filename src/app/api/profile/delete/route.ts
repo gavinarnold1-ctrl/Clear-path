@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, clearSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
+import { plaidClient } from '@/lib/plaid'
+import { decrypt } from '@/lib/encryption'
 
 // POST delete account permanently
 export async function POST(req: NextRequest) {
@@ -25,6 +27,23 @@ export async function POST(req: NextRequest) {
   const isValid = await verifyPassword(password, user.password)
   if (!isValid) {
     return NextResponse.json({ error: 'Password is incorrect.' }, { status: 403 })
+  }
+
+  // Revoke Plaid items before deleting user data
+  const plaidAccounts = await db.account.findMany({
+    where: { userId: session.userId, plaidAccessToken: { not: null } },
+    select: { plaidAccessToken: true, plaidItemId: true },
+  })
+  const revokedItems = new Set<string>()
+  for (const acct of plaidAccounts) {
+    if (!acct.plaidAccessToken || !acct.plaidItemId) continue
+    if (revokedItems.has(acct.plaidItemId)) continue
+    try {
+      await plaidClient.itemRemove({ access_token: decrypt(acct.plaidAccessToken) })
+      revokedItems.add(acct.plaidItemId)
+    } catch (err) {
+      console.error(`Failed to revoke Plaid item ${acct.plaidItemId} (non-fatal):`, err)
+    }
   }
 
   // Cascade delete removes all user data (transactions, budgets, accounts, etc.)

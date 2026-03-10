@@ -84,7 +84,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
         <div className="mb-3 rounded-card border border-pine/30 bg-pine/5 px-5 py-4">
           <div className="mb-0.5 flex items-center gap-2">
             <h2 className="font-display text-lg font-semibold text-fjord">Flexible Spending</h2>
-            <span className="rounded-badge bg-pine/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pine">
+            <span className="rounded-badge bg-pine/15 px-2 py-0.5 text-[10px] font-semibold text-pine">
               {formatCurrency(rollupBudget)}/mo
             </span>
           </div>

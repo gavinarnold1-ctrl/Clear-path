@@ -360,7 +360,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
             {/* Progress — dual bars: Funded (pine) + Spent (ember/birch) */}
             <div className="mt-3">
               {/* Set-aside bar (primary — manual set-asides) */}
-              <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
+              <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium text-stone">
                 <span>Set Aside</span>
                 <span>{formatCurrency(expense.funded)} / {formatCurrency(expense.annualAmount)}</span>
               </div>
@@ -376,7 +376,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                 const spentOverFunded = expense.linkedSpent > expense.funded
                 return (
                   <div className="mt-2">
-                    <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-stone">
+                    <div className="mb-0.5 flex items-center justify-between text-[10px] font-medium text-stone">
                       <span>Spent</span>
                       <span className={spentOverFunded ? 'text-ember' : ''}>
                         {formatCurrency(expense.linkedSpent)}

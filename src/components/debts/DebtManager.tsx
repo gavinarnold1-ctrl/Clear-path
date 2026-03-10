@@ -685,8 +685,8 @@ function GroupedDebtCard({
 
       {/* Combined PITI breakdown bar */}
       <div className="mt-4 rounded-lg border border-mist bg-snow p-3">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
-          Monthly Payment Breakdown {hasPiti && '(PITI)'}
+        <p className="mb-2 text-xs font-medium text-stone">
+          Monthly payment breakdown {hasPiti && '(PITI)'}
         </p>
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <div className="flex items-center gap-1.5">
@@ -731,7 +731,7 @@ function GroupedDebtCard({
       {/* Expanded per-unit breakdown */}
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-mist pt-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-stone">Per-Unit Breakdown</p>
+          <p className="text-xs font-medium text-stone">Per-unit breakdown</p>
           {debts.map((debt) => (
             <div key={debt.id} className="rounded-lg border border-mist bg-snow p-3">
               <div className="flex items-start justify-between">
@@ -1007,8 +1007,8 @@ function SingleDebtCard({
       {/* R5.8: Payment history */}
       {debt.transactions && debt.transactions.length > 0 && (
         <div className="mt-3 rounded-lg border border-mist bg-snow p-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
-            Recent Payments
+          <p className="mb-2 text-xs font-medium text-stone">
+            Recent payments
           </p>
           <ul className="space-y-1">
             {debt.transactions.slice(0, 5).map((tx) => (
@@ -1087,8 +1087,8 @@ function DebtPITIBreakdown({ debt, properties }: { debt: DebtRow; properties: Pr
   return (
     <>
       <div className="mt-4 rounded-lg border border-mist bg-snow p-3">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">
-          Monthly Payment Breakdown {hasPiti && '(PITI)'}
+        <p className="mb-2 text-xs font-medium text-stone">
+          Monthly payment breakdown {hasPiti && '(PITI)'}
         </p>
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <div className="flex items-center gap-1.5">

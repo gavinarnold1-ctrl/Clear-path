@@ -56,6 +56,15 @@ Critical path: **Rebrand → Landing Page → Domain → Encryption → Public V
 ## Sizing Reference
 S = 1 week | M = 2–3 weeks | L = 4–6 weeks | XL = 8+ weeks
 
+## Post-Launch Feature Notes (Mar 2026)
+
+Captured during bug fix pass — ideas for future consideration:
+
+- **Multi-user households**: Shared budget access with per-user permissions. Currently household members are tags only — no separate logins. Requires auth redesign (see LATER section).
+- **Smart merchant categorization**: Expand auto-categorization beyond exact merchant match. Consider fuzzy matching, merchant aliases, and community-sourced mappings.
+- **Property equity in forecast**: Include property appreciation and mortgage paydown in the forecast engine's net worth projections. Currently forecast only tracks liquid savings.
+- **Hidden properties without mortgages**: Allow properties to be hidden from the properties dashboard when they have no active mortgage or rental income (e.g. primary residence with no financial tracking needed).
+
 ## Notes
 - Roadmap deliberately overloaded in Next/Later — expect 40–50% to slip or be cut based on user feedback
 - Capacity: ~20–25 productive hours/week

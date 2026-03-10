@@ -112,7 +112,8 @@ function findBestMatch(
       }
     }
 
-    // Check issuer + card name match
+    // Check issuer + card name match (fuzzy: all significant words present)
+    const fullProgramText = normalizeText(`${program.issuer} ${program.name}`)
     if (accountText.includes(issuerLower) && accountText.includes(nameLower)) {
       const confidence = 0.9
       if (!bestMatch || confidence > bestMatch.confidence) {
@@ -120,6 +121,17 @@ function findBestMatch(
           program,
           confidence,
           reason: `Matches ${program.issuer} ${program.name}`,
+        }
+      }
+    } else if (fuzzyWordMatch(accountText, fullProgramText) >= 0.8) {
+      // Fuzzy word-level match: most significant words from the program name appear in account text
+      const score = fuzzyWordMatch(accountText, fullProgramText)
+      const confidence = 0.75 + score * 0.15
+      if (!bestMatch || confidence > bestMatch.confidence) {
+        bestMatch = {
+          program,
+          confidence,
+          reason: `Fuzzy match: ${program.issuer} ${program.name}`,
         }
       }
     }
@@ -211,8 +223,21 @@ function findBestMatch(
   }
 }
 
+/** Fraction of significant words from `target` that appear in `source` */
+function fuzzyWordMatch(source: string, target: string): number {
+  const targetWords = target.split(/\s+/).filter((w) => w.length > 2)
+  if (targetWords.length === 0) return 0
+  const matched = targetWords.filter((w) => source.includes(w))
+  return matched.length / targetWords.length
+}
+
 function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
+  return text
+    .toLowerCase()
+    .replace(/[®™©]/g, '') // Strip trademark symbols explicitly
+    .replace(/[^a-z0-9\s]/g, '') // Strip remaining non-alphanumeric
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .trim()
 }
 
 /** Generic card names that carry no identifying information */

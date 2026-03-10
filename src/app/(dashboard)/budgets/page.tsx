@@ -450,8 +450,8 @@ export default async function BudgetsPage() {
             }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-stone">
-                    {goalContext.goalLabel} — Budget Alignment
+                  <p className="text-xs font-medium text-stone">
+                    {goalContext.goalLabel} — Budget alignment
                   </p>
                   <p className="mt-1 text-sm text-fjord">
                     {projectedMonthlySurplus >= (goalTarget.monthlyNeeded ?? 0) ? (

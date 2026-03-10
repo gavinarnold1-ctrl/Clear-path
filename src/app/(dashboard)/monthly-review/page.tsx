@@ -319,7 +319,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {goalContributors.length > 0 && (
                       <div className="rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-pine">Helped Your Goal</p>
+                        <p className="mb-2 text-xs font-medium text-pine">Helped your goal</p>
                         <ul className="space-y-1">
                           {goalContributors.slice(0, 5).map(c => (
                             <li key={c.name} className="flex items-center justify-between text-sm">
@@ -332,7 +332,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                     )}
                     {goalDetractors.length > 0 && (
                       <div className="rounded-lg border border-ember/20 bg-ember/5 px-4 py-3">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ember">Worked Against Goal</p>
+                        <p className="mb-2 text-xs font-medium text-ember">Worked against goal</p>
                         <ul className="space-y-1">
                           {goalDetractors.slice(0, 5).map(d => (
                             <li key={d.name} className="flex items-center justify-between text-sm">
@@ -349,7 +349,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                 {/* Forecast summary for monthly review */}
                 {forecastSummaries?.monthlyReview && (
                   <div className="mt-4 rounded-lg border border-mist bg-frost/50 px-4 py-3">
-                    <p className="text-xs font-medium uppercase tracking-wider text-stone">Forecast Summary</p>
+                    <p className="text-xs font-medium text-stone">Forecast summary</p>
                     <p className="mt-1 text-sm text-fjord">{forecastSummaries.monthlyReview}</p>
                     {forecastAccuracy && forecastAccuracy.points.length > 0 && (
                       <p className="mt-2 text-xs text-stone">

@@ -189,7 +189,7 @@ export default async function SpendingPage({ searchParams }: Props) {
         <div className="card mb-6 border-pine/20 bg-pine/5">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-medium uppercase tracking-wider text-stone">
+              <span className="text-xs font-medium text-stone">
                 Spending &harr; {goalContext.goalLabel}
               </span>
               <p className="mt-1 text-sm text-fjord">

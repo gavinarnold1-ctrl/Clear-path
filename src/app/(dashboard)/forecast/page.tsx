@@ -236,7 +236,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Velocity Breakdown Card */}
         <div className="card sm:col-span-2 lg:col-span-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-stone">Monthly Savings Estimate</p>
+          <p className="text-xs font-medium text-stone">Monthly savings estimate</p>
           <p className={`mt-1 font-mono text-2xl font-medium ${monthlyVelocity >= 0 ? 'text-pine' : 'text-ember'}`}>
             {monthlyVelocity < 0 ? '-' : ''}{formatCurrency(Math.abs(monthlyVelocity))}
           </p>
@@ -276,14 +276,14 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
           )}
         </div>
         <div className="card">
-          <p className="text-xs font-medium uppercase tracking-wider text-stone">Needed Monthly</p>
+          <p className="text-xs font-medium text-stone">Needed monthly</p>
           <p className="mt-1 font-mono text-2xl font-medium text-fjord">
             {formatCurrency(Math.abs(requiredVelocity))}
           </p>
           <p className="mt-1 text-xs text-stone">/month to stay on track</p>
         </div>
         <div className="card">
-          <p className="text-xs font-medium uppercase tracking-wider text-stone">Projected Completion</p>
+          <p className="text-xs font-medium text-stone">Projected completion</p>
           <p className="mt-1 font-mono text-xl font-medium text-fjord">{projectedDateLabel}</p>
           {monthsDiff !== 0 && (
             <p className={`mt-1 text-xs font-medium ${monthsDiff > 0 ? 'text-pine' : 'text-ember'}`}>
@@ -293,7 +293,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
           )}
         </div>
         <div className="card">
-          <p className="text-xs font-medium uppercase tracking-wider text-stone">Confidence</p>
+          <p className="text-xs font-medium text-stone">Confidence</p>
           <p className="mt-1">
             <span
               className={`inline-flex items-center rounded-badge px-2 py-0.5 text-sm font-medium ${
@@ -375,7 +375,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-mist text-left text-xs font-medium uppercase tracking-wider text-stone">
+                <tr className="border-b border-mist text-left text-xs font-medium text-stone">
                   <th className="pb-2 pr-4">Month</th>
                   <th className="pb-2 pr-4 text-right">Projected</th>
                   <th className="pb-2 pr-4 text-right">Actual</th>
@@ -512,7 +512,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-mist text-left text-xs font-medium uppercase tracking-wider text-stone">
+              <tr className="border-b border-mist text-left text-xs font-medium text-stone">
                 <th className="pb-2 pr-4">Month</th>
                 <th className="pb-2 pr-4 text-right">Projected</th>
                 <th className="pb-2 pr-4 text-right">On Plan</th>

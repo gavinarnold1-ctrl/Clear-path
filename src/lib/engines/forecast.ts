@@ -6,7 +6,7 @@
  * showing how changes affect the projected goal completion date.
  */
 
-import { monthlyPayment, amortizationSchedule } from './amortization'
+import { monthlyPayment, amortizationSchedule, piBreakdown } from './amortization'
 import type {
   AssetClass,
   AssetClassConfig,
@@ -1077,9 +1077,26 @@ function generateTabSummaries(
     : `Budget is tight — ${formatDollar(Math.abs(budgetSurplus))}/mo over budget.`
 
   const totalDebt = debts.reduce((s, d) => s + d.balance, 0)
-  const debtMsg = debts.length > 0
-    ? `${debts.length} debt${debts.length > 1 ? 's' : ''} totaling ${formatDollar(totalDebt)}. ${projectedDate ? `Payoff projected ${projectedDate}.` : 'Payoff date not projected.'}`
-    : 'No outstanding debts tracked.'
+  let debtMsg: string
+  if (debts.length === 0) {
+    debtMsg = 'No outstanding debts tracked.'
+  } else {
+    // Compute actual payoff date from amortization, not goal projected date
+    let latestPayoff: Date | null = null
+    const now = new Date()
+    for (const d of debts) {
+      if (d.balance <= 0 || d.minimumPayment <= 0) continue
+      const pi = piBreakdown(d.balance, d.interestRate, d.minimumPayment)
+      if (pi.monthsRemaining != null && pi.monthsRemaining > 0) {
+        const payoff = new Date(now.getFullYear(), now.getMonth() + pi.monthsRemaining, 1)
+        if (!latestPayoff || payoff > latestPayoff) latestPayoff = payoff
+      }
+    }
+    const payoffLabel = latestPayoff
+      ? `Payoff projected ${latestPayoff.toISOString().slice(0, 7)}.`
+      : 'Payoff date not projected.'
+    debtMsg = `${debts.length} debt${debts.length > 1 ? 's' : ''} totaling ${formatDollar(totalDebt)}. ${payoffLabel}`
+  }
 
   const annualPlan = budgets.annualSetAside > 0
     ? `Setting aside ${formatDollar(budgets.annualSetAside)}/mo for annual expenses.`

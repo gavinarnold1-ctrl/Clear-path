@@ -34,6 +34,10 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+function formatGoalDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
 function humanizeScenarioLabel(label: string): string {
   // Turn "Custom cut_spending" or "cut-flexible-10" into readable labels
   return label
@@ -210,39 +214,39 @@ export default function ForecastScenarios({ scenarios, onScenarioSelect, onScena
                       </span>
                     )}
 
-                    {/* Stat pills */}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {/* Monthly impact */}
-                      <div className="rounded-badge bg-frost px-3 py-2 text-center">
-                        <p className={`font-mono text-sm font-semibold ${monthlyImpact >= 0 ? 'text-pine' : 'text-ember'}`}>
-                          {monthlyImpact >= 0 ? '+' : ''}{formatCurrency(monthlyImpact)}/mo
-                        </p>
-                        <p className="text-[10px] uppercase text-stone">True Remain</p>
-                      </div>
-
-                      {/* Timeline impact */}
+                    {/* Primary: Goal date shift */}
+                    <div className="mt-3">
                       {monthsSaved !== 0 ? (
-                        <div className="rounded-badge bg-frost px-3 py-2 text-center">
-                          <p className={`font-mono text-sm font-semibold ${monthsSaved > 0 ? 'text-pine' : 'text-ember'}`}>
-                            {Math.abs(monthsSaved)} mo {monthsSaved > 0 ? 'sooner' : 'later'}
-                          </p>
-                          <p className="text-[10px] uppercase text-stone">Goal date</p>
-                        </div>
-                      ) : impact.daysSaved === 0 && (
-                        <div className="rounded-badge bg-frost px-3 py-2 text-center">
-                          <p className="font-mono text-sm font-semibold text-stone">N/A</p>
-                          <p className="text-[10px] uppercase text-stone">Goal date</p>
-                        </div>
+                        <p className={`text-sm font-semibold ${monthsSaved > 0 ? 'text-pine' : 'text-ember'}`}>
+                          Goal reached {Math.abs(monthsSaved)} month{Math.abs(monthsSaved) !== 1 ? 's' : ''} {monthsSaved > 0 ? 'earlier' : 'later'}
+                          {scenario.baselineProjectedDate && scenario.scenarioProjectedDate && (
+                            <span className="font-normal text-stone">
+                              {' '}({formatGoalDate(scenario.scenarioProjectedDate)} {monthsSaved > 0 ? 'instead of' : 'vs'} {formatGoalDate(scenario.baselineProjectedDate)})
+                            </span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-stone">No change to goal timeline</p>
                       )}
+                    </div>
 
-                      {/* Cumulative impact */}
-                      {cumulativeImpact !== 0 && (
-                        <div className="rounded-badge bg-frost px-3 py-2 text-center">
-                          <p className={`font-mono text-sm font-semibold ${cumulativeImpact >= 0 ? 'text-pine' : 'text-ember'}`}>
-                            {formatCurrency(Math.abs(cumulativeImpact))}
-                          </p>
-                          <p className="text-[10px] uppercase text-stone">{cumulativeImpact >= 0 ? 'Total gain' : 'Total cost'}</p>
-                        </div>
+                    {/* Secondary stats */}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone">
+                      {monthlyImpact !== 0 && (
+                        <span>
+                          <span className={monthlyImpact >= 0 ? 'text-pine' : 'text-ember'}>
+                            {monthlyImpact >= 0 ? '+' : ''}{formatCurrency(monthlyImpact)}/mo
+                          </span>
+                          {' '}to True Remaining
+                        </span>
+                      )}
+                      {cumulativeImpact !== 0 && scenario.monthlyBreakdown && (
+                        <span>
+                          Total impact: <span className={cumulativeImpact >= 0 ? 'text-pine' : 'text-ember'}>
+                            {cumulativeImpact >= 0 ? '+' : ''}{formatCurrency(Math.abs(cumulativeImpact))}
+                          </span>
+                          {' '}over {scenario.monthlyBreakdown.length} months
+                        </span>
                       )}
                     </div>
 

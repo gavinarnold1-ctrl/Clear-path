@@ -106,15 +106,15 @@ export default async function DebtsPage() {
         <div className="card mb-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-stone">Total Debt</p>
+              <p className="text-xs font-medium text-stone">Total debt</p>
               <p className="mt-1 font-mono text-2xl font-bold text-fjord">{formatCurrency(totalDebt)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-stone">Monthly Payments</p>
+              <p className="text-xs font-medium text-stone">Monthly payments</p>
               <p className="mt-1 font-mono text-2xl font-bold text-fjord">{formatCurrency(totalPayments)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-stone">Avg Interest Rate</p>
+              <p className="text-xs font-medium text-stone">Avg interest rate</p>
               <p className="mt-1 font-mono text-2xl font-bold text-fjord">{(weightedRate * 100).toFixed(2)}%</p>
             </div>
           </div>

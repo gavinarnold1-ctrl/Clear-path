@@ -62,10 +62,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get user's default property for new transactions
-    const defaultProperty = await db.property.findFirst({
-      where: { userId: session.userId, isDefault: true },
+    // Get account-level property links for auto-tagging (not global default)
+    const accountPropertyLinks = await db.accountPropertyLink.findMany({
+      where: { account: { userId: session.userId } },
+      select: { accountId: true, propertyId: true },
     })
+    const accountPropertyMap = new Map(
+      accountPropertyLinks.map(link => [link.accountId, link.propertyId])
+    )
 
     // R3B: Load confirmed UserCards with benefits for perk credit detection
     // Map accountId → benefits for fast lookup during transaction processing
@@ -254,7 +258,7 @@ export async function POST(request: Request) {
                 importSource: 'plaid',
                 plaidTransactionId: tx.transaction_id,
                 householdMemberId,
-                propertyId: defaultProperty?.id ?? null,
+                propertyId: (ourAccountId ? accountPropertyMap.get(ourAccountId) : null) ?? null,
                 tags: perkBenefitTag,
               },
               update: {
