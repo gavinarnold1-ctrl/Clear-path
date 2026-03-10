@@ -181,7 +181,7 @@ function DashboardView({
       {forecastSummary && (
         <div className="mb-4 rounded-card border border-pine/20 bg-pine/5 px-5 py-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-stone">Properties &amp; Your Goal</span>
+            <span className="text-xs font-medium text-stone">Properties &amp; your goal</span>
             <Link href="/forecast" className="text-xs text-pine hover:underline">
               See forecast &rarr;
             </Link>
@@ -207,7 +207,7 @@ function DashboardView({
       <div className="mt-6 card">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-stone uppercase tracking-wide">Total Rental Net</p>
+            <p className="text-xs text-stone">Total rental net</p>
             <p
               className={`mt-1 font-display text-lg font-semibold ${
                 totalRentalNet >= 0 ? 'text-income' : 'text-expense'
@@ -218,7 +218,7 @@ function DashboardView({
             <p className="text-[10px] text-stone">Schedule E</p>
           </div>
           <div>
-            <p className="text-xs text-stone uppercase tracking-wide">Total Business Net</p>
+            <p className="text-xs text-stone">Total business net</p>
             <p
               className={`mt-1 font-display text-lg font-semibold ${
                 totalBusinessNet >= 0 ? 'text-income' : 'text-expense'
@@ -229,7 +229,7 @@ function DashboardView({
             <p className="text-[10px] text-stone">Schedule C</p>
           </div>
           <div>
-            <p className="text-xs text-stone uppercase tracking-wide">Total Depreciation</p>
+            <p className="text-xs text-stone">Total depreciation</p>
             <p className="mt-1 font-display text-lg font-semibold text-stone">
               {formatCurrency(totalDepreciation)}
             </p>
@@ -338,7 +338,7 @@ function PropertyCard({
       {/* Inline PITI breakdown bar */}
       {piti && piti.totalPayment > 0 && (
         <div className="mt-3 rounded-lg border border-pine/20 bg-pine/5 p-2">
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone">
+          <p className="mb-1.5 text-[10px] font-medium text-stone">
             Monthly PITI
           </p>
           <div className="flex flex-wrap gap-2 text-[10px]">
@@ -553,8 +553,8 @@ function TaxReportView({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-stone uppercase tracking-wide">
-          Tax Report — {monthLabel}
+        <h2 className="text-sm font-medium text-stone">
+          Tax report — {monthLabel}
         </h2>
         <Button variant="secondary" size="sm" onClick={exportCsv}>
           Export for CPA
@@ -594,7 +594,7 @@ function TaxReportView({
 
               {p.expenses.length > 0 && (
                 <div className="mb-2 space-y-1">
-                  <p className="text-xs font-medium text-stone uppercase tracking-wide">
+                  <p className="text-xs font-medium text-stone">
                     Expenses
                   </p>
                   {p.expenses.map((e) => (
@@ -701,7 +701,7 @@ function TaxReportView({
 
               {b.expenses.length > 0 && (
                 <div className="mb-2 space-y-1">
-                  <p className="text-xs font-medium text-stone uppercase tracking-wide">
+                  <p className="text-xs font-medium text-stone">
                     Expenses
                   </p>
                   {b.expenses.map((e) => (

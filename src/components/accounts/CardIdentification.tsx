@@ -295,21 +295,51 @@ function ManualProgramList({
   assigning: string | null
   onSelect: (accountId: string, programId: string) => void
 }) {
+  const [search, setSearch] = useState('')
+
   const grouped = useMemo(() => {
+    const query = search.toLowerCase().trim()
+    const filtered = query
+      ? programs.filter(
+          (p) =>
+            p.issuer.toLowerCase().includes(query) ||
+            p.name.toLowerCase().includes(query)
+        )
+      : programs
+
     const groups: Record<string, CardProgram[]> = {}
-    for (const p of programs) {
+    for (const p of filtered) {
       ;(groups[p.issuer] ??= []).push(p)
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
-  }, [programs])
+  }, [programs, search])
+
+  if (programs.length === 0) {
+    return (
+      <div className="mt-2 border-t border-mist pt-2">
+        <p className="text-xs text-stone">
+          No card programs available. Card programs may need to be seeded in the database.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="mt-2 border-t border-mist pt-2">
-      <p className="mb-1 text-xs text-stone">Select the correct card:</p>
+      <input
+        type="text"
+        placeholder="Search cards..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="input mb-2 w-full py-1.5 text-xs"
+      />
       <div className="max-h-48 space-y-2 overflow-y-auto">
+        {grouped.length === 0 && (
+          <p className="text-xs text-stone">No cards match &ldquo;{search}&rdquo;</p>
+        )}
         {grouped.map(([issuer, issuerPrograms]) => (
           <div key={issuer}>
-            <p className="text-[10px] font-medium uppercase tracking-wide text-stone">{issuer}</p>
+            <p className="text-[10px] font-medium text-stone">{issuer}</p>
             <div className="mt-0.5 space-y-0.5">
               {issuerPrograms.map((program) => (
                 <button

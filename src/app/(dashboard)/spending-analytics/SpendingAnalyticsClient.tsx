@@ -724,8 +724,8 @@ export default function SpendingAnalyticsClient() {
 
               {categoryDeepDive.topMerchants.length > 0 && (
                 <>
-                  <h4 className="mt-4 text-xs font-medium uppercase tracking-wider text-stone">
-                    Top Merchants
+                  <h4 className="mt-4 text-xs font-medium text-stone">
+                    Top merchants
                   </h4>
                   <ul className="mt-2 space-y-1">
                     {categoryDeepDive.topMerchants.map((m) => (
@@ -782,7 +782,7 @@ export default function SpendingAnalyticsClient() {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-mist text-left text-xs font-medium uppercase tracking-wider text-stone">
+                <tr className="border-b border-mist text-left text-xs font-medium text-stone">
                   <th className="px-3 py-2">Merchant</th>
                   <th className="px-3 py-2">Category</th>
                   <th className="px-3 py-2 text-right">Total</th>

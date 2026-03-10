@@ -297,7 +297,7 @@ export default function BenefitsDashboard({ cards, netValues }: Props) {
                   {/* Rewards */}
                   {rewardBenefits.length > 0 && (
                     <div>
-                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone">
+                      <h4 className="mb-2 text-xs font-semibold text-stone">
                         Rewards
                       </h4>
                       <div className="space-y-1">
@@ -344,8 +344,8 @@ export default function BenefitsDashboard({ cards, netValues }: Props) {
                   {/* Statement Credits */}
                   {creditBenefits.length > 0 && (
                     <div>
-                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone">
-                        Statement Credits
+                      <h4 className="mb-2 text-xs font-semibold text-stone">
+                        Statement credits
                       </h4>
                       <div className="space-y-1">
                         {creditBenefits.map((b) => {
@@ -433,8 +433,8 @@ export default function BenefitsDashboard({ cards, netValues }: Props) {
                   {/* Perks & Insurance */}
                   {perkBenefits.length > 0 && (
                     <div>
-                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone">
-                        Perks & Insurance
+                      <h4 className="mb-2 text-xs font-semibold text-stone">
+                        Perks & insurance
                       </h4>
                       <div className="space-y-1">
                         {perkBenefits.map((b) => {
@@ -499,7 +499,7 @@ export default function BenefitsDashboard({ cards, netValues }: Props) {
                   {/* Net Value */}
                   {netValues && netValues[card.id] && (
                     <div className="rounded-lg border border-mist bg-snow px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-stone">Annual Net Value</p>
+                      <p className="text-xs font-semibold text-stone">Annual net value</p>
                       <div className="mt-1 flex items-baseline gap-2">
                         <span className={`font-mono text-lg font-bold ${netValues[card.id].isPositiveValue ? 'text-pine' : 'text-ember'}`}>
                           {netValues[card.id].netValue >= 0 ? '+' : ''}{formatCurrency(netValues[card.id].netValue)}

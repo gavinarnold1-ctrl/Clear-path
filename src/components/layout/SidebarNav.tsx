@@ -32,7 +32,7 @@ export default function SidebarNav({ navGroups, userName, userEmail, logoutActio
         {navGroups.map((group, gi) => (
           <div key={gi}>
             {group.label && (
-              <p className="mb-1 border-b border-snow/10 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-snow/40">
+              <p className="mb-1 border-b border-snow/10 px-3 pb-1 text-[11px] font-semibold text-snow/40">
                 {group.label}
               </p>
             )}

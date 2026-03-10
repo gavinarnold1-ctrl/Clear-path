@@ -569,6 +569,22 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     }
   }
 
+  async function unsetDefaultProperty(id: string) {
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDefault: false }),
+      })
+      if (res.ok) {
+        setProperties((prev) => prev.map((p) => ({ ...p, isDefault: p.id === id ? false : p.isDefault })))
+        router.refresh()
+      }
+    } catch {
+      setPropMsg('Network error.')
+    }
+  }
+
   // ─── Property Groups ────────────────────────────────────────────────────
   async function loadGroups() {
     if (groupsLoading) return
@@ -1361,12 +1377,19 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {!p.isDefault && (
+                      {!p.isDefault ? (
                         <button
                           onClick={() => setDefaultProperty(p.id)}
                           className="text-xs text-stone hover:text-fjord"
                         >
                           Set default
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => unsetDefaultProperty(p.id)}
+                          className="text-xs text-stone hover:text-fjord"
+                        >
+                          Remove default
                         </button>
                       )}
                       <button
@@ -1539,7 +1562,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     const yearsLeft = annual > 0 ? Math.round((remaining / annual) * 10) / 10 : 0
                     return (
                       <div className="mt-2 rounded-md border border-mist bg-snow p-2 text-xs text-stone">
-                        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-fjord">Depreciation Preview</p>
+                        <p className="mb-1 text-[10px] font-medium text-fjord">Depreciation preview</p>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                           <span>Building value:</span>
                           <span className="font-mono text-fjord">${buildingValue.toLocaleString()}</span>

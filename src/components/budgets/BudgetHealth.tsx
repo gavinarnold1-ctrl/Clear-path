@@ -187,8 +187,8 @@ export default function BudgetHealth({
 
   return (
     <div className="card mb-6">
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-stone">
-        Budget Health — {monthLabel}
+      <h2 className="mb-4 text-sm font-semibold text-stone">
+        Budget health — {monthLabel}
       </h2>
 
       <div className="space-y-5">

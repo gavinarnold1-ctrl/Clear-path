@@ -1151,7 +1151,7 @@ function StepSummary({
     <div className="space-y-4">
       {/* Basic Info */}
       <div className="rounded-lg border border-mist bg-white p-4">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">Property</p>
+        <p className="mb-2 text-xs font-medium text-stone">Property</p>
         <p className="text-base font-semibold text-fjord">{name || 'Unnamed'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           <span className="rounded-badge bg-fjord/10 px-2 py-0.5 text-xs font-medium text-fjord">
@@ -1186,7 +1186,7 @@ function StepSummary({
       {/* Mortgage Summary */}
       {hasMortgage && (
         <div className="rounded-lg border border-mist bg-white p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">Mortgage</p>
+          <p className="mb-2 text-xs font-medium text-stone">Mortgage</p>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-stone">Balance:</span>{' '}
@@ -1217,7 +1217,7 @@ function StepSummary({
 
       {!hasMortgage && (
         <div className="rounded-lg border border-mist bg-white p-4">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-stone">Mortgage</p>
+          <p className="mb-1 text-xs font-medium text-stone">Mortgage</p>
           <p className="text-sm text-stone">No mortgage</p>
         </div>
       )}
@@ -1225,7 +1225,7 @@ function StepSummary({
       {/* Linked Accounts */}
       {linkedAccounts.length > 0 && (
         <div className="rounded-lg border border-mist bg-white p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone">Linked Accounts</p>
+          <p className="mb-2 text-xs font-medium text-stone">Linked accounts</p>
           <div className="space-y-1">
             {linkedAccounts.map((a) => (
               <p key={a.id} className="text-sm text-fjord">{a.name}</p>
@@ -1260,8 +1260,8 @@ function PITIBreakdownBar({
 
   return (
     <div className="rounded-lg border border-pine/20 bg-pine/5 p-3">
-      <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-stone">
-        PITI Breakdown
+      <p className="mb-2 text-[10px] font-medium text-stone">
+        PITI breakdown
       </p>
       <div className="flex flex-wrap items-center gap-3 text-xs">
         {items.map((item) => (

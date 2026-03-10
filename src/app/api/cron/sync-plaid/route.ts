@@ -83,10 +83,14 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Default property for this user
-        const defaultProperty = await db.property.findFirst({
-          where: { userId, isDefault: true },
+        // Account-level property links for auto-tagging (not global default)
+        const accountPropertyLinks = await db.accountPropertyLink.findMany({
+          where: { account: { userId } },
+          select: { accountId: true, propertyId: true },
         })
+        const accountPropertyMap = new Map(
+          accountPropertyLinks.map(link => [link.accountId, link.propertyId])
+        )
 
         // Transaction sync
         let hasMore = true
@@ -283,7 +287,7 @@ export async function GET(req: NextRequest) {
                 isPending,
                 pendingPlaidId,
                 householdMemberId: inheritedFromPending?.householdMemberId ?? account?.ownerId ?? null,
-                propertyId: inheritedFromPending?.propertyId ?? defaultProperty?.id ?? null,
+                propertyId: inheritedFromPending?.propertyId ?? (ourAccountId ? accountPropertyMap.get(ourAccountId) : null) ?? null,
                 notes: inheritedFromPending?.notes ?? null,
                 tags: inheritedFromPending?.tags ?? null,
                 debtId: inheritedFromPending?.debtId ?? null,

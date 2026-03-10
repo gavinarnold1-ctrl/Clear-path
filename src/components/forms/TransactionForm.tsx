@@ -80,12 +80,16 @@ export default function TransactionForm({ accounts, categories, householdMembers
       const group = propertyGroups.find(g => g.id === gId)
       if (group && group.properties.length > 0) {
         setSelectedGroupId(gId)
-        // Set propertyId to first property in the group for the form submission
+        // Set propertyId to first property for form submission fallback
         setSelectedPropertyId(group.properties[0].id)
-        // Show the split panel but don't auto-enable — user opts in via "Enable Split"
-        // This prevents income (e.g. rent) from being accidentally split across units
-        setSplitAllocations([])
-        setSplitEnabled(false)
+        // Auto-enable split with group's default percentages (or equal split)
+        const hasRules = group.properties.some(p => (p.splitPct ?? 0) > 0)
+        const allocs = group.properties.map(p => ({
+          propertyId: p.id,
+          percentage: hasRules ? (p.splitPct ?? 0) : Math.round(100 / group.properties.length),
+        }))
+        setSplitAllocations(allocs)
+        setSplitEnabled(true)
         return
       }
     }

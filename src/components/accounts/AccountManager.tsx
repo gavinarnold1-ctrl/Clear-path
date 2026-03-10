@@ -390,7 +390,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
       {/* Grouped accounts */}
       {activeGroups.map(group => (
         <div key={group} className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone">{group}</h2>
+          <h2 className="mb-2 text-sm font-semibold text-stone">{group}</h2>
           <div className="space-y-3">
             {grouped[group].map(acct =>
               editingId === acct.id ? (
