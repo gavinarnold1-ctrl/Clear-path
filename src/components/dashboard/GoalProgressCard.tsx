@@ -36,80 +36,40 @@ export default function GoalProgressCard({
     progress >= expectedProgress + 5 ? 'ahead' :
     progress >= expectedProgress - 5 ? 'on-track' : 'behind'
 
-  const trueRemainingContext = getTrueRemainingContext(goal, trueRemaining, target)
+  const contextLine = getContextLine(goal, trueRemaining, target)
 
   return (
-    <div className="card mb-6">
-      {/* Goal label + description */}
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <span className="text-xs font-medium uppercase tracking-wider text-stone">
-            Your Goal: {goalLabel}
-          </span>
-          <h2 className="text-lg font-semibold text-fjord">{target.description}</h2>
+    <div className="rounded-card border border-mist bg-frost/30 p-4">
+      {/* Compact header: goal name + badge */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <span className="text-xs font-medium text-stone">{goalLabel}</span>
+          <span className="mx-2 text-xs text-mist">&middot;</span>
+          <span className="text-xs font-medium text-fjord">{target.description}</span>
         </div>
         <PaceBadge pace={pace} />
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-2">
-        <div className="flex justify-between text-sm text-stone">
-          <span>{formatMetricValue(target, target.currentValue ?? 0)}</span>
-          <span>{formatMetricValue(target, target.targetValue)}</span>
-        </div>
-        <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-birch/30">
+      {/* Thin progress bar */}
+      <div className="mt-3">
+        <div className="h-1.5 w-full overflow-hidden rounded-bar bg-mist">
           <div
-            className="h-full rounded-full bg-pine transition-all duration-700"
+            className="h-full rounded-bar bg-pine transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="mt-1 text-center text-sm font-medium text-fjord">{progress}%</div>
-      </div>
-
-      {/* Pace + projection */}
-      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <span className="text-xs text-stone">Monthly target</span>
-          <p className="font-semibold text-fjord">
-            {target.metric === 'categorization_pct'
-              ? `${target.targetValue}%`
-              : formatCurrency(target.monthlyNeeded ?? 0)}
-          </p>
-        </div>
-        <div>
-          <span className="text-xs text-stone">Projected completion</span>
-          <p className="font-semibold text-fjord">{projectedDate(target)}</p>
+        <div className="mt-1.5 flex items-center justify-between text-xs text-stone">
+          <span>{formatMetricValue(target, target.currentValue ?? 0)} of {formatMetricValue(target, target.targetValue)}</span>
+          <Link href="/forecast" className="font-medium text-fjord hover:underline">
+            {projectedDate(target)} &rarr;
+          </Link>
         </div>
       </div>
 
-      {/* Goal pace comparison */}
-      {target.monthlyNeeded != null && target.monthlyNeeded > 0 && (() => {
-        const paceInfo = getGoalPaceInfo(trueRemaining, target.monthlyNeeded)
-        return (
-          <p className={`mt-3 text-xs font-medium ${paceInfo.color}`}>
-            {paceInfo.label}
-          </p>
-        )
-      })()}
-
-      {/* True Remaining — contextualized */}
-      <div className="mt-4 rounded-lg bg-frost/50 px-4 py-3">
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm text-stone">True Remaining</span>
-          <span className="text-lg font-bold text-fjord">{formatCurrency(trueRemaining)}</span>
-        </div>
-        <p className="mt-1 text-xs text-stone">{trueRemainingContext}</p>
-      </div>
-
-      {/* Link to forecast */}
-      <div className="mt-4 text-center">
-        <Link
-          href="/forecast"
-          className="text-sm font-medium text-fjord hover:text-midnight hover:underline"
-        >
-          View Forecast &rarr;
-        </Link>
-      </div>
+      {/* Single context sentence */}
+      {contextLine && (
+        <p className="mt-2 text-xs text-stone">{contextLine}</p>
+      )}
     </div>
   )
 }
@@ -121,41 +81,22 @@ function formatMetricValue(target: GoalTarget, value: number): string {
   return formatCurrency(value)
 }
 
-function getTrueRemainingContext(goal: PrimaryGoal, remaining: number, target: GoalTarget): string {
+function getContextLine(goal: PrimaryGoal, remaining: number, target: GoalTarget): string | null {
   const monthly = target.monthlyNeeded ?? 0
-  switch (goal) {
-    case 'save_more':
-      return remaining >= monthly
-        ? `On pace \u2014 ${formatCurrency(remaining)} available, ${formatCurrency(monthly)} needed for savings target`
-        : `${formatCurrency(monthly - remaining)} short of monthly savings target`
-    case 'pay_off_debt':
-      return remaining >= monthly
-        ? `${formatCurrency(remaining)} available \u2014 directing ${formatCurrency(monthly)} to debt gets you to payoff sooner`
-        : `${formatCurrency(monthly - remaining)} short of extra debt payment goal`
-    case 'spend_smarter':
-      return `${formatCurrency(remaining)} remaining \u2014 ${remaining > 0 ? 'spending is under control' : 'review flexible categories for optimizations'}`
-    case 'gain_visibility':
-      return `${formatCurrency(remaining)} remaining this month`
-    case 'build_wealth':
-      return remaining >= monthly
-        ? `${formatCurrency(remaining)} available for wealth-building \u2014 savings + debt reduction this month`
-        : `${formatCurrency(monthly - remaining)} short of monthly wealth-building target`
-  }
-}
+  if (monthly <= 0) return null
 
-function getGoalPaceInfo(actual: number, needed: number): { label: string; color: string } {
-  if (needed <= 0) return { label: 'No target set', color: 'text-stone' }
-  const delta = actual - needed
-  const ratio = actual / needed
-  if (ratio >= 1.10) {
-    return { label: `${formatCurrency(delta)}/mo ahead of target`, color: 'text-pine' }
-  } else if (ratio >= 0.95) {
-    return { label: 'On track — meeting your monthly target', color: 'text-pine' }
-  } else if (ratio >= 0.75) {
-    return { label: `${formatCurrency(Math.abs(delta))}/mo below target`, color: 'text-ember' }
-  } else {
-    return { label: `${formatCurrency(Math.abs(delta))}/mo behind — consider adjusting`, color: 'text-ember' }
+  if (remaining >= monthly) {
+    switch (goal) {
+      case 'save_more':
+        return `On pace — ${formatCurrency(remaining)} available, ${formatCurrency(monthly)}/mo needed`
+      case 'pay_off_debt':
+        return `${formatCurrency(remaining)} available for extra debt payments this month`
+      default:
+        return `${formatCurrency(remaining)} remaining after commitments`
+    }
   }
+
+  return `${formatCurrency(monthly - remaining)} short of ${formatCurrency(monthly)}/mo target`
 }
 
 function PaceBadge({ pace }: { pace: 'ahead' | 'on-track' | 'behind' }) {
@@ -164,9 +105,9 @@ function PaceBadge({ pace }: { pace: 'ahead' | 'on-track' | 'behind' }) {
     'on-track': 'bg-pine/10 text-pine',
     behind: 'bg-ember/10 text-ember',
   }
-  const labels = { ahead: 'Ahead of pace', 'on-track': 'On track', behind: 'Behind pace' }
+  const labels = { ahead: 'Ahead', 'on-track': 'On track', behind: 'Behind' }
   return (
-    <span className={`rounded-full px-3 py-1 text-xs font-medium ${styles[pace]}`}>
+    <span className={`flex-shrink-0 rounded-badge px-2 py-0.5 text-xs font-medium ${styles[pace]}`}>
       {labels[pace]}
     </span>
   )
@@ -203,21 +144,21 @@ function GoalTargetProposal({ goal, goalLabel }: { goal: PrimaryGoal; goalLabel:
 
   if (proposal) {
     return (
-      <div className="card mb-6 border-pine/30 bg-pine/5">
-        <h3 className="text-lg font-semibold text-fjord">
+      <div className="rounded-card border border-pine/30 bg-pine/5 p-4">
+        <h3 className="text-sm font-semibold text-fjord">
           Suggested target for &ldquo;{goalLabel}&rdquo;
         </h3>
-        <p className="mt-2 text-fjord">{proposal.description}</p>
+        <p className="mt-1 text-sm text-fjord">{proposal.description}</p>
         {proposal.monthlyNeeded != null && proposal.monthlyNeeded > 0 && (
-          <p className="mt-1 text-sm text-stone">
+          <p className="mt-1 text-xs text-stone">
             Monthly target: {formatCurrency(proposal.monthlyNeeded)}
           </p>
         )}
-        <div className="mt-4 flex gap-3">
-          <Button onClick={acceptTarget}>
+        <div className="mt-3 flex gap-3">
+          <Button onClick={acceptTarget} size="sm">
             Set This Target
           </Button>
-          <Button variant="secondary" onClick={() => setProposal(null)}>
+          <Button variant="secondary" size="sm" onClick={() => setProposal(null)}>
             Dismiss
           </Button>
         </div>
@@ -226,16 +167,18 @@ function GoalTargetProposal({ goal, goalLabel }: { goal: PrimaryGoal; goalLabel:
   }
 
   return (
-    <div className="card mb-6">
-      <h3 className="text-lg font-semibold text-fjord">
-        Set a target for &ldquo;{goalLabel}&rdquo;
-      </h3>
-      <p className="mt-1 text-sm text-stone">
-        A concrete target turns your goal into a destination with visible progress.
-      </p>
-      <Button onClick={proposeTarget} className="mt-4" disabled={proposing} loading={proposing} loadingText="Analyzing your spending...">
-        Suggest a Target
-      </Button>
+    <div className="rounded-card border border-mist bg-frost/30 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <span className="text-xs font-medium text-stone">{goalLabel}</span>
+          <p className="mt-0.5 text-sm text-fjord">
+            Set a target to see visible progress
+          </p>
+        </div>
+        <Button onClick={proposeTarget} size="sm" disabled={proposing} loading={proposing} loadingText="Analyzing...">
+          Suggest Target
+        </Button>
+      </div>
     </div>
   )
 }
