@@ -80,8 +80,8 @@ export default function TransactionForm({ accounts, categories, householdMembers
       const group = propertyGroups.find(g => g.id === gId)
       if (group && group.properties.length > 0) {
         setSelectedGroupId(gId)
-        // Set propertyId to first property for form submission fallback
-        setSelectedPropertyId(group.properties[0].id)
+        // Don't auto-assign to first property — show split UI instead
+        setSelectedPropertyId('')
         // Auto-enable split with group's default percentages (or equal split)
         const hasRules = group.properties.some(p => (p.splitPct ?? 0) > 0)
         const allocs = group.properties.map(p => ({
@@ -224,10 +224,13 @@ export default function TransactionForm({ accounts, categories, householdMembers
       {/* Property */}
       {properties.length > 0 && (
         <div>
+          {/* Hidden field sends the actual propertyId value to the server action.
+              When splits are active, propertyId is empty — attribution comes from split records.
+              This prevents the group: prefix from reaching the server. */}
+          <input type="hidden" name="propertyId" value={splitEnabled ? '' : selectedPropertyId} />
           <FormSelect
             label="Property (optional)"
-            id="propertyId"
-            name="propertyId"
+            id="propertySelect"
             value={selectedGroupId ? `group:${selectedGroupId}` : selectedPropertyId}
             onChange={(e) => handlePropertyChange(e.target.value)}
           >
