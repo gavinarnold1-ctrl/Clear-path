@@ -17,6 +17,14 @@ export async function GET() {
     orderBy: [{ issuer: 'asc' }, { name: 'asc' }],
   })
 
+  console.log(`[cards/suggestions] Found ${programs.length} active card programs`)
+  if (programs.length === 0) {
+    return NextResponse.json(
+      { error: 'No card programs found — seed data may be missing' },
+      { status: 500 }
+    )
+  }
+
   // Return unidentified credit card accounts (those without auto-match suggestions)
   const suggestedAccountIds = new Set(suggestions.map((s) => s.accountId))
   const unidentifiedAccounts = await db.account.findMany({
