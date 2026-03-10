@@ -43,7 +43,22 @@ export default function CardIdentification() {
   }, [])
 
   const hasCards = suggestions.length > 0 || unidentifiedAccounts.length > 0
-  if (loading || dismissed || !hasCards) return null
+  if (loading || dismissed) return null
+  if (error && !hasCards) {
+    return (
+      <div className="mb-6 rounded-xl border border-ember/20 bg-ember/5 p-4">
+        <p className="text-sm font-medium text-fjord">Card Identification</p>
+        <p className="mt-1 text-xs text-ember">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-2 text-xs font-medium text-fjord hover:text-pine"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+  if (!hasCards) return null
 
   async function assignCard(accountId: string, cardProgramId: string) {
     setAssigning(accountId)

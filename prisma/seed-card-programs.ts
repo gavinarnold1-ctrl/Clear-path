@@ -6,7 +6,7 @@
 import { PrismaClient } from '@prisma/client'
 import cardPrograms from './seed-data/card-programs.json'
 
-const db = new PrismaClient()
+const defaultDb = new PrismaClient()
 
 interface SeedBenefit {
   name: string
@@ -37,7 +37,8 @@ interface SeedCardProgram {
   benefits: SeedBenefit[]
 }
 
-export async function seedCardPrograms() {
+export async function seedCardPrograms(externalDb?: PrismaClient) {
+  const db = externalDb ?? defaultDb
   console.log('Seeding card programs...')
 
   for (const program of cardPrograms as SeedCardProgram[]) {
@@ -90,11 +91,13 @@ export async function seedCardPrograms() {
   console.log(`Seeded ${cardPrograms.length} card programs.`)
 }
 
-// Run directly
-seedCardPrograms()
-  .then(() => db.$disconnect())
-  .catch((e) => {
-    console.error(e)
-    db.$disconnect()
-    process.exit(1)
-  })
+// Run directly when executed as standalone script
+if (require.main === module) {
+  seedCardPrograms()
+    .then(() => defaultDb.$disconnect())
+    .catch((e) => {
+      console.error(e)
+      defaultDb.$disconnect()
+      process.exit(1)
+    })
+}
