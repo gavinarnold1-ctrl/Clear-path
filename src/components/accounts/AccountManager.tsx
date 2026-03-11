@@ -33,6 +33,7 @@ interface Props {
   householdMembers: HouseholdMemberOption[]
   propertyEquity?: number
   linkedAccountIds?: string[]
+  isDemo?: boolean
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -72,7 +73,7 @@ function getSyncHoursStale(isoString: string): number {
   return (Date.now() - new Date(isoString).getTime()) / (1000 * 60 * 60)
 }
 
-export default function AccountManager({ accounts: initial, householdMembers, propertyEquity = 0, linkedAccountIds = [] }: Props) {
+export default function AccountManager({ accounts: initial, householdMembers, propertyEquity = 0, linkedAccountIds = [], isDemo = false }: Props) {
   const router = useRouter()
   const [accounts, setAccounts] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -527,7 +528,9 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                           </button>
                         )}
                         <button onClick={(e) => { e.stopPropagation(); startEdit(acct) }} className="text-xs text-stone hover:text-fjord">Edit</button>
-                        <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(acct) }} className="text-xs text-stone hover:text-ember">Delete</button>
+                        {!isDemo && (
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(acct) }} className="text-xs text-stone hover:text-ember">Delete</button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -569,7 +572,9 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                           </button>
                         )}
                         <button onClick={() => startEdit(acct)} className="text-xs text-stone hover:text-fjord">Edit</button>
-                        <button onClick={() => setDeleteTarget(acct)} className="text-xs text-stone hover:text-ember">Delete</button>
+                        {!isDemo && (
+                          <button onClick={() => setDeleteTarget(acct)} className="text-xs text-stone hover:text-ember">Delete</button>
+                        )}
                       </div>
                     </div>
                   </div>

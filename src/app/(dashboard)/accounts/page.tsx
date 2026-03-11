@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { DEMO_USER_ID } from '@/lib/demo'
 import AccountManager from '@/components/accounts/AccountManager'
 import CardIdentification from '@/components/accounts/CardIdentification'
 
@@ -86,6 +87,7 @@ export default async function AccountsPage() {
           householdMembers={householdMembers}
           propertyEquity={propertiesForNW.reduce((sum, p) => sum + (p.currentValue ?? 0) - (p.loanBalance ?? 0), 0)}
           linkedAccountIds={linkedAccountLinks.map(l => l.accountId)}
+          isDemo={session.userId === DEMO_USER_ID}
         />
         </>
       )}

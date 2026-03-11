@@ -442,8 +442,11 @@ export default function ForecastInteractive({
       {/* Growth Assumption */}
       <div className="card mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-fjord">Growth assumption</h2>
+          <h2 className="text-sm font-semibold text-fjord">Growth Assumptions</h2>
         </div>
+        <p className="text-xs text-stone mb-3">
+          Growth rates are applied to project your account balances forward. Rates are based on historical averages for each account type.
+        </p>
         <div className="flex rounded-button bg-frost overflow-hidden border border-mist">
           {GROWTH_PROFILES.map(profile => (
             <button
@@ -460,11 +463,12 @@ export default function ForecastInteractive({
           ))}
         </div>
         <p className="mt-2 text-[10px] text-stone">
-          {GROWTH_PROFILES.find(p => p.id === growthProfile)?.description}
-          {growthProfile !== 'current' && ' — checking/savings rates unchanged.'}
+          {growthProfile === 'current'
+            ? 'Using default rates for each account type.'
+            : GROWTH_PROFILES.find(p => p.id === growthProfile)?.description + ' — checking/savings rates unchanged.'}
         </p>
 
-        {/* Per-account growth rates */}
+        {/* Per-account growth rates with projected gain */}
         {assetGrowth.length > 0 && (
           <div className="mt-3 space-y-2 border-t border-mist pt-3">
             {assetGrowth.map(ag => {
@@ -476,15 +480,29 @@ export default function ForecastInteractive({
               const adjustedGrowth = ag.currentBalance * (profileRate / 100)
               return (
                 <div key={ag.accountId} className="flex items-center justify-between text-xs">
-                  <span className="text-fjord">{ag.accountName}</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-fjord">{ag.accountName}</span>
+                    <span className="ml-1 text-stone">({formatCurrency(ag.currentBalance)})</span>
+                  </div>
                   <span className="font-mono text-stone">
-                    {profileRate}%/yr → {formatCurrency(adjustedGrowth)}/yr
+                    {profileRate}% → <span className={adjustedGrowth > 0 ? 'text-pine' : ''}>{adjustedGrowth > 0 ? '+' : ''}{formatCurrency(adjustedGrowth)}/yr</span>
                   </span>
                 </div>
               )
             })}
           </div>
         )}
+
+        {/* Rate explanations */}
+        <div className="mt-3 rounded-lg bg-frost/50 px-3 py-2">
+          <p className="text-[10px] font-medium text-stone mb-1">Default rates</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-stone/80">
+            <span>Checking: 0% (no interest)</span>
+            <span>Savings: 4.5% (high-yield avg)</span>
+            <span>Investment: 8% (S&amp;P 500 avg)</span>
+            <span>Cash: 0% (no interest)</span>
+          </div>
+        </div>
 
         <p className="mt-2 text-[10px] text-stone/70">
           Projected returns are estimates based on historical averages. Past performance does not guarantee future results.
@@ -523,38 +541,57 @@ export default function ForecastInteractive({
                 +{formatCurrency(adjustedAssetGrowth.reduce((s, a) => s + a.expectedGrowth, 0))}
               </span>
             </div>
-            {propertyEquityGrowth && propertyEquityGrowth.annualTotal > 0 && (
-              <div className="border-t border-mist pt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-fjord">Property Equity Growth</p>
-                    <p className="text-xs text-stone">
-                      {isSavingsGoal
-                        ? 'Not included in savings target — shown for context'
-                        : `${propertyEquityGrowth.properties.length} propert${propertyEquityGrowth.properties.length === 1 ? 'y' : 'ies'} — appreciation + paydown`}
-                    </p>
+            {(() => {
+              // Use scenario's property equity growth when a single scenario is active
+              const activeScenarios = allScenarios.filter(s => activeScenarioIds.includes(s.id))
+              const scenarioPEG = activeScenarios.length === 1
+                ? activeScenarios[0].propertyEquityGrowth
+                : null
+              const activePEG = scenarioPEG ?? propertyEquityGrowth
+              if (!activePEG || activePEG.annualTotal <= 0) return null
+
+              const baselinePrincipal = propertyEquityGrowth?.annualPrincipalPaydown ?? 0
+              const scenarioPrincipal = activePEG.annualPrincipalPaydown
+              const principalDelta = scenarioPEG ? scenarioPrincipal - baselinePrincipal : 0
+
+              return (
+                <div className="border-t border-mist pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-fjord">Property Equity Growth</p>
+                      <p className="text-xs text-stone">
+                        {isSavingsGoal
+                          ? 'Not included in savings target — shown for context'
+                          : `${activePEG.properties.length} propert${activePEG.properties.length === 1 ? 'y' : 'ies'} — appreciation + paydown`}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-pine">
+                        +{formatCurrency(activePEG.annualTotal)}/yr
+                      </p>
+                      {principalDelta > 0 && (
+                        <p className="text-xs text-pine">
+                          +{formatCurrency(principalDelta)}/yr more paydown with scenario
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-pine">
-                      +{formatCurrency(propertyEquityGrowth.annualTotal)}/yr
-                    </p>
-                  </div>
+                  {activePEG.properties.length > 1 && (
+                    <div className="space-y-1 pl-2">
+                      {activePEG.properties.map((p) => (
+                        <div key={p.name} className="flex items-center justify-between text-xs text-stone">
+                          <span>{p.name}</span>
+                          <span>
+                            +{formatCurrency(p.appreciation)} appreciation
+                            {p.principalPaydown > 0 ? ` + ${formatCurrency(p.principalPaydown)} paydown` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {propertyEquityGrowth.properties.length > 1 && (
-                  <div className="space-y-1 pl-2">
-                    {propertyEquityGrowth.properties.map((p) => (
-                      <div key={p.name} className="flex items-center justify-between text-xs text-stone">
-                        <span>{p.name}</span>
-                        <span>
-                          +{formatCurrency(p.appreciation)} appreciation
-                          {p.principalPaydown > 0 ? ` + ${formatCurrency(p.principalPaydown)} paydown` : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              )
+            })()}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { DEMO_USER_ID } from '@/lib/demo'
 
 export async function GET(
   _req: NextRequest,
@@ -287,6 +288,13 @@ export async function DELETE(
 ) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (session.userId === DEMO_USER_ID) {
+    return NextResponse.json(
+      { error: 'Demo accounts cannot delete data. Sign up for a free account to get started!' },
+      { status: 403 }
+    )
+  }
 
   const { id } = await params
   const expense = await db.annualExpense.findFirst({

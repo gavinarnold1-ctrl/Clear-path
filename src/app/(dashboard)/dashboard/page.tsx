@@ -75,6 +75,8 @@ export default async function DashboardPage({ searchParams }: Props) {
     goalContext,
     debtSummary,
     txCategorizationStats,
+    propertiesForNW,
+    linkedAccountLinks,
   ] = await Promise.all([
     db.account.findMany({ where: { userId: session.userId } }),
     // R1.14: Income = classification "income"
@@ -199,6 +201,16 @@ export default async function DashboardPage({ searchParams }: Props) {
       db.transaction.count({ where: { userId: session.userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 } } }),
       db.transaction.count({ where: { userId: session.userId, date: { gte: startDate, lte: endDate }, amount: { lt: 0 }, categoryId: { not: null } } }),
     ]),
+    // Properties for net worth (equity = currentValue - loanBalance)
+    db.property.findMany({
+      where: { userId: session.userId },
+      select: { id: true, currentValue: true, loanBalance: true },
+    }),
+    // Linked accounts (property-linked) to exclude from direct balance sum
+    db.accountPropertyLink.findMany({
+      where: { account: { userId: session.userId } },
+      select: { accountId: true },
+    }),
   ])
 
   // Plaid staleness check — trigger background sync if any item hasn't synced in 4+ hours
@@ -412,11 +424,19 @@ export default async function DashboardPage({ searchParams }: Props) {
   const annualFundProgress = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.funded ?? 0), 0)
   const [totalExpenseTxs, categorizedTxs] = txCategorizationStats
   const categorizationPct = totalExpenseTxs > 0 ? Math.round((categorizedTxs / totalExpenseTxs) * 100) : 100
+  // Net worth calculation — matches AccountManager logic exactly:
+  // 1. Exclude accounts linked to properties (captured in property equity)
+  // 2. Subtract liabilities
+  // 3. Add property equity (currentValue - loanBalance)
   const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
-  const netWorth = accounts.reduce((sum, a) => {
+  const linkedAccountIdSet = new Set(linkedAccountLinks.map(l => l.accountId))
+  const propertyEquity = propertiesForNW.reduce((sum, p) => sum + (p.currentValue ?? 0) - (p.loanBalance ?? 0), 0)
+  const accountBalance = accounts.reduce((sum, a) => {
+    if (linkedAccountIdSet.has(a.id)) return sum // Handled in property equity
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
+  const netWorth = accountBalance + propertyEquity
 
   // Over-budget items for attention section
   const overBudgetItems = flexibleBudgets
