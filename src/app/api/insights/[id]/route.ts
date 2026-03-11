@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { recordInsightResponse } from '@/lib/ai-context'
 
 const VALID_STATUSES = new Set(['active', 'dismissed', 'completed'])
 const VALID_DISMISS_REASONS = new Set([
@@ -49,6 +50,23 @@ export async function PATCH(
     where: { id },
     data: updateData,
   })
+
+  // Record AI context signal for insight engagement learning
+  if (status === 'dismissed' && dismissReason !== 'auto_replaced') {
+    recordInsightResponse(
+      session.userId,
+      existing.type,
+      existing.title,
+      'dismissed'
+    ).catch(() => {})
+  } else if (status === 'completed') {
+    recordInsightResponse(
+      session.userId,
+      existing.type,
+      existing.title,
+      'acted_on'
+    ).catch(() => {})
+  }
 
   // Store feedback if provided (rating, helpful, comment)
   if (rating !== undefined || helpful !== undefined || comment !== undefined) {

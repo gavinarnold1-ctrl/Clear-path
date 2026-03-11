@@ -13,6 +13,7 @@ import { getGoalContext } from '@/lib/goal-context'
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
+import { updateGoalPaceStatus } from '@/lib/ai-context'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
@@ -317,6 +318,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   const recalibration = goalTargetData && userProfile?.primaryGoal
     ? await checkRecalibration(session.userId, goalTargetData, userProfile.primaryGoal as PrimaryGoal)
     : null
+
+  // Update AI context with goal pace status (fire-and-forget)
+  if (goalTargetData) {
+    const paceStatus = recalibration ? 'behind' as const : 'on_track' as const
+    updateGoalPaceStatus(session.userId, paceStatus).catch(() => {})
+  }
 
   // New users with no accounts: show streamlined "Get Started" flow
   if (accounts.length === 0) {

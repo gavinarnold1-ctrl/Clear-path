@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import type { PrimaryGoal, GoalTarget } from '@/types'
 import { GOAL_TARGET_DEFAULTS, monthsBetween } from '@/lib/goal-targets'
 import { computeCurrentValue } from '@/lib/goal-utils'
+import { recordRecalibrationResponse } from '@/lib/ai-context'
 
 export async function GET() {
   const session = await getSession()
@@ -59,6 +60,11 @@ export async function POST(req: NextRequest) {
       where: { userId: session.userId },
       data: { goalTarget: JSON.parse(JSON.stringify(updated)) },
     })
+
+    // Record recalibration acceptance signal
+    const action = targetDate ? 'extend_date' as const : 'increase_monthly' as const
+    recordRecalibrationResponse(session.userId, action, true).catch(() => {})
+
     return NextResponse.json({ goalTarget: updated, recalibrated: true })
   }
 

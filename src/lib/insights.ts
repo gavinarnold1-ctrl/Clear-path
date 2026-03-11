@@ -10,6 +10,7 @@ import type { TransactionSummary, RecurringCharge, MonthOverMonthItem } from '@/
 import { computeBenefitAlerts } from './engines/benefit-alerts'
 import type { BenefitAlertInput } from './engines/benefit-alerts'
 import { canonicalizeMerchant } from './normalize-merchant'
+import { assembleAIContext } from './ai-context'
 
 /** Transaction references detected during summary building, used to attach to insights */
 interface TransactionRefs {
@@ -313,7 +314,7 @@ function attachTransactionRefs(
 
 export async function generateAndStoreInsights(userId: string) {
   const now = new Date()
-  const [summary, temporal, velocity, budget, history, entitySummary, goalContext, userCards] =
+  const [summary, temporal, velocity, budget, history, entitySummary, goalContext, userCards, aiLearningContext] =
     await Promise.all([
       buildTransactionSummary(userId, 3),
       Promise.resolve(buildTemporalContext()),
@@ -342,6 +343,7 @@ export async function generateAndStoreInsights(userId: string) {
           },
         },
       }),
+      assembleAIContext(userId, 'insights'),
     ])
 
   // Build benefit alerts for AI context
@@ -401,6 +403,7 @@ export async function generateAndStoreInsights(userId: string) {
     budget,
     history,
     entitySummary: entitySummary ?? undefined,
+    aiLearningContext: aiLearningContext || undefined,
     goalContext: goalContext ?? undefined,
     benefitAlerts: benefitAlerts.length > 0
       ? benefitAlerts.map((a) => ({

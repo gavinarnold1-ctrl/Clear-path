@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { OVERSIKT_VOICE } from './ai-voice'
+import { assembleAIContext } from './ai-context'
 
 interface UncategorizedTx {
   id: string
@@ -19,6 +20,7 @@ interface CategorySuggestion {
 export async function aiCategorizeBatch(
   transactions: UncategorizedTx[],
   existingCategories: { id: string; name: string; group: string; type: string }[],
+  userId?: string,
 ): Promise<CategorySuggestion[]> {
   if (transactions.length === 0) return []
 
@@ -38,11 +40,14 @@ export async function aiCategorizeBatch(
     )
     .join('\n')
 
+  // Assemble user learning context if userId is provided
+  const aiContext = userId ? await assembleAIContext(userId, 'categorization') : ''
+
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5-20250514',
       max_tokens: 2000,
-      system: `${OVERSIKT_VOICE}\n\nYou are categorizing bank transactions. The user's existing categories are:\n${categoryList}\n\nRules:\n- Positive amounts (IN) = money received. Most are income. Paychecks, direct deposits, mobile deposits = "Paychecks" or "Other Income".\n- Negative amounts (OUT) = money spent.\n- Credit card payments (to Amex, Capital One, Chase, etc.) = "Credit Card Payment" (transfer, NOT expense).\n- Match to existing categories whenever possible.\n- If none fit, suggest the closest existing category.\n- Return JSON array only.`,
+      system: `${OVERSIKT_VOICE}\n\nYou are categorizing bank transactions. The user's existing categories are:\n${categoryList}\n\nRules:\n- Positive amounts (IN) = money received. Most are income. Paychecks, direct deposits, mobile deposits = "Paychecks" or "Other Income".\n- Negative amounts (OUT) = money spent.\n- Credit card payments (to Amex, Capital One, Chase, etc.) = "Credit Card Payment" (transfer, NOT expense).\n- Match to existing categories whenever possible.\n- If none fit, suggest the closest existing category.\n- Return JSON array only.${aiContext ? `\n\n${aiContext}` : ''}`,
       messages: [
         {
           role: 'user',

@@ -4,6 +4,7 @@ import { db, withDbRetry } from '@/lib/db'
 import { analyzeSpendingProfile, generateBudgetProposal } from '@/lib/budget-builder'
 import { getGoalContext } from '@/lib/goal-context'
 import { getGeneration, setGeneration } from '@/lib/budget-generation-store'
+import { assembleAIContext } from '@/lib/ai-context'
 
 const INCOME_RANGE_TO_LOW: Record<string, number> = {
   under_50k: 0,
@@ -76,7 +77,8 @@ async function generateAsync(userId: string) {
     )
   }
 
-  const proposal = await generateBudgetProposal(profile, goalContext, benchmarks)
+  const aiLearningContext = await assembleAIContext(userId, 'budget_builder')
+  const proposal = await generateBudgetProposal(profile, goalContext, benchmarks, aiLearningContext || undefined)
 
   setGeneration(userId, {
     status: 'complete',

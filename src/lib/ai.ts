@@ -35,6 +35,7 @@ export interface InsightGenerationContext {
   goalContext?: GoalContext
   benefitAlerts?: BenefitAlertForAI[]
   cardRenewals?: CardRenewalForAI[]
+  aiLearningContext?: string
 }
 
 function sanitizeForPrompt(value: string): string {
@@ -274,6 +275,10 @@ UPCOMING CARD RENEWALS:
 ${ctx.cardRenewals.map((r) => `- ${sanitizeForPrompt(r.cardLabel)}: $${Math.round(r.annualFee)}/yr fee renews in ${r.daysUntilRenewal} days. Total credit value: $${Math.round(r.totalCreditValue)}/yr. Net value: ${r.totalCreditValue >= r.annualFee ? '+' : ''}$${Math.round(r.totalCreditValue - r.annualFee)}/yr.`).join('\n')}
 - For cards with negative net value (fee > benefits used), suggest evaluating whether to keep or downgrade.
 - For cards with positive net value, confirm the card is worth keeping.`
+  }
+
+  if (ctx.aiLearningContext) {
+    userPrompt += `\n\n${ctx.aiLearningContext}`
   }
 
   userPrompt += '\n\nGenerate 5-8 specific, actionable insights prioritized by dollar impact.'

@@ -404,7 +404,8 @@ export interface BenchmarkData {
 export async function generateBudgetProposal(
   profile: SpendingProfile,
   goalContext?: GoalContext | null,
-  benchmarks?: BenchmarkData[] | null
+  benchmarks?: BenchmarkData[] | null,
+  aiLearningContext?: string,
 ): Promise<BudgetProposal> {
   const temporalContext = buildTemporalContext()
 
@@ -593,6 +594,10 @@ ARCHETYPE-SPECIFIC BUDGET INSTRUCTIONS:`
         userPrompt += `\n- Maximize surplus for investing. Be aggressive on flexible cuts. Frame commentary around wealth-building timeline impact.`
       }
     }
+  }
+
+  if (aiLearningContext) {
+    userPrompt += `\n\n${aiLearningContext}`
   }
 
   userPrompt += `

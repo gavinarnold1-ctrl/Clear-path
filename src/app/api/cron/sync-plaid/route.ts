@@ -439,6 +439,7 @@ export async function GET(req: NextRequest) {
                 accountName: t.account?.name || 'Unknown',
               })),
               userCategories,
+              userId,
             )
 
             for (const suggestion of suggestions) {

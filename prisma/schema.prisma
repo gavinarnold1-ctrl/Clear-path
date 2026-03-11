@@ -103,6 +103,7 @@ model User {
   categoryMappings  UserCategoryMapping[]
   userCards          UserCard[]
   feedback          Feedback[]
+  aiContext         UserAIContext?
 }
 
 model Account {
@@ -969,6 +970,34 @@ model Feedback {
 
   @@index([userId])
   @@index([type, status])
+}
+
+// ─── AI Context (signal accumulator for personalized AI) ─────────────────────
+
+model UserAIContext {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Categorization learning (supplements UserCategoryMapping)
+  categorizationSignals  Json @default("{}")
+
+  // Insight engagement
+  insightSignals  Json @default("{}")
+
+  // Budget builder learning
+  budgetSignals  Json @default("{}")
+
+  // Spending behavior summary (derived, updated monthly)
+  spendingProfile  Json @default("{}")
+
+  // Goal context
+  goalSignals  Json @default("{}")
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ─── Waitlist ─────────────────────────────────────────────────────────────────

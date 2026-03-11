@@ -439,6 +439,7 @@ export async function POST(request: Request) {
             accountName: t.account?.name || 'Unknown',
           })),
           userCategories,
+          session.userId,
         )
 
         for (const suggestion of suggestions) {
