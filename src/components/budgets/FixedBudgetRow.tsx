@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { formatOrdinalDay } from '@/lib/budget-engine'

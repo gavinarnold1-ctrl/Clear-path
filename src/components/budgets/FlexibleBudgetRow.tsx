@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import ProgressBar from '@/components/ui/ProgressBar'
 import { formatCurrency, budgetProgress } from '@/lib/utils'
