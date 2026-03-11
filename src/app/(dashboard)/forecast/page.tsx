@@ -163,7 +163,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         <PaceIcon pace={pace} />
       </div>
 
-      {/* Section 1: Interactive Chart + Scenarios (chart overlay wired) */}
+      {/* Section 1: Interactive Chart + Scenarios + Summary Cards + Asset Growth */}
       <ForecastInteractive
         timeline={timeline}
         targetValue={goalTarget?.targetValue ?? forecast.projectedValue}
@@ -176,6 +176,11 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
         debts={debtPayoffData}
         summaryCards={summaryCards}
         assetGrowth={assetGrowth}
+        assetClassLabels={Object.fromEntries(
+          Object.entries(ASSET_CLASS_DEFAULTS).map(([k, v]) => [k, v.label])
+        )}
+        propertyEquityGrowth={propertyEquityGrowth ?? null}
+        isSavingsGoal={isSavingsGoal}
       />
 
       {/* Debt Payoff Timeline (shown when navigating from debts page) */}
@@ -316,74 +321,6 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Section 4: Asset Growth Breakdown */}
-      {assetGrowth.length > 0 && (
-        <div className="card mb-6">
-          <h2 className="mb-4 text-base font-semibold text-fjord">Asset Growth Projections (12mo)</h2>
-          <div className="space-y-3">
-            {assetGrowth.map((ag) => (
-              <div key={ag.accountId} className="flex items-center justify-between rounded-lg border border-mist bg-frost/30 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-fjord">{ag.accountName}</p>
-                  <p className="text-xs text-stone">
-                    {ASSET_CLASS_DEFAULTS[ag.assetClass as AssetClass]?.label ?? ag.assetClass}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-fjord">
-                    {formatCurrency(ag.currentBalance)} → {formatCurrency(ag.projectedBalance12mo)}
-                  </p>
-                  <p className={`text-xs font-medium ${ag.expectedGrowth >= 0 ? 'text-pine' : 'text-ember'}`}>
-                    {ag.expectedGrowth >= 0 ? '+' : ''}{formatCurrency(ag.expectedGrowth)}
-                  </p>
-                  <p className="text-xs text-stone">
-                    Range: {formatCurrency(ag.uncertaintyRange.low)} – {formatCurrency(ag.uncertaintyRange.high)}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <div className="flex items-center justify-between border-t border-mist pt-3">
-              <span className="text-sm font-semibold text-fjord">Total Projected Growth</span>
-              <span className="font-mono text-sm font-semibold text-pine">
-                +{formatCurrency(assetGrowth.reduce((s, a) => s + a.expectedGrowth, 0))}
-              </span>
-            </div>
-            {propertyEquityGrowth && propertyEquityGrowth.annualTotal > 0 && (
-              <div className="border-t border-mist pt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-fjord">Property Equity Growth</p>
-                    <p className="text-xs text-stone">
-                      {isSavingsGoal
-                        ? 'Not included in savings target — shown for context'
-                        : `${propertyEquityGrowth.properties.length} propert${propertyEquityGrowth.properties.length === 1 ? 'y' : 'ies'} — appreciation + paydown`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-pine">
-                      +{formatCurrency(propertyEquityGrowth.annualTotal)}/yr
-                    </p>
-                  </div>
-                </div>
-                {propertyEquityGrowth.properties.length > 1 && (
-                  <div className="space-y-1 pl-2">
-                    {propertyEquityGrowth.properties.map((p) => (
-                      <div key={p.name} className="flex items-center justify-between text-xs text-stone">
-                        <span>{p.name}</span>
-                        <span>
-                          +{formatCurrency(p.appreciation)} appreciation
-                          {p.principalPaydown > 0 ? ` + ${formatCurrency(p.principalPaydown)} paydown` : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}

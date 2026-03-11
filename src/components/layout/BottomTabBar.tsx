@@ -19,6 +19,7 @@ const TABS = [
 const MORE_ITEMS = [
   { href: '/forecast', label: 'Forecast' },
   { href: '/monthly-review', label: 'Monthly Review' },
+  { href: '/budgets/annual', label: 'Annual Plan' },
   { href: '/accounts', label: 'Accounts' },
   { href: '/debts', label: 'Debts' },
   { href: '/properties', label: 'Properties' },

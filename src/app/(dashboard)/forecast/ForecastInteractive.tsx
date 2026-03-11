@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
-import type { ForecastPoint, ForecastScenario, IncomeTransition, VelocityBreakdown } from '@/types'
+import type { ForecastPoint, ForecastScenario, IncomeTransition, VelocityBreakdown, AssetGrowthProjection } from '@/types'
 import type { Forecast } from '@/types'
 
 interface CombinedScenarioMetrics {
@@ -39,10 +39,11 @@ interface SummaryCardData {
   currentValue: number
 }
 
-// Per-account growth assumption
-interface AccountGrowthOverride {
-  accountId: string
-  rate: number
+interface PropertyEquityGrowth {
+  annualAppreciation: number
+  annualPrincipalPaydown: number
+  annualTotal: number
+  properties: { name: string; appreciation: number; principalPaydown: number }[]
 }
 
 // Growth assumption profiles
@@ -76,18 +77,11 @@ interface Props {
   baselineMonthlyVelocity: number
   currentValue: number
   debts?: DebtSummary[]
-  summaryCards?: SummaryCardData
-  assetGrowth?: AssetGrowthItem[]
-}
-
-interface AssetGrowthItem {
-  accountId: string
-  accountName: string
-  assetClass: string
-  currentBalance: number
-  projectedBalance12mo: number
-  expectedGrowth: number
-  uncertaintyRange: { low: number; high: number }
+  summaryCards: SummaryCardData
+  assetGrowth: AssetGrowthProjection[]
+  assetClassLabels: Record<string, string>
+  propertyEquityGrowth: PropertyEquityGrowth | null
+  isSavingsGoal: boolean
 }
 
 function formatCurrency(amount: number): string {
@@ -110,14 +104,23 @@ export default function ForecastInteractive({
   debts = [],
   summaryCards,
   assetGrowth,
+  assetClassLabels,
+  propertyEquityGrowth,
+  isSavingsGoal,
 }: Props) {
   const [activeScenarioIds, setActiveScenarioIds] = useState<string[]>([])
   const [growthProfile, setGrowthProfile] = useState<string>('current')
-  const [_accountOverrides, _setAccountOverrides] = useState<AccountGrowthOverride[]>([])
+  const [dismissedScenarioIds, setDismissedScenarioIds] = useState<string[]>([])
 
   // All scenarios including custom ones added by ForecastScenarios
   const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
   const allScenarios = useMemo(() => [...scenarios, ...customScenarios], [scenarios, customScenarios])
+
+  // Filter out dismissed auto-generated scenarios
+  const visibleScenarios = useMemo(
+    () => scenarios.filter(s => !dismissedScenarioIds.includes(s.id)),
+    [scenarios, dismissedScenarioIds]
+  )
 
   const handleScenarioToggle = useCallback((scenarioId: string) => {
     setActiveScenarioIds(prev => {
@@ -139,6 +142,11 @@ export default function ForecastInteractive({
 
   const handleCustomScenarioRemove = useCallback((id: string) => {
     setCustomScenarios(prev => prev.filter(s => s.id !== id))
+    setActiveScenarioIds(prev => prev.filter(sid => sid !== id))
+  }, [])
+
+  const handleScenarioDismiss = useCallback((id: string) => {
+    setDismissedScenarioIds(prev => [...prev, id])
     setActiveScenarioIds(prev => prev.filter(sid => sid !== id))
   }, [])
 
@@ -207,7 +215,7 @@ export default function ForecastInteractive({
 
   // Scenario-aware summary card values
   const scenarioSummary = useMemo(() => {
-    if (!summaryCards || !combinedMetrics) return null
+    if (!combinedMetrics) return null
     const delta = combinedMetrics.monthlyDelta
     const scenarioVelocity = summaryCards.monthlyVelocity + delta
     const scenarioProjectedDateLabel = combinedMetrics.projectedDate
@@ -238,6 +246,27 @@ export default function ForecastInteractive({
     if (activeScenarios.length === 1) return activeScenarios[0].label
     return `${activeScenarios.length} scenarios`
   }, [isScenarioActive, allScenarios, activeScenarioIds])
+
+  // Adjust asset growth based on growth profile
+  const adjustedAssetGrowth = useMemo(() => {
+    if (growthProfile === 'current') return assetGrowth
+    return assetGrowth.map(ag => {
+      const accountType = ag.assetClass.toUpperCase()
+      const profileRate = (GROWTH_PROFILES_BY_TYPE[growthProfile]?.[accountType] ?? GROWTH_DEFAULTS_BY_TYPE[accountType] ?? 3) / 100
+      const projected = ag.currentBalance * (1 + profileRate)
+      const growth = projected - ag.currentBalance
+      const volatility = profileRate * 0.3
+      return {
+        ...ag,
+        projectedBalance12mo: projected,
+        expectedGrowth: growth,
+        uncertaintyRange: {
+          low: ag.currentBalance * (1 + profileRate - volatility),
+          high: ag.currentBalance * (1 + profileRate + volatility),
+        },
+      }
+    })
+  }, [assetGrowth, growthProfile])
 
   return (
     <>
@@ -283,134 +312,130 @@ export default function ForecastInteractive({
       )}
 
       {/* Summary Cards — react to scenario state */}
-      {summaryCards && (
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Velocity Breakdown Card */}
-          <div className="card sm:col-span-2 lg:col-span-1">
-            <p className="text-xs font-medium text-stone">Monthly savings estimate</p>
-            <p className={`mt-1 font-mono text-2xl font-medium ${(isScenarioActive ? scenarioSummary!.monthlyVelocity : summaryCards.monthlyVelocity) >= 0 ? 'text-pine' : 'text-ember'}`}>
-              {(isScenarioActive ? scenarioSummary!.monthlyVelocity : summaryCards.monthlyVelocity) < 0 ? '-' : ''}
-              {formatCurrency(Math.abs(isScenarioActive ? scenarioSummary!.monthlyVelocity : summaryCards.monthlyVelocity))}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Velocity Breakdown Card */}
+        <div className="card sm:col-span-2 lg:col-span-1">
+          <p className="text-xs font-medium text-stone">Monthly savings estimate</p>
+          <p className={`mt-1 font-mono text-2xl font-medium ${(isScenarioActive ? scenarioSummary!.monthlyVelocity : summaryCards.monthlyVelocity) >= 0 ? 'text-pine' : 'text-ember'}`}>
+            {(isScenarioActive ? scenarioSummary!.monthlyVelocity : summaryCards.monthlyVelocity) < 0 ? '-' : ''}
+            {formatCurrency(Math.abs(isScenarioActive ? scenarioSummary!.monthlyVelocity : summaryCards.monthlyVelocity))}
+          </p>
+          <p className="mt-1 text-xs text-stone">/month blended estimate</p>
+          {isScenarioActive && combinedMetrics && (
+            <p className="mt-1 text-xs">
+              <span className="text-stone">Baseline {formatCurrency(summaryCards.monthlyVelocity)} → </span>
+              <span className={combinedMetrics.monthlyDelta >= 0 ? 'font-medium text-pine' : 'font-medium text-ember'}>
+                {formatCurrency(scenarioSummary!.monthlyVelocity)} with scenario
+              </span>
             </p>
-            <p className="mt-1 text-xs text-stone">/month blended estimate</p>
-            {isScenarioActive && combinedMetrics && (
-              <p className="mt-1 text-xs">
-                <span className="text-stone">Baseline {formatCurrency(summaryCards.monthlyVelocity)} → </span>
-                <span className={combinedMetrics.monthlyDelta >= 0 ? 'font-medium text-pine' : 'font-medium text-ember'}>
-                  {formatCurrency(scenarioSummary!.monthlyVelocity)} with scenario
-                </span>
-              </p>
-            )}
-            {!isScenarioActive && summaryCards.velocityBreakdown && (
-              <div className="mt-3 space-y-1.5 border-t border-mist pt-2">
-                {summaryCards.velocityBreakdown.plan.weight > 0 && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-stone">Budget plan</span>
-                    <span className="font-mono text-fjord">
-                      {formatCurrency(summaryCards.velocityBreakdown.plan.value)} ({Math.round(summaryCards.velocityBreakdown.plan.weight * 100)}%)
-                    </span>
-                  </div>
-                )}
-                {summaryCards.velocityBreakdown.recent.weight > 0 && summaryCards.velocityBreakdown.recent.value != null && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-stone">Recent (3mo)</span>
-                    <span className="font-mono text-fjord">
-                      {formatCurrency(summaryCards.velocityBreakdown.recent.value)} ({Math.round(summaryCards.velocityBreakdown.recent.weight * 100)}%)
-                    </span>
-                  </div>
-                )}
-                {summaryCards.velocityBreakdown.trend.weight > 0 && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-stone">Historical trend</span>
-                    <span className="font-mono text-fjord">
-                      {formatCurrency(summaryCards.velocityBreakdown.trend.value)} ({Math.round(summaryCards.velocityBreakdown.trend.weight * 100)}%)
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Needed Monthly */}
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Needed monthly</p>
-            <p className="mt-1 font-mono text-2xl font-medium text-fjord">
-              {formatCurrency(Math.abs(summaryCards.requiredVelocity))}
-            </p>
-            <p className="mt-1 text-xs text-stone">/month to stay on track</p>
-          </div>
-
-          {/* Projected Completion */}
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Projected completion</p>
-            <p className="mt-1 font-mono text-xl font-medium text-fjord">
-              {isScenarioActive ? scenarioSummary!.projectedDateLabel : summaryCards.projectedDateLabel}
-            </p>
-            {(() => {
-              const diff = isScenarioActive ? scenarioSummary!.monthsDiff : summaryCards.monthsDiff
-              return diff !== 0 ? (
-                <p className={`mt-1 text-xs font-medium ${diff > 0 ? 'text-pine' : 'text-ember'}`}>
-                  {Math.abs(diff)} month{Math.abs(diff) !== 1 ? 's' : ''}{' '}
-                  {diff > 0 ? 'early' : 'late'}
-                </p>
-              ) : null
-            })()}
-            {isScenarioActive && combinedMetrics!.monthsShift !== 0 && (
-              <p className="mt-0.5 text-[10px] text-stone">
-                Baseline: {summaryCards.projectedDateLabel}
-              </p>
-            )}
-          </div>
-
-          {/* Confidence */}
-          <div className="card">
-            <p className="text-xs font-medium text-stone">Confidence</p>
-            <p className="mt-1">
-              {(() => {
-                const conf = isScenarioActive ? scenarioSummary!.confidence : summaryCards.confidence
-                return (
-                  <span className={`inline-flex items-center rounded-badge px-2 py-0.5 text-sm font-medium ${
-                    conf === 'high' ? 'bg-pine/10 text-pine' : conf === 'medium' ? 'bg-birch/20 text-midnight' : 'bg-ember/10 text-ember'
-                  }`}>
-                    {conf.charAt(0).toUpperCase() + conf.slice(1)}
+          )}
+          {!isScenarioActive && summaryCards.velocityBreakdown && (
+            <div className="mt-3 space-y-1.5 border-t border-mist pt-2">
+              {summaryCards.velocityBreakdown.plan.weight > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-stone">Budget plan</span>
+                  <span className="font-mono text-fjord">
+                    {formatCurrency(summaryCards.velocityBreakdown.plan.value)} ({Math.round(summaryCards.velocityBreakdown.plan.weight * 100)}%)
                   </span>
-                )
-              })()}
-            </p>
-            <p className="mt-1 text-xs text-stone">{summaryCards.confidenceReason}</p>
-            {isScenarioActive && scenarioSummary!.confidence !== summaryCards.confidence && (
-              <p className="mt-0.5 text-[10px] text-pine">
-                Would improve to {scenarioSummary!.confidence} with scenario
-              </p>
-            )}
-          </div>
+                </div>
+              )}
+              {summaryCards.velocityBreakdown.recent.weight > 0 && summaryCards.velocityBreakdown.recent.value != null && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-stone">Recent (3mo)</span>
+                  <span className="font-mono text-fjord">
+                    {formatCurrency(summaryCards.velocityBreakdown.recent.value)} ({Math.round(summaryCards.velocityBreakdown.recent.weight * 100)}%)
+                  </span>
+                </div>
+              )}
+              {summaryCards.velocityBreakdown.trend.weight > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-stone">Historical trend</span>
+                  <span className="font-mono text-fjord">
+                    {formatCurrency(summaryCards.velocityBreakdown.trend.value)} ({Math.round(summaryCards.velocityBreakdown.trend.weight * 100)}%)
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Progress Bar — react to scenario state */}
-      {summaryCards && (
-        <div className="card mb-6">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-medium text-fjord">{summaryCards.paceDetail}</span>
-            <span className="font-mono text-stone">{summaryCards.progressPercent.toFixed(1)}%</span>
-          </div>
-          <div className="h-3 w-full overflow-hidden rounded-bar bg-mist">
-            <div
-              className={`h-full rounded-bar transition-all ${summaryCards.pace === 'ahead' || summaryCards.pace === 'on_track' ? 'bg-pine' : summaryCards.pace === 'behind' ? 'bg-birch' : 'bg-ember'}`}
-              style={{ width: `${Math.min(100, summaryCards.progressPercent)}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-xs text-stone">
-            <span>{formatCurrency(summaryCards.currentValue)}</span>
-            <span>Target: {formatCurrency(targetValue)}</span>
-          </div>
-          {isScenarioActive && combinedMetrics!.monthsShift > 0 && (
-            <p className="mt-1 text-xs text-pine">
-              With scenario: on track for {scenarioSummary!.projectedDateLabel}
+        {/* Needed Monthly */}
+        <div className="card">
+          <p className="text-xs font-medium text-stone">Needed monthly</p>
+          <p className="mt-1 font-mono text-2xl font-medium text-fjord">
+            {formatCurrency(Math.abs(summaryCards.requiredVelocity))}
+          </p>
+          <p className="mt-1 text-xs text-stone">/month to stay on track</p>
+        </div>
+
+        {/* Projected Completion */}
+        <div className="card">
+          <p className="text-xs font-medium text-stone">Projected completion</p>
+          <p className="mt-1 font-mono text-xl font-medium text-fjord">
+            {isScenarioActive ? scenarioSummary!.projectedDateLabel : summaryCards.projectedDateLabel}
+          </p>
+          {(() => {
+            const diff = isScenarioActive ? scenarioSummary!.monthsDiff : summaryCards.monthsDiff
+            return diff !== 0 ? (
+              <p className={`mt-1 text-xs font-medium ${diff > 0 ? 'text-pine' : 'text-ember'}`}>
+                {Math.abs(diff)} month{Math.abs(diff) !== 1 ? 's' : ''}{' '}
+                {diff > 0 ? 'early' : 'late'}
+              </p>
+            ) : null
+          })()}
+          {isScenarioActive && combinedMetrics!.monthsShift !== 0 && (
+            <p className="mt-0.5 text-[10px] text-stone">
+              Baseline: {summaryCards.projectedDateLabel}
             </p>
           )}
         </div>
-      )}
+
+        {/* Confidence */}
+        <div className="card">
+          <p className="text-xs font-medium text-stone">Confidence</p>
+          <p className="mt-1">
+            {(() => {
+              const conf = isScenarioActive ? scenarioSummary!.confidence : summaryCards.confidence
+              return (
+                <span className={`inline-flex items-center rounded-badge px-2 py-0.5 text-sm font-medium ${
+                  conf === 'high' ? 'bg-pine/10 text-pine' : conf === 'medium' ? 'bg-birch/20 text-midnight' : 'bg-ember/10 text-ember'
+                }`}>
+                  {conf.charAt(0).toUpperCase() + conf.slice(1)}
+                </span>
+              )
+            })()}
+          </p>
+          <p className="mt-1 text-xs text-stone">{summaryCards.confidenceReason}</p>
+          {isScenarioActive && scenarioSummary!.confidence !== summaryCards.confidence && (
+            <p className="mt-0.5 text-[10px] text-pine">
+              Would improve to {scenarioSummary!.confidence} with scenario
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Progress Bar — react to scenario state */}
+      <div className="card mb-6">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-medium text-fjord">{summaryCards.paceDetail}</span>
+          <span className="font-mono text-stone">{summaryCards.progressPercent.toFixed(1)}%</span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-bar bg-mist">
+          <div
+            className={`h-full rounded-bar transition-all ${summaryCards.pace === 'ahead' || summaryCards.pace === 'on_track' ? 'bg-pine' : summaryCards.pace === 'behind' ? 'bg-birch' : 'bg-ember'}`}
+            style={{ width: `${Math.min(100, summaryCards.progressPercent)}%` }}
+          />
+        </div>
+        <div className="mt-2 flex justify-between text-xs text-stone">
+          <span>{formatCurrency(summaryCards.currentValue)}</span>
+          <span>Target: {formatCurrency(targetValue)}</span>
+        </div>
+        {isScenarioActive && combinedMetrics!.monthsShift > 0 && (
+          <p className="mt-1 text-xs text-pine">
+            With scenario: on track for {scenarioSummary!.projectedDateLabel}
+          </p>
+        )}
+      </div>
 
       {/* Growth Assumption */}
       <div className="card mb-6">
@@ -438,7 +463,7 @@ export default function ForecastInteractive({
         </p>
 
         {/* Per-account growth rates */}
-        {assetGrowth && assetGrowth.length > 0 && (
+        {assetGrowth.length > 0 && (
           <div className="mt-3 space-y-2 border-t border-mist pt-3">
             {assetGrowth.map(ag => {
               const accountType = ag.assetClass.toUpperCase()
@@ -464,16 +489,85 @@ export default function ForecastInteractive({
         </p>
       </div>
 
+      {/* Asset Growth Projections — reacts to growth profile */}
+      {adjustedAssetGrowth.length > 0 && (
+        <div className="card mb-6">
+          <h2 className="mb-4 text-base font-semibold text-fjord">Asset Growth Projections (12mo)</h2>
+          <div className="space-y-3">
+            {adjustedAssetGrowth.map((ag) => (
+              <div key={ag.accountId} className="flex items-center justify-between rounded-lg border border-mist bg-frost/30 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-fjord">{ag.accountName}</p>
+                  <p className="text-xs text-stone">
+                    {assetClassLabels[ag.assetClass] ?? ag.assetClass}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-fjord">
+                    {formatCurrency(ag.currentBalance)} → {formatCurrency(ag.projectedBalance12mo)}
+                  </p>
+                  <p className={`text-xs font-medium ${ag.expectedGrowth >= 0 ? 'text-pine' : 'text-ember'}`}>
+                    {ag.expectedGrowth >= 0 ? '+' : ''}{formatCurrency(ag.expectedGrowth)}
+                  </p>
+                  <p className="text-xs text-stone">
+                    Range: {formatCurrency(ag.uncertaintyRange.low)} – {formatCurrency(ag.uncertaintyRange.high)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center justify-between border-t border-mist pt-3">
+              <span className="text-sm font-semibold text-fjord">Total Projected Growth</span>
+              <span className="font-mono text-sm font-semibold text-pine">
+                +{formatCurrency(adjustedAssetGrowth.reduce((s, a) => s + a.expectedGrowth, 0))}
+              </span>
+            </div>
+            {propertyEquityGrowth && propertyEquityGrowth.annualTotal > 0 && (
+              <div className="border-t border-mist pt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-fjord">Property Equity Growth</p>
+                    <p className="text-xs text-stone">
+                      {isSavingsGoal
+                        ? 'Not included in savings target — shown for context'
+                        : `${propertyEquityGrowth.properties.length} propert${propertyEquityGrowth.properties.length === 1 ? 'y' : 'ies'} — appreciation + paydown`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-pine">
+                      +{formatCurrency(propertyEquityGrowth.annualTotal)}/yr
+                    </p>
+                  </div>
+                </div>
+                {propertyEquityGrowth.properties.length > 1 && (
+                  <div className="space-y-1 pl-2">
+                    {propertyEquityGrowth.properties.map((p) => (
+                      <div key={p.name} className="flex items-center justify-between text-xs text-stone">
+                        <span>{p.name}</span>
+                        <span>
+                          +{formatCurrency(p.appreciation)} appreciation
+                          {p.principalPaydown > 0 ? ` + ${formatCurrency(p.principalPaydown)} paydown` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* What-If Scenarios */}
       <div className="card mb-6">
         <h2 className="mb-4 text-base font-semibold text-fjord">What-If Scenarios</h2>
         <ForecastScenarios
-          scenarios={scenarios}
+          scenarios={visibleScenarios}
           customScenarios={customScenarios}
           activeScenarioIds={activeScenarioIds}
           onScenarioToggle={handleScenarioToggle}
           onCustomScenarioAdd={handleCustomScenarioAdd}
           onCustomScenarioRemove={handleCustomScenarioRemove}
+          onScenarioDismiss={handleScenarioDismiss}
           baselineProjectedDate={baselineProjectedDate}
           debts={debts}
         />
@@ -545,4 +639,4 @@ export default function ForecastInteractive({
   )
 }
 
-export type { CombinedScenarioMetrics, SummaryCardData, AssetGrowthItem }
+export type { CombinedScenarioMetrics, SummaryCardData }

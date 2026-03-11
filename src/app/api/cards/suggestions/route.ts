@@ -19,7 +19,10 @@ export async function GET() {
     })
 
     if (programs.length === 0) {
-      console.warn('No card programs found — seed data may be missing')
+      return NextResponse.json(
+        { error: 'No card programs found — seed data may be missing' },
+        { status: 500 },
+      )
     }
 
     // Return unidentified credit card accounts (those without auto-match suggestions)
@@ -40,7 +43,7 @@ export async function GET() {
     console.error('Card suggestions error:', error)
     return NextResponse.json(
       { error: 'Failed to load card suggestions' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

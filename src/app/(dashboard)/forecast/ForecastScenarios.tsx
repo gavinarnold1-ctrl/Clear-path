@@ -22,6 +22,7 @@ interface Props {
   onScenarioToggle: (scenarioId: string) => void
   onCustomScenarioAdd: (scenario: ForecastScenario) => void
   onCustomScenarioRemove: (id: string) => void
+  onScenarioDismiss: (id: string) => void
   baselineProjectedDate?: string | null
   debts?: DebtSummary[]
 }
@@ -78,6 +79,7 @@ export default function ForecastScenarios({
   onScenarioToggle,
   onCustomScenarioAdd,
   onCustomScenarioRemove,
+  onScenarioDismiss,
   baselineProjectedDate,
   debts = [],
 }: Props) {
@@ -320,12 +322,19 @@ export default function ForecastScenarios({
                         </button>
                       )}
 
-                      {isCustom && (
+                      {isCustom ? (
                         <button
                           onClick={() => onCustomScenarioRemove(scenario.id)}
                           className="text-xs text-stone transition-colors hover:text-ember"
                         >
-                          Remove
+                          Delete
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onScenarioDismiss(scenario.id)}
+                          className="text-xs text-stone transition-colors hover:text-ember"
+                        >
+                          Dismiss
                         </button>
                       )}
                     </div>
