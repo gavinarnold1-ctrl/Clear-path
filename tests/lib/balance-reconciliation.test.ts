@@ -119,6 +119,15 @@ describe('reconcileAccount', () => {
     expect(result.status).toBe('matched')
     expect(result.discrepancy).toBe(0)
     expect(result.possibleCauses).toHaveLength(0)
+
+    // Matched accounts should NOT have balance overwritten
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          balance: expect.anything(),
+        }),
+      })
+    )
   })
 
   it('flags manual accounts with no starting balance', async () => {
@@ -160,6 +169,16 @@ describe('reconcileAccount', () => {
     expect(result.status).toBe('discrepancy')
     expect(result.possibleCauses).toContain('No balance-as-of date set — starting balance may be inaccurate')
     expect(result.possibleCauses).toContain('Starting balance is $0 — set a starting balance for accuracy')
+
+    // Manual accounts with discrepancy get their balance auto-fixed
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          balance: -500,
+          balanceSource: 'computed',
+        }),
+      })
+    )
   })
 
   it('throws when account not found', async () => {

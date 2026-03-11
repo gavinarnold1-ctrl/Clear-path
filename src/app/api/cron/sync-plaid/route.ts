@@ -377,7 +377,7 @@ export async function GET(req: NextRequest) {
 
             await db.account.update({
               where: { id: ourAccount.id },
-              data: { balance, plaidLastSynced: new Date() },
+              data: { balance, plaidLastSynced: new Date(), balanceSource: 'plaid', syncFailCount: 0 },
             })
 
             // Sync linked Debt balance (update only — don't overwrite user-edited fields)
@@ -393,6 +393,11 @@ export async function GET(req: NextRequest) {
           }
         } catch (balErr) {
           console.error(`Balance refresh failed for item ${itemId}:`, balErr)
+          // Increment sync fail count for all accounts in this item (triggers dashboard warning banner)
+          await db.account.updateMany({
+            where: { id: { in: accounts.map(a => a.id) } },
+            data: { syncFailCount: { increment: 1 } },
+          })
         }
 
         itemsSynced++
