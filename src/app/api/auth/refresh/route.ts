@@ -73,5 +73,8 @@ export async function POST() {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   })
 
+  // Clear the rotation signal — rotation is complete
+  store.delete('oversikt-needs-rotation')
+
   return NextResponse.json({ success: true })
 }
