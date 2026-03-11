@@ -56,15 +56,35 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
     : []
 
   // Always fetch debts — used for debt payoff timeline and scenario dropdowns
-  const debtPayoffData = await db.debt.findMany({
+  const rawDebts = await db.debt.findMany({
     where: { userId: session.userId },
     orderBy: { interestRate: 'desc' },
     select: {
       id: true, name: true, type: true,
       currentBalance: true, interestRate: true,
       minimumPayment: true, escrowAmount: true,
+      property: {
+        select: {
+          id: true,
+          name: true,
+          groupId: true,
+          group: { select: { id: true, name: true } },
+        },
+      },
     },
   })
+
+  const debtPayoffData = rawDebts.map((d) => ({
+    id: d.id,
+    name: d.name,
+    type: d.type,
+    currentBalance: d.currentBalance,
+    interestRate: d.interestRate,
+    minimumPayment: d.minimumPayment,
+    escrowAmount: d.escrowAmount,
+    propertyGroupId: d.property?.group?.id ?? null,
+    propertyGroupName: d.property?.group?.name ?? null,
+  }))
 
   if (!forecast) {
     return (

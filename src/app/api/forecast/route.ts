@@ -176,7 +176,7 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     }),
     db.debt.findMany({
       where: { userId },
-      include: { account: true },
+      include: { account: true, property: { select: { groupId: true } } },
     }),
     db.account.findMany({
       where: { userId },
@@ -234,6 +234,8 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     balance: d.currentBalance,
     interestRate: d.interestRate,
     minimumPayment: d.minimumPayment,
+    escrowAmount: d.escrowAmount ?? 0,
+    propertyGroupId: d.property?.groupId ?? null,
     actualAvgPayment: debtPaymentMap.get(d.id),
   }))
 
@@ -343,6 +345,7 @@ function applyScenario(
           balance: principal,
           interestRate: rate,
           minimumPayment: payment,
+          escrowAmount: 0,
         },
       ]
       modified.budgets = {
@@ -445,19 +448,33 @@ function applyScenario(
         : [...input.debts].sort((a, b) => b.interestRate - a.interestRate)[0]
 
       if (target) {
-        const newPmt = monthlyPayment(target.balance, newRate, newTerm)
-        const oldPmt = target.minimumPayment
-        const savings = oldPmt - newPmt
+        // When the target belongs to a property group, refinance all debts in that group
+        // (e.g. a single mortgage split across multi-unit properties)
+        const groupId = target.propertyGroupId
+        const affectedDebts = groupId
+          ? input.debts.filter((d) => d.propertyGroupId === groupId)
+          : [target]
 
-        modified.debts = input.debts.map((d) =>
-          d.id === target.id
-            ? { ...d, interestRate: newRate, minimumPayment: newPmt }
-            : d
-        )
+        const combinedBalance = affectedDebts.reduce((s, d) => s + d.balance, 0)
+        const combinedEscrow = affectedDebts.reduce((s, d) => s + (d.escrowAmount ?? 0), 0)
+        const combinedOldPmt = affectedDebts.reduce((s, d) => s + d.minimumPayment, 0)
+
+        const newPmtPI = monthlyPayment(combinedBalance, newRate, newTerm)
+        // Escrow (taxes, insurance) doesn't change with a refinance — add it back
+        const newPmtTotal = newPmtPI + combinedEscrow
+        const savings = combinedOldPmt - newPmtTotal
+
+        // Distribute the new payment proportionally across affected debts
+        const affectedIds = new Set(affectedDebts.map((d) => d.id))
+        modified.debts = input.debts.map((d) => {
+          if (!affectedIds.has(d.id)) return d
+          const share = combinedBalance > 0 ? d.balance / combinedBalance : 1 / affectedDebts.length
+          return { ...d, interestRate: newRate, minimumPayment: newPmtTotal * share }
+        })
         modified.budgets = {
           ...input.budgets,
-          fixedTotal: input.budgets.fixedTotal - oldPmt + newPmt,
-          totalBudgeted: input.budgets.totalBudgeted - oldPmt + newPmt,
+          fixedTotal: input.budgets.fixedTotal - combinedOldPmt + newPmtTotal,
+          totalBudgeted: input.budgets.totalBudgeted - combinedOldPmt + newPmtTotal,
           projectedSurplus: input.budgets.projectedSurplus + savings,
         }
       }

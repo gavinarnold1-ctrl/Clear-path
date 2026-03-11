@@ -293,6 +293,8 @@ export interface DebtForForecast {
   balance: number
   interestRate: number
   minimumPayment: number
+  escrowAmount: number
+  propertyGroupId?: string | null
   actualAvgPayment?: number
 }
 
