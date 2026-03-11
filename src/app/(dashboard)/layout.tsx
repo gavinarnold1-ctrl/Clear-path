@@ -140,7 +140,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {children}
       </main>
 
-      <BottomTabBar logoutAction={logout} />
+      <BottomTabBar logoutAction={logout} showCardBenefits={hasIdentifiedCards || hasCreditCards} />
       <InstallPrompt />
       <FeedbackWidget />
       <TokenRotation />

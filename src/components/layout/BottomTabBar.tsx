@@ -7,6 +7,7 @@ import { trackSidebarNavClicked, trackLogout } from '@/lib/analytics'
 
 interface BottomTabBarProps {
   logoutAction: () => Promise<void>
+  showCardBenefits?: boolean
 }
 
 const TABS = [
@@ -27,9 +28,17 @@ const MORE_ITEMS = [
   { href: '/settings', label: 'Settings' },
 ]
 
-export default function BottomTabBar({ logoutAction }: BottomTabBarProps) {
+export default function BottomTabBar({ logoutAction, showCardBenefits = false }: BottomTabBarProps) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+
+  const moreItems = showCardBenefits
+    ? [
+        ...MORE_ITEMS.slice(0, 4), // Forecast, Monthly Review, Annual Plan, Accounts
+        { href: '/accounts/benefits', label: 'Card Benefits' },
+        ...MORE_ITEMS.slice(4), // Debts, Properties, Categories, Settings
+      ]
+    : MORE_ITEMS
 
   // Close sheet on route change
   useEffect(() => {
@@ -48,7 +57,7 @@ export default function BottomTabBar({ logoutAction }: BottomTabBarProps) {
     }
   }, [moreOpen, handleKeyDown])
 
-  const isMoreActive = MORE_ITEMS.some((item) => pathname === item.href)
+  const isMoreActive = moreItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
 
   return (
     <>
@@ -75,7 +84,7 @@ export default function BottomTabBar({ logoutAction }: BottomTabBarProps) {
           </div>
 
           <nav className="max-h-[60vh] overflow-y-auto px-4 pb-4">
-            {MORE_ITEMS.map(({ href, label }) => (
+            {moreItems.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
