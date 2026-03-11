@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { formatMonthName } from '@/lib/budget-engine'
+import { formatCurrency } from '@/lib/utils'
 
 interface Category {
   id: string
@@ -30,6 +31,18 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const monthsUntilDue = useMemo(() => {
+    const target = new Date(parseInt(dueYear), parseInt(dueMonth) - 1, 1)
+    const now = new Date()
+    return Math.max(1, (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth()))
+  }, [dueMonth, dueYear])
+
+  const previewSetAside = useMemo(() => {
+    const amount = parseFloat(annualAmount)
+    if (!amount || amount <= 0) return null
+    return Math.ceil((amount / monthsUntilDue) * 100) / 100
+  }, [annualAmount, monthsUntilDue])
 
   if (!isOpen) return null
 
@@ -157,7 +170,7 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
                 value={dueYear}
                 onChange={(e) => setDueYear(e.target.value)}
               >
-                {[currentYear, currentYear + 1, currentYear + 2].map((y) => (
+                {Array.from({ length: 5 }, (_, i) => currentYear + i).map((y) => (
                   <option key={y} value={y}>
                     {y}
                   </option>
@@ -165,6 +178,13 @@ export default function AddAnnualExpenseForm({ categories, isOpen, onClose }: Pr
               </select>
             </div>
           </div>
+
+          {/* Set-aside preview */}
+          {previewSetAside !== null && (
+            <p className="text-sm text-pine">
+              &rarr; {formatCurrency(previewSetAside)}/mo for {monthsUntilDue} month{monthsUntilDue !== 1 ? 's' : ''}
+            </p>
+          )}
 
           <div>
             <label htmlFor="ae-category" className="block text-sm font-medium text-fjord">

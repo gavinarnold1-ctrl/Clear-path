@@ -275,7 +275,7 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                   onChange={(e) => setEditDueYear(e.target.value)}
                   className="input mt-1 w-full text-sm"
                 >
-                  {[currentYear, currentYear + 1, currentYear + 2].map((y) => (
+                  {Array.from({ length: 5 }, (_, i) => currentYear + i).map((y) => (
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
@@ -341,8 +341,15 @@ export default function AnnualExpenseCard({ expense, affordableMonthly, categori
                   )}
                 </p>
                 <p className="mt-0.5 text-sm text-stone">
-                  {formatCurrency(expense.annualAmount)} planned &middot; Due{' '}
-                  {formatMonthName(expense.dueMonth)} {expense.dueYear}
+                  {formatCurrency(expense.annualAmount)} planned &middot;{' '}
+                  {expense.monthsRemaining > 0 ? (
+                    <>Due in {expense.monthsRemaining} month{expense.monthsRemaining !== 1 ? 's' : ''} ({formatMonthName(expense.dueMonth)} {expense.dueYear})</>
+                  ) : (
+                    <>Due {formatMonthName(expense.dueMonth)} {expense.dueYear}</>
+                  )}
+                  {expense.monthsRemaining > 12 && expense.currentSetAside > 0 && (
+                    <span className="ml-1 text-pine"> &middot; saving {formatCurrency(expense.currentSetAside)}/mo</span>
+                  )}
                   {expense.property && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-frost px-2 py-0.5 text-xs text-stone">
                       {expense.property.name}
