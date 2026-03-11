@@ -509,205 +509,153 @@ export function computeScenarioImpact(
   }
 }
 
-// ── 3I: Generate default scenarios ──────────────────────────────────────────
+// ── 3I: Generate smart recommendation ───────────────────────────────────────
+// Produces ONE data-driven scenario recommendation based on goal archetype
+// and the user's real financial data. Users build custom scenarios separately.
 
 export function generateDefaultScenarios(input: ForecastInput): ForecastScenario[] {
+  const recommendation = generateSmartRecommendation(input)
+  return recommendation ? [recommendation] : []
+}
+
+export function generateSmartRecommendation(input: ForecastInput): ForecastScenario | null {
   const { goal, debts, accounts, budgets } = input
   const archetype = goal.archetype ?? 'save_more'
-  const scenarios: ForecastScenario[] = []
-
   const baseline = computeForecast({ ...input, _skipScenarios: true })
 
-  switch (archetype) {
-    case 'save_more': {
-      // Cut largest flexible spending by 10%
-      if (budgets.flexibleTotal > 0) {
-        const cutAmount = round2(budgets.flexibleTotal * 0.1)
-        scenarios.push(
-          buildScenario('cut-flexible-10', 'Cut flexible spending 10%', `Reduce flexible budget by ${formatDollar(cutAmount)}/mo`, 'cut', baseline, {
-            ...input,
-            budgets: {
-              ...budgets,
-              flexibleTotal: budgets.flexibleTotal - cutAmount,
-              projectedSurplus: budgets.projectedSurplus + cutAmount,
-            },
-          }),
-        )
-      }
-      // Move cash to HYSA
-      const cashAccounts = accounts.filter((a) => a.assetClass === 'cash' && a.balance > 1000)
-      if (cashAccounts.length > 0) {
-        const cashTotal = cashAccounts.reduce((s, a) => s + a.balance, 0)
-        const keepInChecking = 1000
-        const moveAmount = cashTotal - keepInChecking
-        if (moveAmount > 500) {
-          scenarios.push({
-            id: 'move-to-hysa',
-            label: 'Move cash to high-yield savings',
-            description: `Move ${formatDollar(moveAmount)} from checking to HYSA earning ~4.5%`,
-            type: 'investment',
-            impact: {
-              newProjectedDate: baseline.projectedDate,
-              daysSaved: 0,
-              monthlyImpactOnTrueRemaining: 0,
-              monthlyImpactOnGoal: round2(moveAmount * 0.045 / 12),
-              budgetCategoriesAffected: [],
-              annualExpensesAffected: [],
-            },
-          })
+  // Candidate scenarios scored by impact
+  interface Candidate {
+    scenario: ForecastScenario
+    score: number
+  }
+  const candidates: Candidate[] = []
+
+  // ── Candidate: Cut flexible spending 10% ──
+  if (budgets.flexibleTotal > 0) {
+    const cutAmount = round2(budgets.flexibleTotal * 0.1)
+    const s = buildScenario(
+      'smart-cut-flexible',
+      `Cut flexible spending ${formatDollar(cutAmount)}/mo`,
+      `Reduce flexible budget by 10% — saves ${formatDollar(cutAmount)}/mo`,
+      'cut',
+      baseline,
+      {
+        ...input,
+        budgets: {
+          ...budgets,
+          flexibleTotal: budgets.flexibleTotal - cutAmount,
+          projectedSurplus: budgets.projectedSurplus + cutAmount,
+        },
+      },
+    )
+    candidates.push({ scenario: s, score: s.impact.daysSaved + cutAmount * 12 })
+  }
+
+  // ── Candidate: Extra debt payment on highest-rate debt ──
+  const highRateDebts = [...debts].sort((a, b) => b.interestRate - a.interestRate)
+  if (highRateDebts.length > 0 && highRateDebts[0].interestRate > 0.04) {
+    const target = highRateDebts[0]
+    // Size the extra payment to ~5% of surplus, clamped to $50-$500
+    const surplusBasedExtra = Math.round(budgets.projectedSurplus * 0.05 / 50) * 50
+    const extra = Math.max(50, Math.min(500, surplusBasedExtra || 100))
+    const s = buildDebtExtraScenario(
+      'smart-extra-debt',
+      `Add ${formatDollar(extra)}/mo to ${target.name}`,
+      extra,
+      debts,
+      baseline,
+      input,
+    )
+    candidates.push({ scenario: s, score: s.impact.daysSaved + extra * 12 })
+  }
+
+  // ── Candidate: Refinance high-rate mortgage ──
+  if (archetype === 'pay_off_debt' || archetype === 'build_wealth') {
+    const refiCandidates = debts.filter((d) => d.interestRate > 0.055 && d.type === 'MORTGAGE')
+    for (const debt of refiCandidates.slice(0, 1)) {
+      const newRate = round2(debt.interestRate - 0.015) // assume 1.5% reduction
+      const newPmt = monthlyPayment(debt.balance, newRate, 360)
+      const oldPmt = debt.minimumPayment
+      const savings = oldPmt - newPmt
+      if (savings > 20) {
+        const refiInput: ForecastInput = {
+          ...input,
+          debts: debts.map((d) =>
+            d.id === debt.id ? { ...d, interestRate: newRate, minimumPayment: newPmt } : d,
+          ),
+          budgets: {
+            ...budgets,
+            fixedTotal: budgets.fixedTotal - oldPmt + newPmt,
+            totalBudgeted: budgets.totalBudgeted - oldPmt + newPmt,
+            projectedSurplus: budgets.projectedSurplus + savings,
+          },
         }
+        const s = buildScenario(
+          `smart-refinance-${debt.id}`,
+          `Refinance ${debt.name}`,
+          `Refinance from ${(debt.interestRate * 100).toFixed(1)}% to ${(newRate * 100).toFixed(1)}% — saves ${formatDollar(savings)}/mo`,
+          'refinance',
+          baseline,
+          refiInput,
+        )
+        candidates.push({ scenario: s, score: s.impact.daysSaved + savings * 24 })
       }
-      break
     }
-    case 'pay_off_debt': {
-      // Add $100/mo extra
-      if (debts.length > 0) {
-        scenarios.push(
-          buildDebtExtraScenario('extra-100', 'Add $100/mo extra payment', 100, debts, baseline, input),
-        )
-        // Add $250/mo extra
-        scenarios.push(
-          buildDebtExtraScenario('extra-250', 'Add $250/mo extra payment', 250, debts, baseline, input),
-        )
-        // Refinance if rate > 5%
-        const highRateDebts = debts.filter((d) => d.interestRate > 0.05 && d.type === 'MORTGAGE')
-        for (const debt of highRateDebts.slice(0, 1)) {
-          const newRate = 0.052
-          const newPmt = monthlyPayment(debt.balance, newRate, 360)
-          const oldPmt = debt.minimumPayment
-          const savings = oldPmt - newPmt
-          if (savings > 0) {
-            const refiInput: ForecastInput = {
-              ...input,
-              debts: debts.map((d) =>
-                d.id === debt.id ? { ...d, interestRate: newRate, minimumPayment: newPmt } : d
-              ),
-              budgets: {
-                ...budgets,
-                fixedTotal: budgets.fixedTotal - oldPmt + newPmt,
-                totalBudgeted: budgets.totalBudgeted - oldPmt + newPmt,
-                projectedSurplus: budgets.projectedSurplus + savings,
-              },
-            }
-            scenarios.push(
-              buildScenario(
-                `refinance-${debt.id}`,
-                `Refinance ${debt.name}`,
-                `Refinance from ${(debt.interestRate * 100).toFixed(1)}% to ${(newRate * 100).toFixed(1)}%`,
-                'refinance',
-                baseline,
-                refiInput,
-              ),
-            )
-          }
-        }
-      }
-      break
-    }
-    case 'spend_smarter': {
-      // Cut flexible by 10% and 25%
-      if (budgets.flexibleTotal > 0) {
-        const cut10 = round2(budgets.flexibleTotal * 0.1)
-        scenarios.push(
-          buildScenario('cut-10', 'Cut target spending 10%', `Save ${formatDollar(cut10)}/mo by reducing flexible spending`, 'cut', baseline, {
-            ...input,
-            budgets: {
-              ...budgets,
-              flexibleTotal: budgets.flexibleTotal - cut10,
-              projectedSurplus: budgets.projectedSurplus + cut10,
-            },
-          }),
-        )
-        const cut25 = round2(budgets.flexibleTotal * 0.25)
-        scenarios.push(
-          buildScenario('cut-25', 'Cut target spending 25%', `Save ${formatDollar(cut25)}/mo by aggressive reduction`, 'cut', baseline, {
-            ...input,
-            budgets: {
-              ...budgets,
-              flexibleTotal: budgets.flexibleTotal - cut25,
-              projectedSurplus: budgets.projectedSurplus + cut25,
-            },
-          }),
-        )
-      }
-      break
-    }
-    case 'build_wealth': {
-      // Increase savings rate by 5%
-      if (budgets.expectedMonthlyIncome > 0) {
-        const additional = round2(budgets.expectedMonthlyIncome * 0.05)
-        scenarios.push(
-          buildScenario('save-5pct-more', 'Increase savings rate by 5%', `Save an additional ${formatDollar(additional)}/mo`, 'income', baseline, {
-            ...input,
-            budgets: {
-              ...budgets,
-              projectedSurplus: budgets.projectedSurplus + additional,
-            },
-          }),
-        )
-      }
-      // Accelerate high-rate debt
-      const highRateDebt = debts.filter((d) => d.interestRate > 0.06).sort((a, b) => b.interestRate - a.interestRate)
-      if (highRateDebt.length > 0) {
-        scenarios.push(
-          buildDebtExtraScenario('accelerate-debt', `Accelerate ${highRateDebt[0].name} payoff`, 200, highRateDebt, baseline, input),
-        )
-      }
-      break
-    }
-    case 'gain_visibility': {
-      // For visibility goals, scenarios are less numerical
-      scenarios.push({
-        id: 'weekly-review',
-        label: 'Weekly spending review',
-        description: 'Review and categorize transactions weekly to maintain visibility',
-        type: 'cut',
+  }
+
+  // ── Candidate: Increase savings rate by 5% (wealth/savings goals) ──
+  if ((archetype === 'build_wealth' || archetype === 'save_more') && budgets.expectedMonthlyIncome > 0) {
+    const additional = round2(budgets.expectedMonthlyIncome * 0.05)
+    const s = buildScenario(
+      'smart-save-more',
+      `Save an extra ${formatDollar(additional)}/mo`,
+      `Increase savings rate by 5% of income`,
+      'income',
+      baseline,
+      {
+        ...input,
+        budgets: {
+          ...budgets,
+          projectedSurplus: budgets.projectedSurplus + additional,
+        },
+      },
+    )
+    candidates.push({ scenario: s, score: s.impact.daysSaved + additional * 12 })
+  }
+
+  // ── Candidate: Move idle cash to HYSA ──
+  const cashAccounts = accounts.filter((a) => a.assetClass === 'cash' && a.balance > 2000)
+  if (cashAccounts.length > 0) {
+    const cashTotal = cashAccounts.reduce((s, a) => s + a.balance, 0)
+    const moveAmount = cashTotal - 1000
+    if (moveAmount > 500) {
+      const monthlyInterest = round2(moveAmount * 0.045 / 12)
+      const s: ForecastScenario = {
+        id: 'smart-hysa',
+        label: `Move ${formatDollar(moveAmount)} to high-yield savings`,
+        description: `Earn ~${formatDollar(monthlyInterest)}/mo on idle cash at 4.5% APY`,
+        type: 'investment',
+        recommended: true,
         impact: {
           newProjectedDate: baseline.projectedDate,
           daysSaved: 0,
           monthlyImpactOnTrueRemaining: 0,
-          monthlyImpactOnGoal: 0,
+          monthlyImpactOnGoal: monthlyInterest,
           budgetCategoriesAffected: [],
           annualExpensesAffected: [],
         },
-      })
-      break
+      }
+      candidates.push({ scenario: s, score: monthlyInterest * 12 })
     }
   }
 
-  // Universal scenario: buy a car (if no AUTO debt)
-  const hasAuto = debts.some((d) => d.type === 'AUTO')
-  if (!hasAuto) {
-    const carPayment = monthlyPayment(35000, 0.03, 60)
-    scenarios.push({
-      id: 'buy-car',
-      label: 'Buy a car ($35K)',
-      description: '$35,000 auto loan at 3% for 60 months',
-      type: 'debt',
-      impact: {
-        newProjectedDate: null,
-        daysSaved: 0,
-        monthlyImpactOnTrueRemaining: round2(-carPayment),
-        monthlyImpactOnGoal: round2(-carPayment),
-        newMonthlyPayment: round2(carPayment),
-        budgetCategoriesAffected: [],
-        annualExpensesAffected: [],
-      },
-    })
-  }
+  if (candidates.length === 0) return null
 
-  // Mark the highest-impact positive scenario as recommended
-  const positiveScenarios = scenarios.filter(s => s.impact.daysSaved > 0 || s.impact.monthlyImpactOnTrueRemaining > 0)
-  if (positiveScenarios.length > 0) {
-    const best = positiveScenarios.reduce((a, b) => {
-      const aScore = a.impact.daysSaved + (a.impact.monthlyImpactOnTrueRemaining * 12)
-      const bScore = b.impact.daysSaved + (b.impact.monthlyImpactOnTrueRemaining * 12)
-      return bScore > aScore ? b : a
-    })
-    ;(best as ForecastScenario & { recommended?: boolean }).recommended = true
-  }
-
-  return scenarios
+  // Pick the highest-scoring candidate
+  candidates.sort((a, b) => b.score - a.score)
+  const best = candidates[0].scenario
+  best.recommended = true
+  return best
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────────

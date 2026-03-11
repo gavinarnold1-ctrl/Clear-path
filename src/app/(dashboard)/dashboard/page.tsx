@@ -435,7 +435,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       {/* Row 1: Hero — True Remaining + Goal Progress side by side */}
       {hasBudgets ? (
         <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="lg:col-span-7">
+          <Link href="/budgets" className="block lg:col-span-7 rounded-card cursor-pointer hover:ring-1 hover:ring-pine/20 transition-all">
             <TrueRemainingBanner
               income={monthlyIncome}
               expectedIncome={userProfile?.expectedMonthlyIncome ?? null}
@@ -445,15 +445,17 @@ export default async function DashboardPage({ searchParams }: Props) {
               annualSetAside={annualSetAside}
               primaryGoal={primaryGoal}
             />
-          </div>
+          </Link>
           <div className="lg:col-span-5">
             {hasGoal && goalContext && userProfile?.primaryGoal ? (
-              <GoalProgressCard
-                goal={userProfile.primaryGoal as PrimaryGoal}
-                goalLabel={goalContext.goalLabel}
-                target={goalTarget}
-                trueRemaining={trueRemaining}
-              />
+              <Link href="/forecast" className="block rounded-card cursor-pointer hover:ring-1 hover:ring-pine/20 transition-all">
+                <GoalProgressCard
+                  goal={userProfile.primaryGoal as PrimaryGoal}
+                  goalLabel={goalContext.goalLabel}
+                  target={goalTarget}
+                  trueRemaining={trueRemaining}
+                />
+              </Link>
             ) : (
               <div className="flex h-full flex-col justify-center rounded-card border border-mist bg-frost/30 p-4 text-center">
                 <p className="text-sm font-semibold text-fjord">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
+import { formatCurrency } from '@/lib/utils'
 import GoalHistory from '@/components/settings/GoalHistory'
 
 interface Member {
@@ -1127,7 +1128,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     Monthly needed: <span className="font-mono font-medium text-fjord">
                       {isPercentMetric(goalTarget.metric)
                         ? `${computeEditMonthlyNeeded()}%`
-                        : `$${computeEditMonthlyNeeded().toLocaleString()}`}
+                        : formatCurrency(computeEditMonthlyNeeded())}
                     </span>
                   </p>
                 </div>
@@ -1162,7 +1163,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     <p className="font-mono font-medium text-fjord">
                       {isPercentMetric(goalTarget.metric)
                         ? `${goalTarget.targetValue}%`
-                        : `$${goalTarget.targetValue.toLocaleString()}`}
+                        : formatCurrency(goalTarget.targetValue)}
                     </p>
                   </div>
                   <div>
@@ -1178,7 +1179,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     <p className="font-mono font-medium text-fjord">
                       {isPercentMetric(goalTarget.metric)
                         ? `${goalTarget.monthlyNeeded ?? 0}%`
-                        : `$${(goalTarget.monthlyNeeded ?? 0).toLocaleString()}`}
+                        : formatCurrency(goalTarget.monthlyNeeded ?? 0)}
                     </p>
                   </div>
                   <div>
@@ -1565,13 +1566,13 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                         <p className="mb-1 text-[10px] font-medium text-fjord">Depreciation preview</p>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                           <span>Building value:</span>
-                          <span className="font-mono text-fjord">${buildingValue.toLocaleString()}</span>
+                          <span className="font-mono text-fjord">{formatCurrency(buildingValue)}</span>
                           <span>Annual depreciation:</span>
-                          <span className="font-mono text-fjord">${annual.toLocaleString()}/yr</span>
+                          <span className="font-mono text-fjord">{formatCurrency(annual)}/yr</span>
                           <span>Monthly depreciation:</span>
-                          <span className="font-mono text-fjord">${monthly.toLocaleString()}/mo</span>
+                          <span className="font-mono text-fjord">{formatCurrency(monthly)}/mo</span>
                           <span>Remaining basis:</span>
-                          <span className="font-mono text-fjord">${remaining.toLocaleString()}</span>
+                          <span className="font-mono text-fjord">{formatCurrency(remaining)}</span>
                           <span>Years remaining:</span>
                           <span className="font-mono text-fjord">{yearsLeft}</span>
                         </div>
@@ -1941,11 +1942,11 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     {new Date(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                   </span>
                   <span className="text-sm font-mono text-fjord">
-                    ${t.monthlyIncome.toLocaleString()}/mo
+                    {formatCurrency(t.monthlyIncome)}/mo
                   </span>
                   {t.annualIncome != null && (
                     <span className="ml-1 text-[10px] text-stone">
-                      (${t.annualIncome.toLocaleString()}/yr)
+                      ({formatCurrency(t.annualIncome)}/yr)
                     </span>
                   )}
                 </div>

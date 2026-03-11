@@ -5,38 +5,45 @@ import { db } from '@/lib/db'
 
 // GET /api/cards/suggestions — get card program suggestions for unidentified credit cards
 export async function GET() {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const suggestions = await identifyCardPrograms(session.userId)
+    const suggestions = await identifyCardPrograms(session.userId)
 
-  // Also return all available card programs for manual selection
-  const programs = await db.cardProgram.findMany({
-    where: { isActive: true },
-    include: { benefits: { where: { isActive: true }, orderBy: { type: 'asc' } } },
-    orderBy: [{ issuer: 'asc' }, { name: 'asc' }],
-  })
+    // Also return all available card programs for manual selection
+    const programs = await db.cardProgram.findMany({
+      where: { isActive: true },
+      include: { benefits: { where: { isActive: true }, orderBy: { type: 'asc' } } },
+      orderBy: [{ issuer: 'asc' }, { name: 'asc' }],
+    })
 
-  console.log(`[cards/suggestions] Found ${programs.length} active card programs`)
-  if (programs.length === 0) {
+    if (programs.length === 0) {
+      return NextResponse.json(
+        { error: 'No card programs found — seed data may be missing' },
+        { status: 500 },
+      )
+    }
+
+    // Return unidentified credit card accounts (those without auto-match suggestions)
+    const suggestedAccountIds = new Set(suggestions.map((s) => s.accountId))
+    const unidentifiedAccounts = await db.account.findMany({
+      where: {
+        userId: session.userId,
+        type: 'CREDIT_CARD',
+        userCard: null,
+        id: { notIn: Array.from(suggestedAccountIds) },
+      },
+      select: { id: true, name: true, institution: true },
+      orderBy: { name: 'asc' },
+    })
+
+    return NextResponse.json({ suggestions, programs, unidentifiedAccounts })
+  } catch (error) {
+    console.error('Card suggestions error:', error)
     return NextResponse.json(
-      { error: 'No card programs found — seed data may be missing' },
-      { status: 500 }
+      { error: 'Failed to load card suggestions' },
+      { status: 500 },
     )
   }
-
-  // Return unidentified credit card accounts (those without auto-match suggestions)
-  const suggestedAccountIds = new Set(suggestions.map((s) => s.accountId))
-  const unidentifiedAccounts = await db.account.findMany({
-    where: {
-      userId: session.userId,
-      type: 'CREDIT_CARD',
-      userCard: null,
-      id: { notIn: Array.from(suggestedAccountIds) },
-    },
-    select: { id: true, name: true, institution: true },
-    orderBy: { name: 'asc' },
-  })
-
-  return NextResponse.json({ suggestions, programs, unidentifiedAccounts })
 }
