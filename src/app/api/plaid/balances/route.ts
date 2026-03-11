@@ -50,6 +50,8 @@ export async function POST() {
           data: {
             balance,
             plaidLastSynced: new Date(),
+            balanceSource: 'plaid',
+            syncFailCount: 0,
           },
         })
 

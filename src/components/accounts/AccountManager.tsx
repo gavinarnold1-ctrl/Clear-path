@@ -23,6 +23,9 @@ interface AccountRow {
   institution: string | null
   isManual: boolean
   plaidLastSynced: string | null
+  balanceSource: string
+  lastReconciled: string | null
+  reconciliationDiscrepancy: number | null
   ownerId: string | null
   ownerName: string | null
   txCount: number
@@ -71,6 +74,47 @@ function formatSyncTime(isoString: string): string {
 
 function getSyncHoursStale(isoString: string): number {
   return (Date.now() - new Date(isoString).getTime()) / (1000 * 60 * 60)
+}
+
+function BalanceSourceBadge({ account }: { account: AccountRow }) {
+  if (!account.isManual && account.plaidLastSynced) {
+    return (
+      <span className="text-[10px] text-stone">
+        Plaid &middot; {formatSyncTime(account.plaidLastSynced)}
+      </span>
+    )
+  }
+  if (account.isManual && account.startingBalance !== 0 && account.balanceAsOfDate) {
+    return (
+      <span className="text-[10px] text-stone">
+        Computed &middot; {account.txCount} txns
+      </span>
+    )
+  }
+  if (account.isManual && account.txCount > 0 && account.startingBalance === 0 && !account.balanceAsOfDate) {
+    return (
+      <span className="text-[10px] text-ember">
+        Set starting balance
+      </span>
+    )
+  }
+  return (
+    <span className="text-[10px] text-stone">Manual</span>
+  )
+}
+
+function ReconciliationStatus({ account }: { account: AccountRow }) {
+  if (!account.lastReconciled) return null
+  if (account.reconciliationDiscrepancy === null) return null
+  const disc = account.reconciliationDiscrepancy
+  if (Math.abs(disc) <= 0.01) {
+    return <span className="text-[10px] text-pine">Matched</span>
+  }
+  return (
+    <span className="text-[10px] text-ember">
+      {formatCurrency(Math.abs(disc))} discrepancy
+    </span>
+  )
 }
 
 export default function AccountManager({ accounts: initial, householdMembers, propertyEquity = 0, linkedAccountIds = [], isDemo = false }: Props) {
@@ -291,6 +335,43 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
     }
   }
 
+  const [reconciling, setReconciling] = useState(false)
+  const [reconcileMessage, setReconcileMessage] = useState<string | null>(null)
+
+  async function handleReconcileAll() {
+    if (reconciling) return
+    setReconciling(true)
+    setReconcileMessage(null)
+    try {
+      const res = await fetch('/api/accounts/reconcile', { method: 'POST' })
+      if (!res.ok) throw new Error('Reconciliation failed')
+      const data = await res.json()
+      setReconcileMessage(
+        `Reconciled ${data.summary.total} accounts: ${data.summary.matched} matched, ${data.summary.discrepancies} with discrepancies`
+      )
+      // Update local state with reconciliation results
+      setAccounts(accts => accts.map(a => {
+        const result = data.results.find((r: { accountId: string }) => r.accountId === a.id)
+        if (!result) return a
+        return {
+          ...a,
+          lastReconciled: new Date().toISOString(),
+          reconciliationDiscrepancy: result.discrepancy,
+        }
+      }))
+      router.refresh()
+    } catch {
+      setReconcileMessage('Reconciliation failed — please try again')
+    } finally {
+      setReconciling(false)
+    }
+  }
+
+  // Accounts needing starting balance setup
+  const needsStartingBalance = accounts.filter(
+    a => a.isManual && a.txCount > 0 && a.startingBalance === 0 && !a.balanceAsOfDate
+  )
+
   // Group accounts by type group
   const grouped: Record<string, AccountRow[]> = {}
   for (const acct of accounts) {
@@ -385,8 +466,28 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
         )}
       </div>
 
-      {/* Connect Bank button */}
-      <div className="mb-6">
+      {/* Starting balance banner for CSV accounts */}
+      {needsStartingBalance.length > 0 && (
+        <div className="mb-4 rounded-lg border border-birch/30 bg-birch/10 px-4 py-3">
+          <p className="text-sm font-medium text-fjord">
+            Set starting balances for accurate tracking
+          </p>
+          <p className="mt-0.5 text-xs text-stone">
+            {needsStartingBalance.length} account{needsStartingBalance.length !== 1 ? 's' : ''} ha{needsStartingBalance.length !== 1 ? 've' : 's'} transactions
+            but no starting balance. Click Edit to set a balance as-of date.
+          </p>
+        </div>
+      )}
+
+      {reconcileMessage && (
+        <div className="mb-4 rounded-lg border border-pine/30 bg-pine/10 px-4 py-2 text-sm text-pine">
+          {reconcileMessage}
+          <button onClick={() => setReconcileMessage(null)} className="ml-2 font-medium underline">dismiss</button>
+        </div>
+      )}
+
+      {/* Connect Bank + Reconcile buttons */}
+      <div className="mb-6 flex items-center gap-3">
         <Button
           onClick={fetchLinkToken}
           loading={plaidLoading}
@@ -394,6 +495,15 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
         >
           Connect Bank
         </Button>
+        {accounts.length > 0 && (
+          <button
+            onClick={handleReconcileAll}
+            disabled={reconciling}
+            className="rounded-button border border-mist px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost disabled:opacity-50"
+          >
+            {reconciling ? 'Reconciling…' : 'Reconcile All'}
+          </button>
+        )}
       </div>
 
       {/* Grouped accounts */}
@@ -504,9 +614,12 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                             {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
                           </p>
                         </div>
-                        <p className={`font-mono text-lg font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
-                          {formatCurrency(acct.balance, acct.currency)}
-                        </p>
+                        <div className="text-right">
+                          <p className={`font-mono text-lg font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
+                            {formatCurrency(acct.balance, acct.currency)}
+                          </p>
+                          <BalanceSourceBadge account={acct} />
+                        </div>
                       </div>
                     </Link>
                     <div className="mt-2 flex items-center justify-between border-t border-mist pt-2">
@@ -558,9 +671,12 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                       </p>
                     </Link>
                     <div className="flex items-center gap-4">
-                      <p className={`font-mono text-xl font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
-                        {formatCurrency(acct.balance, acct.currency)}
-                      </p>
+                      <div className="text-right">
+                        <p className={`font-mono text-xl font-bold ${acct.balance >= 0 ? 'text-fjord' : 'text-expense'}`}>
+                          {formatCurrency(acct.balance, acct.currency)}
+                        </p>
+                        <BalanceSourceBadge account={acct} />
+                      </div>
                       <div className="flex items-center gap-3">
                         {!acct.isManual && (
                           <button

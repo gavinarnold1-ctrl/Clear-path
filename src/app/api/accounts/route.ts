@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       balance: startingBal,
       startingBalance: startingBal,
       balanceAsOfDate: balanceAsOfDate ? new Date(balanceAsOfDate) : null,
+      balanceSource: startingBal !== 0 ? 'manual' : 'manual',
       currency: currency ?? 'USD',
       ...(ownerId && { ownerId }),
     },

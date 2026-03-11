@@ -125,6 +125,12 @@ model Account {
   plaidCursor       String?   // Cursor for transaction sync pagination
   plaidLastSynced   DateTime? // Last successful sync timestamp
 
+  // Balance reconciliation
+  balanceSource              String    @default("manual") // 'plaid' | 'computed' | 'manual'
+  lastReconciled             DateTime? // Last time reconciliation ran for this account
+  reconciliationDiscrepancy  Float?    // Last known discrepancy between Plaid and computed balance
+  syncFailCount              Int       @default(0) // Consecutive sync failure count
+
   // Forecast engine — asset classification
   assetClass        String?   // 'cash' | 'high_yield_savings' | 'bonds' | 'index_fund' | 'mutual_fund' | 'individual_stock' | 'crypto' | 'real_estate' | 'other'
   expectedReturn    Float?    // User override for annual return rate (decimal, e.g. 0.045 for 4.5%). Null = use asset class default
