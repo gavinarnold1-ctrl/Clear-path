@@ -92,11 +92,16 @@ export async function reconcileAccount(
     Math.abs(discrepancy) <= 0.01 ? 'matched' : 'discrepancy'
 
   // Update reconciliation fields on the account
+  // For manual accounts with a discrepancy, also fix the balance (computed value is authoritative)
   await db.account.update({
     where: { id: accountId },
     data: {
       lastReconciled: new Date(),
       reconciliationDiscrepancy: discrepancy,
+      ...(account.isManual && Math.abs(discrepancy) > 0.01 && {
+        balance: computed.computedBalance,
+        balanceSource: 'computed',
+      }),
     },
   })
 

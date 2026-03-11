@@ -7,6 +7,7 @@ import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 import { inferCategoryGroup, classifyTransaction } from '@/lib/category-groups'
 import { applyPropertyAttribution } from '@/lib/apply-splits'
+import { recomputeAccountBalance } from '@/lib/balance-engine'
 import { canonicalizeMerchant } from '@/lib/normalize-merchant'
 /** R1.5a: Infer account type from name (e.g., "Platinum Card" → CREDIT_CARD) */
 function inferAccountType(name: string): 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'CASH' | 'MORTGAGE' | 'AUTO_LOAN' | 'STUDENT_LOAN' {
@@ -705,9 +706,18 @@ export async function POST(request: Request) {
       importedCount += created.count
     }
 
-    // R1.5b: CSV-imported accounts do NOT compute balance by summing transactions.
-    // Balance is manually entered by user via startingBalance + balanceAsOfDate.
-    // New transactions after the baseline date adjust the running balance.
+    // Recompute balance for all affected manual accounts after bulk import.
+    // recomputeAccountBalance is a no-op for non-manual (Plaid) accounts.
+    const affectedAccountIds = [...new Set(
+      toImport.map(tx => tx.accountId).filter((id): id is string => id !== null)
+    )]
+    for (const acctId of affectedAccountIds) {
+      try {
+        await recomputeAccountBalance(acctId, session.userId)
+      } catch {
+        // Non-critical — don't fail the import if balance recompute fails
+      }
+    }
 
     // Increment timesApplied for any smart category mappings used during import
     if (mappingIdsToIncrement.length > 0) {
