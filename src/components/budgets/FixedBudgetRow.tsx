@@ -16,6 +16,7 @@ interface Props {
   category: { name: string; icon: string | null } | null
   status: FixedStatus
   overrideCount?: number
+  month?: string
 }
 
 const STATUS_CONFIG: Record<FixedStatus, { icon: string; color: string }> = {
@@ -27,14 +28,15 @@ const STATUS_CONFIG: Record<FixedStatus, { icon: string; color: string }> = {
 
 function getCurrentMonth(): string {
   const now = new Date()
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, category, status, overrideCount }: Props) {
+export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAutoPay, categoryId, category, status, overrideCount, month }: Props) {
   const cfg = STATUS_CONFIG[status]
+  const effectiveMonth = month ?? getCurrentMonth()
 
   const href = id
-    ? `/transactions?budgetId=${id}&tier=FIXED&month=${getCurrentMonth()}&budgetName=${encodeURIComponent(name)}`
+    ? `/transactions?budgetId=${id}&tier=FIXED&month=${effectiveMonth}&budgetName=${encodeURIComponent(name)}`
     : null
 
   const content = (
@@ -44,6 +46,7 @@ export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAuto
         <span className="font-medium text-fjord">{name}</span>
         <Link
           href={`/budgets/${id}/edit`}
+          onClick={(e) => e.stopPropagation()}
           className="ml-2 inline-block text-stone hover:text-fjord"
           title="Edit budget"
         >
@@ -88,7 +91,7 @@ export default function FixedBudgetRow({ id, name, amount, spent, dueDay, isAuto
       )}
       {categoryId && (
         <Link
-          href={`/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`}
+          href={`/transactions?categoryId=${categoryId}&month=${effectiveMonth}`}
           className="shrink-0 text-xs text-stone hover:text-fjord"
           title={`View all transactions in this category (across all budgets)`}
         >

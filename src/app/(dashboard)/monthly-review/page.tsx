@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { buildTransactionSummary } from '@/lib/insights'
+import { buildBudgetContext } from '@/lib/budget-context'
+import { computeCurrentValue } from '@/lib/goal-utils'
 import { formatCurrency } from '@/lib/utils'
 import { getValueSummary } from '@/lib/value-tracker'
 import EfficiencyScoreGauge from '@/components/insights/EfficiencyScoreGauge'
@@ -104,8 +106,22 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     ? snapshots.find((s) => formatMonth(s.month) === selectedMonth) ?? null
     : snapshots[snapshots.length - 1] ?? null
 
-  // Build summary for spending comparison chart
-  const summary = transactionCount > 0 ? await buildTransactionSummary(session.userId, 3) : null
+  // Build summary scoped to selected month (or current month) for accurate comparisons
+  const summaryMonth = selectedMonth
+    ? new Date(parseInt(selectedMonth.split('-')[0]), parseInt(selectedMonth.split('-')[1]) - 1, 1)
+    : new Date()
+  const summaryStartDate = new Date(summaryMonth.getFullYear(), summaryMonth.getMonth(), 1)
+  const summaryEndDate = new Date(summaryMonth.getFullYear(), summaryMonth.getMonth() + 1, 0, 23, 59, 59, 999)
+  const summaryMonthLabel = summaryStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const summary = transactionCount > 0
+    ? await buildTransactionSummary(session.userId, 1, { startDate: summaryStartDate, endDate: summaryEndDate })
+    : null
+
+  // Build budget context scoped to selected month
+  const budgetMonth = selectedMonth
+    ? new Date(parseInt(selectedMonth.split('-')[0]), parseInt(selectedMonth.split('-')[1]) - 1, 1)
+    : new Date()
+  const budgetContext = await buildBudgetContext(session.userId, budgetMonth)
 
   // Parse efficiency score breakdown for summary text
   const scoreBreakdown = latestScore?.breakdown
@@ -203,8 +219,14 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     perkByBenefit.set(name, entry)
   }
 
-  // Goal target for monthly review
-  const goalTarget = goalProfile?.goalTarget as GoalTarget | null
+  // Goal target for monthly review — recompute currentValue live instead of using stale DB value
+  const goalTargetRaw = goalProfile?.goalTarget as GoalTarget | null
+  const freshGoalValue = goalTargetRaw
+    ? await computeCurrentValue(session.userId, goalTargetRaw)
+    : 0
+  const goalTarget = goalTargetRaw
+    ? { ...goalTargetRaw, currentValue: freshGoalValue }
+    : null
   // Compute this month's contribution toward goal
   const thisMonthContribution = activeSnapshot
     ? activeSnapshot.totalIncome - activeSnapshot.totalExpenses
@@ -273,18 +295,22 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                 <p className="text-lg font-semibold text-fjord">{goalTarget.description}</p>
 
                 {/* Progress bar */}
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm text-stone">
-                    <span>{formatCurrency(goalTarget.currentValue ?? 0)} achieved</span>
-                    <span>{formatCurrency(goalTarget.targetValue)} target</span>
-                  </div>
-                  <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-birch/30">
-                    <div
-                      className="h-full rounded-full bg-pine transition-all duration-700"
-                      style={{ width: `${Math.min(100, Math.round(((goalTarget.currentValue ?? 0) / (goalTarget.targetValue || 1)) * 100))}%` }}
-                    />
-                  </div>
-                </div>
+                {(() => {
+                  const goalPct = Math.min(100, Math.round(((goalTarget.currentValue ?? 0) / (goalTarget.targetValue || 1)) * 100))
+                  return (
+                    <div className="mt-4">
+                      <div className="flex justify-between text-sm text-stone">
+                        <span>{formatCurrency(goalTarget.currentValue ?? 0)} of {formatCurrency(goalTarget.targetValue)} ({goalPct}%)</span>
+                      </div>
+                      <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-birch/30">
+                        <div
+                          className="h-full rounded-full bg-pine transition-all duration-700"
+                          style={{ width: `${goalPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Month-over-month */}
                 <div className="mt-4 grid grid-cols-3 gap-4 text-center">
@@ -316,7 +342,9 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
                 {/* Goal contributors/detractors */}
                 {(goalContributors.length > 0 || goalDetractors.length > 0) && (
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs text-stone">Based on {summaryMonthLabel} spending</p>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {goalContributors.length > 0 && (
                       <div className="rounded-lg border border-pine/20 bg-pine/5 px-4 py-3">
                         <p className="mb-2 text-xs font-medium text-pine">Helped your goal</p>
@@ -344,6 +372,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                       </div>
                     )}
                   </div>
+                  </div>
                 )}
 
                 {/* Forecast summary for monthly review */}
@@ -365,32 +394,55 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
             </section>
           )}
 
-          {/* Cumulative value banner */}
-          {valueSummary.totalIdentified > 0 && (
-            <div className="rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-stone">Your Oversikt Value</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="font-mono text-2xl font-semibold text-pine">
-                      {formatCurrency(valueSummary.totalIdentified)}
-                    </span>
-                    <span className="text-sm text-stone">
-                      in potential savings identified
-                      {valueSummary.since && (
-                        <> since {valueSummary.since.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</>
-                      )}
-                    </span>
+          {/* Cumulative value banner — show concrete savings, not theoretical */}
+          {(() => {
+            const concreteValue = valueSummary.totalActioned + valueSummary.perkReimbursements + valueSummary.cardBenefitCreditsUsed
+            if (concreteValue > 0) {
+              return (
+                <div className="rounded-xl border border-pine/20 bg-pine/5 px-5 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-stone">Your Oversikt Value</p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <span className="font-mono text-2xl font-semibold text-pine">
+                          {formatCurrency(concreteValue)}
+                        </span>
+                        <span className="text-sm text-stone">
+                          saved through Oversikt
+                          {valueSummary.since && (
+                            <> since {valueSummary.since.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    {valueSummary.roi > 0 && (
+                      <span className="shrink-0 rounded-badge bg-pine/10 px-2.5 py-1 text-sm font-medium text-pine">
+                        {valueSummary.roi}x ROI
+                      </span>
+                    )}
                   </div>
                 </div>
-                {valueSummary.roi > 0 && (
-                  <span className="shrink-0 rounded-badge bg-pine/10 px-2.5 py-1 text-sm font-medium text-pine">
-                    {valueSummary.roi}x ROI
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+              )
+            }
+            if (valueSummary.totalIdentified > 0) {
+              return (
+                <div className="rounded-xl border border-birch/30 bg-birch/5 px-5 py-4">
+                  <div>
+                    <p className="text-xs font-medium text-stone">Your Oversikt Value</p>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="font-mono text-2xl font-semibold text-birch">
+                        {formatCurrency(valueSummary.totalIdentified)}
+                      </span>
+                      <span className="text-sm text-stone">
+                        in savings opportunities found — take action to start tracking your returns
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })()}
 
           {/* R7.8: Month snapshot summary with clickable blocks */}
           {activeSnapshot && (
@@ -435,6 +487,42 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                   </Link>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Budget Health: overbudget categories + unbudgeted spending */}
+          {(budgetContext.overBudgetCategories.length > 0 || budgetContext.unbudgetedSpending > 0) && (
+            <div className="card">
+              <h2 className="mb-1 text-base font-semibold text-fjord">Budget Health</h2>
+              <p className="mb-3 text-xs text-stone">{summaryMonthLabel} spending vs budget</p>
+              {budgetContext.overBudgetCategories.length > 0 && (
+                <div className="mb-3">
+                  <p className="mb-2 text-xs font-medium text-ember">Over budget</p>
+                  <ul className="space-y-1.5">
+                    {budgetContext.overBudgetCategories
+                      .sort((a, b) => b.overBy - a.overBy)
+                      .map((c) => (
+                        <li key={c.name} className="flex items-center justify-between text-sm">
+                          <span className="text-fjord">{c.name}</span>
+                          <span className="font-mono text-xs text-ember">
+                            {formatCurrency(c.spent)} spent / {formatCurrency(c.budgeted)} budgeted (+{formatCurrency(c.overBy)})
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+              {budgetContext.unbudgetedSpending > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-stone">Unbudgeted activity</p>
+                  <p className="mt-1 font-mono text-lg font-semibold text-ember">
+                    {formatCurrency(budgetContext.unbudgetedSpending)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-stone">
+                    Spending in categories with no budget for {summaryMonthLabel}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -538,11 +626,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                 summary={scoreBreakdown?.summary}
               />
             ) : (
-              <div className="card flex flex-col items-center justify-center gap-2 py-8">
-                <p className="text-sm text-stone">No efficiency score yet</p>
-                <p className="text-xs text-stone">
-                  Generate insights to see your financial efficiency score
-                </p>
+              <div className="card">
+                <EmptyState
+                  title="No efficiency score yet"
+                  description="Generate insights to see your financial efficiency score"
+                />
               </div>
             )}
 

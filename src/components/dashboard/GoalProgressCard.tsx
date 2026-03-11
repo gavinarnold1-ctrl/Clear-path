@@ -68,7 +68,7 @@ export default function GoalProgressCard({
 
       {/* Single context sentence */}
       {contextLine && (
-        <p className="mt-2 text-xs text-stone">{contextLine}</p>
+        <p className={`mt-2 text-xs ${contextLine.color}`}>{contextLine.text}</p>
       )}
     </div>
   )
@@ -81,22 +81,41 @@ function formatMetricValue(target: GoalTarget, value: number): string {
   return formatCurrency(value)
 }
 
-function getContextLine(goal: PrimaryGoal, remaining: number, target: GoalTarget): string | null {
+function getContextLine(goal: PrimaryGoal, remaining: number, target: GoalTarget): { text: string; color: string } | null {
   const monthly = target.monthlyNeeded ?? 0
   if (monthly <= 0) return null
 
+  // Compute months early/late based on projected vs target completion
+  const currentValue = target.currentValue ?? 0
+  const amountLeft = target.targetValue - currentValue
+  let monthsDiff = 0
+  if (amountLeft > 0 && remaining > 0) {
+    const projectedMonths = Math.ceil(amountLeft / remaining)
+    const targetMonths = monthsBetween(new Date().toISOString(), target.targetDate)
+    monthsDiff = targetMonths - projectedMonths // positive = early, negative = late
+  }
+
   if (remaining >= monthly) {
+    const paceNote = monthsDiff > 2
+      ? ` — on track to finish ${monthsDiff} months early`
+      : monthsDiff > 0
+        ? ' — slightly ahead of schedule'
+        : ''
     switch (goal) {
       case 'save_more':
-        return `On pace — ${formatCurrency(remaining)} available, ${formatCurrency(monthly)}/mo needed`
+        return { text: `Saving ${formatCurrency(remaining)}/mo toward ${formatCurrency(monthly)}/mo target${paceNote}`, color: 'text-pine' }
       case 'pay_off_debt':
-        return `${formatCurrency(remaining)} available for extra debt payments this month`
+        return { text: `${formatCurrency(remaining)} available for extra debt payments${paceNote}`, color: 'text-pine' }
       default:
-        return `${formatCurrency(remaining)} remaining after commitments`
+        return { text: `${formatCurrency(remaining)} remaining after commitments${paceNote}`, color: 'text-fjord' }
     }
   }
 
-  return `${formatCurrency(monthly - remaining)} short of ${formatCurrency(monthly)}/mo target`
+  const shortfall = monthly - remaining
+  const behindNote = monthsDiff < -2
+    ? ` — you need ${formatCurrency(monthly)}/mo to hit your target date`
+    : ''
+  return { text: `${formatCurrency(shortfall)} short of ${formatCurrency(monthly)}/mo target${behindNote}`, color: 'text-ember' }
 }
 
 function PaceBadge({ pace }: { pace: 'ahead' | 'on-track' | 'behind' }) {

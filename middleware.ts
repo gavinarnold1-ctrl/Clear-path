@@ -92,6 +92,22 @@ export async function middleware(req: NextRequest) {
 
   let session = accessToken ? await verifyAccessToken(accessToken) : null
 
+  // Enforce rotation TTL: if the client was told to rotate but didn't within 30s, force re-auth.
+  // This prevents indefinite reuse of a compromised refresh token.
+  const rotationCookie = req.cookies.get('oversikt-needs-rotation')?.value
+  if (rotationCookie && session) {
+    const rotationTimestamp = parseInt(rotationCookie, 10)
+    if (!isNaN(rotationTimestamp) && Date.now() - rotationTimestamp > 30_000) {
+      // Rotation was not completed in time — force logout
+      const loginUrl = new URL('/login', req.url)
+      const response = NextResponse.redirect(loginUrl)
+      response.cookies.delete(SESSION_COOKIE)
+      response.cookies.delete(REFRESH_COOKIE)
+      response.cookies.delete('oversikt-needs-rotation')
+      return response
+    }
+  }
+
   // If access token expired but refresh token is valid, auto-refresh the access token.
   // This is a "soft" refresh using the signed JWT payload — no DB call needed in Edge.
   // The dedicated /api/auth/refresh endpoint handles full rotation with DB version check.
@@ -114,18 +130,20 @@ export async function middleware(req: NextRequest) {
         maxAge: 60 * 60, // 1 hour
         path: '/',
       }
-      // Signal client to do full DB-backed token rotation via /api/auth/refresh
+      // Signal client to do full DB-backed token rotation via /api/auth/refresh.
+      // Store timestamp so we can enforce a TTL — if rotation isn't done within 30s,
+      // the next request will force re-auth (see check above).
       const rotationCookieOpts = {
         httpOnly: false, // readable by client JS
         secure: IS_PROD,
         sameSite: 'strict' as const,
-        maxAge: 30, // 30 seconds — just long enough for the client to pick it up
+        maxAge: 60, // 60 seconds — generous TTL, enforcement happens at 30s
         path: '/',
       }
 
       const response = NextResponse.next()
       response.cookies.set(SESSION_COOKIE, newAccessToken, accessCookieOpts)
-      response.cookies.set('oversikt-needs-rotation', '1', rotationCookieOpts)
+      response.cookies.set('oversikt-needs-rotation', String(Date.now()), rotationCookieOpts)
 
       const isProtected = PROTECTED.some((p) => pathname.startsWith(p))
       const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p))
@@ -133,7 +151,7 @@ export async function middleware(req: NextRequest) {
       if (isAuthRoute && session) {
         const redirect = NextResponse.redirect(new URL('/dashboard', req.url))
         redirect.cookies.set(SESSION_COOKIE, newAccessToken, accessCookieOpts)
-        redirect.cookies.set('oversikt-needs-rotation', '1', rotationCookieOpts)
+        redirect.cookies.set('oversikt-needs-rotation', String(Date.now()), rotationCookieOpts)
         return redirect
       }
 

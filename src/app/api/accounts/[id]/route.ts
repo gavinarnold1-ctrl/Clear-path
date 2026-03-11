@@ -125,6 +125,28 @@ export async function DELETE(
     return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
+  // Revoke Plaid item if this is the last account using it
+  if (existing.plaidItemId && existing.plaidAccessToken) {
+    const siblingCount = await db.account.count({
+      where: {
+        plaidItemId: existing.plaidItemId,
+        userId: session.userId,
+        id: { not: id },
+      },
+    })
+    if (siblingCount === 0) {
+      try {
+        const { plaidClient } = await import('@/lib/plaid')
+        const { decrypt } = await import('@/lib/encryption')
+        const accessToken = decrypt(existing.plaidAccessToken)
+        await plaidClient.itemRemove({ access_token: accessToken })
+      } catch (err) {
+        // Log but don't block deletion — Plaid revocation is best-effort
+        console.error('Failed to revoke Plaid item:', err)
+      }
+    }
+  }
+
   // Unlink transactions first, then delete account
   await db.$transaction([
     db.transaction.updateMany({

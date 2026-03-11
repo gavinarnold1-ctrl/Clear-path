@@ -1,5 +1,10 @@
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid'
 
+// Warn early if Plaid credentials are missing
+if (process.env.NODE_ENV === 'production' && (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET)) {
+  console.error('[oversikt] PLAID_CLIENT_ID or PLAID_SECRET not set — Plaid integration will fail')
+}
+
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
   baseOptions: {

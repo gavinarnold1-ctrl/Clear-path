@@ -752,8 +752,8 @@ function GroupedDebtCard({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => onEdit(debt)} className="text-xs text-stone hover:text-fjord">Edit</button>
-                  <button onClick={() => onDelete(debt.id)} className="text-xs text-stone hover:text-ember">Delete</button>
+                  <button onClick={(e) => { e.stopPropagation(); onEdit(debt) }} className="text-xs text-stone hover:text-fjord">Edit</button>
+                  <button onClick={(e) => { e.stopPropagation(); onDelete(debt.id) }} className="text-xs text-stone hover:text-ember">Delete</button>
                 </div>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
@@ -953,8 +953,8 @@ function SingleDebtCard({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => onEdit(debt)} className="text-xs text-stone hover:text-fjord">Edit</button>
-          <button onClick={() => onDelete(debt.id)} className="text-xs text-stone hover:text-ember">Delete</button>
+          <button onClick={(e) => { e.stopPropagation(); onEdit(debt) }} className="text-xs text-stone hover:text-fjord">Edit</button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(debt.id) }} className="text-xs text-stone hover:text-ember">Delete</button>
         </div>
       </div>
 

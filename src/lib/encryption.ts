@@ -11,6 +11,17 @@ const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12 // 96-bit IV recommended for GCM
 const AUTH_TAG_LENGTH = 16 // 128-bit auth tag
 
+// Validate encryption key at module load time — fail fast rather than silently
+if (!process.env.PLAID_ENCRYPTION_KEY && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'FATAL: PLAID_ENCRYPTION_KEY environment variable is not set. ' +
+    'Plaid access tokens cannot be encrypted/decrypted. Set this in your deployment environment.'
+  )
+}
+if (!process.env.PLAID_ENCRYPTION_KEY) {
+  console.warn('[oversikt] PLAID_ENCRYPTION_KEY not set — Plaid operations will fail')
+}
+
 function getEncryptionKey(): Buffer {
   const keyHex = process.env.PLAID_ENCRYPTION_KEY
   if (!keyHex) {

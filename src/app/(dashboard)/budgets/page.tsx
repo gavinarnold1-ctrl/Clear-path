@@ -20,22 +20,34 @@ import BenchmarkBar from '@/components/budgets/BenchmarkBar'
 import type { GoalTarget } from '@/types'
 import { claimTransactions, CATCHALL_NAMES } from '@/lib/budget-claiming'
 import type { ClaimableTransaction } from '@/lib/budget-claiming'
+import BudgetMonthSelector from '@/components/budgets/BudgetMonthSelector'
 
 export const metadata: Metadata = { title: 'Budgets' }
 
-export default async function BudgetsPage() {
+interface PageProps {
+  searchParams: Promise<{ month?: string }>
+}
+
+export default async function BudgetsPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  const params = await searchParams
+  const monthParam = params.month ?? ''
+
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  const target = monthParam
+    ? new Date(parseInt(monthParam.split('-')[0]), parseInt(monthParam.split('-')[1]) - 1, 1)
+    : now
+  const startOfMonth = new Date(target.getFullYear(), target.getMonth(), 1)
+  const endOfMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0, 23, 59, 59, 999)
+  const currentMonthStr = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`
 
   // Prior 3 complete months for expected income calculation
   const prev1Start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
   const prev1End = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount, goalContext] = await Promise.all([
+  const [budgets, allExpenseTransactions, refundCandidates, incomeAgg, priorIncomeAgg, userProfile, uncategorizedCount, goalContext, oldestTx] = await Promise.all([
     db.budget.findMany({
       where: { userId: session.userId },
       include: { category: true, annualExpense: true, _count: { select: { overrideTransactions: true } } },
@@ -94,7 +106,27 @@ export default async function BudgetsPage() {
     }),
     // Goal context for budget-goal connection
     getGoalContext(session.userId),
+    // Oldest transaction for month selector range
+    db.transaction.findFirst({
+      where: { userId: session.userId },
+      orderBy: { date: 'asc' },
+      select: { date: true },
+    }),
   ])
+
+  // Build available months list from oldest transaction to current month
+  const availableMonths: string[] = []
+  {
+    const earliest = oldestTx?.date ?? now
+    const startY = earliest.getFullYear()
+    const startM = earliest.getMonth()
+    const endY = now.getFullYear()
+    const endM = now.getMonth()
+    for (let y = endY, m = endM; y > startY || (y === startY && m >= startM); m--) {
+      if (m < 0) { m = 11; y-- }
+      availableMonths.push(`${y}-${String(m + 1).padStart(2, '0')}`)
+    }
+  }
 
   // Detect refund pairs and exclude refunded expenses from budget computation
   const allForPairing = [
@@ -379,7 +411,7 @@ export default async function BudgetsPage() {
   const fixedPaid = fixed.filter((b) => b.spent > 0).length
   const flexOnTrack = flexible.filter((b) => b.spent <= b.amount).length
   const flexOverBudget = flexible.filter((b) => b.spent > b.amount).length
-  const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  const monthLabel = target.toLocaleString('en-US', { month: 'long', year: 'numeric' })
 
   // Goal-budget connection
   const goalTarget = userProfile?.goalTarget as GoalTarget | null
@@ -406,7 +438,15 @@ export default async function BudgetsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-bold text-fjord">Budgets</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-2xl font-bold text-fjord">Budgets</h1>
+          {availableMonths.length > 1 && (
+            <BudgetMonthSelector
+              availableMonths={availableMonths}
+              selectedMonth={currentMonthStr}
+            />
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {budgets.length > 0 && <BudgetBuilderFlow hasBudgets />}
           <Button href="/budgets/new">
@@ -482,7 +522,7 @@ export default async function BudgetsPage() {
             <UncategorizedReviewBanner count={uncategorizedCount} />
           )}
 
-          <FixedBudgetSection budgets={fixed} transactions={transactions} />
+          <FixedBudgetSection budgets={fixed} transactions={transactions} month={currentMonthStr} />
           {benchmarks.length > 0 && (
             <div className="mb-3 rounded-lg bg-frost px-3 py-2 text-xs text-stone">
               {overBenchmarkCount === 0 ? (
@@ -533,6 +573,7 @@ export default async function BudgetsPage() {
             benchmarks={benchmarks}
             primaryGoal={userProfile?.primaryGoal ?? undefined}
             hasGoalTarget={!!goalTarget}
+            month={currentMonthStr}
           />
           <AnnualBudgetSection budgets={annual} />
           <UnbudgetedSection categories={unbudgetedCategories} />

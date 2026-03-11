@@ -75,9 +75,10 @@ function getFixedStatus(budget: FixedBudget, transactions: Transaction[]): { sta
 interface Props {
   budgets: FixedBudget[]
   transactions: Transaction[]
+  month?: string
 }
 
-export default function FixedBudgetSection({ budgets, transactions }: Props) {
+export default function FixedBudgetSection({ budgets, transactions, month }: Props) {
   if (budgets.length === 0) return null
 
   const total = budgets.reduce((sum, b) => sum + b.amount, 0)
@@ -121,6 +122,7 @@ export default function FixedBudgetSection({ budgets, transactions }: Props) {
                 category={budget.category}
                 status={status}
                 overrideCount={budget._count?.overrideTransactions}
+                month={month}
               />
             )
           })}

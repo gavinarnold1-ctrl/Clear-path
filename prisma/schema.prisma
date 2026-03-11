@@ -221,6 +221,9 @@ model Transaction {
   @@index([propertyId])
   @@index([debtId])
   @@index([userId, importSource])
+  @@index([userId, amount])
+  @@index([userId, categoryId, date])
+  @@index([userId, classification, date])
 }
 
 model Budget {

@@ -11,10 +11,10 @@ export interface BudgetContext {
   annualExpenses: { name: string; funded: number; annualAmount: number; monthsLeft: number }[]
 }
 
-export async function buildBudgetContext(userId: string): Promise<BudgetContext> {
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+export async function buildBudgetContext(userId: string, month?: Date): Promise<BudgetContext> {
+  const target = month ?? new Date()
+  const startOfMonth = new Date(target.getFullYear(), target.getMonth(), 1)
+  const endOfMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0, 23, 59, 59, 999)
 
   const [budgets, monthExpenses] = await Promise.all([
     db.budget.findMany({
@@ -115,8 +115,8 @@ export async function buildBudgetContext(userId: string): Promise<BudgetContext>
       const targetDate = new Date(ae.dueYear, ae.dueMonth - 1, 1)
       const monthsLeft = Math.max(
         0,
-        (targetDate.getFullYear() - now.getFullYear()) * 12 +
-          (targetDate.getMonth() - now.getMonth())
+        (targetDate.getFullYear() - target.getFullYear()) * 12 +
+          (targetDate.getMonth() - target.getMonth())
       )
       return {
         name: ae.name,

@@ -121,15 +121,9 @@ export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Size limit: 10MB for CSV uploads
+  // Size limit: 10MB for CSV uploads, 50K rows max
   const MAX_CSV_SIZE = 10 * 1024 * 1024
-  const contentLength = request.headers.get('content-length')
-  if (contentLength && parseInt(contentLength, 10) > MAX_CSV_SIZE) {
-    return NextResponse.json(
-      { error: 'File too large. Maximum CSV size is 10MB.' },
-      { status: 413 }
-    )
-  }
+  const MAX_ROWS = 50_000
 
   try {
     const body = await request.json()
@@ -139,10 +133,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing CSV text' }, { status: 400 })
     }
 
-    // Check actual body size after parsing
-    if (typeof csvText === 'string' && csvText.length > MAX_CSV_SIZE) {
+    // Validate actual content size — Content-Length headers can be spoofed
+    if (typeof csvText !== 'string' || csvText.length > MAX_CSV_SIZE) {
       return NextResponse.json(
-        { error: 'File too large. Maximum CSV size is 10MB.' },
+        { error: `CSV content exceeds maximum size of ${MAX_CSV_SIZE / 1024 / 1024}MB` },
+        { status: 413 }
+      )
+    }
+
+    // Row count limit as defense-in-depth
+    const lineCount = csvText.split('\n').length
+    if (lineCount > MAX_ROWS) {
+      return NextResponse.json(
+        { error: `CSV exceeds maximum of ${MAX_ROWS.toLocaleString()} rows` },
         { status: 413 }
       )
     }

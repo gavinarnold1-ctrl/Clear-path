@@ -32,15 +32,22 @@ interface TransactionRefs {
 
 export async function buildTransactionSummary(
   userId: string,
-  months: number = 3
+  months: number = 3,
+  scopeDate?: { startDate: Date; endDate: Date }
 ): Promise<TransactionSummary & { _refs: TransactionRefs }> {
-  const startDate = new Date()
-  startDate.setMonth(startDate.getMonth() - months)
+  const startDate = scopeDate?.startDate ?? (() => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - months)
+    return d
+  })()
+  const endDateFilter = scopeDate?.endDate ?? undefined
+
+  const effectiveMonths = scopeDate ? 1 : months
 
   const transactions = await db.transaction.findMany({
     where: {
       userId,
-      date: { gte: startDate },
+      date: { gte: startDate, ...(endDateFilter ? { lte: endDateFilter } : {}) },
       classification: { not: 'transfer' },
     },
     include: {
@@ -67,7 +74,7 @@ export async function buildTransactionSummary(
 
   const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, txns]) => {
     const total = txns.reduce((sum, t) => sum + Math.abs(t.amount), 0)
-    const monthlyAvg = total / months
+    const monthlyAvg = total / effectiveMonths
     const benchmark = getBenchmark(category)
 
     return {
@@ -175,7 +182,7 @@ export async function buildTransactionSummary(
     period: {
       start: periodStart,
       end: periodEnd,
-      months,
+      months: effectiveMonths,
     },
     _refs: {
       potentialDuplicates,
