@@ -73,6 +73,7 @@ function makeDebt(overrides: Partial<DebtForForecast> = {}): DebtForForecast {
     balance: 5000,
     interestRate: 0.22,
     minimumPayment: 150,
+    escrowAmount: 0,
     ...overrides,
   }
 }

@@ -53,6 +53,58 @@ interface Props {
 export default function AnnualExpenseList({ active, completed, trueRemaining, monthlyBurden, categories = [], properties = [] }: Props) {
   const [showCompleted, setShowCompleted] = useState(false)
 
+  // Group active expenses by horizon
+  const dueSoon: AnnualExpenseData[] = []   // ≤ 3 months
+  const comingUp: AnnualExpenseData[] = []  // 4–12 months
+  const future: AnnualExpenseData[] = []    // 12+ months
+
+  for (const exp of active) {
+    if (exp.monthsRemaining <= 3) {
+      dueSoon.push(exp)
+    } else if (exp.monthsRemaining <= 12) {
+      comingUp.push(exp)
+    } else {
+      future.push(exp)
+    }
+  }
+
+  const hasUnderfundedUrgent = dueSoon.some(
+    (e) => e.computedStatus === 'urgent' || e.computedStatus === 'overdue' || e.computedStatus === 'behind'
+  )
+
+  function renderGroup(
+    label: string,
+    expenses: AnnualExpenseData[],
+    accentClass: string,
+    isFuture?: boolean,
+  ) {
+    if (expenses.length === 0) return null
+    return (
+      <div>
+        <p className={`mb-2 text-xs font-semibold ${accentClass}`}>
+          {label} &middot; {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
+        </p>
+        <div className={`grid grid-cols-1 gap-4 lg:grid-cols-2 ${isFuture ? 'opacity-85' : ''}`}>
+          {expenses.map((exp) => {
+            const affordable =
+              trueRemaining !== undefined && monthlyBurden !== undefined && monthlyBurden > 0
+                ? (exp.currentSetAside / monthlyBurden) * Math.max(0, trueRemaining)
+                : undefined
+            return (
+              <AnnualExpenseCard
+                key={exp.id}
+                expense={exp}
+                affordableMonthly={affordable}
+                categories={categories}
+                properties={properties}
+              />
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mb-8">
       <h2 className="mb-3 font-display text-lg font-semibold text-fjord">Expenses</h2>
@@ -66,23 +118,14 @@ export default function AnnualExpenseList({ active, completed, trueRemaining, mo
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {active.map((exp) => {
-              // Compute per-expense affordable amount when there's a shortfall
-              const affordable =
-                trueRemaining !== undefined && monthlyBurden !== undefined && monthlyBurden > 0
-                  ? (exp.currentSetAside / monthlyBurden) * Math.max(0, trueRemaining)
-                  : undefined
-              return (
-                <AnnualExpenseCard
-                  key={exp.id}
-                  expense={exp}
-                  affordableMonthly={affordable}
-                  categories={categories}
-                  properties={properties}
-                />
-              )
-            })}
+          <div className="space-y-6">
+            {renderGroup(
+              'Due soon',
+              dueSoon,
+              hasUnderfundedUrgent ? 'text-ember' : 'text-stone',
+            )}
+            {renderGroup('Coming up', comingUp, 'text-stone')}
+            {renderGroup('Future', future, 'text-stone', true)}
           </div>
 
           {completed.length > 0 && (

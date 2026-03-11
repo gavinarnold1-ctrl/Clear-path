@@ -64,7 +64,7 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
       where: { userId, month: { gte: twelveMonthsAgo } },
       orderBy: { month: 'asc' },
     }),
-    db.debt.findMany({ where: { userId } }),
+    db.debt.findMany({ where: { userId }, include: { property: { select: { groupId: true } } } }),
     db.account.findMany({ where: { userId } }),
     db.budget.findMany({
       where: { userId },
@@ -93,6 +93,8 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     balance: d.currentBalance,
     interestRate: d.interestRate,
     minimumPayment: d.minimumPayment,
+    escrowAmount: d.escrowAmount ?? 0,
+    propertyGroupId: d.property?.groupId ?? null,
   }))
 
   const accountData: AccountForForecast[] = accounts.map((a) => ({

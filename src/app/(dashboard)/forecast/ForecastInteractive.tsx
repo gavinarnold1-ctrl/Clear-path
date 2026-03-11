@@ -22,6 +22,8 @@ interface DebtSummary {
   interestRate: number
   minimumPayment: number
   escrowAmount: number | null
+  propertyGroupId?: string | null
+  propertyGroupName?: string | null
 }
 
 interface SummaryCardData {

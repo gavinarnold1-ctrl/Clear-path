@@ -13,6 +13,8 @@ interface DebtSummary {
   interestRate: number
   minimumPayment: number
   escrowAmount: number | null
+  propertyGroupId?: string | null
+  propertyGroupName?: string | null
 }
 
 interface Props {
@@ -156,8 +158,9 @@ export default function ForecastScenarios({
         params.term = parseInt(customTerm)
         if (customDebtId) params.debtId = customDebtId
         const targetDebt = debts.find(d => d.id === customDebtId)
-        params.description = targetDebt
-          ? `Refinance ${targetDebt.name} to ${customRate}% for ${customTerm} months`
+        const debtLabel = targetDebt?.propertyGroupName ?? targetDebt?.name
+        params.description = debtLabel
+          ? `Refinance ${debtLabel} to ${customRate}% for ${customTerm} months`
           : `Refinance to ${customRate}% for ${customTerm} months`
       }
 
@@ -449,6 +452,61 @@ export default function ForecastScenarios({
                 const filteredDebts = customType === 'refinance'
                   ? debts.filter(d => d.type === 'MORTGAGE')
                   : debts
+
+                // For refinance, group debts by property group so a single mortgage
+                // on a multi-unit property shows as one entry (e.g. "123 Main St")
+                type DropdownOption = { key: string; value: string; label: string }
+                const dropdownOptions: DropdownOption[] = []
+
+                if (customType === 'refinance') {
+                  const grouped = new Map<string, DebtSummary[]>()
+                  const ungrouped: DebtSummary[] = []
+
+                  for (const d of filteredDebts) {
+                    if (d.propertyGroupId) {
+                      const existing = grouped.get(d.propertyGroupId) ?? []
+                      existing.push(d)
+                      grouped.set(d.propertyGroupId, existing)
+                    } else {
+                      ungrouped.push(d)
+                    }
+                  }
+
+                  // Add grouped entries (combined balance, weighted avg rate)
+                  for (const [groupId, groupDebts] of grouped) {
+                    const combinedBalance = groupDebts.reduce((s, d) => s + d.currentBalance, 0)
+                    const combinedPayment = groupDebts.reduce((s, d) => s + d.minimumPayment, 0)
+                    const weightedRate = combinedBalance > 0
+                      ? groupDebts.reduce((s, d) => s + d.interestRate * d.currentBalance, 0) / combinedBalance
+                      : 0
+                    const groupName = groupDebts[0].propertyGroupName ?? 'Property Group'
+                    // Use first debt ID as the value — the API applies to this debt,
+                    // but the display shows the combined group info
+                    dropdownOptions.push({
+                      key: `group-${groupId}`,
+                      value: groupDebts[0].id,
+                      label: `${groupName} — ${formatCurrency(combinedBalance)} at ${(weightedRate * 100).toFixed(1)}%${combinedPayment > 0 ? ` (${formatCurrency(combinedPayment)}/mo)` : ''}`,
+                    })
+                  }
+
+                  // Add ungrouped debts individually
+                  for (const d of ungrouped) {
+                    dropdownOptions.push({
+                      key: d.id,
+                      value: d.id,
+                      label: `${d.name} — ${formatCurrency(d.currentBalance)} at ${(d.interestRate * 100).toFixed(1)}%${d.minimumPayment > 0 ? ` (${formatCurrency(d.minimumPayment)}/mo)` : ''}`,
+                    })
+                  }
+                } else {
+                  for (const d of filteredDebts) {
+                    dropdownOptions.push({
+                      key: d.id,
+                      value: d.id,
+                      label: `${d.name} — ${formatCurrency(d.currentBalance)} at ${(d.interestRate * 100).toFixed(1)}%${d.minimumPayment > 0 ? ` (${formatCurrency(d.minimumPayment)}/mo)` : ''}`,
+                    })
+                  }
+                }
+
                 return (
                   <div>
                     <label className="mb-1 block text-xs font-medium text-stone">
@@ -464,10 +522,9 @@ export default function ForecastScenarios({
                           ? 'Highest-rate mortgage'
                           : 'Highest-rate debt'}
                       </option>
-                      {filteredDebts.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.name} — {formatCurrency(d.currentBalance)} at {(d.interestRate * 100).toFixed(1)}%
-                          {d.minimumPayment > 0 ? ` (${formatCurrency(d.minimumPayment)}/mo)` : ''}
+                      {dropdownOptions.map(opt => (
+                        <option key={opt.key} value={opt.value}>
+                          {opt.label}
                         </option>
                       ))}
                     </select>

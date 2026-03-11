@@ -8,7 +8,7 @@ import AnnualAlerts from '@/components/annual/AnnualAlerts'
 import AutoFundBanner from '@/components/annual/AutoFundBanner'
 import MonthlyForecast from '@/components/annual/MonthlyForecast'
 import AnnualExpenseList from '@/components/annual/AnnualExpenseList'
-import YearEndProjection from '@/components/annual/YearEndProjection'
+import FundingProjection from '@/components/annual/FundingProjection'
 import AddExpenseButton from '@/components/annual/AddExpenseButton'
 
 export const metadata: Metadata = { title: 'Annual Planning' }
@@ -135,6 +135,12 @@ export default async function AnnualPlanningPage() {
   const totalFunded = active.reduce((s, e) => s + e.funded, 0)
   const monthlyBurden = active.reduce((s, e) => s + e.currentSetAside, 0)
 
+  // Near-term vs. future breakdown
+  const nearTermPlanned = active
+    .filter((e) => e.monthsRemaining <= 12)
+    .reduce((s, e) => s + e.annualAmount, 0)
+  const futurePlanned = totalPlanned - nearTermPlanned
+
   const categoryOptions = categories.map((c) => ({
     id: c.id,
     name: c.name,
@@ -148,7 +154,12 @@ export default async function AnnualPlanningPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-fjord">Annual Planning</h1>
-          <p className="text-sm text-stone">{now.getFullYear()} Expense Forecast</p>
+          <p className="text-sm text-stone">
+            Rolling 12-month plan &middot;{' '}
+            {new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            {' – '}
+            {new Date(now.getFullYear(), now.getMonth() + 11, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          </p>
         </div>
         <AddExpenseButton categories={categoryOptions} />
       </div>
@@ -168,6 +179,8 @@ export default async function AnnualPlanningPage() {
         monthlyBurden={monthlyBurden}
         expenseCount={active.length}
         trueRemaining={trueRemaining}
+        nearTermPlanned={nearTermPlanned}
+        futurePlanned={futurePlanned}
       />
 
       <AutoFundBanner
@@ -194,7 +207,7 @@ export default async function AnnualPlanningPage() {
         properties={properties}
       />
 
-      <YearEndProjection expenses={enriched} monthlyBurden={monthlyBurden} />
+      <FundingProjection expenses={enriched} monthlyBurden={monthlyBurden} />
     </div>
   )
 }
