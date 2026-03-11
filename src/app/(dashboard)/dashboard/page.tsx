@@ -201,8 +201,8 @@ export default async function DashboardPage({ searchParams }: Props) {
     ]),
   ])
 
-  // Plaid staleness check — trigger background sync if any item hasn't synced in 12+ hours
-  const STALE_THRESHOLD_MS = 12 * 60 * 60 * 1000
+  // Plaid staleness check — trigger background sync if any item hasn't synced in 4+ hours
+  const STALE_THRESHOLD_MS = 4 * 60 * 60 * 1000
   const plaidAccounts = accounts.filter(a => a.plaidItemId)
   const itemGroups = new Map<string, { lastSynced: Date | null }>()
   for (const account of plaidAccounts) {
@@ -213,9 +213,15 @@ export default async function DashboardPage({ searchParams }: Props) {
     }
   }
   const staleItemIds: string[] = []
+  const allPlaidItemIds: string[] = []
+  let oldestSyncTime: Date | null = null
   for (const [itemId, { lastSynced }] of itemGroups) {
+    allPlaidItemIds.push(itemId)
     if (!lastSynced || (now.getTime() - lastSynced.getTime()) > STALE_THRESHOLD_MS) {
       staleItemIds.push(itemId)
+    }
+    if (lastSynced && (!oldestSyncTime || lastSynced < oldestSyncTime)) {
+      oldestSyncTime = lastSynced
     }
   }
 
@@ -423,7 +429,11 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   return (
     <div>
-      {staleItemIds.length > 0 && <BackgroundSyncTrigger staleItemIds={staleItemIds} />}
+      <BackgroundSyncTrigger
+        staleItemIds={staleItemIds}
+        allItemIds={allPlaidItemIds}
+        oldestSyncTime={oldestSyncTime?.toISOString() ?? null}
+      />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-medium text-fjord">

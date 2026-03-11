@@ -9,6 +9,20 @@ import { detectPerkCredit } from '@/lib/engines/perk-detection'
 import type { BenefitForMatching } from '@/lib/engines/perk-detection'
 import type { RemovedTransaction } from 'plaid'
 
+async function getBalancesWithRetry(accessToken: string, maxRetries = 1) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await plaidClient.accountsBalanceGet({ access_token: accessToken })
+    } catch (err) {
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 2000))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -109,6 +123,8 @@ export async function POST(request: Request) {
     let totalAdded = 0
     let totalModified = 0
     let totalRemoved = 0
+    let balanceSyncedCount = 0
+    const balanceFailedItems: string[] = []
 
     for (const [itemKey, accounts] of itemGroups) {
       try {
@@ -340,37 +356,39 @@ export async function POST(request: Request) {
           },
         })
 
-        // Balance refresh for this item (matches cron behavior)
+        // Balance refresh for this item (with retry for rate limits/timeouts)
         try {
-          const balanceResponse = await plaidClient.accountsBalanceGet({
-            access_token: accessToken,
-          })
-          for (const plaidAccount of balanceResponse.data.accounts) {
-            const ourAccount = accounts.find(a => a.plaidAccountId === plaidAccount.account_id)
-            if (!ourAccount) continue
+          const balanceResponse = await getBalancesWithRetry(accessToken)
+          if (balanceResponse) {
+            for (const plaidAccount of balanceResponse.data.accounts) {
+              const ourAccount = accounts.find(a => a.plaidAccountId === plaidAccount.account_id)
+              if (!ourAccount) continue
 
-            const balance = plaidAccount.type === 'depository'
-              ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
-              : (plaidAccount.balances.current ?? 0)
+              const balance = plaidAccount.type === 'depository'
+                ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
+                : (plaidAccount.balances.current ?? 0)
 
-            await db.account.update({
-              where: { id: ourAccount.id },
-              data: { balance, plaidLastSynced: new Date() },
-            })
-
-            // Sync linked Debt balance
-            const linkedDebt = await db.debt.findUnique({
-              where: { accountId: ourAccount.id },
-            })
-            if (linkedDebt) {
-              await db.debt.update({
-                where: { id: linkedDebt.id },
-                data: { currentBalance: Math.abs(balance) },
+              await db.account.update({
+                where: { id: ourAccount.id },
+                data: { balance, plaidLastSynced: new Date() },
               })
+              balanceSyncedCount++
+
+              // Sync linked Debt balance
+              const linkedDebt = await db.debt.findUnique({
+                where: { accountId: ourAccount.id },
+              })
+              if (linkedDebt) {
+                await db.debt.update({
+                  where: { id: linkedDebt.id },
+                  data: { currentBalance: Math.abs(balance) },
+                })
+              }
             }
           }
         } catch (balErr) {
           console.error(`Balance refresh failed for item ${itemKey}:`, balErr)
+          balanceFailedItems.push(itemKey)
         }
       } catch (itemError) {
         console.error(`Plaid sync failed for item ${itemKey}:`, itemError)
@@ -440,6 +458,8 @@ export async function POST(request: Request) {
       modified: totalModified,
       removed: totalRemoved,
       aiCategorized,
+      balancesSynced: balanceSyncedCount,
+      balancesFailed: balanceFailedItems.length,
     })
   } catch (error) {
     console.error('Plaid sync failed:', error)
