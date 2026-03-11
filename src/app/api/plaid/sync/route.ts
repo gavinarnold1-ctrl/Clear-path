@@ -9,18 +9,20 @@ import { detectPerkCredit } from '@/lib/engines/perk-detection'
 import type { BenefitForMatching } from '@/lib/engines/perk-detection'
 import type { RemovedTransaction } from 'plaid'
 
-async function getBalancesWithRetry(accessToken: string, maxRetries = 1) {
+async function getBalancesWithRetry(accessToken: string, maxRetries = 1): Promise<Awaited<ReturnType<typeof plaidClient.accountsBalanceGet>>> {
+  let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await plaidClient.accountsBalanceGet({ access_token: accessToken })
     } catch (err) {
+      lastError = err
       if (attempt < maxRetries) {
         await new Promise(r => setTimeout(r, 2000))
         continue
       }
-      throw err
     }
   }
+  throw lastError
 }
 
 export async function POST(request: Request) {
@@ -359,35 +361,38 @@ export async function POST(request: Request) {
         // Balance refresh for this item (with retry for rate limits/timeouts)
         try {
           const balanceResponse = await getBalancesWithRetry(accessToken)
-          if (balanceResponse) {
-            for (const plaidAccount of balanceResponse.data.accounts) {
-              const ourAccount = accounts.find(a => a.plaidAccountId === plaidAccount.account_id)
-              if (!ourAccount) continue
+          for (const plaidAccount of balanceResponse.data.accounts) {
+            const ourAccount = accounts.find(a => a.plaidAccountId === plaidAccount.account_id)
+            if (!ourAccount) continue
 
-              const balance = plaidAccount.type === 'depository'
-                ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
-                : (plaidAccount.balances.current ?? 0)
+            const balance = plaidAccount.type === 'depository'
+              ? (plaidAccount.balances.available ?? plaidAccount.balances.current ?? 0)
+              : (plaidAccount.balances.current ?? 0)
 
-              await db.account.update({
-                where: { id: ourAccount.id },
-                data: { balance, plaidLastSynced: new Date() },
+            await db.account.update({
+              where: { id: ourAccount.id },
+              data: { balance, plaidLastSynced: new Date() },
+            })
+            balanceSyncedCount++
+
+            // Sync linked Debt balance
+            const linkedDebt = await db.debt.findUnique({
+              where: { accountId: ourAccount.id },
+            })
+            if (linkedDebt) {
+              await db.debt.update({
+                where: { id: linkedDebt.id },
+                data: { currentBalance: Math.abs(balance) },
               })
-              balanceSyncedCount++
-
-              // Sync linked Debt balance
-              const linkedDebt = await db.debt.findUnique({
-                where: { accountId: ourAccount.id },
-              })
-              if (linkedDebt) {
-                await db.debt.update({
-                  where: { id: linkedDebt.id },
-                  data: { currentBalance: Math.abs(balance) },
-                })
-              }
             }
           }
-        } catch (balErr) {
-          console.error(`Balance refresh failed for item ${itemKey}:`, balErr)
+        } catch (balErr: unknown) {
+          // Extract Plaid error details for debugging
+          const plaidError = (balErr as { response?: { data?: { error_code?: string; error_message?: string } } })?.response?.data
+          const errorDetail = plaidError
+            ? `Plaid ${plaidError.error_code}: ${plaidError.error_message}`
+            : (balErr instanceof Error ? balErr.message : String(balErr))
+          console.error(`Balance refresh failed for item ${itemKey}: ${errorDetail}`, balErr)
           balanceFailedItems.push(itemKey)
         }
       } catch (itemError) {
