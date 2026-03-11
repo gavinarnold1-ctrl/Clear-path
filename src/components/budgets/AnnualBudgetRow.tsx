@@ -43,7 +43,7 @@ const ALERT_STYLES = {
 
 function getCurrentMonth(): string {
   const now = new Date()
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 export default function AnnualBudgetRow({ name, categoryId, category, annualExpense: ae, spent }: Props) {

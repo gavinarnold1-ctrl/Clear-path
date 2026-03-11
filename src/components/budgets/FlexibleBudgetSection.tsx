@@ -28,6 +28,7 @@ interface Props {
   benchmarks?: BudgetBenchmarkComparison[]
   primaryGoal?: string
   hasGoalTarget?: boolean
+  month?: string
 }
 
 const CATCHALL_NAMES = new Set(['miscellaneous', 'uncategorized', 'other', 'everything else', 'personal'])
@@ -55,10 +56,11 @@ function getPaceInfo(amount: number, spent: number): { paceMarkerPct: number; di
 
 function getCurrentMonth(): string {
   const now = new Date()
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent, benchmarks, primaryGoal, hasGoalTarget }: Props) {
+export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unallocatedSpent, totalFlexibleBudget, totalFlexibleSpent, benchmarks, primaryGoal, hasGoalTarget, month }: Props) {
+  const effectiveMonth = month ?? getCurrentMonth()
   const benchmarkMap = new Map((benchmarks ?? []).map(b => [b.categoryName, b]))
   // Filter out empty catch-all rows ($0 spent)
   const visibleBudgets = budgets.filter((b) => {
@@ -153,6 +155,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
                   category={budget.category}
                   isCatchAll={CATCHALL_NAMES.has(budget.name.toLowerCase())}
                   overrideCount={budget._count?.overrideTransactions}
+                  month={month}
                 />
                 {bm && (
                   <div className="px-3 pb-2">
@@ -177,7 +180,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
 
           return (
             <Link
-              href={`/transactions?tier=FLEXIBLE&catchAll=true&month=${getCurrentMonth()}`}
+              href={`/transactions?tier=FLEXIBLE&catchAll=true&month=${effectiveMonth}`}
               className="block rounded-lg bg-frost/50 px-3 py-3 hover:bg-frost"
             >
               <div className="mb-1 flex items-center justify-between">

@@ -11,6 +11,7 @@ interface Props {
   category: { name: string; icon: string | null } | null
   isCatchAll?: boolean
   overrideCount?: number
+  month?: string
 }
 
 function getDailyAllowance(amount: number, spent: number): { daily: number; daysLeft: number } {
@@ -38,24 +39,25 @@ function getPaceInfo(amount: number, spent: number): { paceMarkerPct: number; di
 
 function getCurrentMonth(): string {
   const now = new Date()
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId, category, isCatchAll, overrideCount }: Props) {
+export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId, category, isCatchAll, overrideCount, month }: Props) {
   const pct = budgetProgress(spent, amount)
   const remaining = amount - spent
   const isOver = spent > amount
   const { daily, daysLeft } = getDailyAllowance(amount, spent)
   const pace = getPaceInfo(amount, spent)
+  const effectiveMonth = month ?? getCurrentMonth()
 
   const pctColor =
     pct >= 100 ? 'text-ember' : pct >= 90 ? 'text-ember' : pct >= 75 ? 'text-birch' : 'text-fjord'
 
   const href = id
-    ? `/transactions?budgetId=${id}&tier=FLEXIBLE&month=${getCurrentMonth()}&budgetName=${encodeURIComponent(name)}`
+    ? `/transactions?budgetId=${id}&tier=FLEXIBLE&month=${effectiveMonth}&budgetName=${encodeURIComponent(name)}`
     : isCatchAll
-      ? `/transactions?tier=FLEXIBLE&catchAll=true&month=${getCurrentMonth()}`
-      : `/transactions?search=${encodeURIComponent(name)}&month=${getCurrentMonth()}`
+      ? `/transactions?tier=FLEXIBLE&catchAll=true&month=${effectiveMonth}`
+      : `/transactions?search=${encodeURIComponent(name)}&month=${effectiveMonth}`
 
   const content = (
     <>
@@ -113,7 +115,7 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
       <div className="flex shrink-0 flex-col items-end gap-1">
         {categoryId && (
           <Link
-            href={`/transactions?categoryId=${categoryId}&month=${getCurrentMonth()}`}
+            href={`/transactions?categoryId=${categoryId}&month=${effectiveMonth}`}
             className="text-xs text-stone hover:text-fjord"
             title={`View all transactions in ${category?.name ?? name} (across all budgets)`}
           >

@@ -113,8 +113,16 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           if (budget.tier === 'ANNUAL' && budget.annualExpense) {
             // Annual budgets: filter by annualExpenseId directly
             txWhere.annualExpenseId = budget.annualExpense.id
+          } else if (budget.tier === 'FIXED' && budget.categoryId) {
+            // Fixed budgets: show ALL transactions in this category for the month.
+            // The claiming engine only returns 1 transaction (closest match), which
+            // feels broken when the user expects to see all matching payments.
+            txWhere.categoryId = budget.categoryId
+            txWhere.date = { gte: monthStart, lte: monthEnd }
+            txWhere.classification = 'expense'
+            budgetClaimedIds = null // skip claiming — use direct category filter
           } else {
-            // Fixed/Flexible/Catch-all: use the claiming engine
+            // Flexible/Catch-all (or unlinked Fixed): use the claiming engine
             const allTxs = await db.transaction.findMany({
               where: {
                 userId: session.userId,
@@ -145,6 +153,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
             const result = claimTransactions(allBudgets, claimableTxs)
 
             if (budget.tier === 'FIXED') {
+              // Unlinked fixed budget — fall back to claiming engine
               const txId = result.fixedClaimed.get(initialBudgetId)
               budgetClaimedIds = txId ? [txId] : []
             } else if (budget.tier === 'FLEXIBLE') {
