@@ -3,6 +3,8 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import type { BudgetProposal } from '@/lib/budget-builder'
+import { getGeneration } from '@/lib/budget-generation-store'
+import { recordBudgetAdjustments } from '@/lib/ai-context'
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
@@ -254,6 +256,22 @@ export async function POST(req: NextRequest) {
 
       return created
     })
+
+    // Record AI context signal: compare original AI proposal with final applied budget
+    const generation = getGeneration(session!.userId)
+    if (generation?.proposal) {
+      const originalItems = [
+        ...generation.proposal.fixed.map(i => ({ category: i.category, amount: i.amount, tier: 'FIXED' as const })),
+        ...generation.proposal.flexible.map(i => ({ category: i.category, amount: i.amount, tier: 'FLEXIBLE' as const })),
+        ...generation.proposal.annual.map(i => ({ category: i.category, amount: i.annualAmount, tier: 'ANNUAL' as const })),
+      ]
+      const finalItems = [
+        ...proposal.fixed.map(i => ({ category: i.category, amount: i.amount, tier: 'FIXED' as const })),
+        ...proposal.flexible.map(i => ({ category: i.category, amount: i.amount, tier: 'FLEXIBLE' as const })),
+        ...proposal.annual.map(i => ({ category: i.category, amount: i.annualAmount, tier: 'ANNUAL' as const })),
+      ]
+      recordBudgetAdjustments(session!.userId, originalItems, finalItems).catch(() => {})
+    }
 
     revalidatePath('/budgets')
     revalidatePath('/dashboard')

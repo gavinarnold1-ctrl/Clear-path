@@ -103,6 +103,7 @@ model User {
   categoryMappings  UserCategoryMapping[]
   userCards          UserCard[]
   feedback          Feedback[]
+  aiContext         UserAIContext?
 }
 
 model Account {
@@ -124,6 +125,12 @@ model Account {
   plaidAccessToken  String?   // R11.5: Stored encrypted with AES-256-GCM (iv:authTag:ciphertext format)
   plaidCursor       String?   // Cursor for transaction sync pagination
   plaidLastSynced   DateTime? // Last successful sync timestamp
+
+  // Balance reconciliation
+  balanceSource              String    @default("manual") // 'plaid' | 'computed' | 'manual'
+  lastReconciled             DateTime? // Last time reconciliation ran for this account
+  reconciliationDiscrepancy  Float?    // Last known discrepancy between Plaid and computed balance
+  syncFailCount              Int       @default(0) // Consecutive sync failure count
 
   // Forecast engine — asset classification
   assetClass        String?   // 'cash' | 'high_yield_savings' | 'bonds' | 'index_fund' | 'mutual_fund' | 'individual_stock' | 'crypto' | 'real_estate' | 'other'
@@ -963,6 +970,34 @@ model Feedback {
 
   @@index([userId])
   @@index([type, status])
+}
+
+// ─── AI Context (signal accumulator for personalized AI) ─────────────────────
+
+model UserAIContext {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Categorization learning (supplements UserCategoryMapping)
+  categorizationSignals  Json @default("{}")
+
+  // Insight engagement
+  insightSignals  Json @default("{}")
+
+  // Budget builder learning
+  budgetSignals  Json @default("{}")
+
+  // Spending behavior summary (derived, updated monthly)
+  spendingProfile  Json @default("{}")
+
+  // Goal context
+  goalSignals  Json @default("{}")
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ─── Waitlist ─────────────────────────────────────────────────────────────────

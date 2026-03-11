@@ -371,7 +371,7 @@ export async function POST(request: Request) {
 
             await db.account.update({
               where: { id: ourAccount.id },
-              data: { balance, plaidLastSynced: new Date() },
+              data: { balance, plaidLastSynced: new Date(), balanceSource: 'plaid', syncFailCount: 0 },
             })
             balanceSyncedCount++
 
@@ -394,6 +394,11 @@ export async function POST(request: Request) {
             : (balErr instanceof Error ? balErr.message : String(balErr))
           console.error(`Balance refresh failed for item ${itemKey}: ${errorDetail}`, balErr)
           balanceFailedItems.push(itemKey)
+          // Increment sync fail count for all accounts in this item
+          await db.account.updateMany({
+            where: { id: { in: accounts.map(a => a.id) } },
+            data: { syncFailCount: { increment: 1 } },
+          })
         }
       } catch (itemError) {
         console.error(`Plaid sync failed for item ${itemKey}:`, itemError)
@@ -434,6 +439,7 @@ export async function POST(request: Request) {
             accountName: t.account?.name || 'Unknown',
           })),
           userCategories,
+          session.userId,
         )
 
         for (const suggestion of suggestions) {

@@ -8,6 +8,7 @@ interface BackgroundSyncTriggerProps {
   staleItemIds: string[]
   allItemIds: string[]
   oldestSyncTime: string | null
+  syncFailingAccountNames?: string[]
 }
 
 function formatRelativeTime(isoDate: string): string {
@@ -29,11 +30,12 @@ function SyncIcon({ className }: { className?: string }) {
   )
 }
 
-export default function BackgroundSyncTrigger({ staleItemIds, allItemIds, oldestSyncTime }: BackgroundSyncTriggerProps) {
+export default function BackgroundSyncTrigger({ staleItemIds, allItemIds, oldestSyncTime, syncFailingAccountNames = [] }: BackgroundSyncTriggerProps) {
   const router = useRouter()
   const [status, setStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle')
   const [manualSyncing, setManualSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState(oldestSyncTime)
+  const [dismissedSyncBanner, setDismissedSyncBanner] = useState(false)
 
   // Background auto-sync for stale items
   useEffect(() => {
@@ -108,6 +110,31 @@ export default function BackgroundSyncTrigger({ staleItemIds, allItemIds, oldest
 
   return (
     <>
+      {/* Sync failure banner — shown when accounts have failed 3+ times in a row */}
+      {syncFailingAccountNames.length > 0 && !dismissedSyncBanner && (
+        <div className="mb-4 rounded-lg border border-ember/30 bg-ember/10 px-4 py-3 text-sm text-ember">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-medium">Bank sync is having trouble</p>
+              <p className="mt-0.5 text-xs text-ember/80">
+                {syncFailingAccountNames.length === 1
+                  ? `${syncFailingAccountNames[0]} has failed to sync multiple times.`
+                  : `${syncFailingAccountNames.length} accounts have failed to sync.`
+                }
+                {' '}Try reconnecting on the{' '}
+                <a href="/accounts" className="font-medium underline">Accounts page</a>.
+              </p>
+            </div>
+            <button
+              onClick={() => setDismissedSyncBanner(true)}
+              className="text-xs font-medium text-ember/60 hover:text-ember"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sync button + last synced (only shown when Plaid accounts exist) */}
       {allItemIds.length > 0 && (
         <div className="mb-4 flex items-center justify-end gap-3">

@@ -50,6 +50,10 @@ export interface Account {
   plaidAccountId: string | null
   plaidItemId: string | null
   plaidLastSynced: Date | null
+  balanceSource: string
+  lastReconciled: Date | null
+  reconciliationDiscrepancy: number | null
+  syncFailCount: number
   userId: string
 }
 

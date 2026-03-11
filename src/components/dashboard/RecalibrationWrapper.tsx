@@ -29,7 +29,17 @@ export default function RecalibrationWrapper({ suggestion }: Props) {
         })
         router.refresh()
       }}
-      onDismiss={() => setDismissed(true)}
+      onDismiss={() => {
+        setDismissed(true)
+        const action = suggestion.type === 'celebrate_completion' ? 'celebrate'
+          : suggestion.type === 'reduce_target' ? 'reduce_target'
+          : suggestion.type
+        fetch('/api/ai/context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'recalibration_dismissed', action }),
+        }).catch(() => {})
+      }}
     />
   )
 }

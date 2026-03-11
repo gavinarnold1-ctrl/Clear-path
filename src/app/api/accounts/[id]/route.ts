@@ -81,7 +81,7 @@ export async function PATCH(
       ...(!baselineChanged && balance !== undefined && { balance: parseFloat(balance) }),
       ...(startingBalance !== undefined && { startingBalance: newStarting }),
       ...(balanceAsOfDate !== undefined && { balanceAsOfDate: newAsOfDate }),
-      ...(computedBalance !== undefined && { balance: computedBalance }),
+      ...(computedBalance !== undefined && { balance: computedBalance, balanceSource: 'computed' }),
       ...(institution !== undefined && { institution: institution || null }),
       ...(ownerId !== undefined && { ownerId: ownerId || null }),
       ...(assetClass !== undefined && { assetClass: assetClass || null }),

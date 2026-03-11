@@ -16,6 +16,8 @@ interface Props {
   benchmarkScore?: number
   categorizationPct?: number
   netWorth?: number
+  hasStaleBalances?: boolean
+  staleAccountCount?: number
 }
 
 export default function BudgetHealthCards({
@@ -32,6 +34,8 @@ export default function BudgetHealthCards({
   benchmarkScore,
   categorizationPct,
   netWorth,
+  hasStaleBalances,
+  staleAccountCount,
 }: Props) {
   const showNetWorthSeparately = primaryGoal !== 'build_wealth' && netWorth != null
 
@@ -83,7 +87,13 @@ export default function BudgetHealthCards({
         <Link href="/accounts" className="card transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Net worth</p>
           <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(netWorth)}</p>
-          <p className="mt-1 text-xs text-stone">total assets minus liabilities</p>
+          {hasStaleBalances ? (
+            <p className="mt-1 text-xs text-ember/80">
+              {staleAccountCount} account{(staleAccountCount ?? 0) !== 1 ? 's' : ''} may be outdated
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-stone">total assets minus liabilities</p>
+          )}
         </Link>
       )}
     </div>

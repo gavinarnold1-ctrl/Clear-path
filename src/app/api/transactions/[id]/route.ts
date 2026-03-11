@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { DEMO_USER_ID } from '@/lib/demo'
 import { classifyTransaction } from '@/lib/category-groups'
 import { applyPropertyAttribution } from '@/lib/apply-splits'
+import { recordCategorizationCorrection } from '@/lib/ai-context'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -219,6 +220,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         })
       } catch {
         // Non-critical — don't fail the transaction update if mapping save fails
+      }
+
+      // Record AI context signal for categorization learning
+      if (existing.categoryId) {
+        const [prevCat, newCat] = await Promise.all([
+          db.category.findUnique({ where: { id: existing.categoryId }, select: { name: true } }),
+          db.category.findUnique({ where: { id: body.categoryId }, select: { name: true } }),
+        ])
+        if (prevCat && newCat) {
+          recordCategorizationCorrection(
+            session.userId,
+            normalizedMerchant,
+            prevCat.name,
+            newCat.name
+          ).catch(() => {}) // fire-and-forget
+        }
       }
     }
   }

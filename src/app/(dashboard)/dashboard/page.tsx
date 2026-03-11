@@ -13,6 +13,7 @@ import { getGoalContext } from '@/lib/goal-context'
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget } from '@/types'
+import { updateGoalPaceStatus } from '@/lib/ai-context'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
@@ -213,29 +214,52 @@ export default async function DashboardPage({ searchParams }: Props) {
     }),
   ])
 
-  // Plaid staleness check — trigger background sync if any item hasn't synced in 4+ hours
-  const STALE_THRESHOLD_MS = 4 * 60 * 60 * 1000
+  // Plaid staleness check — type-based thresholds for sync priority
+  // Credit cards need fresher data than mortgages
+  const STALENESS_THRESHOLDS: Record<string, number> = {
+    CREDIT_CARD: 2 * 60 * 60 * 1000,      // 2 hours
+    CHECKING: 4 * 60 * 60 * 1000,          // 4 hours
+    SAVINGS: 12 * 60 * 60 * 1000,          // 12 hours
+    CASH: 12 * 60 * 60 * 1000,             // 12 hours
+    INVESTMENT: 24 * 60 * 60 * 1000,       // 24 hours
+    MORTGAGE: 7 * 24 * 60 * 60 * 1000,     // 7 days
+    AUTO_LOAN: 7 * 24 * 60 * 60 * 1000,    // 7 days
+    STUDENT_LOAN: 7 * 24 * 60 * 60 * 1000, // 7 days
+  }
+  const DEFAULT_STALE_MS = 4 * 60 * 60 * 1000 // 4 hours default
   const plaidAccounts = accounts.filter(a => a.plaidItemId)
-  const itemGroups = new Map<string, { lastSynced: Date | null }>()
+
+  // Group by itemId, track most aggressive staleness threshold per item
+  const itemGroups = new Map<string, { lastSynced: Date | null; minThreshold: number }>()
   for (const account of plaidAccounts) {
-    const existing = itemGroups.get(account.plaidItemId!)
-    if (!existing || !account.plaidLastSynced ||
-        (existing.lastSynced && account.plaidLastSynced < existing.lastSynced)) {
-      itemGroups.set(account.plaidItemId!, { lastSynced: account.plaidLastSynced })
+    const itemId = account.plaidItemId!
+    const threshold = STALENESS_THRESHOLDS[account.type] ?? DEFAULT_STALE_MS
+    const existing = itemGroups.get(itemId)
+    if (!existing) {
+      itemGroups.set(itemId, { lastSynced: account.plaidLastSynced, minThreshold: threshold })
+    } else {
+      // Use the oldest (most stale) sync time and most aggressive threshold
+      if (!account.plaidLastSynced || (existing.lastSynced && account.plaidLastSynced < existing.lastSynced)) {
+        existing.lastSynced = account.plaidLastSynced
+      }
+      existing.minThreshold = Math.min(existing.minThreshold, threshold)
     }
   }
   const staleItemIds: string[] = []
   const allPlaidItemIds: string[] = []
   let oldestSyncTime: Date | null = null
-  for (const [itemId, { lastSynced }] of itemGroups) {
+  for (const [itemId, { lastSynced, minThreshold }] of itemGroups) {
     allPlaidItemIds.push(itemId)
-    if (!lastSynced || (now.getTime() - lastSynced.getTime()) > STALE_THRESHOLD_MS) {
+    if (!lastSynced || (now.getTime() - lastSynced.getTime()) > minThreshold) {
       staleItemIds.push(itemId)
     }
     if (lastSynced && (!oldestSyncTime || lastSynced < oldestSyncTime)) {
       oldestSyncTime = lastSynced
     }
   }
+
+  // Check for accounts with repeated sync failures
+  const syncFailingAccounts = accounts.filter(a => (a.syncFailCount ?? 0) >= 3)
 
   // Count unidentified credit cards for dashboard nudge
   const unidentifiedCards = await db.account.count({
@@ -294,6 +318,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   const recalibration = goalTargetData && userProfile?.primaryGoal
     ? await checkRecalibration(session.userId, goalTargetData, userProfile.primaryGoal as PrimaryGoal)
     : null
+
+  // Update AI context with goal pace status (fire-and-forget)
+  if (goalTargetData) {
+    const paceStatus = recalibration ? 'behind' as const : 'on_track' as const
+    updateGoalPaceStatus(session.userId, paceStatus).catch(() => {})
+  }
 
   // New users with no accounts: show streamlined "Get Started" flow
   if (accounts.length === 0) {
@@ -438,6 +468,13 @@ export default async function DashboardPage({ searchParams }: Props) {
   }, 0)
   const netWorth = accountBalance + propertyEquity
 
+  // Check for stale account data (any Plaid account >24h since last sync)
+  const STALE_DISPLAY_MS = 24 * 60 * 60 * 1000 // 24 hours
+  const staleAccounts = plaidAccounts.filter(a =>
+    !a.plaidLastSynced || (now.getTime() - a.plaidLastSynced.getTime()) > STALE_DISPLAY_MS
+  )
+  const hasStaleBalances = staleAccounts.length > 0
+
   // Over-budget items for attention section
   const overBudgetItems = flexibleBudgets
     .filter(b => b.spent > b.amount)
@@ -453,6 +490,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         staleItemIds={staleItemIds}
         allItemIds={allPlaidItemIds}
         oldestSyncTime={oldestSyncTime?.toISOString() ?? null}
+        syncFailingAccountNames={syncFailingAccounts.map(a => a.name)}
       />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -531,6 +569,8 @@ export default async function DashboardPage({ searchParams }: Props) {
             debtPayments={debtPayments}
             categorizationPct={categorizationPct}
             netWorth={netWorth}
+            hasStaleBalances={hasStaleBalances}
+            staleAccountCount={staleAccounts.length}
           />
           <div className="mb-6 -mt-4 text-right">
             <Link href="/budgets" className="text-xs font-medium text-fjord hover:underline">
