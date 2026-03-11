@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { DEMO_USER_ID } from '@/lib/demo'
 
 const VALID_TYPES = new Set([
   'CHECKING', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH',
@@ -107,6 +108,13 @@ export async function DELETE(
 ) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (session.userId === DEMO_USER_ID) {
+    return NextResponse.json(
+      { error: 'Demo accounts cannot delete data. Sign up for a free account to get started!' },
+      { status: 403 }
+    )
+  }
 
   const { id } = await params
 

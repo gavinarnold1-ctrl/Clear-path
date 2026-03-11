@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { DEMO_USER_ID } from '@/lib/demo'
 import { classifyTransaction } from '@/lib/category-groups'
 import { applyPropertyAttribution } from '@/lib/apply-splits'
 
@@ -319,6 +320,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (session.userId === DEMO_USER_ID) {
+    return NextResponse.json(
+      { error: 'Demo accounts cannot delete data. Sign up for a free account to get started!' },
+      { status: 403 }
+    )
+  }
 
   const { id } = await params
   // findFirst enforces userId scoping (findUnique ignores non-unique fields)

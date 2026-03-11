@@ -295,6 +295,7 @@ export interface DebtForForecast {
   minimumPayment: number
   escrowAmount: number
   propertyGroupId?: string | null
+  propertyId?: string | null
   actualAvgPayment?: number
 }
 
@@ -446,6 +447,12 @@ export interface ForecastScenario {
   baselineProjectedDate?: string | null
   scenarioProjectedDate?: string | null
   narrativeSummary?: string
+  propertyEquityGrowth?: {
+    annualAppreciation: number
+    annualPrincipalPaydown: number
+    annualTotal: number
+    properties: { name: string; appreciation: number; principalPaydown: number }[]
+  } | null
 }
 
 export interface MonthlyBreakdownRow {

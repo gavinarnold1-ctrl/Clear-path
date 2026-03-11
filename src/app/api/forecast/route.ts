@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
     scenarioProjectedDate: effectiveForecast.projectedDate ?? null,
     delayMonths: delayMonths > 0 ? delayMonths : undefined,
     narrativeSummary,
+    propertyEquityGrowth: effectiveForecast.propertyEquityGrowth ?? null,
   }
 
   return NextResponse.json({ scenario })
@@ -236,6 +237,7 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     minimumPayment: d.minimumPayment,
     escrowAmount: d.escrowAmount ?? 0,
     propertyGroupId: d.property?.groupId ?? null,
+    propertyId: d.propertyId ?? null,
     actualAvgPayment: debtPaymentMap.get(d.id),
   }))
 
@@ -369,23 +371,27 @@ function applyScenario(
       const amount = Number(params?.amount ?? 0)
       const targetDebtId = params?.debtId as string | undefined
 
-      if (targetDebtId) {
+      const resolvedTarget = targetDebtId
+        ? input.debts.find((d) => d.id === targetDebtId)
+        : [...input.debts].sort((a, b) => b.interestRate - a.interestRate)[0]
+
+      if (resolvedTarget) {
         modified.debts = input.debts.map((d) =>
-          d.id === targetDebtId
+          d.id === resolvedTarget.id
             ? { ...d, minimumPayment: d.minimumPayment + amount }
             : d
         )
-      } else {
-        // Apply to highest-rate debt
-        const sorted = [...input.debts].sort((a, b) => b.interestRate - a.interestRate)
-        if (sorted[0]) {
-          modified.debts = input.debts.map((d) =>
-            d.id === sorted[0].id
-              ? { ...d, minimumPayment: d.minimumPayment + amount }
-              : d
+
+        // Update linked property's monthly payment so equity growth reflects extra paydown
+        if (resolvedTarget.propertyId && input.properties) {
+          modified.properties = (input.properties).map((p) =>
+            p.id === resolvedTarget.propertyId
+              ? { ...p, monthlyPayment: (p.monthlyPayment ?? 0) + amount }
+              : p
           )
         }
       }
+
       modified.budgets = {
         ...input.budgets,
         projectedSurplus: input.budgets.projectedSurplus - amount,
@@ -476,6 +482,25 @@ function applyScenario(
           fixedTotal: input.budgets.fixedTotal - combinedOldPmt + newPmtTotal,
           totalBudgeted: input.budgets.totalBudgeted - combinedOldPmt + newPmtTotal,
           projectedSurplus: input.budgets.projectedSurplus + savings,
+        }
+
+        // Update linked properties so property equity growth reflects the new rate/payment
+        const affectedPropertyIds = new Set(
+          affectedDebts.map((d) => d.propertyId).filter(Boolean) as string[]
+        )
+        if (affectedPropertyIds.size > 0 && input.properties) {
+          modified.properties = (input.properties).map((p) => {
+            if (!affectedPropertyIds.has(p.id)) return p
+            // Find the refinanced debt for this property
+            const debt = affectedDebts.find((d) => d.propertyId === p.id)
+            if (!debt) return p
+            const share = combinedBalance > 0 ? debt.balance / combinedBalance : 1 / affectedDebts.length
+            return {
+              ...p,
+              interestRate: newRate,
+              monthlyPayment: newPmtTotal * share,
+            }
+          })
         }
       }
       break
