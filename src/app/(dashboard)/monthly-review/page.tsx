@@ -626,11 +626,11 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                 summary={scoreBreakdown?.summary}
               />
             ) : (
-              <div className="card flex flex-col items-center justify-center gap-2 py-8">
-                <p className="text-sm text-stone">No efficiency score yet</p>
-                <p className="text-xs text-stone">
-                  Generate insights to see your financial efficiency score
-                </p>
+              <div className="card">
+                <EmptyState
+                  title="No efficiency score yet"
+                  description="Generate insights to see your financial efficiency score"
+                />
               </div>
             )}
 

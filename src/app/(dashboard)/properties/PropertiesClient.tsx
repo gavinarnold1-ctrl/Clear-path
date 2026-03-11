@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { TaxSummary } from '@/lib/engines/tax'
 import { pitiBreakdown } from '@/lib/engines/amortization'
 import PropertySetupWizard from '@/components/properties/PropertySetupWizard'
@@ -469,10 +470,11 @@ function TaxReportView({
 
   if (!hasScheduleE && !hasScheduleC && !hasScheduleA) {
     return (
-      <div className="card text-center py-8">
-        <p className="text-stone">
-          No tax-relevant transactions found for {monthLabel}.
-        </p>
+      <div className="card">
+        <EmptyState
+          title="No tax-relevant transactions"
+          description={`No tax-relevant transactions found for ${monthLabel}.`}
+        />
       </div>
     )
   }
