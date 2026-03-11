@@ -68,6 +68,10 @@ function formatSyncTime(isoString: string): string {
   return `${diffDays}d ago`
 }
 
+function getSyncHoursStale(isoString: string): number {
+  return (Date.now() - new Date(isoString).getTime()) / (1000 * 60 * 60)
+}
+
 export default function AccountManager({ accounts: initial, householdMembers, propertyEquity = 0, linkedAccountIds = [] }: Props) {
   const router = useRouter()
   const [accounts, setAccounts] = useState(initial)
@@ -188,7 +192,11 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
       })
       if (!res.ok) throw new Error('Sync failed')
       const data = await res.json()
-      setPlaidMessage(`Synced: +${data.added} added, ${data.modified} modified, ${data.removed} removed`)
+      if (data.balancesFailed > 0) {
+        setPlaidMessage(`Synced transactions (+${data.added}), but balance update failed. Try again in a few minutes.`)
+      } else {
+        setPlaidMessage(`Synced: +${data.added} added, ${data.modified} modified, balances updated`)
+      }
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
@@ -502,7 +510,11 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                     </Link>
                     <div className="mt-2 flex items-center justify-between border-t border-mist pt-2">
                       <span className="text-xs text-stone">{acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
-                        {!acct.isManual && acct.plaidLastSynced && <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>}
+                        {!acct.isManual && acct.plaidLastSynced && (
+                          <span className={getSyncHoursStale(acct.plaidLastSynced) > 24 ? 'font-medium text-ember' : ''}>
+                            {' '}&middot; {getSyncHoursStale(acct.plaidLastSynced) > 24 ? '⚠ ' : ''}Synced {formatSyncTime(acct.plaidLastSynced)}
+                          </span>
+                        )}
                       </span>
                       <div className="flex items-center gap-3">
                         {!acct.isManual && (
@@ -536,7 +548,9 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                         {acct.ownerName && <span> &middot; {acct.ownerName}</span>}
                         {' '}&middot; {acct.txCount} txn{acct.txCount !== 1 ? 's' : ''}
                         {!acct.isManual && acct.plaidLastSynced && (
-                          <span> &middot; Synced {formatSyncTime(acct.plaidLastSynced)}</span>
+                          <span className={getSyncHoursStale(acct.plaidLastSynced) > 24 ? 'font-medium text-ember' : ''}>
+                            {' '}&middot; {getSyncHoursStale(acct.plaidLastSynced) > 24 ? '⚠ ' : ''}Synced {formatSyncTime(acct.plaidLastSynced)}
+                          </span>
                         )}
                       </p>
                     </Link>
