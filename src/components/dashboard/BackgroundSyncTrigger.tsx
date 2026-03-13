@@ -37,7 +37,9 @@ export default function BackgroundSyncTrigger({ staleItemIds, allItemIds, oldest
   const [lastSynced, setLastSynced] = useState(oldestSyncTime)
   const [dismissedSyncBanner, setDismissedSyncBanner] = useState(false)
 
-  // Background auto-sync for stale items
+  // Background auto-sync for stale items — re-runs when staleItemIds change
+  // (e.g. after data reset clears plaidLastSynced, dashboard recalculates staleness)
+  const staleKey = staleItemIds.join(',')
   useEffect(() => {
     if (staleItemIds.length === 0 || status !== 'idle') return
 
@@ -69,7 +71,7 @@ export default function BackgroundSyncTrigger({ staleItemIds, allItemIds, oldest
     }
 
     syncStaleItems()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [staleKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
