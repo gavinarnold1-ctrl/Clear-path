@@ -444,7 +444,9 @@ export default async function DashboardPage({ searchParams }: Props) {
   // True Remaining: use expectedMonthlyIncome if set; fall back to 3-month avg (matching budgets page)
   const autoExpectedIncome = prevIncome / 3
   const displayIncome = userProfile?.expectedMonthlyIncome ?? (autoExpectedIncome > 0 ? autoExpectedIncome : monthlyIncome)
-  const trueRemaining = displayIncome - fixedTotal - flexibleSpent - annualSetAside
+  // Include unbudgeted spending so True Remaining matches budgets page
+  // (budgets page absorbs unbudgeted spending into catch-all flexible budget via claimTransactions)
+  const trueRemaining = displayIncome - fixedTotal - flexibleSpent - unbudgetedSpent - annualSetAside
 
   // Budget health card data
   const fixedPaidCount = fixedBudgets.filter(b => b.spent > 0).length
@@ -514,6 +516,7 @@ export default async function DashboardPage({ searchParams }: Props) {
               flexibleSpent={flexibleSpent}
               flexibleBudget={flexibleBudgetTotal}
               annualSetAside={annualSetAside}
+              unbudgetedSpent={unbudgetedSpent}
               primaryGoal={primaryGoal}
             />
           </Link>

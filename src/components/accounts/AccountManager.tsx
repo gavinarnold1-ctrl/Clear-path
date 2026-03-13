@@ -136,6 +136,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
   const [plaidLoading, setPlaidLoading] = useState(false)
   const [plaidMessage, setPlaidMessage] = useState<string | null>(null)
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null)
+  const [syncingAll, setSyncingAll] = useState(false)
   const [showPostConnect, setShowPostConnect] = useState(false)
 
   const nameRef = useRef<HTMLInputElement>(null)
@@ -180,9 +181,23 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
         body: JSON.stringify({ itemId: exchangeData.itemId }),
       })
       const syncData = syncRes.ok ? await syncRes.json() : { added: 0 }
+      let totalAdded = syncData.added ?? 0
+
+      // Second sync pass to pick up historical transactions Plaid may still be processing
+      setPlaidMessage(`Imported ${totalAdded} transactions, checking for more...`)
+      await new Promise(r => setTimeout(r, 2000))
+      const sync2Res = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: exchangeData.itemId }),
+      })
+      if (sync2Res.ok) {
+        const sync2Data = await sync2Res.json()
+        totalAdded += sync2Data.added ?? 0
+      }
 
       setPlaidMessage(
-        `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''}`
+        `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${totalAdded} transaction${totalAdded !== 1 ? 's' : ''}`
       )
       // Immediately add new accounts to local state so they appear without waiting for router.refresh()
       if (exchangeData.accounts && Array.isArray(exchangeData.accounts)) {
@@ -275,6 +290,32 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
       setError(err instanceof Error ? err.message : 'Sync failed')
     } finally {
       setSyncingAccountId(null)
+    }
+  }
+
+  async function handleSyncAll() {
+    const hasPlaid = accounts.some(a => !a.isManual && a.plaidLastSynced)
+    if (syncingAll || !hasPlaid) return
+    setSyncingAll(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) throw new Error('Sync failed')
+      const data = await res.json()
+      if (data.balancesFailed > 0) {
+        setPlaidMessage(`Synced all accounts (+${data.added} transactions), but ${data.balancesFailed} balance update(s) failed.`)
+      } else {
+        setPlaidMessage(`Synced all accounts: +${data.added} added, ${data.modified} modified, balances updated`)
+      }
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sync failed')
+    } finally {
+      setSyncingAll(false)
     }
   }
 
@@ -523,6 +564,15 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
         >
           Connect Bank
         </Button>
+        {accounts.some(a => !a.isManual) && (
+          <button
+            onClick={handleSyncAll}
+            disabled={syncingAll}
+            className="rounded-button border border-mist px-4 py-2 text-sm font-medium text-fjord transition-colors hover:bg-frost disabled:opacity-50"
+          >
+            {syncingAll ? 'Syncing…' : 'Sync All'}
+          </button>
+        )}
         {accounts.length > 0 && (
           <button
             onClick={handleReconcileAll}
