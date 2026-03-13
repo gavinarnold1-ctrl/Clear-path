@@ -49,9 +49,24 @@ export default function GetStarted() {
         body: JSON.stringify({ itemId: exchangeData.itemId }),
       })
       const syncData = syncRes.ok ? await syncRes.json() : { added: 0 }
+      let totalAdded = syncData.added ?? 0
+
+      // Plaid may still be processing historical transactions — run a second sync pass
+      // after a short delay to pick up any remaining data
+      setPlaidMessage(`Imported ${totalAdded} transactions, checking for more...`)
+      await new Promise(r => setTimeout(r, 2000))
+      const sync2Res = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: exchangeData.itemId }),
+      })
+      if (sync2Res.ok) {
+        const sync2Data = await sync2Res.json()
+        totalAdded += sync2Data.added ?? 0
+      }
 
       setPlaidMessage(
-        `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''}`
+        `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${totalAdded} transaction${totalAdded !== 1 ? 's' : ''}`
       )
       setConnected(true)
     } catch (err) {

@@ -8,6 +8,7 @@ interface TrueRemainingProps {
   flexibleSpent: number
   flexibleBudget: number
   annualSetAside: number
+  unbudgetedSpent?: number
   primaryGoal?: PrimaryGoal | null
 }
 
@@ -17,10 +18,12 @@ export default function TrueRemainingBanner({
   fixedTotal,
   flexibleSpent,
   annualSetAside,
+  unbudgetedSpent = 0,
   primaryGoal,
 }: TrueRemainingProps) {
-  const displayIncome = expectedIncome && expectedIncome > 0 ? expectedIncome : income
-  const trueRemaining = displayIncome - fixedTotal - flexibleSpent - annualSetAside
+  const displayIncome = expectedIncome ?? income
+  const totalFlexSpent = flexibleSpent + unbudgetedSpent
+  const trueRemaining = displayIncome - fixedTotal - totalFlexSpent - annualSetAside
   const incomeRatio = displayIncome > 0 ? trueRemaining / displayIncome : 0
 
   // Color coding based on remaining percentage of income
@@ -65,7 +68,7 @@ export default function TrueRemainingBanner({
         <span>&minus;</span>
         <span>{formatCurrency(fixedTotal)} fixed</span>
         <span>&minus;</span>
-        <span>{formatCurrency(flexibleSpent)} flexible</span>
+        <span>{formatCurrency(totalFlexSpent)} flexible</span>
         {annualSetAside > 0 && (
           <>
             <span>&minus;</span>
