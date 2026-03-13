@@ -2,12 +2,24 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { identifyCardPrograms } from '@/lib/card-identification'
 import { db } from '@/lib/db'
+import { seedCardPrograms } from '../../../../../prisma/seed-card-programs'
 
 // GET /api/cards/suggestions — get card program suggestions for unidentified credit cards
 export async function GET() {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Auto-seed card programs if table is empty (handles fresh production deploys)
+    const programCount = await db.cardProgram.count()
+    if (programCount === 0) {
+      try {
+        await seedCardPrograms(db)
+        console.log('Auto-seeded card programs on first API access')
+      } catch (seedErr) {
+        console.error('Failed to auto-seed card programs:', seedErr)
+      }
+    }
 
     const suggestions = await identifyCardPrograms(session.userId)
 

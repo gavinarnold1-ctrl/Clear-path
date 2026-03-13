@@ -238,7 +238,8 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
       if (!res.ok) throw new Error('Sync failed')
       const data = await res.json()
       if (data.balancesFailed > 0) {
-        setPlaidMessage(`Synced transactions (+${data.added}), but balance update failed. Try again in a few minutes.`)
+        const reason = data.balanceFailureReason ? ` (${data.balanceFailureReason})` : ''
+        setPlaidMessage(`Synced transactions (+${data.added}), but balance update failed${reason}. Try again in a few minutes.`)
       } else {
         setPlaidMessage(`Synced: +${data.added} added, ${data.modified} modified, balances updated`)
       }
