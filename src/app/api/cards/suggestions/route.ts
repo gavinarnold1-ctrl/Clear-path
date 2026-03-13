@@ -31,20 +31,30 @@ export async function GET() {
     })
 
     // Return unidentified credit card accounts (those without auto-match suggestions)
+    // Exclude dismissed accounts
     const suggestedAccountIds = new Set(suggestions.map((s) => s.accountId))
     const unidentifiedAccounts = await db.account.findMany({
       where: {
         userId: session.userId,
         type: 'CREDIT_CARD',
         userCard: null,
+        cardDismissed: false,
         id: { notIn: Array.from(suggestedAccountIds) },
       },
       select: { id: true, name: true, institution: true },
       orderBy: { name: 'asc' },
     })
 
+    // Also filter out dismissed accounts from auto-match suggestions
+    const dismissedAccounts = await db.account.findMany({
+      where: { userId: session.userId, cardDismissed: true },
+      select: { id: true },
+    })
+    const dismissedIds = new Set(dismissedAccounts.map((a) => a.id))
+    const filteredSuggestions = suggestions.filter((s) => !dismissedIds.has(s.accountId))
+
     return NextResponse.json({
-      suggestions,
+      suggestions: filteredSuggestions,
       programs,
       unidentifiedAccounts,
       ...(programs.length === 0 && {

@@ -12,6 +12,7 @@ export default function GetStarted() {
   const [plaidLoading, setPlaidLoading] = useState(false)
   const [plaidMessage, setPlaidMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [connected, setConnected] = useState(false)
 
   async function fetchLinkToken() {
     setPlaidLoading(true)
@@ -45,14 +46,14 @@ export default function GetStarted() {
       const syncRes = await fetch('/api/plaid/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ itemId: exchangeData.itemId }),
       })
       const syncData = syncRes.ok ? await syncRes.json() : { added: 0 }
 
       setPlaidMessage(
         `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''}`
       )
-      setTimeout(() => router.refresh(), 1500)
+      setConnected(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect bank')
     } finally {
@@ -99,6 +100,37 @@ export default function GetStarted() {
       {plaidMessage && (
         <div className="mb-6 rounded-lg border border-pine/30 bg-pine/10 px-4 py-2 text-sm text-fjord">
           {plaidMessage}
+        </div>
+      )}
+
+      {connected && (
+        <div className="mb-6 rounded-xl border border-pine/30 bg-pine/5 p-5 text-center">
+          <p className="text-sm font-medium text-fjord">
+            Want to connect another bank account?
+          </p>
+          <p className="mt-1 text-xs text-stone">
+            Connecting all your accounts gives you a complete financial picture.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setConnected(false)
+                setPlaidMessage(null)
+                fetchLinkToken()
+              }}
+              className="rounded-button bg-fjord px-5 py-2 text-sm font-medium text-snow hover:bg-midnight"
+            >
+              Add another account
+            </button>
+            <button
+              type="button"
+              onClick={() => router.refresh()}
+              className="rounded-button border border-mist px-5 py-2 text-sm font-medium text-fjord hover:bg-frost"
+            >
+              Continue to dashboard
+            </button>
+          </div>
         </div>
       )}
 

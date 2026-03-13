@@ -443,9 +443,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   const hasGoal = !!goalContext && !!userProfile?.primaryGoal
   // True Remaining: use expectedMonthlyIncome if set; fall back to 3-month avg (matching budgets page)
   const autoExpectedIncome = prevIncome / 3
-  const displayIncome = userProfile?.expectedMonthlyIncome && userProfile.expectedMonthlyIncome > 0
-    ? userProfile.expectedMonthlyIncome
-    : (autoExpectedIncome > 0 ? autoExpectedIncome : monthlyIncome)
+  const displayIncome = userProfile?.expectedMonthlyIncome ?? (autoExpectedIncome > 0 ? autoExpectedIncome : monthlyIncome)
   const trueRemaining = displayIncome - fixedTotal - flexibleSpent - annualSetAside
 
   // Budget health card data

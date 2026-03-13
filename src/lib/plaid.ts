@@ -16,7 +16,7 @@ const config = new Configuration({
 })
 
 export const plaidClient = new PlaidApi(config)
-export const PLAID_PRODUCTS = [Products.Transactions] as Products[]
+export const PLAID_PRODUCTS = [Products.Transactions, Products.Balance] as Products[]
 export const PLAID_COUNTRY_CODES = [CountryCode.Us]
 
 /**

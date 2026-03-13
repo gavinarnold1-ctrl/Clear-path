@@ -36,6 +36,7 @@ export async function withDbRetry<T>(
       const isTransient =
         message.includes("Can't reach database server") ||
         message.includes('Connection timed out') ||
+        message.includes('Timed out fetching a new connection from the connection pool') ||
         message.includes('connect ETIMEDOUT') ||
         message.includes('ECONNREFUSED') ||
         message.includes('connection is not open')

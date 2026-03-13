@@ -48,8 +48,10 @@ export async function POST() {
 }
 
 async function generateAsync(userId: string) {
-  const [profile, goalContext, userProfile] = await Promise.all([
-    withDbRetry(() => analyzeSpendingProfile(userId)),
+  // Sequential queries to avoid exhausting the connection pool (limit: 5).
+  // analyzeSpendingProfile fetches all transactions — runs first alone.
+  const profile = await withDbRetry(() => analyzeSpendingProfile(userId))
+  const [goalContext, userProfile] = await Promise.all([
     withDbRetry(() => getGoalContext(userId)),
     withDbRetry(() =>
       db.userProfile.findUnique({

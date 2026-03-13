@@ -132,6 +132,9 @@ model Account {
   reconciliationDiscrepancy  Float?    // Last known discrepancy between Plaid and computed balance
   syncFailCount              Int       @default(0) // Consecutive sync failure count
 
+  // Card identification
+  cardDismissed     Boolean   @default(false) // User dismissed this account from card identification
+
   // Forecast engine — asset classification
   assetClass        String?   // 'cash' | 'high_yield_savings' | 'bonds' | 'index_fund' | 'mutual_fund' | 'individual_stock' | 'crypto' | 'real_estate' | 'other'
   expectedReturn    Float?    // User override for annual return rate (decimal, e.g. 0.045 for 4.5%). Null = use asset class default

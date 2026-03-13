@@ -32,7 +32,7 @@ export async function POST() {
     for (const [, accounts] of itemGroups) {
       const accessToken = decrypt(accounts[0].plaidAccessToken!)
 
-      const balanceResponse = await plaidClient.accountsBalanceGet({
+      const balanceResponse = await plaidClient.accountsGet({
         access_token: accessToken,
       })
 
