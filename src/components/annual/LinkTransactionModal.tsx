@@ -37,7 +37,7 @@ export default function LinkTransactionModal({
     if (!isOpen) return
     setLoading(true)
     setSearch('')
-    fetch('/api/transactions')
+    fetch('/api/transactions?limit=200')
       .then((res) => res.json())
       .then((data) => {
         const txs: Transaction[] = Array.isArray(data) ? data : data.transactions ?? []

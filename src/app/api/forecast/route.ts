@@ -497,6 +497,7 @@ function applyScenario(
             const share = combinedBalance > 0 ? debt.balance / combinedBalance : 1 / affectedDebts.length
             return {
               ...p,
+              loanBalance: debt.balance,
               interestRate: newRate,
               monthlyPayment: newPmtTotal * share,
             }
