@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
-import { GOAL_COLORS, CATEGORY_COLORS } from '@/lib/chart-colors'
+import { BRAND_COLORS, GOAL_COLORS, CATEGORY_COLORS } from '@/lib/chart-colors'
 
 interface SpendingGroup {
   group: string
@@ -44,7 +44,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Bar chart */}
-      <div className="card lg:col-span-1">
+      <div className="card border-l-4 border-l-ember lg:col-span-1">
         <h2 className="mb-4 font-display text-base font-semibold text-fjord">By Group</h2>
         {data.length === 0 ? (
           <p className="text-sm text-stone">No expenses this month.</p>
@@ -57,7 +57,7 @@ export default function SpendingBreakdown({ data, totalSpent, currentMonth, budg
                   type="category"
                   dataKey="name"
                   width={110}
-                  tick={{ fontSize: 11, fill: '#1B3A4B' }}
+                  tick={{ fontSize: 11, fill: BRAND_COLORS.fjord }}
                 />
                 <Tooltip
                   formatter={(value: number | undefined) => formatCurrency(value ?? 0)}

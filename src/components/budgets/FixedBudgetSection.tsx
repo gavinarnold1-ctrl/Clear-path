@@ -105,7 +105,7 @@ export default function FixedBudgetSection({ budgets, transactions, month }: Pro
             </svg>
           </span>
         </summary>
-        <div className="card divide-y divide-mist">
+        <div className="card divide-y divide-mist border-l-4 border-l-fjord">
           {budgets.map((budget) => {
             const { status, matchedAmount } = getFixedStatus(budget, transactions)
             return (

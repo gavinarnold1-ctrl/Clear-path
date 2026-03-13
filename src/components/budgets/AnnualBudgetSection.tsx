@@ -57,7 +57,7 @@ export default function AnnualBudgetSection({ budgets }: Props) {
           </span>
         </summary>
         <p className="mb-3 text-sm text-stone">Irregular expenses you plan and save for over time</p>
-        <div className="card divide-y divide-mist">
+        <div className="card divide-y divide-mist border-l-4 border-l-birch">
           {withExpense.map((budget) => (
             <AnnualBudgetRow
               key={budget.id}

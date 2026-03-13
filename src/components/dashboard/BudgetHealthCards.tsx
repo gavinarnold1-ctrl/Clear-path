@@ -46,7 +46,7 @@ export default function BudgetHealthCards({
   return (
     <div className={`mb-8 grid grid-cols-1 gap-4 ${showNetWorthSeparately ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
       {/* Card 1: Fixed bills */}
-      <Link href="/budgets" className="card transition-colors hover:border-fjord/30">
+      <Link href="/budgets" className="card border-l-4 border-l-fjord transition-colors hover:border-fjord/30">
         <p className="text-xs font-medium text-stone">Fixed bills</p>
         <p className="mt-1 text-2xl font-bold text-fjord">
           {fixedPaid} of {fixedTotal}
@@ -56,7 +56,7 @@ export default function BudgetHealthCards({
       </Link>
 
       {/* Card 2: Flexible spending — shows spent, not budgeted */}
-      <Link href="/budgets" className="card transition-colors hover:border-fjord/30">
+      <Link href="/budgets" className="card border-l-4 border-l-ember transition-colors hover:border-fjord/30">
         <p className="text-xs font-medium text-stone">Flexible spending</p>
         <p className={`mt-1 text-2xl font-bold ${flexOver ? 'text-ember' : 'text-fjord'}`}>
           {formatCurrency(flexibleSpent)}
@@ -84,7 +84,7 @@ export default function BudgetHealthCards({
 
       {/* Card 4: Net worth (always visible unless build_wealth archetype already shows it) */}
       {showNetWorthSeparately && (
-        <Link href="/accounts" className="card transition-colors hover:border-fjord/30">
+        <Link href="/accounts" className="card border-l-4 border-l-fjord transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Net worth</p>
           <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(netWorth)}</p>
           {hasStaleBalances ? (
@@ -125,7 +125,7 @@ function ArchetypeCard({
     case 'save_more': {
       const pct = annualFundTotal && annualFundTotal > 0 ? Math.round(((annualFundProgress ?? 0) / annualFundTotal) * 100) : 0
       return (
-        <Link href="/budgets/annual" className="card transition-colors hover:border-fjord/30">
+        <Link href="/budgets/annual" className="card border-l-4 border-l-birch transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Annual fund</p>
           <p className="mt-1 text-2xl font-bold text-fjord">
             {formatCurrency(annualFundProgress ?? 0)}
@@ -139,7 +139,7 @@ function ArchetypeCard({
 
     case 'pay_off_debt':
       return (
-        <Link href="/debts" className="card transition-colors hover:border-fjord/30">
+        <Link href="/debts" className="card border-l-4 border-l-ember transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Debt progress</p>
           <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(totalDebt ?? 0)}</p>
           <p className="mt-1 text-xs text-stone">
@@ -150,7 +150,7 @@ function ArchetypeCard({
 
     case 'spend_smarter':
       return (
-        <Link href="/spending" className="card transition-colors hover:border-fjord/30">
+        <Link href="/spending" className="card border-l-4 border-l-pine transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Benchmark score</p>
           <p className="mt-1 text-2xl font-bold text-fjord">
             {benchmarkScore != null ? `${benchmarkScore}%` : '—'}
@@ -162,7 +162,7 @@ function ArchetypeCard({
 
     case 'gain_visibility': {
       return (
-        <Link href="/transactions" className="card transition-colors hover:border-fjord/30">
+        <Link href="/transactions" className="card border-l-4 border-l-pine transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Categorization</p>
           <p className="mt-1 text-2xl font-bold text-fjord">
             {categorizationPct != null ? `${categorizationPct}%` : '—'}
@@ -175,7 +175,7 @@ function ArchetypeCard({
 
     case 'build_wealth':
       return (
-        <Link href="/accounts" className="card transition-colors hover:border-fjord/30">
+        <Link href="/accounts" className="card border-l-4 border-l-fjord transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Net worth</p>
           <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(netWorth ?? 0)}</p>
           <p className="mt-1 text-xs text-stone">total assets minus liabilities</p>
@@ -184,7 +184,7 @@ function ArchetypeCard({
 
     default:
       return (
-        <Link href="/monthly-review" className="card transition-colors hover:border-fjord/30">
+        <Link href="/monthly-review" className="card border-l-4 border-l-birch transition-colors hover:border-fjord/30">
           <p className="text-xs font-medium text-stone">Monthly review</p>
           <p className="mt-2 text-sm text-stone">Check your financial health</p>
         </Link>

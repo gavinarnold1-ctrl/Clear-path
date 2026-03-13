@@ -938,8 +938,10 @@ function SingleDebtCard({
   onEdit: (debt: DebtRow) => void
   onDelete: (id: string) => void
 }) {
+  const rateAccent = debt.interestRate >= 0.07 ? 'border-l-ember' : debt.interestRate >= 0.04 ? 'border-l-birch' : 'border-l-pine'
+
   return (
-    <div className="card">
+    <div className={`card border-l-4 ${rateAccent}`}>
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-base font-semibold text-fjord">{debt.name}</h3>
@@ -965,7 +967,7 @@ function SingleDebtCard({
         </div>
         <div>
           <p className="text-xs text-stone">Rate</p>
-          <p className="font-mono text-lg font-bold text-fjord">{(debt.interestRate * 100).toFixed(2)}%</p>
+          <p className={`font-mono text-lg font-bold ${debt.interestRate >= 0.07 ? 'text-ember' : debt.interestRate >= 0.04 ? 'text-birch' : 'text-pine'}`}>{(debt.interestRate * 100).toFixed(2)}%</p>
         </div>
         <div>
           <p className="text-xs text-stone">Monthly Payment</p>

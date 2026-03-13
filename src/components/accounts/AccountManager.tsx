@@ -59,6 +59,17 @@ const TYPE_GROUPS: Record<string, string[]> = {
 
 const ALL_TYPES = Object.keys(TYPE_LABELS)
 
+const TYPE_ACCENT: Record<string, string> = {
+  CHECKING: 'border-l-fjord',
+  SAVINGS: 'border-l-pine',
+  CREDIT_CARD: 'border-l-ember',
+  INVESTMENT: 'border-l-birch',
+  CASH: 'border-l-stone',
+  MORTGAGE: 'border-l-ember',
+  AUTO_LOAN: 'border-l-ember',
+  STUDENT_LOAN: 'border-l-ember',
+}
+
 function formatSyncTime(isoString: string): string {
   const date = new Date(isoString)
   const now = new Date()
@@ -672,7 +683,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                   </div>
                 </div>
               ) : (
-                <div key={acct.id} className="card">
+                <div key={acct.id} className={`card border-l-4 ${TYPE_ACCENT[acct.type] ?? 'border-l-mist'}`}>
                   {/* Mobile: stacked layout */}
                   <div className="md:hidden">
                     <Link href={`/transactions?accountId=${acct.id}`} className="block">
