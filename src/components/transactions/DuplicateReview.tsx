@@ -72,20 +72,19 @@ export default function DuplicateReview() {
 
   const dismissRemaining = useCallback(() => {
     const toDismiss = groups.filter(g => !dismissed.has(g.dismissKey))
+    const signatures = toDismiss.map(g => g.dismissKey)
     setDismissed(prev => {
       const next = new Set(prev)
-      for (const g of toDismiss) {
-        next.add(g.dismissKey)
-        // Persist each server-side
-        fetch('/api/transactions/duplicates/dismiss', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ signature: g.dismissKey }),
-        }).catch(() => { /* silently ignore */ })
-      }
+      for (const key of signatures) next.add(key)
       return next
     })
     setDismissedAll(true)
+    // Bulk persist server-side in a single request
+    fetch('/api/transactions/duplicates/dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signatures }),
+    }).catch(() => { /* silently ignore */ })
   }, [groups, dismissed])
 
   async function handleMerge(group: DuplicateGroup, keepId: string) {

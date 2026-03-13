@@ -1015,73 +1015,144 @@ export default function TransactionList({ transactions: initial, categories, acc
                 {/* Expanded detail */}
                 {mobileDetailId === tx.id && (
                   <div className="mt-2 space-y-1 text-xs" onClick={(e) => e.stopPropagation()}>
-                    {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
-                    {!tx.category && (
-                      <div>
-                        <span className="text-stone">Category:</span>{' '}
-                        <select
-                          value=""
-                          onChange={(e) => { if (e.target.value) quickCategorize(tx.id, e.target.value) }}
-                          className="ml-1 rounded-badge border border-birch/40 bg-birch/10 px-1.5 py-0.5 text-xs text-stone"
-                        >
-                          <option value="">+ Assign</option>
-                          {Object.entries(groupedCategories).map(([group, cats]) => (
-                            <optgroup key={group} label={group}>
-                              {cats.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
-                    {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
-                    {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
-                    {tx.splits && tx.splits.length > 0 && (
-                      <div className="mt-1 rounded-button bg-frost/50 px-2 py-1.5">
-                        <p className="mb-1 text-[10px] font-medium text-stone">Split allocations</p>
-                        {tx.splits.map((split) => (
-                          <div key={split.id} className="flex items-center justify-between text-xs">
-                            <span className="text-fjord">{split.property?.name ?? 'Unknown'}</span>
-                            <span className={split.amount < 0 ? 'text-expense' : 'text-income'}>
-                              {split.amount < 0 ? '−' : '+'}{formatCurrency(Math.abs(split.amount))}
-                            </span>
+                    {editingId === tx.id ? (
+                      /* Mobile inline edit form */
+                      <div className="space-y-2 rounded-button border border-mist bg-frost/50 p-2.5">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-0.5 block text-[10px] text-stone">Date</label>
+                            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="input w-full py-1 text-xs" />
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
-                        className="rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
-                      >
-                        Edit
-                      </button>
-                      {deleteConfirmId === tx.id ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); setDeleteConfirmId(null) }}
-                            className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
-                          >
-                            Confirm Delete
+                          <div>
+                            <label className="mb-0.5 block text-[10px] text-stone">Amount</label>
+                            <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="input w-full py-1 text-xs" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-0.5 block text-[10px] text-stone">Merchant</label>
+                          <input type="text" value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit()} className="input w-full py-1 text-xs" />
+                        </div>
+                        <div>
+                          <label className="mb-0.5 block text-[10px] text-stone">Category</label>
+                          <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="input w-full py-1 text-xs">
+                            <option value="">None</option>
+                            {Object.entries(groupedCategories).map(([group, cats]) => (
+                              <optgroup key={group} label={group}>
+                                {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-0.5 block text-[10px] text-stone">Account</label>
+                          <select value={editAccountId} onChange={(e) => setEditAccountId(e.target.value)} className="input w-full py-1 text-xs">
+                            <option value="">None</option>
+                            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                          </select>
+                        </div>
+                        {householdMembers.length > 0 && (
+                          <div>
+                            <label className="mb-0.5 block text-[10px] text-stone">Person</label>
+                            <select value={editHouseholdMemberId} onChange={(e) => setEditHouseholdMemberId(e.target.value)} className="input w-full py-1 text-xs">
+                              <option value="">None</option>
+                              {householdMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        {properties.length > 0 && (
+                          <div>
+                            <label className="mb-0.5 block text-[10px] text-stone">Property</label>
+                            <select value={editPropertyId} onChange={(e) => setEditPropertyId(e.target.value)} className="input w-full py-1 text-xs">
+                              <option value="">None</option>
+                              {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        <div>
+                          <label className="mb-0.5 block text-[10px] text-stone">Notes</label>
+                          <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit()} className="input w-full py-1 text-xs" placeholder="Optional" />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={saveEdit} disabled={saving} className="rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow disabled:opacity-50">
+                            {saving ? 'Saving…' : 'Save'}
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null) }}
-                            className="text-xs text-stone hover:text-fjord"
-                          >
+                          <button onClick={cancelEdit} className="rounded-button border border-mist px-3 py-1.5 text-xs text-stone hover:text-fjord">
                             Cancel
                           </button>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(tx.id) }}
-                          className="rounded-button border border-mist px-3 py-1.5 text-xs text-stone hover:text-ember"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Read-only detail view */
+                      <>
+                        {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
+                        {!tx.category && (
+                          <div>
+                            <span className="text-stone">Category:</span>{' '}
+                            <select
+                              value=""
+                              onChange={(e) => { if (e.target.value) quickCategorize(tx.id, e.target.value) }}
+                              className="ml-1 rounded-badge border border-birch/40 bg-birch/10 px-1.5 py-0.5 text-xs text-stone"
+                            >
+                              <option value="">+ Assign</option>
+                              {Object.entries(groupedCategories).map(([group, cats]) => (
+                                <optgroup key={group} label={group}>
+                                  {cats.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {tx.householdMember && <div><span className="text-stone">Person:</span> <span className="text-fjord">{tx.householdMember.name}</span></div>}
+                        {tx.property && <div><span className="text-stone">Property:</span> <span className="text-fjord">{tx.property.name}</span></div>}
+                        {tx.notes && <div><span className="text-stone">Notes:</span> <span className="text-fjord">{tx.notes}</span></div>}
+                        {tx.splits && tx.splits.length > 0 && (
+                          <div className="mt-1 rounded-button bg-frost/50 px-2 py-1.5">
+                            <p className="mb-1 text-[10px] font-medium text-stone">Split allocations</p>
+                            {tx.splits.map((split) => (
+                              <div key={split.id} className="flex items-center justify-between text-xs">
+                                <span className="text-fjord">{split.property?.name ?? 'Unknown'}</span>
+                                <span className={split.amount < 0 ? 'text-expense' : 'text-income'}>
+                                  {split.amount < 0 ? '−' : '+'}{formatCurrency(Math.abs(split.amount))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); startEdit(tx) }}
+                            className="rounded-button bg-fjord px-3 py-1.5 text-xs font-medium text-snow"
+                          >
+                            Edit
+                          </button>
+                          {deleteConfirmId === tx.id ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); setDeleteConfirmId(null) }}
+                                className="rounded-badge bg-ember px-2 py-1 text-[10px] font-medium text-snow"
+                              >
+                                Confirm Delete
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null) }}
+                                className="text-xs text-stone hover:text-fjord"
+                              >
+                                Cancel
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(tx.id) }}
+                              className="rounded-button border border-mist px-3 py-1.5 text-xs text-stone hover:text-ember"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

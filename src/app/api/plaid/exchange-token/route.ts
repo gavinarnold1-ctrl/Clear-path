@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { plaidClient, mapPlaidAccountType } from '@/lib/plaid'
@@ -163,6 +164,10 @@ export async function POST(request: Request) {
         })
       }
     }
+
+    // Invalidate server-side cache so pages reflect new accounts immediately
+    revalidatePath('/accounts')
+    revalidatePath('/dashboard')
 
     return NextResponse.json({
       success: true,
