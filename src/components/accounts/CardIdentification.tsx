@@ -60,6 +60,22 @@ export default function CardIdentification() {
   }
   if (!hasCards) return null
 
+  async function dismissCard(accountId: string) {
+    try {
+      const res = await fetch('/api/cards/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      })
+      if (!res.ok) throw new Error('Failed to dismiss')
+      setSuggestions((prev) => prev.filter((s) => s.accountId !== accountId))
+      setUnidentifiedAccounts((prev) => prev.filter((a) => a.id !== accountId))
+      setManualSelect(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to dismiss card')
+    }
+  }
+
   async function assignCard(accountId: string, cardProgramId: string) {
     setAssigning(accountId)
     setError(null)
@@ -180,6 +196,12 @@ export default function CardIdentification() {
               {manualSelect !== suggestion.accountId ? (
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => dismissCard(suggestion.accountId)}
+                    className="text-xs text-stone hover:text-ember"
+                  >
+                    Skip
+                  </button>
+                  <button
                     onClick={() => setManualSelect(suggestion.accountId)}
                     className="text-xs text-stone hover:text-fjord"
                   >
@@ -268,12 +290,20 @@ export default function CardIdentification() {
               </div>
 
               {manualSelect !== account.id ? (
-                <button
-                  onClick={() => setManualSelect(account.id)}
-                  className="rounded-button bg-frost px-3 py-1.5 text-xs font-medium text-pine hover:bg-pine/10 transition-colors"
-                >
-                  Identify card
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => dismissCard(account.id)}
+                    className="text-xs text-stone hover:text-ember"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={() => setManualSelect(account.id)}
+                    className="rounded-button bg-frost px-3 py-1.5 text-xs font-medium text-pine hover:bg-pine/10 transition-colors"
+                  >
+                    Identify card
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => setManualSelect(null)}

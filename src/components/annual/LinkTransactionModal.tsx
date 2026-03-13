@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
 
@@ -33,31 +33,45 @@ export default function LinkTransactionModal({
   const [loading, setLoading] = useState(false)
   const [linking, setLinking] = useState<string | null>(null)
 
+  // Fetch transactions — uses server-side search when query is provided
+  const fetchTransactions = useCallback(async (query: string) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: '200' })
+      if (query.trim()) {
+        params.set('search', query.trim())
+      }
+      const res = await fetch(`/api/transactions?${params}`)
+      const data = await res.json()
+      const txs: Transaction[] = Array.isArray(data) ? data : data.transactions ?? []
+      // Exclude transactions already linked to ANY annual expense
+      setTransactions(txs.filter((tx) => !tx.annualExpenseId))
+    } catch {
+      setTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Load initial transactions when modal opens
   useEffect(() => {
     if (!isOpen) return
-    setLoading(true)
     setSearch('')
-    fetch('/api/transactions?limit=200')
-      .then((res) => res.json())
-      .then((data) => {
-        const txs: Transaction[] = Array.isArray(data) ? data : data.transactions ?? []
-        // Exclude transactions already linked to ANY annual expense.
-        // Once linked, the transaction should not appear in the modal at all.
-        setTransactions(txs.filter((tx) => !tx.annualExpenseId))
-      })
-      .catch(() => setTransactions([]))
-      .finally(() => setLoading(false))
-  }, [isOpen, expenseId])
+    fetchTransactions('')
+  }, [isOpen, expenseId, fetchTransactions])
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!isOpen) return
+    if (!search.trim()) return // initial load handles empty search
+
+    const timer = setTimeout(() => {
+      fetchTransactions(search)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, isOpen, fetchTransactions])
 
   if (!isOpen) return null
-
-  const filtered = search
-    ? transactions.filter(
-        (tx) =>
-          tx.merchant.toLowerCase().includes(search.toLowerCase()) ||
-          tx.category?.name?.toLowerCase().includes(search.toLowerCase())
-      )
-    : transactions
 
   async function handleLink(transactionId: string) {
     setLinking(transactionId)
@@ -89,10 +103,11 @@ export default function LinkTransactionModal({
           </h3>
           <p className="mt-1 text-sm text-stone">
             Select a transaction to apply toward this annual expense&apos;s funded amount.
+            {search.trim() ? ' Searching all transactions.' : ' Showing most recent 200.'}
           </p>
           <input
             type="text"
-            placeholder="Search by merchant or category..."
+            placeholder="Search by merchant name across all transactions..."
             className="input mt-3 w-full text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -102,11 +117,11 @@ export default function LinkTransactionModal({
         <div className="max-h-96 overflow-y-auto p-2">
           {loading ? (
             <p className="py-6 text-center text-sm text-stone">Loading transactions...</p>
-          ) : filtered.length === 0 ? (
+          ) : transactions.length === 0 ? (
             <p className="py-6 text-center text-sm text-stone">No transactions found.</p>
           ) : (
             <ul className="divide-y divide-mist">
-              {filtered.map((tx) => (
+              {transactions.map((tx) => (
                 <li key={tx.id} className="flex items-center justify-between px-3 py-2 hover:bg-snow">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-fjord">{tx.merchant}</p>
