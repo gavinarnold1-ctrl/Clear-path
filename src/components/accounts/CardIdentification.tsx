@@ -197,7 +197,7 @@ export default function CardIdentification() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => dismissCard(suggestion.accountId)}
-                    className="text-xs text-stone hover:text-ember"
+                    className="rounded-button border border-mist px-2.5 py-1 text-xs font-medium text-stone hover:border-ember hover:text-ember"
                   >
                     Skip
                   </button>
@@ -293,7 +293,7 @@ export default function CardIdentification() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => dismissCard(account.id)}
-                    className="text-xs text-stone hover:text-ember"
+                    className="rounded-button border border-mist px-2.5 py-1 text-xs font-medium text-stone hover:border-ember hover:text-ember"
                   >
                     Skip
                   </button>

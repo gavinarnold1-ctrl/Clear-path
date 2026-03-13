@@ -9,11 +9,11 @@ import { detectPerkCredit } from '@/lib/engines/perk-detection'
 import type { BenefitForMatching } from '@/lib/engines/perk-detection'
 import type { RemovedTransaction } from 'plaid'
 
-async function getBalancesWithRetry(accessToken: string, maxRetries = 1): Promise<Awaited<ReturnType<typeof plaidClient.accountsBalanceGet>>> {
+async function getBalancesWithRetry(accessToken: string, maxRetries = 1): Promise<Awaited<ReturnType<typeof plaidClient.accountsGet>>> {
   let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await plaidClient.accountsBalanceGet({ access_token: accessToken })
+      return await plaidClient.accountsGet({ access_token: accessToken })
     } catch (err) {
       lastError = err
       if (attempt < maxRetries) {

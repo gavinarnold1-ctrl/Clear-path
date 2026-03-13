@@ -125,8 +125,8 @@ export async function analyzeSpendingProfile(userId: string): Promise<SpendingPr
     }
     if (s.frequency === 'weekly') return sum + (s.averageAmount * 52) / 12
     if (s.frequency === 'monthly') return sum + s.averageAmount
-    // Irregular income: do NOT add to monthly total
-    return sum
+    // Irregular income: average over 3-month window
+    return sum + (s.averageAmount * s.count) / 3
   }, 0)
 
   // ── Fixed Expense Detection (last 6 months, min 3 occurrences) ──

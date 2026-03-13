@@ -26,6 +26,10 @@ export async function POST() {
   // Delete in dependency order to avoid FK violations.
   // Keep Plaid accounts — delete only manual accounts.
   await db.$transaction([
+    // 0a. User card benefits (references user cards)
+    db.userCardBenefit.deleteMany({ where: { userCard: { userId } } }),
+    // 0b. User cards (references accounts, card programs)
+    db.userCard.deleteMany({ where: { userId } }),
     // 1. Transactions (references categories, accounts, annual expenses, members, properties, debts)
     db.transaction.deleteMany({ where: { userId } }),
     // 2. Insight feedback (references insights)

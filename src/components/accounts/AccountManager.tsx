@@ -184,6 +184,33 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
       setPlaidMessage(
         `Connected ${accountCount} account${accountCount !== 1 ? 's' : ''}, imported ${syncData.added} transaction${syncData.added !== 1 ? 's' : ''}`
       )
+      // Immediately add new accounts to local state so they appear without waiting for router.refresh()
+      if (exchangeData.accounts && Array.isArray(exchangeData.accounts)) {
+        setAccounts((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id))
+          const newAccounts: AccountRow[] = exchangeData.accounts
+            .filter((a: { id: string }) => !existingIds.has(a.id))
+            .map((a: { id: string; name: string; type: string; balance: number; institution: string | null }) => ({
+              id: a.id,
+              name: a.name,
+              type: a.type,
+              balance: a.balance,
+              startingBalance: a.balance,
+              balanceAsOfDate: null,
+              currency: 'USD',
+              institution: a.institution,
+              isManual: false,
+              plaidLastSynced: new Date().toISOString(),
+              balanceSource: 'plaid',
+              lastReconciled: null,
+              reconciliationDiscrepancy: null,
+              ownerId: null,
+              ownerName: null,
+              txCount: syncData.added ?? 0,
+            }))
+          return [...prev, ...newAccounts]
+        })
+      }
       setShowPostConnect(true)
       router.refresh()
     } catch (err) {

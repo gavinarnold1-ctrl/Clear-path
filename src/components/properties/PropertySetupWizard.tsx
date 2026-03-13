@@ -500,6 +500,8 @@ export default function PropertySetupWizard({ isOpen, onClose, accounts, existin
                 setMonthlyPayment={setMonthlyPayment}
                 loanStartDate={loanStartDate}
                 setLoanStartDate={setLoanStartDate}
+                currentValue={currentValue}
+                setCurrentValue={setCurrentValue}
               />
             )}
 
@@ -727,6 +729,7 @@ function StepMortgage({
   loanTermMonths, setLoanTermMonths,
   monthlyPayment, setMonthlyPayment,
   loanStartDate, setLoanStartDate,
+  currentValue, setCurrentValue,
 }: {
   hasMortgage: boolean; setHasMortgage: (v: boolean) => void
   loanBalance: string; setLoanBalance: (v: string) => void
@@ -734,6 +737,7 @@ function StepMortgage({
   loanTermMonths: string; setLoanTermMonths: (v: string) => void
   monthlyPayment: string; setMonthlyPayment: (v: string) => void
   loanStartDate: string; setLoanStartDate: (v: string) => void
+  currentValue: string; setCurrentValue: (v: string) => void
 }) {
   return (
     <div className="space-y-4">
@@ -844,9 +848,28 @@ function StepMortgage({
       )}
 
       {!hasMortgage && (
-        <p className="rounded-lg border border-mist bg-white p-4 text-sm text-stone">
-          No mortgage details needed. You can add this later by editing the property.
-        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-fjord">
+              Property Value <span className="font-normal text-stone">(optional, for equity tracking)</span>
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-stone">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={currentValue}
+                onChange={(e) => setCurrentValue(e.target.value)}
+                className="input w-full pl-6"
+                placeholder="e.g. 350,000"
+              />
+            </div>
+          </div>
+          <p className="rounded-lg border border-mist bg-white p-3 text-xs text-stone">
+            No mortgage details needed. You can add this later by editing the property.
+          </p>
+        </div>
       )}
     </div>
   )
