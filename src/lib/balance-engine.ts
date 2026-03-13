@@ -112,6 +112,16 @@ export async function recomputeAccountBalance(
 
   if (!account || !account.isManual) return 0
 
+  // Per convention: until the user sets a baseline (startingBalance + balanceAsOfDate),
+  // balance stays at $0. Computing from transactions without a reference point is misleading.
+  if (!account.balanceAsOfDate && account.startingBalance === 0) {
+    await db.account.update({
+      where: { id: accountId },
+      data: { balance: 0, balanceSource: 'manual' },
+    })
+    return 0
+  }
+
   const dateFilter = account.balanceAsOfDate ? { gt: account.balanceAsOfDate } : undefined
   const agg = await db.transaction.aggregate({
     where: {

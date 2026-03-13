@@ -60,11 +60,12 @@ export async function POST() {
     db.userProfile.deleteMany({ where: { userId } }),
   ])
 
-  // Reset Plaid cursors so fresh sync pulls all historical transactions
+  // Reset Plaid cursors and sync timestamps so fresh sync pulls all historical transactions
+  // and BackgroundSyncTrigger considers items stale (triggers auto-sync on next dashboard load)
   if (plaidAccounts.length > 0) {
     await db.account.updateMany({
       where: { userId, plaidItemId: { not: null } },
-      data: { plaidCursor: null },
+      data: { plaidCursor: null, plaidLastSynced: null, syncFailCount: 0 },
     })
   }
 
