@@ -127,6 +127,7 @@ export async function POST(request: Request) {
     let totalRemoved = 0
     let balanceSyncedCount = 0
     const balanceFailedItems: string[] = []
+    const balanceFailureReasons: string[] = []
 
     for (const [itemKey, accounts] of itemGroups) {
       try {
@@ -394,6 +395,7 @@ export async function POST(request: Request) {
             : (balErr instanceof Error ? balErr.message : String(balErr))
           console.error(`Balance refresh failed for item ${itemKey}: ${errorDetail}`, balErr)
           balanceFailedItems.push(itemKey)
+          balanceFailureReasons.push(errorDetail)
           // Increment sync fail count for all accounts in this item
           await db.account.updateMany({
             where: { id: { in: accounts.map(a => a.id) } },
@@ -471,6 +473,7 @@ export async function POST(request: Request) {
       aiCategorized,
       balancesSynced: balanceSyncedCount,
       balancesFailed: balanceFailedItems.length,
+      balanceFailureReason: balanceFailureReasons[0] ?? null,
     })
   } catch (error) {
     console.error('Plaid sync failed:', error)

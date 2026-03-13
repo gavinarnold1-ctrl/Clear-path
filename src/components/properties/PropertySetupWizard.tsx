@@ -279,10 +279,8 @@ export default function PropertySetupWizard({ isOpen, onClose, accounts, existin
     const property = await createRes.json()
     setCreatedPropertyId(property.id)
 
-    // Step 2: Add financial details if mortgage exists
-    if (hasMortgage) {
-      await patchProperty(property.id)
-    }
+    // Step 2: Add financial details (currentValue always, mortgage fields if applicable)
+    await patchProperty(property.id)
 
     // Step 3: Link accounts
     await linkAccounts(property.id)
@@ -349,10 +347,8 @@ export default function PropertySetupWizard({ isOpen, onClose, accounts, existin
     })
 
     // Step 4: Add financial details to each unit (proportional)
-    if (hasMortgage) {
-      for (const unit of createdUnits) {
-        await patchProperty(unit.id, splitPct / 100)
-      }
+    for (const unit of createdUnits) {
+      await patchProperty(unit.id, splitPct / 100)
     }
 
     // Step 5: Link accounts to first unit

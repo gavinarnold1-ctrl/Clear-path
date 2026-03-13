@@ -49,8 +49,8 @@ export default async function DashboardPage({ searchParams }: Props) {
   const startDate = new Date(year, month, 1)
   const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999)
 
-  // Previous month for comparison
-  const prevStart = new Date(year, month - 1, 1)
+  // Previous 3 months for income averaging (matches budgets page logic)
+  const prevStart = new Date(year, month - 3, 1)
   const prevEnd = new Date(year, month, 0, 23, 59, 59, 999)
 
   // Compute 6-month range for chart (ending at selected month)
@@ -441,7 +441,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Goal target for goal-driven dashboard
   const goalTarget = userProfile?.goalTarget as GoalTarget | null
   const hasGoal = !!goalContext && !!userProfile?.primaryGoal
-  const trueRemaining = (userProfile?.expectedMonthlyIncome ?? monthlyIncome) - fixedTotal - flexibleSpent - annualSetAside
+  // True Remaining: use expectedMonthlyIncome if set; fall back to 3-month avg (matching budgets page)
+  const autoExpectedIncome = prevIncome / 3
+  const displayIncome = userProfile?.expectedMonthlyIncome && userProfile.expectedMonthlyIncome > 0
+    ? userProfile.expectedMonthlyIncome
+    : (autoExpectedIncome > 0 ? autoExpectedIncome : monthlyIncome)
+  const trueRemaining = displayIncome - fixedTotal - flexibleSpent - annualSetAside
 
   // Budget health card data
   const fixedPaidCount = fixedBudgets.filter(b => b.spent > 0).length
@@ -506,7 +511,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           <Link href="/budgets" className="block lg:col-span-7 rounded-card cursor-pointer hover:ring-1 hover:ring-pine/20 transition-all">
             <TrueRemainingBanner
               income={monthlyIncome}
-              expectedIncome={userProfile?.expectedMonthlyIncome ?? null}
+              expectedIncome={displayIncome}
               fixedTotal={fixedTotal}
               flexibleSpent={flexibleSpent}
               flexibleBudget={flexibleBudgetTotal}
