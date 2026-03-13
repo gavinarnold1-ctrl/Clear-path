@@ -88,6 +88,19 @@ function typeLabel(t: string): string {
   }
 }
 
+function typeBadgeColor(t: string): string {
+  switch (t) {
+    case 'PERSONAL':
+      return 'bg-fjord/10 text-fjord'
+    case 'RENTAL':
+      return 'bg-pine/10 text-pine'
+    case 'BUSINESS':
+      return 'bg-ember/10 text-ember'
+    default:
+      return 'bg-frost text-stone'
+  }
+}
+
 export default function PropertiesClient({
   properties,
   totalRentalNet,
@@ -288,7 +301,7 @@ function PropertyCard({
         <div>
           <h3 className="font-medium text-fjord">
             {prop.name}{' '}
-            <span className="text-xs text-stone">({typeLabel(prop.type)})</span>
+            <span className={`rounded-badge px-1.5 py-0.5 text-[10px] font-medium ${typeBadgeColor(prop.type)}`}>{typeLabel(prop.type)}</span>
           </h3>
           {prop.address && (
             <p className="mt-0.5 text-xs text-stone">{prop.address}</p>

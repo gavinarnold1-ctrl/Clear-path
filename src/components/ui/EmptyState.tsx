@@ -19,7 +19,7 @@ export function EmptyState({ icon, title, description, action, className = '' }:
   return (
     <div className={`flex flex-col items-center justify-center py-12 text-center ${className}`}>
       {icon && (
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-frost text-stone">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-frost text-birch">
           {icon}
         </div>
       )}
@@ -30,11 +30,11 @@ export function EmptyState({ icon, title, description, action, className = '' }:
       {action && (
         <div className="mt-4">
           {action.href ? (
-            <Button variant="secondary" size="sm" href={action.href}>
+            <Button variant="primary" size="sm" className="bg-ember hover:bg-ember/90" href={action.href}>
               {action.label}
             </Button>
           ) : (
-            <Button variant="secondary" size="sm" onClick={action.onClick}>
+            <Button variant="primary" size="sm" className="bg-ember hover:bg-ember/90" onClick={action.onClick}>
               {action.label}
             </Button>
           )}

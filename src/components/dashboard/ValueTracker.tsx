@@ -60,7 +60,7 @@ export default function ValueTracker({ value }: { value: ValueSummary }) {
     : ''
 
   return (
-    <div className="card">
+    <div className="card border-l-4 border-l-pine">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-fjord">Savings confirmed</p>

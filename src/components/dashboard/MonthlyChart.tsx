@@ -37,7 +37,7 @@ export default function MonthlyChart({ data, goalMonthlySurplus }: Props) {
   }))
 
   return (
-    <div className="card">
+    <div className="card border-l-4 border-l-fjord">
       <h2 className="mb-4 font-display text-base font-semibold text-fjord">Income vs Expenses</h2>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">

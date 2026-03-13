@@ -30,7 +30,7 @@ export default function UnbudgetedSection({ categories }: Props) {
           <span className="font-mono font-medium text-ember">{formatCurrency(totalUnbudgeted)}</span> total
         </p>
       </div>
-      <div className="card divide-y divide-mist">
+      <div className="card divide-y divide-mist border-l-4 border-l-stone">
         {categories.map((cat) => (
           <div key={cat.categoryId} className="flex items-center justify-between px-4 py-3">
             <Link
