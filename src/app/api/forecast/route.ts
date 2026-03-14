@@ -170,7 +170,9 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
   const threeMonthsAgo = new Date()
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
 
-  const [snapshots, debts, accounts, budgets, annualExpenses, properties] = await Promise.all([
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+
+  const [snapshots, debts, accounts, budgets, annualExpenses, properties, incomeAgg, priorIncomeAgg] = await Promise.all([
     db.monthlySnapshot.findMany({
       where: { userId, month: { gte: twelveMonthsAgo } },
       orderBy: { month: 'asc' },
@@ -191,6 +193,14 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
     }),
     db.property.findMany({
       where: { userId },
+    }),
+    db.transaction.aggregate({
+      where: { userId, date: { gte: startOfMonth }, classification: 'income' },
+      _sum: { amount: true },
+    }),
+    db.transaction.aggregate({
+      where: { userId, date: { gte: threeMonthsAgo, lt: startOfMonth }, classification: 'income' },
+      _sum: { amount: true },
     }),
   ])
 
@@ -261,7 +271,12 @@ async function buildForecastInput(userId: string): Promise<ForecastInput | null>
   const totalMonthlyRentalIncome = properties.reduce(
     (sum, p) => sum + (Number(p.monthlyRentalIncome) || 0), 0
   )
-  const expectedMonthlyIncome = (profile.expectedMonthlyIncome ?? 0) + totalMonthlyRentalIncome
+  // Income resolution: match True Remaining logic so forecast and dashboard agree
+  const rawIncome = incomeAgg._sum.amount ?? 0
+  const autoExpectedIncome = (priorIncomeAgg._sum.amount ?? 0) / 3
+  const resolvedIncome = profile.expectedMonthlyIncome
+    ?? (autoExpectedIncome > 0 ? autoExpectedIncome : rawIncome)
+  const expectedMonthlyIncome = resolvedIncome + totalMonthlyRentalIncome
   const totalBudgeted = fixedTotal + flexibleTotal + annualSetAside
   const projectedSurplus = expectedMonthlyIncome - totalBudgeted
 

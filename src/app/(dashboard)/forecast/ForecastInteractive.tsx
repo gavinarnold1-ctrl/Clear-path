@@ -56,17 +56,22 @@ const GROWTH_PROFILES = [
   { id: 'aggressive', label: 'Aggressive', description: 'Higher potential return' },
 ] as const
 
-const GROWTH_DEFAULTS_BY_TYPE: Record<string, number> = {
-  CHECKING: 0,
-  SAVINGS: 4.5,
-  INVESTMENT: 8.0,
-  CASH: 0,
+const GROWTH_DEFAULTS_BY_CLASS: Record<string, number> = {
+  cash: 0,
+  high_yield_savings: 4.5,
+  bonds: 4.0,
+  index_fund: 10.0,
+  mutual_fund: 8.0,
+  individual_stock: 10.0,
+  crypto: 15.0,
+  real_estate: 3.0,
+  other: 3.0,
 }
 
-const GROWTH_PROFILES_BY_TYPE: Record<string, Record<string, number>> = {
-  conservative: { CHECKING: 0, SAVINGS: 4.0, INVESTMENT: 5.0, CASH: 0 },
-  moderate: { CHECKING: 0, SAVINGS: 4.5, INVESTMENT: 8.0, CASH: 0 },
-  aggressive: { CHECKING: 0, SAVINGS: 4.5, INVESTMENT: 10.0, CASH: 0 },
+const GROWTH_PROFILES_BY_CLASS: Record<string, Record<string, number>> = {
+  conservative: { cash: 0, high_yield_savings: 4.0, bonds: 3.5, index_fund: 5.0, mutual_fund: 5.0, individual_stock: 5.0, crypto: 5.0, real_estate: 2.0, other: 2.0 },
+  moderate: { cash: 0, high_yield_savings: 4.5, bonds: 4.0, index_fund: 8.0, mutual_fund: 8.0, individual_stock: 8.0, crypto: 10.0, real_estate: 3.0, other: 3.0 },
+  aggressive: { cash: 0, high_yield_savings: 4.5, bonds: 4.0, index_fund: 10.0, mutual_fund: 10.0, individual_stock: 12.0, crypto: 20.0, real_estate: 5.0, other: 5.0 },
 }
 
 interface Props {
@@ -253,8 +258,7 @@ export default function ForecastInteractive({
   const adjustedAssetGrowth = useMemo(() => {
     if (growthProfile === 'current') return assetGrowth
     return assetGrowth.map(ag => {
-      const accountType = ag.assetClass.toUpperCase()
-      const profileRate = (GROWTH_PROFILES_BY_TYPE[growthProfile]?.[accountType] ?? GROWTH_DEFAULTS_BY_TYPE[accountType] ?? 3) / 100
+      const profileRate = (GROWTH_PROFILES_BY_CLASS[growthProfile]?.[ag.assetClass] ?? GROWTH_DEFAULTS_BY_CLASS[ag.assetClass] ?? 3) / 100
       const projected = ag.currentBalance * (1 + profileRate)
       const growth = projected - ag.currentBalance
       const volatility = profileRate * 0.3
@@ -517,11 +521,10 @@ export default function ForecastInteractive({
         {assetGrowth.length > 0 && (
           <div className="mt-3 space-y-2 border-t border-mist pt-3">
             {assetGrowth.map(ag => {
-              const accountType = ag.assetClass.toUpperCase()
-              const defaultRate = GROWTH_DEFAULTS_BY_TYPE[accountType] ?? 3
+              const defaultRate = GROWTH_DEFAULTS_BY_CLASS[ag.assetClass] ?? 3
               const profileRate = growthProfile === 'current'
                 ? defaultRate
-                : (GROWTH_PROFILES_BY_TYPE[growthProfile]?.[accountType] ?? defaultRate)
+                : (GROWTH_PROFILES_BY_CLASS[growthProfile]?.[ag.assetClass] ?? defaultRate)
               const adjustedGrowth = ag.currentBalance * (profileRate / 100)
               return (
                 <div key={ag.accountId} className="flex items-center justify-between text-xs">
@@ -536,6 +539,10 @@ export default function ForecastInteractive({
               )
             })}
           </div>
+        )}
+
+        {assetGrowth.length === 0 && (
+          <p className="mt-3 text-xs text-stone">No asset accounts with positive balances. Add savings or investment accounts to see growth projections.</p>
         )}
 
         {/* Rate explanations */}
