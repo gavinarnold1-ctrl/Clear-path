@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
-import { formatCurrency, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, parseLocalDate, normalizeAccountName } from '@/lib/utils'
 import GoalHistory from '@/components/settings/GoalHistory'
 
 interface Member {
@@ -2147,7 +2147,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                   {acctPropLinks.map(link => (
                     <div key={link.id} className="flex items-center justify-between rounded-lg border border-mist bg-snow px-3 py-2">
                       <div>
-                        <span className="text-sm font-medium text-fjord">{link.account.name}</span>
+                        <span className="text-sm font-medium text-fjord">{normalizeAccountName(link.account.name)}</span>
                         <span className="mx-2 text-xs text-stone">&rarr;</span>
                         <span className="text-sm text-fjord">{link.property.name}</span>
                         <span className="ml-1 text-[10px] text-stone">({link.property.type})</span>

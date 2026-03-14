@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { DEMO_USER_ID } from '@/lib/demo'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
 
 export async function GET(
   _req: NextRequest,
@@ -77,6 +78,7 @@ export async function PATCH(
 
   revalidatePath('/budgets')
   revalidatePath('/dashboard')
+  persistGoalCurrentValue(session.userId).catch(() => {})
   return NextResponse.json(updated)
 }
 

@@ -609,6 +609,13 @@ model Debt {
   updatedAt       DateTime  @updatedAt
   transactions    Transaction[] // R5.8: Payment transactions linked to this debt
 
+  // Credit card intelligence fields (auto-populated by cc-intelligence engine)
+  ccBehavior           String?    // "pays_in_full" | "revolving" | "mixed" | "insufficient_data"
+  observedInterestRate Float?     // Computed APR from interest transactions (decimal, e.g. 0.2249)
+  ccLastAnalyzed       DateTime?  // When behavior was last classified
+  avgMonthlySpend      Float?     // Average monthly spend on card
+  monthsCarried        Int?       // Consecutive months with carried balance
+
   @@index([userId])
 }
 

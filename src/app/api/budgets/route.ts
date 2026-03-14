@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
 
 const VALID_TIERS = new Set(['FIXED', 'FLEXIBLE', 'ANNUAL'])
 
@@ -91,5 +92,6 @@ export async function POST(req: NextRequest) {
 
   revalidatePath('/budgets')
   revalidatePath('/dashboard')
+  persistGoalCurrentValue(session.userId).catch(() => {})
   return NextResponse.json(budget, { status: 201 })
 }

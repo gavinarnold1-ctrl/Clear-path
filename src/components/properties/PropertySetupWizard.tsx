@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { pitiBreakdown } from '@/lib/engines/amortization'
+import { normalizeAccountName } from '@/lib/utils'
 import type { PITIBreakdown } from '@/lib/engines/amortization'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1093,7 +1094,7 @@ function StepAccountLinking({
           )}
         </div>
         <div className="flex-1">
-          <p className="text-sm font-medium text-fjord">{acct.name}</p>
+          <p className="text-sm font-medium text-fjord">{normalizeAccountName(acct.name)}</p>
           <p className="text-xs text-stone">
             {acct.type}
             {balanceMatch && (

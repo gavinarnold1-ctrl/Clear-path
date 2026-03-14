@@ -28,6 +28,22 @@ export function budgetProgress(spent: number, total: number): number {
   return Math.min(Math.round((spent / total) * 100), 100)
 }
 
+/**
+ * Normalize ALL CAPS account names to Title Case for display.
+ * Preserves mixed-case names (e.g. "Delta SkyMiles® Gold Card").
+ * Only applies when >50% of characters are uppercase and name is >3 chars.
+ */
+export function normalizeAccountName(name: string): string {
+  if (name.length <= 3) return name
+  const letters = name.replace(/[^a-zA-Z]/g, '')
+  if (letters.length === 0) return name
+  const upperCount = letters.replace(/[^A-Z]/g, '').length
+  if (upperCount / letters.length <= 0.5) return name
+  return name
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 /** Merge class name strings, filtering falsy values. */
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ')

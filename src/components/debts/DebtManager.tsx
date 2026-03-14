@@ -46,6 +46,11 @@ interface DebtRow {
   monthlyPrincipal: number
   monthsRemaining: number | null
   transactions?: PaymentRecord[]
+  // CC intelligence fields
+  ccBehavior?: string | null
+  observedInterestRate?: number | null
+  avgMonthlySpend?: number | null
+  monthsCarried?: number | null
 }
 
 interface PropertyOption {
@@ -938,17 +943,38 @@ function SingleDebtCard({
   onEdit: (debt: DebtRow) => void
   onDelete: (id: string) => void
 }) {
-  const rateAccent = debt.interestRate >= 0.07 ? 'border-l-ember' : debt.interestRate >= 0.04 ? 'border-l-birch' : 'border-l-pine'
+  const isCC = debt.type === 'CREDIT_CARD'
+  const ccBehavior = debt.ccBehavior
+
+  // CC behavior determines accent color
+  const rateAccent = isCC
+    ? ccBehavior === 'pays_in_full' ? 'border-l-pine'
+    : ccBehavior === 'revolving' ? 'border-l-ember'
+    : ccBehavior === 'mixed' ? 'border-l-birch'
+    : 'border-l-stone'
+    : debt.interestRate >= 0.07 ? 'border-l-ember' : debt.interestRate >= 0.04 ? 'border-l-birch' : 'border-l-pine'
 
   return (
     <div className={`card border-l-4 ${rateAccent}`}>
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-base font-semibold text-fjord">{debt.name}</h3>
-          <div className="mt-0.5 flex items-center gap-2">
+          <div className="mt-0.5 flex flex-wrap items-center gap-2">
             <span className="rounded-badge bg-fjord/10 px-2 py-0.5 text-xs font-medium text-fjord">
               {debtTypeLabel(debt.type)}
             </span>
+            {isCC && ccBehavior === 'pays_in_full' && (
+              <span className="rounded-badge bg-pine/10 px-2 py-0.5 text-xs font-medium text-pine">Paid in full monthly</span>
+            )}
+            {isCC && ccBehavior === 'revolving' && (
+              <span className="rounded-badge bg-ember/10 px-2 py-0.5 text-xs font-medium text-ember">Carrying balance</span>
+            )}
+            {isCC && ccBehavior === 'mixed' && (
+              <span className="rounded-badge bg-birch/10 px-2 py-0.5 text-xs font-medium text-birch">Sometimes carries balance</span>
+            )}
+            {isCC && ccBehavior === 'insufficient_data' && (
+              <span className="rounded-badge bg-stone/10 px-2 py-0.5 text-xs font-medium text-stone">Monitoring...</span>
+            )}
             {debt.property && (
               <span className="text-xs text-stone">{debt.property.name}</span>
             )}
@@ -965,22 +991,82 @@ function SingleDebtCard({
           <p className="text-xs text-stone">Balance</p>
           <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.currentBalance)}</p>
         </div>
-        <div>
-          <p className="text-xs text-stone">Rate</p>
-          <p className={`font-mono text-lg font-bold ${debt.interestRate >= 0.07 ? 'text-ember' : debt.interestRate >= 0.04 ? 'text-birch' : 'text-pine'}`}>{(debt.interestRate * 100).toFixed(2)}%</p>
-        </div>
-        <div>
-          <p className="text-xs text-stone">Monthly Payment</p>
-          <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.minimumPayment)}/mo</p>
-        </div>
-        <div>
-          <p className="text-xs text-stone">Est. Remaining</p>
-          <p className="font-mono text-lg font-bold text-fjord">
-            {debt.monthsRemaining !== null
-              ? `${Math.floor(debt.monthsRemaining / 12)}y ${debt.monthsRemaining % 12}m`
-              : '—'}
-          </p>
-        </div>
+        {isCC && ccBehavior === 'pays_in_full' ? (
+          <>
+            <div>
+              <p className="text-xs text-stone">Avg Monthly Spend</p>
+              <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.avgMonthlySpend ?? 0)}/mo</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Interest Cost</p>
+              <p className="font-mono text-lg font-bold text-pine">$0</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Status</p>
+              <p className="text-sm font-semibold text-pine">No interest cost</p>
+            </div>
+          </>
+        ) : isCC && ccBehavior === 'revolving' ? (
+          <>
+            <div>
+              <p className="text-xs text-stone">Observed APR</p>
+              <p className="font-mono text-lg font-bold text-ember">
+                {debt.observedInterestRate != null ? `~${(debt.observedInterestRate * 100).toFixed(1)}%` : `${(debt.interestRate * 100).toFixed(2)}%`}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">~Interest/mo</p>
+              <p className="font-mono text-lg font-bold text-ember">{formatCurrency(debt.monthlyInterest)}/mo</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Balance Carried</p>
+              <p className="font-mono text-lg font-bold text-fjord">{debt.monthsCarried ?? 0} months</p>
+            </div>
+          </>
+        ) : isCC && ccBehavior === 'mixed' ? (
+          <>
+            <div>
+              <p className="text-xs text-stone">Observed APR</p>
+              <p className="font-mono text-lg font-bold text-birch">
+                {debt.observedInterestRate != null ? `~${(debt.observedInterestRate * 100).toFixed(1)}%` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Avg Monthly Spend</p>
+              <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.avgMonthlySpend ?? 0)}/mo</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Months Carried</p>
+              <p className="font-mono text-lg font-bold text-fjord">{debt.monthsCarried ?? 0} of 6</p>
+            </div>
+          </>
+        ) : isCC && ccBehavior === 'insufficient_data' ? (
+          <>
+            <div className="sm:col-span-3">
+              <p className="text-xs text-stone">Status</p>
+              <p className="text-sm text-stone">Analyzing payment patterns (need 2+ months)</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <p className="text-xs text-stone">Rate</p>
+              <p className={`font-mono text-lg font-bold ${debt.interestRate >= 0.07 ? 'text-ember' : debt.interestRate >= 0.04 ? 'text-birch' : 'text-pine'}`}>{(debt.interestRate * 100).toFixed(2)}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Monthly Payment</p>
+              <p className="font-mono text-lg font-bold text-fjord">{formatCurrency(debt.minimumPayment)}/mo</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone">Est. Remaining</p>
+              <p className="font-mono text-lg font-bold text-fjord">
+                {debt.monthsRemaining !== null
+                  ? `${Math.floor(debt.monthsRemaining / 12)}y ${debt.monthsRemaining % 12}m`
+                  : '—'}
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Negative amortization warning: payment doesn't cover interest */}

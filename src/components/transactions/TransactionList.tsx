@@ -2,9 +2,24 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, normalizeAccountName } from '@/lib/utils'
 import { trackTransactionsSorted, trackTransactionsSearched, trackTransactionUpdated, trackTransactionsFiltered } from '@/lib/analytics'
 import BudgetSelect from './BudgetSelect'
+
+// Deterministic color from merchant name for avatar
+const AVATAR_COLORS = ['bg-fjord', 'bg-pine', 'bg-ember/80', 'bg-birch', 'bg-stone', 'bg-midnight/70']
+function merchantAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+// Category color dot based on classification
+function categoryDotColor(classification?: string): string {
+  if (classification === 'income') return 'bg-pine'
+  if (classification === 'transfer') return 'bg-birch'
+  return 'bg-ember/70'
+}
 
 interface CategoryOption {
   id: string
@@ -1084,7 +1099,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     ) : (
                       /* Read-only detail view */
                       <>
-                        {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
+                        {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{normalizeAccountName(tx.account.name)}</span></div>}
                         {!tx.category && (
                           <div>
                             <span className="text-stone">Category:</span>{' '}
@@ -1268,7 +1283,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                     {filteredAccountOptions.map(acct => (
                       <label key={acct.id} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-frost">
                         <input type="checkbox" checked={selectedAccountIds.has(acct.id)} onChange={() => toggleAccountFilter(acct.id)} className="rounded border-mist" />
-                        {acct.name}
+                        {normalizeAccountName(acct.name)}
                         <span className="ml-auto text-stone">{accountCounts[acct.id] ?? 0}</span>
                       </label>
                     ))}
@@ -1395,8 +1410,36 @@ export default function TransactionList({ transactions: initial, categories, acc
                 </td>
               </tr>
             )}
-            {sortedTransactions.map((tx) =>
-              editingId === tx.id ? (
+            {sortedTransactions.map((tx, idx) => {
+              // Date group header — show when date changes from previous row
+              const txDate = new Date(tx.date).toDateString()
+              const prevDate = idx > 0 ? new Date(sortedTransactions[idx - 1].date).toDateString() : null
+              const showDateHeader = txDate !== prevDate
+              const colCount = 7 + (householdMembers.length > 0 ? 1 : 0) + (properties.length > 0 ? 1 : 0)
+
+              // Compute daily total for the header
+              let dateHeaderRow: React.ReactNode = null
+              if (showDateHeader) {
+                const d = new Date(tx.date)
+                const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                const dailyNet = sortedTransactions
+                  .filter(t => new Date(t.date).toDateString() === txDate)
+                  .reduce((sum, t) => sum + t.amount, 0)
+                dateHeaderRow = (
+                  <tr key={`date-${txDate}`} className="bg-frost/70 border-t border-mist">
+                    <td colSpan={colCount - 1} className="px-4 py-1.5 text-xs font-semibold text-fjord/70">
+                      {dayLabel}
+                    </td>
+                    <td colSpan={2} className={`whitespace-nowrap px-4 py-1.5 text-right text-xs font-mono font-medium ${dailyNet < 0 ? 'text-fjord/60' : 'text-pine/70'}`}>
+                      {dailyNet < 0 ? '−' : '+'}{formatCurrency(Math.abs(dailyNet))}
+                    </td>
+                  </tr>
+                )
+              }
+
+              return editingId === tx.id ? (
+                <React.Fragment key={tx.id}>
+                {dateHeaderRow}
                 <tr key={tx.id} className="bg-frost">
                   <td className="px-3 py-2">
                     <input
@@ -1528,10 +1571,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                     </div>
                   </td>
                 </tr>
+                </React.Fragment>
               ) : (
                 <React.Fragment key={tx.id}>
+                {dateHeaderRow}
                 <tr
-                  className={`cursor-pointer hover:bg-snow ${selected.has(tx.id) ? 'bg-fjord/5' : ''} ${isInsightView ? 'border-l-2 border-l-ember bg-ember/5' : ''}`}
+                  className={`cursor-pointer transition-colors hover:bg-frost/50 ${selected.has(tx.id) ? 'bg-fjord/5' : ''} ${isInsightView ? 'border-l-2 border-l-ember bg-ember/5' : ''}`}
                   onClick={(e) => {
                     // On small screens, toggle mobile detail instead of inline edit
                     if (window.innerWidth < 768) {
@@ -1552,7 +1597,12 @@ export default function TransactionList({ transactions: initial, categories, acc
                   </td>
                   <td className="px-4 py-3 text-stone">{formatDate(new Date(tx.date))}</td>
                   <td className="px-4 py-3 font-medium text-fjord">
-                    {tx.merchant}
+                    <span className="flex items-center gap-2">
+                      <span className={`hidden md:inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium text-snow ${merchantAvatarColor(tx.merchant)}`}>
+                        {tx.merchant.charAt(0).toUpperCase()}
+                      </span>
+                      <span>{tx.merchant}</span>
+                    </span>
                     {tx.isPending && (
                       <span className="ml-1.5 rounded-badge bg-mist/40 px-1.5 py-0.5 text-[10px] font-medium text-stone">
                         Pending
@@ -1590,7 +1640,8 @@ export default function TransactionList({ transactions: initial, categories, acc
                   </td>
                   <td className="px-4 py-3 text-stone" onClick={(e) => { if (!tx.categoryId) e.stopPropagation() }}>
                     {tx.category?.name ? (
-                      <span>
+                      <span className="flex items-center gap-1.5">
+                        <span className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${categoryDotColor(tx.classification)}`} />
                         {tx.category.name}
                         {tx.annualExpenseId && (
                           <span className="ml-1.5 rounded-badge bg-birch/20 px-1.5 py-0.5 text-[10px] font-medium text-stone" title={tx.annualExpenseName ?? 'Annual Plan'}>Annual Plan</span>
@@ -1614,7 +1665,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                       </select>
                     )}
                   </td>
-                  <td className="hidden px-4 py-3 text-stone md:table-cell">{tx.account?.name ?? '—'}</td>
+                  <td className="hidden px-4 py-3 text-stone md:table-cell">{tx.account ? normalizeAccountName(tx.account.name) : '—'}</td>
                   {householdMembers.length > 0 && (
                     <td className="hidden px-4 py-3 text-stone lg:table-cell">{tx.householdMember?.name ?? '—'}</td>
                   )}
@@ -1636,7 +1687,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                       <span className="text-stone/50">Auto</span>
                     )}
                   </td>
-                  <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${tx.amount < 0 ? 'text-expense' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
+                  <td className={`whitespace-nowrap px-4 py-3 text-right font-mono font-semibold ${tx.amount < 0 ? 'text-fjord/80' : tx.amount > 0 ? 'text-income' : 'text-transfer'}`}>
                     {(() => {
                       // When filtering by property, show the split amount if the match is via split
                       const splitForFilter = filterPropertyId && filterPropertyId !== '__none__' && tx.propertyId !== filterPropertyId
@@ -1709,7 +1760,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 {mobileDetailId === tx.id && (
                   <tr className="bg-frost/50 md:hidden">
                     <td colSpan={5} className="space-y-1 px-4 py-2 text-xs">
-                      {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{tx.account.name}</span></div>}
+                      {tx.account && <div><span className="text-stone">Account:</span> <span className="text-fjord">{normalizeAccountName(tx.account.name)}</span></div>}
                       {tx.category ? (
                         <div><span className="text-stone">Category:</span> <span className="text-fjord">{tx.category.name}</span></div>
                       ) : (
@@ -1748,7 +1799,7 @@ export default function TransactionList({ transactions: initial, categories, acc
                 )}
                 </React.Fragment>
               )
-            )}
+            })}
           </tbody>
         </table>
         </div>

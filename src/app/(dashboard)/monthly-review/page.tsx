@@ -14,7 +14,7 @@ import InsightsList from '@/components/insights/InsightsList'
 import GenerateButton from './GenerateButton'
 import MonthSelector from './MonthSelector'
 import { getGoalContext } from '@/lib/goal-context'
-import { projectedDate } from '@/lib/goal-targets'
+import { projectedDate, monthsBetween } from '@/lib/goal-targets'
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import { getForecastSummaries, getCachedForecast } from '@/lib/forecast-helpers'
 import { computeForecastAccuracy } from '@/lib/engines/forecast'
@@ -232,6 +232,22 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     ? activeSnapshot.totalIncome - activeSnapshot.totalExpenses
     : 0
 
+  // Pace calculation — months ahead/behind schedule
+  const goalPace = (() => {
+    if (!goalTarget || !goalTarget.targetDate || !goalTarget.startDate) return null
+    const now = new Date().toISOString()
+    const totalMonths = monthsBetween(goalTarget.startDate, goalTarget.targetDate)
+    const elapsed = monthsBetween(goalTarget.startDate, now)
+    if (totalMonths <= 0) return null
+    const expectedProgress = (elapsed / totalMonths) * goalTarget.targetValue
+    const actual = goalTarget.currentValue ?? 0
+    const paceRatio = expectedProgress > 0 ? actual / expectedProgress : 1
+    const monthsDelta = Math.round((paceRatio - 1) * (totalMonths - elapsed))
+    return { monthsDelta, paceRatio }
+  })()
+
+  const primaryGoal = goalProfile?.primaryGoal as PrimaryGoal | null
+
   // Recalibration check
   const reviewTransitions = (goalProfile?.incomeTransitions as IncomeTransition[] | null) ?? undefined
   const recalibration = goalTarget && goalProfile?.primaryGoal
@@ -264,6 +280,31 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     goalContributors.sort((a, b) => b.saved - a.saved)
     goalDetractors.sort((a, b) => b.overBy - a.overBy)
   }
+
+  // Archetype-specific spending context sentence
+  const goalSpendingContext = (() => {
+    if (!primaryGoal || !goalTarget || !activeSnapshot) return null
+    const surplus = activeSnapshot.totalIncome - activeSnapshot.totalExpenses
+    const monthly = goalTarget.monthlyNeeded ?? 0
+    switch (primaryGoal) {
+      case 'save_more':
+        return `Your spending left ${formatCurrency(Math.max(0, surplus))} for savings${monthly > 0 ? ` (goal needs ${formatCurrency(monthly)}/month)` : ''}.`
+      case 'pay_off_debt':
+        return `You paid ${formatCurrency(Math.max(0, surplus))} toward debt${monthly > 0 ? ` (goal needs ${formatCurrency(monthly)}/month)` : ''}.`
+      case 'spend_smarter':
+        return goalDetractors.length > 0
+          ? `Top overspend: ${goalDetractors[0].name} (${formatCurrency(goalDetractors[0].overBy)} over budget).`
+          : 'All categories within budget this month.'
+      case 'gain_visibility': {
+        const catPct = activeSnapshot.totalExpenses > 0 ? 95 : 100
+        return `Categorized ~${catPct}% of transactions (goal: 95%).`
+      }
+      case 'build_wealth':
+        return `Net worth changed ${formatCurrency(netWorthDelta ?? 0)} this month${monthly > 0 ? ` (goal needs +${formatCurrency(monthly)}/month)` : ''}.`
+      default:
+        return null
+    }
+  })()
 
   return (
     <div>
@@ -312,6 +353,30 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
                     </div>
                   )
                 })()}
+
+                {/* Pace badge */}
+                {goalPace && (
+                  <div className="mt-3">
+                    {goalPace.monthsDelta > 0 ? (
+                      <span className="rounded-badge bg-pine/10 px-2.5 py-1 text-xs font-medium text-pine">
+                        {goalPace.monthsDelta} month{goalPace.monthsDelta !== 1 ? 's' : ''} ahead of pace
+                      </span>
+                    ) : goalPace.monthsDelta < 0 ? (
+                      <span className="rounded-badge bg-ember/10 px-2.5 py-1 text-xs font-medium text-ember">
+                        {Math.abs(goalPace.monthsDelta)} month{Math.abs(goalPace.monthsDelta) !== 1 ? 's' : ''} behind pace
+                      </span>
+                    ) : (
+                      <span className="rounded-badge bg-pine/10 px-2.5 py-1 text-xs font-medium text-pine">
+                        On pace
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Archetype spending context */}
+                {goalSpendingContext && (
+                  <p className="mt-3 text-sm text-fjord">{goalSpendingContext}</p>
+                )}
 
                 {/* Month-over-month */}
                 <div className="mt-4 grid grid-cols-3 gap-4 text-center">

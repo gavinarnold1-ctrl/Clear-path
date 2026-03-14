@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 import { updateSpendingProfile } from '@/lib/ai-context'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
+import { analyzeAllCreditCards } from '@/lib/cc-intelligence'
 
 // POST: Generate monthly snapshots for all active users
 // Triggered by Vercel cron on the 1st of each month (R7.7)
@@ -35,8 +37,10 @@ export async function POST(req: NextRequest) {
   for (const { userId } of usersWithData) {
     try {
       await createMonthlySnapshot(userId, prevYear, snapshotMonth)
-      // Update AI spending profile after snapshot creation
+      // Update AI spending profile and goal progress after snapshot creation
       await updateSpendingProfile(userId).catch(() => {})
+      await persistGoalCurrentValue(userId).catch(() => {})
+      await analyzeAllCreditCards(userId).catch(() => {})
       created++
     } catch {
       errors++

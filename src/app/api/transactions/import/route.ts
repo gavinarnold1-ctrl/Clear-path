@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { parseCSV, transformRows } from '@/lib/csv-parser'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
 import { reconcileBudgetCategories } from '@/lib/budget-utils'
 import { createMonthlySnapshot } from '@/lib/snapshots'
 import { inferCategoryGroup, classifyTransaction } from '@/lib/category-groups'
@@ -782,6 +783,7 @@ export async function POST(request: Request) {
     revalidatePath('/transactions')
     revalidatePath('/budgets')
     revalidatePath('/spending')
+    persistGoalCurrentValue(session.userId).catch(() => {})
 
     return NextResponse.json({
       imported: importedCount,
