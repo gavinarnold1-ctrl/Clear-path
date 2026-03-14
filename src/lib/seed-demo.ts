@@ -85,7 +85,10 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
             targetValue: 0,
             targetDate: '2033-06-01',
             startValue: 267000,
-            startDate: new Date().toISOString().slice(0, 10),
+            startDate: '2024-09-01',
+            currentValue: 260100,
+            description: 'Pay off all debt by June 2033',
+            monthlyNeeded: 800,
             label: 'Pay off all debt',
           },
           incomeTransitions: [
@@ -233,6 +236,11 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     })
   }
 
+  // ─── Interest charge transactions (for CC intelligence) ─────────────
+  for (let m = 4; m >= 1; m--) {
+    addTx(creditCard.id, null, -randAmount(35, 42), 'INTEREST CHARGE — PURCHASES', monthsAgo(m, 28), { classification: 'expense' })
+  }
+
   // ─── Recurring transactions (6 months) ──────────────────────────────
   for (let m = 5; m >= 0; m--) {
     // Income — bi-weekly paycheck (resident salary ~$65K/yr)
@@ -323,6 +331,14 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
       addTx(creditCard.id, 'Medical', -randAmount(20, 50), 'Board Prep Materials', monthsAgo(m, randInt(10, 20)))
     }
   }
+
+  // Quarterly Roth IRA contribution (2 occurrences in 6 months)
+  addTx(checking.id, null, -500, 'Vanguard — Roth IRA Contribution', monthsAgo(4, 5), { classification: 'transfer' })
+  addTx(checking.id, null, -500, 'Vanguard — Roth IRA Contribution', monthsAgo(1, 5), { classification: 'transfer' })
+
+  // Physician-specific: scrubs, step exam, CME
+  addTx(creditCard.id, 'Clothing', -45, 'FIGS Scrubs', monthsAgo(3, 12))
+  addTx(creditCard.id, 'Medical', -340, 'USMLE Step 3 Registration', monthsAgo(2, 8))
 
   // Recent transactions (last few days)
   const today = new Date()
@@ -482,6 +498,12 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
       minimumPayment: 63,
       paymentDay: 15,
       accountId: creditCard.id,
+      // CC Intelligence — pre-populated for demo
+      ccBehavior: 'revolving',
+      observedInterestRate: 0.2199,
+      ccLastAnalyzed: now,
+      avgMonthlySpend: 680,
+      monthsCarried: 4,
     },
   })
 
