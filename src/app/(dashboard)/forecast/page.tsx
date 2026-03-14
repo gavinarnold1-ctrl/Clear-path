@@ -7,6 +7,7 @@ import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { piBreakdown, amortizationSchedule } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
+import GoalQuickPick from './GoalQuickPick'
 import ForecastInteractive from './ForecastInteractive'
 import type { SummaryCardData } from './ForecastInteractive'
 import type { Forecast, AssetClass, IncomeTransition, GoalTarget } from '@/types'
@@ -96,26 +97,9 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
             A goal gives the forecast a destination. Choose what matters most to you and we&apos;ll
             project your path forward.
           </p>
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-card border border-mist bg-frost/50 px-4 py-3 text-left text-sm">
-              <p className="font-medium text-fjord">Save $20,000 by Dec 2027</p>
-              <p className="text-xs text-stone">Emergency fund target</p>
-            </div>
-            <div className="rounded-card border border-mist bg-frost/50 px-4 py-3 text-left text-sm">
-              <p className="font-medium text-fjord">Pay off credit cards by June 2027</p>
-              <p className="text-xs text-stone">Debt freedom target</p>
-            </div>
-            <div className="rounded-card border border-mist bg-frost/50 px-4 py-3 text-left text-sm">
-              <p className="font-medium text-fjord">Reach $100K net worth</p>
-              <p className="text-xs text-stone">Wealth building milestone</p>
-            </div>
-            <div className="rounded-card border border-mist bg-frost/50 px-4 py-3 text-left text-sm">
-              <p className="font-medium text-fjord">Cut dining to $400/mo</p>
-              <p className="text-xs text-stone">Spending reduction target</p>
-            </div>
-          </div>
-          <Link href="/settings" className="btn-primary px-6 py-2 text-sm">
-            Set your goal
+          <GoalQuickPick />
+          <Link href="/settings" className="text-xs text-stone hover:text-fjord">
+            Or configure manually in Settings
           </Link>
         </div>
       </div>
