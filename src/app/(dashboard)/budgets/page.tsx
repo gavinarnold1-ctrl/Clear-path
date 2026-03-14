@@ -15,6 +15,7 @@ import UncategorizedReviewBanner from '@/components/budgets/UncategorizedReviewB
 import { findRefundPairs } from '@/lib/refund-detection'
 import { getGoalContext } from '@/lib/goal-context'
 import { formatCurrency } from '@/lib/utils'
+import { getTrueRemainingData } from '@/lib/true-remaining'
 import { getBudgetBenchmarks, aggregateByGroup } from '@/lib/budget-benchmarks'
 import BenchmarkBar from '@/components/budgets/BenchmarkBar'
 import type { GoalTarget } from '@/types'
@@ -435,6 +436,9 @@ export default async function BudgetsPage({ searchParams }: PageProps) {
   // Group-level benchmark aggregation
   const groupBenchmarks = aggregateByGroup(benchmarks)
 
+  // True Remaining — use shared function so dashboard/budgets/annual all match
+  const trData = await getTrueRemainingData(session.userId, startOfMonth, endOfMonth)
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -460,13 +464,13 @@ export default async function BudgetsPage({ searchParams }: PageProps) {
       ) : (
         <>
           <TrueRemainingBanner
-            income={income}
-            expectedIncome={expectedIncome}
-            fixedTotal={fixedTotal}
-            flexibleSpent={flexibleSpent}
-            flexibleBudget={flexibleBudgeted}
-            annualSetAside={annualSetAside}
-            unbudgetedSpent={totalUnbudgetedSpend}
+            income={trData.rawIncome}
+            expectedIncome={trData.income}
+            fixedTotal={trData.fixedTotal}
+            flexibleSpent={trData.flexibleSpent}
+            flexibleBudget={trData.flexibleBudget}
+            annualSetAside={trData.annualSetAside}
+            unbudgetedSpent={trData.unbudgetedSpent}
           />
 
           <BudgetHealth
