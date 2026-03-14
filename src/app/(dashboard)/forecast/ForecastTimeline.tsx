@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import type { ForecastPoint, IncomeTransition } from '@/types'
+import { parseLocalDate } from '@/lib/utils'
 
 interface Props {
   timeline: ForecastPoint[]
@@ -166,7 +167,7 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
 
           {/* Income transition markers */}
           {incomeTransitions.map((t) => {
-            const d = new Date(t.date)
+            const d = parseLocalDate(t.date)
             const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
             return (
               <ReferenceLine

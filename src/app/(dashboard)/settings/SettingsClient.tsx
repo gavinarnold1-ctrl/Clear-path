@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import GoalHistory from '@/components/settings/GoalHistory'
 
 interface Member {
@@ -158,6 +158,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
   const [transitionAnnual, setTransitionAnnual] = useState('')
   const [transitionSaving, setTransitionSaving] = useState(false)
   const [transitionMsg, setTransitionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [editingTransitionId, setEditingTransitionId] = useState<string | null>(null)
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -928,16 +929,21 @@ export default function SettingsClient({ user, initialMembers, initialProperties
     if (!transitionLabel.trim() || !transitionDate || isNaN(monthly) || monthly < 0) return
 
     const newTransition: IncomeTransitionData = {
-      id: `it_${Date.now()}`,
+      id: editingTransitionId ?? `it_${Date.now()}`,
       date: transitionDate,
       monthlyIncome: monthly,
       label: transitionLabel.trim(),
-      ...(transitionAnnual ? { annualIncome: parseFloat(transitionAnnual) } : {}),
+      ...(transitionAnnual ? { annualIncome: Math.round(parseFloat(transitionAnnual)) } : {}),
     }
 
-    const updated = [...incomeTransitions, newTransition].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    )
+    let updated: IncomeTransitionData[]
+    if (editingTransitionId) {
+      updated = incomeTransitions.map((t) => (t.id === editingTransitionId ? newTransition : t))
+    } else {
+      updated = [...incomeTransitions, newTransition]
+    }
+    updated.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
     const ok = await saveIncomeTransitions(updated)
     if (ok) {
       setTransitionLabel('')
@@ -945,7 +951,17 @@ export default function SettingsClient({ user, initialMembers, initialProperties
       setTransitionMonthly('')
       setTransitionAnnual('')
       setShowAddTransition(false)
+      setEditingTransitionId(null)
     }
+  }
+
+  function startEditTransition(t: IncomeTransitionData) {
+    setEditingTransitionId(t.id)
+    setTransitionLabel(t.label)
+    setTransitionDate(t.date)
+    setTransitionMonthly(String(t.monthlyIncome))
+    setTransitionAnnual(t.annualIncome != null ? String(t.annualIncome) : '')
+    setShowAddTransition(true)
   }
 
   async function removeTransition(id: string) {
@@ -1939,7 +1955,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                 <div className="min-w-0">
                   <span className="text-sm font-medium text-fjord">{t.label}</span>
                   <span className="mx-2 text-xs text-stone">
-                    {new Date(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    {parseLocalDate(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                   </span>
                   <span className="text-sm font-mono text-fjord">
                     {formatCurrency(t.monthlyIncome)}/mo
@@ -1950,13 +1966,22 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => removeTransition(t.id)}
-                  disabled={transitionSaving}
-                  className="ml-2 shrink-0 text-xs text-stone hover:text-ember disabled:opacity-50"
-                >
-                  Remove
-                </button>
+                <div className="ml-2 flex shrink-0 gap-2">
+                  <button
+                    onClick={() => startEditTransition(t)}
+                    disabled={transitionSaving}
+                    className="text-xs text-stone hover:text-fjord disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => removeTransition(t.id)}
+                    disabled={transitionSaving}
+                    className="text-xs text-stone hover:text-ember disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -2017,7 +2042,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={addTransition} loading={transitionSaving} loadingText="Saving..." disabled={!transitionLabel.trim() || !transitionDate || (!transitionMonthly && !transitionAnnual)}>
-                Add Transition
+                {editingTransitionId ? 'Save Changes' : 'Add Transition'}
               </Button>
               <button
                 type="button"
@@ -2027,6 +2052,7 @@ export default function SettingsClient({ user, initialMembers, initialProperties
                   setTransitionDate('')
                   setTransitionMonthly('')
                   setTransitionAnnual('')
+                  setEditingTransitionId(null)
                 }}
                 className="text-xs text-stone hover:text-fjord"
               >

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { ForecastScenario, IncomeTransition } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
+import { parseLocalDate } from '@/lib/utils'
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
 interface DebtSummary {
@@ -53,7 +54,7 @@ function formatCurrency(amount: number): string {
 }
 
 function formatGoalDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return parseLocalDate(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
 function humanizeScenarioLabel(label: string): string {
@@ -438,7 +439,7 @@ export default function ForecastScenarios({
                                 >
                                   {t.label} — {formatCurrency(t.monthlyIncome)}/mo
                                   <span className="ml-1 text-stone">
-                                    ({new Date(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})
+                                    ({parseLocalDate(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})
                                   </span>
                                 </button>
                               )

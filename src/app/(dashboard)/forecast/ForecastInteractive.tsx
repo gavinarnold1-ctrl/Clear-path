@@ -5,6 +5,7 @@ import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
 import type { ForecastPoint, ForecastScenario, IncomeTransition, VelocityBreakdown, AssetGrowthProjection } from '@/types'
 import type { Forecast } from '@/types'
+import { parseLocalDate } from '@/lib/utils'
 
 interface CombinedScenarioMetrics {
   monthlyDelta: number
@@ -305,7 +306,7 @@ export default function ForecastInteractive({
           : baselineMonthlyVelocity
 
         const isIncrease = nextTransition.monthlyIncome > currentIncome
-        const transitionDate = new Date(nextTransition.date)
+        const transitionDate = parseLocalDate(nextTransition.date)
         const monthsAway = Math.max(0, Math.round((transitionDate.getTime() - now.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
 
         return (
