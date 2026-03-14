@@ -19,7 +19,7 @@ import { checkRecalibration } from '@/lib/goal-recalibration'
 import { getForecastSummaries, getCachedForecast } from '@/lib/forecast-helpers'
 import { computeForecastAccuracy } from '@/lib/engines/forecast'
 import { EmptyState } from '@/components/ui/EmptyState'
-import type { GoalTarget, PrimaryGoal } from '@/types'
+import type { GoalTarget, PrimaryGoal, IncomeTransition } from '@/types'
 
 export const metadata: Metadata = { title: 'Monthly Review' }
 
@@ -75,7 +75,7 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     // Goal target from profile
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { goalTarget: true, primaryGoal: true },
+      select: { goalTarget: true, primaryGoal: true, incomeTransitions: true },
     }),
     // Perk reimbursement transactions for the current/selected month
     db.transaction.findMany({
@@ -233,8 +233,9 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
     : 0
 
   // Recalibration check
+  const reviewTransitions = (goalProfile?.incomeTransitions as IncomeTransition[] | null) ?? undefined
   const recalibration = goalTarget && goalProfile?.primaryGoal
-    ? await checkRecalibration(session.userId, goalTarget, goalProfile.primaryGoal as PrimaryGoal)
+    ? await checkRecalibration(session.userId, goalTarget, goalProfile.primaryGoal as PrimaryGoal, reviewTransitions)
     : null
 
   // Forecast accuracy

@@ -177,6 +177,19 @@ export const trackCtaClicked = (ctaText: string, location: string) =>
 export const trackFeedbackSubmitted = (type: string, page: string) =>
   track('feedback_submitted', { type, page })
 
+// Income Transitions
+export const trackIncomeTransitionViewed = (transitionCount: number, nextTransitionMonths: number) =>
+  track('forecast_income_transition_viewed', { transition_count: transitionCount, next_transition_months: nextTransitionMonths })
+
+export const trackDebtAccelerationViewed = (debtCount: number, monthsSaved: number, interestSaved: number) =>
+  track('debt_acceleration_viewed', { debt_count: debtCount, months_saved: monthsSaved, interest_saved: interestSaved })
+
+export const trackGoalDeferAccelerationShown = (goalArchetype: string, phasedContributionCount: number) =>
+  track('goal_defer_acceleration_shown', { goal_archetype: goalArchetype, phased_contribution_count: phasedContributionCount })
+
+export const trackDemoPhysicianLoaded = () =>
+  track('demo_physician_loaded')
+
 // Navigation
 export const trackPageViewed = (path: string, title: string) =>
   track('page_viewed', { path, title })

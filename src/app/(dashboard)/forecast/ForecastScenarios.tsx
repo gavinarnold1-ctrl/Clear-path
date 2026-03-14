@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { ForecastScenario } from '@/types'
+import type { ForecastScenario, IncomeTransition } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
@@ -27,6 +27,7 @@ interface Props {
   onScenarioDismiss: (id: string) => void
   baselineProjectedDate?: string | null
   debts?: DebtSummary[]
+  incomeTransitions?: IncomeTransition[]
 }
 
 const SCENARIO_TYPES: { value: string; label: string; fields: string[] }[] = [
@@ -84,6 +85,7 @@ export default function ForecastScenarios({
   onScenarioDismiss,
   baselineProjectedDate,
   debts = [],
+  incomeTransitions = [],
 }: Props) {
   const [expandedBreakdownId, setExpandedBreakdownId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -412,7 +414,38 @@ export default function ForecastScenarios({
                     className="input w-full text-sm"
                   />
                   {customType === 'income_change' && (
-                    <p className="mt-1 text-[10px] text-stone">Positive = income increase, negative = decrease</p>
+                    <>
+                      <p className="mt-1 text-[10px] text-stone">Positive = income increase, negative = decrease</p>
+                      {incomeTransitions.length > 0 && !customAmount && (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[10px] font-medium text-stone">Pre-fill from saved transitions:</p>
+                          {incomeTransitions
+                            .filter((t) => new Date(t.date) > new Date())
+                            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                            .slice(0, 3)
+                            .map((t) => {
+                              const monthsAway = Math.max(0, Math.round((new Date(t.date).getTime() - Date.now()) / (30.44 * 24 * 60 * 60 * 1000)))
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomAmount(String(t.monthlyIncome))
+                                    setCustomLabel(t.label)
+                                    if (monthsAway > 0) setCustomDelayMonths(String(monthsAway))
+                                  }}
+                                  className="block w-full rounded-badge border border-mist px-2 py-1 text-left text-[11px] text-fjord hover:bg-frost"
+                                >
+                                  {t.label} — {formatCurrency(t.monthlyIncome)}/mo
+                                  <span className="ml-1 text-stone">
+                                    ({new Date(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})
+                                  </span>
+                                </button>
+                              )
+                            })}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

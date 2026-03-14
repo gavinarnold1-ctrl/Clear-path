@@ -1,4 +1,5 @@
 import { db } from './db'
+import type { IncomeTransition } from '@/types'
 
 export interface GoalContext {
   primaryGoal: string
@@ -11,6 +12,7 @@ export interface GoalContext {
     targetValue?: number
     metric?: string
   } | null
+  incomeTransitionContext?: string | null
 }
 
 const GOAL_GUIDANCE: Record<string, { label: string; guidance: string }> = {
@@ -44,7 +46,7 @@ const GOAL_GUIDANCE: Record<string, { label: string; guidance: string }> = {
 export async function getGoalContext(userId: string): Promise<GoalContext | null> {
   const profile = await db.userProfile.findUnique({
     where: { userId },
-    select: { primaryGoal: true, goalSetAt: true, goalTarget: true },
+    select: { primaryGoal: true, goalSetAt: true, goalTarget: true, incomeTransitions: true, expectedMonthlyIncome: true },
   })
 
   if (!profile?.primaryGoal) return null
@@ -54,16 +56,48 @@ export async function getGoalContext(userId: string): Promise<GoalContext | null
 
   const gt = profile.goalTarget as { description?: string; monthlyNeeded?: number; targetValue?: number; metric?: string } | null
 
+  // Build income transition context for AI
+  const transitions = profile.incomeTransitions as IncomeTransition[] | null
+  let incomeTransitionContext: string | null = null
+  if (transitions && transitions.length > 0) {
+    const now = new Date()
+    const futureTransitions = transitions
+      .filter((t) => new Date(t.date) > now)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    if (futureTransitions.length > 0) {
+      const next = futureTransitions[0]
+      const currentIncome = profile.expectedMonthlyIncome ?? 0
+      const monthsUntil = Math.max(0, Math.round((new Date(next.date).getTime() - now.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
+      const multiplier = currentIncome > 0 ? (next.monthlyIncome / currentIncome).toFixed(1) : '?'
+
+      incomeTransitionContext = [
+        `INCOME TRANSITION CONTEXT:`,
+        `User has a planned income change: "${next.label}"`,
+        `Current: $${Math.round(currentIncome).toLocaleString()}/mo → Expected: $${Math.round(next.monthlyIncome).toLocaleString()}/mo (${multiplier}x)`,
+        `Effective: ${new Date(next.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (${monthsUntil} months from now)`,
+        futureTransitions.length > 1 ? `${futureTransitions.length - 1} additional transition(s) planned after this.` : '',
+        ``,
+        `IMPORTANT: Do NOT recommend aggressive spending cuts for someone whose income is about to change significantly. Focus on:`,
+        `- Minimizing high-interest debt before the income jump`,
+        `- Building habits that scale with higher income`,
+        `- Planning for lifestyle inflation resistance ("stealth wealth")`,
+        `- Directing a specific percentage of the raise toward financial goals`,
+      ].filter(Boolean).join('\n')
+    }
+  }
+
   return {
     primaryGoal: profile.primaryGoal,
     goalLabel: config.label,
     goalSetAt: profile.goalSetAt,
-    guidanceForAI: config.guidance,
+    guidanceForAI: config.guidance + (incomeTransitionContext ? `\n\n${incomeTransitionContext}` : ''),
     goalTarget: gt?.description ? {
       description: gt.description,
       monthlyNeeded: gt.monthlyNeeded,
       targetValue: gt.targetValue,
       metric: gt.metric,
     } : null,
+    incomeTransitionContext,
   }
 }

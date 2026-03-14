@@ -1,16 +1,18 @@
-import type { GoalTarget, PrimaryGoal } from '@/types'
+import type { GoalTarget, PrimaryGoal, IncomeTransition } from '@/types'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import { monthsBetween } from '@/lib/goal-targets'
 
 export interface RecalibrationSuggestion {
-  type: 'extend_date' | 'increase_monthly' | 'reduce_target' | 'celebrate_completion'
+  type: 'extend_date' | 'increase_monthly' | 'reduce_target' | 'celebrate_completion' | 'defer_acceleration'
   title: string
   description: string
   newTargetDate?: string
   newMonthlyNeeded?: number
   newTargetValue?: number
   monthsBehind: number
+  /** For defer_acceleration: phased contribution breakdown */
+  phasedContributions?: { label: string; monthlyAmount: number; startDate: string }[]
 }
 
 /**
@@ -21,6 +23,7 @@ export async function checkRecalibration(
   userId: string,
   goalTarget: GoalTarget,
   primaryGoal: PrimaryGoal,
+  incomeTransitions?: IncomeTransition[],
 ): Promise<RecalibrationSuggestion | null> {
   // 1. Get the last 3 months of snapshots
   const threeMonthsAgo = new Date()
@@ -66,6 +69,59 @@ export async function checkRecalibration(
   }
 
   const requiredVelocity = (goalTarget.targetValue - (goalTarget.currentValue ?? goalTarget.startValue)) / monthsRemaining
+
+  // 3b. Check for defer_acceleration — if user has future income transitions that
+  // would cover the shortfall, suggest waiting for the income jump instead of
+  // pressuring them to increase contributions now
+  const futureTransitions = (incomeTransitions ?? [])
+    .filter((t) => new Date(t.date) > new Date())
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  if (
+    futureTransitions.length > 0 &&
+    (primaryGoal === 'pay_off_debt' || primaryGoal === 'save_more' || primaryGoal === 'build_wealth') &&
+    actualMonthlyProgress < requiredVelocity * 0.9
+  ) {
+    const nextTransition = futureTransitions[0]
+    const transitionDate = new Date(nextTransition.date)
+    const monthsUntilTransition = monthsBetween(new Date().toISOString(), nextTransition.date)
+    const currentIncome = snapshots.length > 0
+      ? snapshots[snapshots.length - 1].totalIncome
+      : 0
+    const incomeDelta = nextTransition.monthlyIncome - currentIncome
+
+    // Only suggest defer_acceleration if the income jump is significant (>50% increase)
+    if (incomeDelta > 0 && currentIncome > 0 && incomeDelta / currentIncome > 0.5) {
+      const remaining = goalTarget.targetValue - (goalTarget.currentValue ?? goalTarget.startValue)
+      if (remaining > 0) {
+        // Compute what the user should contribute now vs after transition
+        const monthsAfterTransition = monthsRemaining - monthsUntilTransition
+        const currentContrib = actualMonthlyProgress > 0 ? actualMonthlyProgress : requiredVelocity * 0.5
+        const afterContrib = monthsAfterTransition > 0
+          ? Math.ceil((remaining - currentContrib * monthsUntilTransition) / monthsAfterTransition)
+          : currentContrib
+
+        return {
+          type: 'defer_acceleration',
+          title: 'Your income jump will accelerate this goal',
+          description: `At current income, contribute ${formatCurrency(Math.round(currentContrib))}/mo. After "${nextTransition.label}" in ${formatMonth(transitionDate)}, increase to ${formatCurrency(Math.round(afterContrib))}/mo to stay on track.`,
+          monthsBehind: 0,
+          phasedContributions: [
+            {
+              label: 'Current phase',
+              monthlyAmount: Math.round(currentContrib),
+              startDate: new Date().toISOString(),
+            },
+            {
+              label: nextTransition.label,
+              monthlyAmount: Math.round(afterContrib),
+              startDate: nextTransition.date,
+            },
+          ],
+        }
+      }
+    }
+  }
 
   // 4. If velocity is < 70% of required for 2+ months, suggest recalibration
   if (actualMonthlyProgress < requiredVelocity * 0.7 && snapshots.length >= 2) {

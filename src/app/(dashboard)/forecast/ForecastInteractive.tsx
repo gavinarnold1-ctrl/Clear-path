@@ -283,6 +283,51 @@ export default function ForecastInteractive({
         />
       </div>
 
+      {/* Income transition summary card */}
+      {incomeTransitions.length > 0 && (() => {
+        const now = new Date()
+        const futureTransitions = incomeTransitions
+          .filter((t) => new Date(t.date) > now)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        const nextTransition = futureTransitions[0]
+        if (!nextTransition) return null
+
+        // Find the most recent past transition or use baselineMonthlyVelocity as proxy for current income
+        const pastTransitions = incomeTransitions
+          .filter((t) => new Date(t.date) <= now)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        const currentIncome = pastTransitions.length > 0
+          ? pastTransitions[0].monthlyIncome
+          : baselineMonthlyVelocity
+
+        const isIncrease = nextTransition.monthlyIncome > currentIncome
+        const transitionDate = new Date(nextTransition.date)
+        const monthsAway = Math.max(0, Math.round((transitionDate.getTime() - now.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
+
+        return (
+          <div className={`mb-4 rounded-card border px-4 py-3 ${isIncrease ? 'border-pine/20 bg-pine/5' : 'border-ember/20 bg-ember/5'}`}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className={`font-semibold ${isIncrease ? 'text-pine' : 'text-ember'}`}>
+                {nextTransition.label}
+              </span>
+              <span className="text-fjord">
+                Income {isIncrease ? 'increases' : 'decreases'} to{' '}
+                <span className="font-mono font-semibold">{formatCurrency(nextTransition.monthlyIncome)}</span>/mo
+              </span>
+              <span className="text-stone">
+                {transitionDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                {monthsAway > 0 && ` (${monthsAway} month${monthsAway !== 1 ? 's' : ''} away)`}
+              </span>
+            </div>
+            {futureTransitions.length > 1 && (
+              <p className="mt-1 text-xs text-stone">
+                +{futureTransitions.length - 1} more planned income change{futureTransitions.length - 1 !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Active scenario banner */}
       {isScenarioActive && (
         <div className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-card border px-4 py-2.5 ${
@@ -609,6 +654,7 @@ export default function ForecastInteractive({
           onScenarioDismiss={handleScenarioDismiss}
           baselineProjectedDate={baselineProjectedDate}
           debts={debts}
+          incomeTransitions={incomeTransitions}
         />
       </div>
 
