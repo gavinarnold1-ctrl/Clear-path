@@ -466,6 +466,7 @@ export default async function BudgetsPage({ searchParams }: PageProps) {
             flexibleSpent={flexibleSpent}
             flexibleBudget={flexibleBudgeted}
             annualSetAside={annualSetAside}
+            unbudgetedSpent={totalUnbudgetedSpend}
           />
 
           <BudgetHealth

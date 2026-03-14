@@ -1,5 +1,6 @@
 import { db } from './db'
 import type { GoalTarget } from '@/types'
+import type { Prisma } from '@prisma/client'
 
 /**
  * Compute the current value for a goal target based on real-time data.
@@ -76,5 +77,32 @@ export async function computeCurrentValue(userId: string, target: GoalTarget): P
       return target.currentValue ?? 0
     default:
       return target.currentValue ?? 0
+  }
+}
+
+/**
+ * Compute and persist the current value of the user's goal target.
+ * Fire-and-forget safe — catches errors internally.
+ */
+export async function persistGoalCurrentValue(userId: string): Promise<void> {
+  try {
+    const profile = await db.userProfile.findUnique({
+      where: { userId },
+      select: { goalTarget: true },
+    })
+
+    const target = profile?.goalTarget as GoalTarget | null
+    if (!target?.metric) return
+
+    const currentValue = await computeCurrentValue(userId, target)
+
+    // Update the JSON field with the new currentValue
+    const updated = { ...target, currentValue }
+    await db.userProfile.update({
+      where: { userId },
+      data: { goalTarget: updated as unknown as Prisma.InputJsonValue },
+    })
+  } catch {
+    // Fire-and-forget — don't crash the caller
   }
 }

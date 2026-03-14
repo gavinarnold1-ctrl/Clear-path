@@ -11,9 +11,11 @@ import GetStarted from '@/components/onboarding/GetStarted'
 import { getValueSummary } from '@/lib/value-tracker'
 import { getGoalContext } from '@/lib/goal-context'
 import { checkRecalibration } from '@/lib/goal-recalibration'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget, IncomeTransition } from '@/types'
 import { updateGoalPaceStatus } from '@/lib/ai-context'
+import { computeTrueRemaining } from '@/lib/true-remaining'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
@@ -324,6 +326,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (goalTargetData) {
     const paceStatus = recalibration ? 'behind' as const : 'on_track' as const
     updateGoalPaceStatus(session.userId, paceStatus).catch(() => {})
+    persistGoalCurrentValue(session.userId).catch(() => {})
   }
 
   // New users with no accounts: show streamlined "Get Started" flow
@@ -445,9 +448,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   // True Remaining: use expectedMonthlyIncome if set; fall back to 3-month avg (matching budgets page)
   const autoExpectedIncome = prevIncome / 3
   const displayIncome = userProfile?.expectedMonthlyIncome ?? (autoExpectedIncome > 0 ? autoExpectedIncome : monthlyIncome)
-  // Include unbudgeted spending so True Remaining matches budgets page
-  // (budgets page absorbs unbudgeted spending into catch-all flexible budget via claimTransactions)
-  const trueRemaining = displayIncome - fixedTotal - flexibleSpent - unbudgetedSpent - annualSetAside
+  const trueRemaining = computeTrueRemaining({ income: displayIncome, fixedTotal, flexibleSpent, unbudgetedSpent, annualSetAside })
 
   // Budget health card data
   const fixedPaidCount = fixedBudgets.filter(b => b.spent > 0).length

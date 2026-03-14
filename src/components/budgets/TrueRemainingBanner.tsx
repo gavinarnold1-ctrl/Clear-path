@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/utils'
+import { computeTrueRemaining } from '@/lib/true-remaining'
 import type { PrimaryGoal } from '@/types'
 
 interface TrueRemainingProps {
@@ -23,7 +24,7 @@ export default function TrueRemainingBanner({
 }: TrueRemainingProps) {
   const displayIncome = expectedIncome ?? income
   const totalFlexSpent = flexibleSpent + unbudgetedSpent
-  const trueRemaining = displayIncome - fixedTotal - totalFlexSpent - annualSetAside
+  const trueRemaining = computeTrueRemaining({ income: displayIncome, fixedTotal, flexibleSpent, unbudgetedSpent, annualSetAside })
   const incomeRatio = displayIncome > 0 ? trueRemaining / displayIncome : 0
 
   // Color coding based on remaining percentage of income

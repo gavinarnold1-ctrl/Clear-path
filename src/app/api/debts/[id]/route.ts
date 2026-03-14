@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { DEMO_USER_ID } from '@/lib/demo'
 import { piBreakdown } from '@/lib/engines/amortization'
 import { syncDebtToProperty } from '@/lib/property-debt-sync'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
 
 const VALID_DEBT_TYPES = new Set([
   'MORTGAGE',
@@ -116,6 +117,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   revalidatePath('/debts')
   revalidatePath('/forecast')
   revalidatePath('/dashboard')
+  persistGoalCurrentValue(session.userId).catch(() => {})
   return NextResponse.json(updated)
 }
 
