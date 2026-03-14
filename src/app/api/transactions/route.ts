@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { classifyTransaction } from '@/lib/category-groups'
 import { applyPropertyAttribution } from '@/lib/apply-splits'
 import { createTransactionSchema, validateBody } from '@/lib/validation'
+import { persistGoalCurrentValue } from '@/lib/goal-utils'
 const VALID_CATEGORY_TYPES = new Set(['income', 'expense', 'transfer', 'perk_reimbursement'])
 const VALID_CLASSIFICATIONS = new Set(['expense', 'income', 'transfer', 'perk_reimbursement'])
 
@@ -358,5 +359,6 @@ export async function POST(req: NextRequest) {
   revalidatePath('/transactions')
   revalidatePath('/budgets')
   revalidatePath('/spending')
+  persistGoalCurrentValue(session.userId).catch(() => {})
   return NextResponse.json(transaction, { status: 201 })
 }

@@ -94,7 +94,7 @@ async function proposeTarget(
   const now = new Date()
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
 
-  const [incomeAgg, expenseAgg, totalDebtAgg, totalTxCount, categorizedCount, accounts, properties] =
+  const [incomeAgg, expenseAgg, totalDebtAgg, totalTxCount, categorizedCount, accounts, properties, debtsForRate] =
     await Promise.all([
       db.transaction.aggregate({
         where: { userId, date: { gte: threeMonthsAgo }, classification: 'income' },
@@ -112,6 +112,7 @@ async function proposeTarget(
       db.transaction.count({ where: { userId, date: { gte: threeMonthsAgo }, categoryId: { not: null } } }),
       db.account.findMany({ where: { userId }, select: { type: true, balance: true } }),
       db.property.findMany({ where: { userId }, select: { currentValue: true, loanBalance: true } }),
+      db.debt.findMany({ where: { userId }, select: { currentBalance: true, interestRate: true } }),
     ])
 
   const income3mo = incomeAgg._sum.amount ?? 0
@@ -132,11 +133,18 @@ async function proposeTarget(
   }, 0)
   const netWorth = accountNetWorth + propertyEquity
 
+  // Compute balance-weighted average interest rate across all debts
+  const totalDebtBalance = debtsForRate.reduce((s, d) => s + d.currentBalance, 0)
+  const weightedAverageRate = totalDebtBalance > 0
+    ? debtsForRate.reduce((s, d) => s + d.currentBalance * d.interestRate, 0) / totalDebtBalance
+    : 0.06
+
   const defaults = GOAL_TARGET_DEFAULTS[goal]
   const computed = defaults.computeTarget({
     monthlyIncome,
     monthlySavings,
     totalDebt,
+    weightedAverageRate,
     categorizationPct,
     netWorth,
   })

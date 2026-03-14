@@ -4,9 +4,22 @@ interface GoalTargetContext {
   monthlyIncome: number
   monthlySavings: number
   totalDebt: number
+  weightedAverageRate?: number
   topOverspendCategory?: { name: string; monthlyAvg: number; blsBenchmark: number }
   categorizationPct: number
   netWorth: number
+}
+
+/**
+ * Interest-aware payoff calculation using amortization formula.
+ * Returns months needed to pay off a balance at a given monthly payment and rate.
+ */
+function monthsToPayoffWithInterest(balance: number, monthlyPayment: number, annualRate: number): number {
+  if (monthlyPayment <= 0 || balance <= 0) return 0
+  const monthlyRate = annualRate / 12
+  if (monthlyRate === 0) return Math.ceil(balance / monthlyPayment)
+  if (monthlyPayment <= balance * monthlyRate) return Infinity // payment doesn't cover interest
+  return Math.ceil(-Math.log(1 - (balance * monthlyRate) / monthlyPayment) / Math.log(1 + monthlyRate))
 }
 
 interface GoalTargetSuggestion {
@@ -44,17 +57,37 @@ export const GOAL_TARGET_DEFAULTS: Record<PrimaryGoal, GoalTargetSuggestion> = {
   },
   pay_off_debt: {
     metric: 'debt_payoff',
-    computeTarget: ({ totalDebt, monthlyIncome }) => {
-      const monthlyExtra = monthlyIncome * 0.10
-      const monthsToPayoff = totalDebt > 0 ? Math.ceil(totalDebt / monthlyExtra) : 0
-      const targetDate = new Date()
-      targetDate.setMonth(targetDate.getMonth() + Math.min(monthsToPayoff, 18))
+    computeTarget: ({ totalDebt, monthlyIncome, weightedAverageRate }) => {
+      if (totalDebt <= 0) {
+        return {
+          targetValue: 0,
+          monthlyNeeded: 0,
+          description: 'Stay debt-free',
+        }
+      }
+
+      // Allocate 10% of monthly income toward debt payoff
+      const monthlyPayment = Math.max(monthlyIncome * 0.10, 100)
+      const avgRate = weightedAverageRate ?? 0.06
+
+      // Interest-aware payoff timeline
+      const months = monthsToPayoffWithInterest(totalDebt, monthlyPayment, avgRate)
+
+      if (months === Infinity || months > 360) {
+        // Payment doesn't cover interest or timeline > 30 years — suggest higher allocation
+        const minPayment = Math.ceil(totalDebt * (avgRate / 12) * 1.5) // 1.5x interest
+        const feasibleMonths = monthsToPayoffWithInterest(totalDebt, minPayment, avgRate)
+        return {
+          targetValue: 0,
+          monthlyNeeded: minPayment,
+          description: `Pay off $${Math.round(totalDebt).toLocaleString()} in debt — increase payments to $${Math.round(minPayment).toLocaleString()}/mo`,
+        }
+      }
+
       return {
         targetValue: 0,
-        monthlyNeeded: monthlyExtra + (totalDebt > 0 ? totalDebt / 18 : 0),
-        description: totalDebt > 0
-          ? `Pay off $${Math.round(totalDebt).toLocaleString()} in debt`
-          : 'Stay debt-free',
+        monthlyNeeded: monthlyPayment,
+        description: `Pay off $${Math.round(totalDebt).toLocaleString()} in debt`,
       }
     },
   },

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { computeTrueRemaining } from '@/lib/true-remaining'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
 import AnnualOverview from '@/components/annual/AnnualOverview'
 import AnnualAlerts from '@/components/annual/AnnualAlerts'
@@ -90,7 +91,14 @@ export default async function AnnualPlanningPage() {
   const annualSetAside = allBudgets
     .filter((b) => b.tier === 'ANNUAL')
     .reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
-  const trueRemaining = income - fixedTotal - flexibleSpent - annualSetAside
+
+  // Compute unbudgeted spending (expenses with no category or whose category has no budget)
+  const claimedCategoryIds = new Set(allBudgets.filter(b => b.categoryId).map(b => b.categoryId!))
+  const unbudgetedSpent = monthExpenses
+    .filter((tx) => !tx.annualExpenseId && (!tx.categoryId || !claimedCategoryIds.has(tx.categoryId)))
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+
+  const trueRemaining = computeTrueRemaining({ income, fixedTotal, flexibleSpent, unbudgetedSpent, annualSetAside })
 
   // Compute dynamic fields for each expense
   const enriched = expenses.map((exp) => {
