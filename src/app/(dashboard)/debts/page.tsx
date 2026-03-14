@@ -9,6 +9,7 @@ import { getForecastSummaries } from '@/lib/forecast-helpers'
 import { computeDebtPayoffAcceleration } from '@/lib/engines/forecast'
 import type { IncomeTransition, DebtForForecast } from '@/types'
 import DebtManager from '@/components/debts/DebtManager'
+import { DebtAccelerationTracker } from '@/components/debts/DebtAccelerationTracker'
 
 export const metadata: Metadata = { title: 'Debts' }
 
@@ -167,6 +168,11 @@ export default async function DebtsPage() {
       {/* Payoff Acceleration */}
       {accelerationResults.length > 0 && (
         <div className="mt-6">
+          <DebtAccelerationTracker
+            debtCount={accelerationResults.length}
+            monthsSaved={accelerationResults.reduce((s, a) => s + a.monthsSaved, 0)}
+            interestSaved={accelerationResults.reduce((s, a) => s + a.interestSaved, 0)}
+          />
           <h2 className="font-display text-lg font-bold text-fjord mb-3">Payoff Acceleration</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {accelerationResults.map((a) => (

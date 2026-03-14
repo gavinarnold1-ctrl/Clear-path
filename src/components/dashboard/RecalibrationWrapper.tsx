@@ -7,9 +7,10 @@ import type { RecalibrationSuggestion } from '@/lib/goal-recalibration'
 
 interface Props {
   suggestion: RecalibrationSuggestion
+  goalArchetype?: string
 }
 
-export default function RecalibrationWrapper({ suggestion }: Props) {
+export default function RecalibrationWrapper({ suggestion, goalArchetype }: Props) {
   const [dismissed, setDismissed] = useState(false)
   const router = useRouter()
 
@@ -18,6 +19,7 @@ export default function RecalibrationWrapper({ suggestion }: Props) {
   return (
     <GoalRecalibrationBanner
       suggestion={suggestion}
+      goalArchetype={goalArchetype}
       onAccept={async (type) => {
         await fetch('/api/profile/goal-target', {
           method: 'POST',

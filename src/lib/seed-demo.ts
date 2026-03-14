@@ -3,7 +3,7 @@
  * and the cron reset API route.
  */
 import type { PrismaClient } from '@prisma/client'
-import { Prisma, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
+import { AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
 import { hashPassword } from '@/lib/password'
 import { DEMO_USER_ID, DEMO_USER_EMAIL } from '@/lib/demo'
 import { DEFAULT_CATEGORIES } from '@/lib/seed-categories'
@@ -61,46 +61,40 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
 
   const now = new Date()
 
-  // ─── Change 1: Enhanced profile with save_more goal ────────────────
+  // ─── Profile: Dr. Alex Kim — resident physician ────────────────────
   const passwordHash = await hashPassword('demo1234')
   await db.user.create({
     data: {
       id: DEMO_USER_ID,
       email: DEMO_USER_EMAIL,
-      name: 'Alex Demo',
+      name: 'Dr. Alex Kim',
       password: passwordHash,
       profile: {
         create: {
           onboardingCompleted: true,
           onboardingCompletedAt: new Date(),
           onboardingStep: 3,
-          primaryGoal: 'save_more',
-          householdType: 'shared_partner',
-          incomeRange: '150k_200k',
-          expectedMonthlyIncome: 14583,
+          primaryGoal: 'pay_off_debt',
+          householdType: 'single',
+          incomeRange: '50k_75k',
+          expectedMonthlyIncome: 5417,
           goalSetAt: new Date(),
           goalTarget: {
-            archetype: 'save_more',
-            metric: 'savings_amount',
-            targetValue: 25000,
-            targetDate: '2027-06-30',
-            startValue: 8500,
-            label: 'Save $25K emergency fund',
+            archetype: 'pay_off_debt',
+            metric: 'total_debt',
+            targetValue: 0,
+            targetDate: '2033-06-01',
+            startValue: 267000,
+            startDate: new Date().toISOString().slice(0, 10),
+            label: 'Pay off all debt',
           },
           incomeTransitions: [
             {
-              id: 'it_demo_raise',
-              date: new Date(now.getFullYear(), now.getMonth() + 3, 1).toISOString().slice(0, 10),
-              monthlyIncome: 15312,
-              label: 'Annual raise (5%)',
-              annualIncome: 183750,
-            },
-            {
-              id: 'it_demo_newjob',
-              date: new Date(now.getFullYear() + 1, now.getMonth(), 1).toISOString().slice(0, 10),
-              monthlyIncome: 17500,
-              label: 'New role at TechCo',
-              annualIncome: 210000,
+              id: 'it_demo_attending',
+              date: '2028-07-01',
+              monthlyIncome: 22500,
+              label: 'Attending physician salary',
+              annualIncome: 270000,
             },
           ],
         },
@@ -108,12 +102,9 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     },
   })
 
-  // ─── Household member: partner "Taylor" ────────────────────────────
+  // ─── Household member: Alex only ─────────────────────────────────────
   const alex = await db.householdMember.create({
     data: { userId: DEMO_USER_ID, name: 'Alex', isDefault: true },
-  })
-  const taylor = await db.householdMember.create({
-    data: { userId: DEMO_USER_ID, name: 'Taylor', isDefault: false },
   })
 
   // ─── Categories ──────────────────────────────────────────────────────
@@ -184,33 +175,26 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     categoryMap.set(cat.name, created.id)
   }
 
-  // ─── Change 2: Richer Accounts ─────────────────────────────────────
+  // ─── Accounts ─────────────────────────────────────────────────────────
   const checking = await db.account.create({
-    data: { userId: DEMO_USER_ID, name: 'Checking', type: AccountType.CHECKING, balance: 4200 },
+    data: { userId: DEMO_USER_ID, name: 'Checking', type: AccountType.CHECKING, balance: 2800 },
   })
   const savings = await db.account.create({
-    data: { userId: DEMO_USER_ID, name: 'Savings', type: AccountType.SAVINGS, balance: 8500 },
+    data: { userId: DEMO_USER_ID, name: 'Savings', type: AccountType.SAVINGS, balance: 3200 },
   })
   const creditCard = await db.account.create({
     data: { userId: DEMO_USER_ID, name: 'Credit Card', type: AccountType.CREDIT_CARD, balance: 0 },
-  })
-  const retirement = await db.account.create({
-    data: {
-      userId: DEMO_USER_ID,
-      name: '401(k)',
-      type: AccountType.INVESTMENT,
-      balance: 45000,
-      assetClass: 'STOCKS',
-      expectedReturn: 0.08,
-    },
   })
   const studentLoanAcct = await db.account.create({
     data: {
       userId: DEMO_USER_ID,
       name: 'Student Loans',
       type: AccountType.STUDENT_LOAN,
-      balance: -32000,
+      balance: -258000,
     },
+  })
+  const rothIRA = await db.account.create({
+    data: { userId: DEMO_USER_ID, name: 'Roth IRA', type: AccountType.INVESTMENT, balance: 8500 },
   })
 
   // ─── Transactions ────────────────────────────────────────────────────
@@ -249,104 +233,83 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     })
   }
 
-  // Shared categories where Taylor gets tagged ~30% of the time
-  const sharedCategories = ['Groceries', 'Restaurants & Bars', 'Entertainment & Recreation', 'Gas']
-
-  function partnerTag(categoryName: string | null): { householdMemberId?: string } {
-    if (categoryName && sharedCategories.includes(categoryName) && Math.random() < 0.3) {
-      return { householdMemberId: taylor.id }
-    }
-    return {}
-  }
-
-  // ─── Change 8: Richer recurring transactions ──────────────────────
-  // 6 months of data (current + 5 prior) for deeper history
+  // ─── Recurring transactions (6 months) ──────────────────────────────
   for (let m = 5; m >= 0; m--) {
-    // Income — bi-weekly paycheck pattern
-    addTx(checking.id, 'Paychecks', 7292, 'Acme Corp — Payroll', monthsAgo(m, 1))
-    addTx(checking.id, 'Paychecks', 7291, 'Acme Corp — Payroll', monthsAgo(m, 15))
+    // Income — bi-weekly paycheck (resident salary ~$65K/yr)
+    addTx(checking.id, 'Paychecks', 2708, 'University Hospital — Payroll', monthsAgo(m, 1))
+    addTx(checking.id, 'Paychecks', 2708, 'University Hospital — Payroll', monthsAgo(m, 15))
 
-    // Side income (intermittent)
-    if (randInt(0, 2) === 0) {
-      addTx(checking.id, 'Side Gig', randAmount(400, 800), 'Freelance Design', monthsAgo(m, randInt(15, 20)))
+    // Moonlighting shifts (~30% of months)
+    if (Math.random() < 0.3) {
+      addTx(checking.id, 'Side Gig', randAmount(1200, 1500), 'Moonlighting — ER Coverage', monthsAgo(m, randInt(15, 20)))
     }
 
     // Fixed expenses
-    addTx(checking.id, 'Rent', -1850, 'Lakewood Apartments', monthsAgo(m, 1))
-    addTx(checking.id, 'Auto Payment', -387, 'Honda Financial Services', monthsAgo(m, 5))
-    addTx(checking.id, 'Insurance', -180, 'State Farm', monthsAgo(m, 3))
-    addTx(checking.id, 'Gas & Electric', -randAmount(95, 145), 'National Grid', monthsAgo(m, randInt(18, 22)))
-    addTx(checking.id, 'Internet & Cable', -89.99, 'Verizon Fios', monthsAgo(m, 8))
+    addTx(checking.id, 'Rent', -1800, 'Parkside Apartments', monthsAgo(m, 1))
+    addTx(checking.id, 'Insurance', -120, 'State Farm', monthsAgo(m, 3))
+    addTx(checking.id, 'Gas & Electric', -randAmount(70, 110), 'National Grid', monthsAgo(m, randInt(18, 22)))
+    addTx(checking.id, 'Internet & Cable', -69.99, 'Verizon Fios', monthsAgo(m, 8))
 
-    // Explicit recurring subscriptions (Change 8)
+    // Subscriptions
     addTx(creditCard.id, 'Subscriptions', -15.99, 'Netflix', monthsAgo(m, 4))
     addTx(creditCard.id, 'Subscriptions', -10.99, 'Spotify Family', monthsAgo(m, 4))
-    addTx(creditCard.id, 'Subscriptions', -2.99, 'Apple iCloud+', monthsAgo(m, 3))
-    addTx(creditCard.id, 'Subscriptions', -17.00, 'NYT Digital', monthsAgo(m, 12))
-    addTx(checking.id, 'Fitness', -49.99, 'Planet Fitness', monthsAgo(m, 1))
+    addTx(creditCard.id, 'Subscriptions', -24.99, 'UpToDate', monthsAgo(m, 3))
 
-    // Student loan payment (Change 3)
-    addTx(checking.id, 'Loan Payment', -345, 'FedLoan Servicing', monthsAgo(m, 20))
+    // Student loan payment
+    addTx(checking.id, 'Loan Payment', -800, 'FedLoan Servicing', monthsAgo(m, 20))
 
-    // Groceries (8-12 per month, ~30% tagged to Taylor)
+    // Groceries (6-8 per month — less time to cook)
     const groceryMerchants = ["Trader Joe's", 'Stop & Shop', 'Whole Foods', 'Aldi', 'Costco']
-    const groceryCount = randInt(8, 12)
+    const groceryCount = randInt(6, 8)
     for (let i = 0; i < groceryCount; i++) {
       addTx(
         pick([checking.id, creditCard.id]),
         'Groceries',
-        -randAmount(25, 130),
+        -randAmount(20, 80),
         pick(groceryMerchants),
-        monthsAgo(m, randInt(1, 28)),
-        partnerTag('Groceries')
+        monthsAgo(m, randInt(1, 28))
       )
     }
 
-    // Dining (6-10 per month)
-    const diningMerchants = ['Chipotle', 'Local Pub & Grill', "Domino's", 'Starbucks', 'Thai Basil', 'Panera Bread', 'Sweetgreen']
+    // Dining (6-10 per month — hospital cafeteria, fast casual)
+    const diningMerchants = ['Hospital Cafeteria', 'Chipotle', "McDonald's", 'Starbucks', 'Subway', 'Panera Bread']
     const diningCount = randInt(6, 10)
     for (let i = 0; i < diningCount; i++) {
       addTx(
         pick([checking.id, creditCard.id]),
         'Restaurants & Bars',
-        -randAmount(12, 65),
+        -randAmount(8, 35),
         pick(diningMerchants),
-        monthsAgo(m, randInt(1, 28)),
-        partnerTag('Restaurants & Bars')
+        monthsAgo(m, randInt(1, 28))
       )
     }
 
-    // Gas (3-4 per month)
-    const gasCount = randInt(3, 4)
+    // Gas (2-3 per month)
+    const gasCount = randInt(2, 3)
     for (let i = 0; i < gasCount; i++) {
       addTx(
-        creditCard.id, 'Gas', -randAmount(35, 55),
+        creditCard.id, 'Gas', -randAmount(30, 45),
         pick(['Shell', 'Sunoco', 'Mobil']),
-        monthsAgo(m, randInt(1, 28)),
-        partnerTag('Gas')
+        monthsAgo(m, randInt(1, 28))
       )
     }
 
-    // Entertainment (2-4 per month)
+    // Entertainment (1-2 per month)
     const entertainmentMerchants = ['AMC Theatres', 'Steam', 'Barnes & Noble', 'Ticketmaster']
-    const entertainCount = randInt(2, 4)
+    const entertainCount = randInt(1, 2)
     for (let i = 0; i < entertainCount; i++) {
       addTx(
         creditCard.id,
         'Entertainment & Recreation',
-        -randAmount(10, 55),
+        -randAmount(8, 30),
         pick(entertainmentMerchants),
-        monthsAgo(m, randInt(1, 28)),
-        partnerTag('Entertainment & Recreation')
+        monthsAgo(m, randInt(1, 28))
       )
     }
 
-    // Clothing (1-2 some months)
-    if (randInt(0, 1)) {
-      const clothingCount = randInt(1, 2)
-      for (let i = 0; i < clothingCount; i++) {
-        addTx(creditCard.id, 'Clothing', -randAmount(30, 90), pick(['Target', 'Uniqlo', 'H&M', 'Amazon']), monthsAgo(m, randInt(5, 25)))
-      }
+    // Clothing (every other month only)
+    if (m % 2 === 0) {
+      addTx(creditCard.id, 'Clothing', -randAmount(20, 50), pick(['Target', 'Uniqlo', 'H&M', 'Amazon']), monthsAgo(m, randInt(5, 25)))
     }
 
     // Personal Care (1-2 per month)
@@ -354,26 +317,10 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     for (let i = 0; i < pcCount; i++) {
       addTx(creditCard.id, 'Personal Care', -randAmount(15, 45), pick(['CVS', 'Great Clips', 'Walgreens']), monthsAgo(m, randInt(3, 27)))
     }
-  }
 
-  // Annual one-time hits
-  addTx(checking.id, 'Auto Maintenance', -245, 'DMV — Vehicle Registration', monthsAgo(2, 15))
-  addTx(checking.id, 'Auto Insurance', -612, 'GEICO — 6-Month Premium', monthsAgo(4, 10))
-
-  // Vacation spending 1 month ago
-  addTx(creditCard.id, 'Travel & Vacation', -340, 'Airbnb', monthsAgo(1, 8))
-  addTx(creditCard.id, 'Travel & Vacation', -260, 'Southwest Airlines', monthsAgo(1, 5))
-  addTx(creditCard.id, 'Travel & Vacation', -200, 'Restaurant — Vacation', monthsAgo(1, 10))
-
-  // Gift spending (holiday, 3 months ago)
-  addTx(creditCard.id, 'Gifts', -185, 'Amazon — Gift Orders', monthsAgo(3, 20))
-  addTx(creditCard.id, 'Gifts', -95, 'Etsy', monthsAgo(3, 22))
-
-  // Partner-specific transactions (Change 8)
-  for (let m = 5; m >= 0; m--) {
-    addTx(creditCard.id, 'Personal Care', -randAmount(20, 50), 'Sephora', monthsAgo(m, randInt(10, 20)), { householdMemberId: taylor.id })
-    if (randInt(0, 1)) {
-      addTx(creditCard.id, 'Clothing', -randAmount(25, 75), pick(['Zara', 'Nordstrom Rack']), monthsAgo(m, randInt(5, 25)), { householdMemberId: taylor.id })
+    // Medical expenses (board prep, some months)
+    if (randInt(0, 2) === 0) {
+      addTx(creditCard.id, 'Medical', -randAmount(20, 50), 'Board Prep Materials', monthsAgo(m, randInt(10, 20)))
     }
   }
 
@@ -385,30 +332,28 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   twoDaysAgo.setDate(today.getDate() - 2)
 
   addTx(creditCard.id, 'Groceries', -67.42, "Trader Joe's", twoDaysAgo)
-  addTx(creditCard.id, 'Restaurants & Bars', -28.5, 'Starbucks', yesterday, { householdMemberId: taylor.id })
-  addTx(checking.id, 'Gas', -42.18, 'Shell', yesterday)
+  addTx(creditCard.id, 'Restaurants & Bars', -12.50, 'Hospital Cafeteria', yesterday)
+  addTx(checking.id, 'Gas', -38.18, 'Shell', yesterday)
 
   // ─── Current month guaranteed transactions ──────────────────────────
-  addTx(checking.id, 'Paychecks', 7292, 'Acme Corp — Payroll', monthsAgo(0, 1))
-  addTx(checking.id, 'Paychecks', 7291, 'Acme Corp — Payroll', monthsAgo(0, 15))
+  addTx(checking.id, 'Paychecks', 2708, 'University Hospital — Payroll', monthsAgo(0, 1))
+  addTx(checking.id, 'Paychecks', 2708, 'University Hospital — Payroll', monthsAgo(0, 15))
 
-  addTx(checking.id, 'Rent', -1850, 'Lakewood Apartments', monthsAgo(0, 1))
-  addTx(checking.id, 'Gas & Electric', -145, 'National Grid', monthsAgo(0, 5))
-  addTx(checking.id, 'Insurance', -180, 'State Farm', monthsAgo(0, 3))
-  addTx(creditCard.id, 'Internet & Cable', -89.99, 'Verizon Fios', monthsAgo(0, 7))
+  addTx(checking.id, 'Rent', -1800, 'Parkside Apartments', monthsAgo(0, 1))
+  addTx(checking.id, 'Gas & Electric', -90, 'National Grid', monthsAgo(0, 5))
+  addTx(checking.id, 'Insurance', -120, 'State Farm', monthsAgo(0, 3))
+  addTx(creditCard.id, 'Internet & Cable', -69.99, 'Verizon Fios', monthsAgo(0, 7))
   addTx(creditCard.id, 'Subscriptions', -15.99, 'Netflix', monthsAgo(0, 4))
   addTx(creditCard.id, 'Subscriptions', -10.99, 'Spotify Family', monthsAgo(0, 4))
-  addTx(creditCard.id, 'Subscriptions', -17.00, 'NYT Digital', monthsAgo(0, 12))
+  addTx(creditCard.id, 'Subscriptions', -24.99, 'UpToDate', monthsAgo(0, 12))
 
-  addTx(creditCard.id, 'Groceries', -68.33, 'Whole Foods', monthsAgo(0, 2))
-  addTx(creditCard.id, 'Groceries', -52.17, "Trader Joe's", monthsAgo(0, 5), { householdMemberId: taylor.id })
-  addTx(creditCard.id, 'Restaurants & Bars', -43.5, 'Chipotle', monthsAgo(0, 3))
-  addTx(creditCard.id, 'Gas', -48.2, 'Shell', monthsAgo(0, 1))
-  addTx(creditCard.id, 'Clothing', -34.99, 'Amazon', monthsAgo(0, 6))
-  addTx(creditCard.id, 'Restaurants & Bars', -6.75, 'Blue Bottle Coffee', monthsAgo(0, 2), { householdMemberId: taylor.id })
-  addTx(creditCard.id, 'Restaurants & Bars', -5.5, 'Blue Bottle Coffee', monthsAgo(0, 5))
-  addTx(creditCard.id, 'Fitness', -49.99, 'Planet Fitness', monthsAgo(0, 1))
-  addTx(checking.id, 'Loan Payment', -345, 'FedLoan Servicing', monthsAgo(0, 20))
+  addTx(creditCard.id, 'Groceries', -48.33, 'Whole Foods', monthsAgo(0, 2))
+  addTx(creditCard.id, 'Groceries', -32.17, "Trader Joe's", monthsAgo(0, 5))
+  addTx(creditCard.id, 'Restaurants & Bars', -14.50, 'Chipotle', monthsAgo(0, 3))
+  addTx(creditCard.id, 'Gas', -38.20, 'Shell', monthsAgo(0, 1))
+  addTx(creditCard.id, 'Restaurants & Bars', -6.75, 'Starbucks', monthsAgo(0, 2))
+  addTx(creditCard.id, 'Restaurants & Bars', -5.50, 'Hospital Cafeteria', monthsAgo(0, 5))
+  addTx(checking.id, 'Loan Payment', -800, 'FedLoan Servicing', monthsAgo(0, 20))
 
   // Write all transactions
   await db.transaction.createMany({ data: allTransactions })
@@ -430,14 +375,12 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   const yearStart = new Date(now.getFullYear(), 0, 1)
 
   const fixedBudgets = [
-    { name: 'Rent', category: 'Rent', amount: 1850, dueDay: 1, isAutoPay: true, varianceLimit: 0 },
-    { name: 'Car Payment', category: 'Auto Payment', amount: 387, dueDay: 5, isAutoPay: true, varianceLimit: 0 },
-    { name: 'Insurance', category: 'Insurance', amount: 180, dueDay: 3, isAutoPay: true, varianceLimit: 5 },
-    { name: 'Electric', category: 'Gas & Electric', amount: 145, dueDay: 20, isAutoPay: false, varianceLimit: 30 },
-    { name: 'Internet', category: 'Internet & Cable', amount: 89.99, dueDay: 8, isAutoPay: true, varianceLimit: 0 },
-    { name: 'Subscriptions', category: 'Subscriptions', amount: 47, dueDay: 3, isAutoPay: true, varianceLimit: 2 },
-    { name: 'Gym', category: 'Fitness', amount: 49.99, dueDay: 1, isAutoPay: true, varianceLimit: 0 },
-    { name: 'Student Loan', category: 'Loan Payment', amount: 345, dueDay: 20, isAutoPay: true, varianceLimit: 0 },
+    { name: 'Rent', category: 'Rent', amount: 1800, dueDay: 1, isAutoPay: true, varianceLimit: 0 },
+    { name: 'Insurance', category: 'Insurance', amount: 120, dueDay: 3, isAutoPay: true, varianceLimit: 5 },
+    { name: 'Electric', category: 'Gas & Electric', amount: 90, dueDay: 20, isAutoPay: false, varianceLimit: 30 },
+    { name: 'Internet', category: 'Internet & Cable', amount: 69.99, dueDay: 8, isAutoPay: true, varianceLimit: 0 },
+    { name: 'Subscriptions', category: 'Subscriptions', amount: 53, dueDay: 3, isAutoPay: true, varianceLimit: 2 },
+    { name: 'Student Loan', category: 'Loan Payment', amount: 800, dueDay: 20, isAutoPay: true, varianceLimit: 0 },
   ]
 
   for (const fb of fixedBudgets) {
@@ -458,12 +401,12 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
   }
 
   const flexibleBudgets = [
-    { name: 'Groceries', category: 'Groceries', amount: 600 },
-    { name: 'Dining Out', category: 'Restaurants & Bars', amount: 250 },
-    { name: 'Gas', category: 'Gas', amount: 180 },
-    { name: 'Entertainment', category: 'Entertainment & Recreation', amount: 120 },
-    { name: 'Clothing', category: 'Clothing', amount: 100 },
-    { name: 'Personal Care', category: 'Personal Care', amount: 60 },
+    { name: 'Groceries', category: 'Groceries', amount: 400 },
+    { name: 'Dining Out', category: 'Restaurants & Bars', amount: 200 },
+    { name: 'Gas', category: 'Gas', amount: 120 },
+    { name: 'Entertainment', category: 'Entertainment & Recreation', amount: 60 },
+    { name: 'Clothing', category: 'Clothing', amount: 50 },
+    { name: 'Personal Care', category: 'Personal Care', amount: 40 },
   ]
 
   for (const fb of flexibleBudgets) {
@@ -480,23 +423,19 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     })
   }
 
-  // ─── Change 4: More Annual Expenses ────────────────────────────────
+  // ─── Annual Expenses ─────────────────────────────────────────────────
   const annualBudgetDefs = [
     {
-      budgetName: 'Vacation Fund', category: 'Travel & Vacation', monthlyAmount: 250,
-      expenseName: 'Summer Vacation', annualAmount: 3000, dueMonth: 7, funded: 500, status: 'planned' as const,
+      budgetName: 'Vacation Fund', category: 'Travel & Vacation', monthlyAmount: 100,
+      expenseName: 'Vacation Fund', annualAmount: 1200, dueMonth: 7, funded: 300, status: 'planned' as const,
     },
     {
-      budgetName: 'Auto Insurance', category: 'Auto Insurance', monthlyAmount: 100,
-      expenseName: 'Auto Insurance Premium', annualAmount: 1200, dueMonth: 9, funded: 600, status: 'funded' as const,
+      budgetName: 'Holiday Gifts', category: 'Gifts', monthlyAmount: 34,
+      expenseName: 'Holiday Gifts', annualAmount: 400, dueMonth: 12, funded: 100, status: 'planned' as const,
     },
     {
-      budgetName: 'Holiday Gifts', category: 'Gifts', monthlyAmount: 67,
-      expenseName: 'Holiday Gifts', annualAmount: 800, dueMonth: 12, funded: 200, status: 'planned' as const,
-    },
-    {
-      budgetName: 'Car Registration', category: 'Auto Maintenance', monthlyAmount: 21,
-      expenseName: 'Vehicle Registration', annualAmount: 250, dueMonth: 5, funded: 84, status: 'planned' as const,
+      budgetName: 'Board Exam Fees', category: 'Medical', monthlyAmount: 167,
+      expenseName: 'Board Exam Fees', annualAmount: 2000, dueMonth: 5, funded: 500, status: 'planned' as const,
     },
   ]
 
@@ -530,139 +469,17 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     })
   }
 
-  // ─── Properties ─────────────────────────────────────────────────────
-  const primaryHome = await db.property.create({
-    data: {
-      userId: DEMO_USER_ID,
-      name: '456 Oak Ave',
-      type: 'PERSONAL',
-      taxSchedule: 'SCHEDULE_A',
-    },
-  })
-
-  const rentalProperty = await db.property.create({
-    data: {
-      userId: DEMO_USER_ID,
-      name: '123 Main St',
-      type: 'RENTAL',
-      taxSchedule: 'SCHEDULE_E',
-      purchasePrice: new Prisma.Decimal(265000),
-      purchaseDate: new Date('2021-03-01'),
-      buildingValuePct: new Prisma.Decimal(80),
-      priorDepreciation: new Prisma.Decimal(38545.45),
-    },
-  })
-
-  // ─── Property Group with Split Rules ────────────────────────────────
-  const propGroup = await db.propertyGroup.create({
-    data: {
-      userId: DEMO_USER_ID,
-      name: 'All Properties',
-      description: 'Shared expenses split 50/50 between primary and rental',
-    },
-  })
-
-  await db.property.update({
-    where: { id: primaryHome.id },
-    data: { groupId: propGroup.id, splitPct: new Prisma.Decimal(50) },
-  })
-  await db.property.update({
-    where: { id: rentalProperty.id },
-    data: { groupId: propGroup.id, splitPct: new Prisma.Decimal(50) },
-  })
-
-  await db.splitRule.create({
-    data: { propertyGroupId: propGroup.id, propertyId: primaryHome.id, allocationPct: new Prisma.Decimal(50) },
-  })
-  await db.splitRule.create({
-    data: { propertyGroupId: propGroup.id, propertyId: rentalProperty.id, allocationPct: new Prisma.Decimal(50) },
-  })
-
-  await db.splitMatchRule.create({
-    data: {
-      propertyGroupId: propGroup.id,
-      name: 'Mortgage payments',
-      matchField: 'CATEGORY',
-      matchPattern: 'Mortgage',
-      allocations: [
-        { propertyId: primaryHome.id, percentage: 50 },
-        { propertyId: rentalProperty.id, percentage: 50 },
-      ],
-      isActive: true,
-    },
-  })
-
-  // ─── Property-tagged annual expenses ────────────────────────────────
-  const propAnnualDefs = [
-    { budgetName: 'Property Tax', category: 'Property Tax', monthlyAmount: 292, expenseName: 'Property Tax', annualAmount: 3500, dueMonth: 11, funded: 1750, status: 'planned' as const, propertyId: primaryHome.id },
-    { budgetName: 'Home Insurance', category: 'Home Insurance', monthlyAmount: 108, expenseName: 'Homeowner\'s Insurance', annualAmount: 1300, dueMonth: 6, funded: 650, status: 'funded' as const, propertyId: primaryHome.id },
-  ]
-
-  for (const pad of propAnnualDefs) {
-    const catId = categoryMap.get(pad.category)
-    const pBudget = await db.budget.create({
-      data: {
-        userId: DEMO_USER_ID,
-        categoryId: catId ?? null,
-        name: pad.budgetName,
-        amount: pad.monthlyAmount,
-        period: BudgetPeriod.MONTHLY,
-        tier: BudgetTier.ANNUAL,
-        startDate: yearStart,
-      },
-    })
-    await db.annualExpense.create({
-      data: {
-        userId: DEMO_USER_ID,
-        budgetId: pBudget.id,
-        name: pad.expenseName,
-        annualAmount: pad.annualAmount,
-        dueMonth: pad.dueMonth,
-        dueYear: now.getFullYear(),
-        monthlySetAside: pad.monthlyAmount,
-        funded: pad.funded,
-        isRecurring: true,
-        status: pad.status,
-        propertyId: pad.propertyId,
-      },
-    })
-  }
-
-  // ─── Account-Property Link ──────────────────────────────────────────
-  await db.accountPropertyLink.create({
-    data: { accountId: checking.id, propertyId: primaryHome.id },
-  })
-
-  // ─── Change 3: Debts (mortgage + credit card + student loan) ──────
-  const mortgageCatId = categoryMap.get('Mortgage')
+  // ─── Debts ───────────────────────────────────────────────────────────
   const loanPaymentCatId = categoryMap.get('Loan Payment')
-
-  await db.debt.create({
-    data: {
-      userId: DEMO_USER_ID,
-      name: 'Mortgage \u2013 456 Oak Ave',
-      type: 'MORTGAGE',
-      currentBalance: 310000,
-      originalBalance: 340000,
-      interestRate: 0.0625,
-      minimumPayment: 2350,
-      escrowAmount: 400,
-      paymentDay: 1,
-      termMonths: 360,
-      startDate: new Date('2022-06-01'),
-      propertyId: primaryHome.id,
-      categoryId: mortgageCatId ?? null,
-    },
-  })
 
   await db.debt.create({
     data: {
       userId: DEMO_USER_ID,
       name: 'Chase Sapphire',
       type: 'CREDIT_CARD',
-      currentBalance: 5290.14,
-      interestRate: 0.2499,
-      minimumPayment: 132,
+      currentBalance: 2100,
+      interestRate: 0.2199,
+      minimumPayment: 63,
       paymentDay: 15,
       accountId: creditCard.id,
     },
@@ -673,10 +490,10 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
       userId: DEMO_USER_ID,
       name: 'Federal Student Loans',
       type: 'STUDENT_LOAN',
-      currentBalance: 32000,
-      originalBalance: 38000,
-      interestRate: 0.055,
-      minimumPayment: 345,
+      currentBalance: 258000,
+      originalBalance: 267000,
+      interestRate: 0.065,
+      minimumPayment: 800,
       paymentDay: 20,
       termMonths: 120,
       startDate: new Date('2020-09-01'),
@@ -685,61 +502,14 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     },
   })
 
-  // ─── Property-attributed Transactions (Change 8) ──────────────────
-  // Mortgage payments for primary home (6 months)
-  for (let m = 5; m >= 0; m--) {
-    addTx(
-      checking.id, 'Mortgage', -2350, 'US Bank Mortgage',
-      monthsAgo(m, 1),
-      { propertyId: primaryHome.id }
-    )
-  }
-
-  // Rental income + rental mortgage + rental expenses (6 months)
-  for (let m = 5; m >= 0; m--) {
-    addTx(
-      checking.id, 'Rental Income', 1850, 'Tenant Payment',
-      monthsAgo(m, 5),
-      { propertyId: rentalProperty.id, classification: 'income' }
-    )
-    addTx(
-      checking.id, 'Mortgage', -1800, 'Wells Fargo Mortgage',
-      monthsAgo(m, 1),
-      { propertyId: rentalProperty.id }
-    )
-    // Rental property insurance (every other month)
-    if (m % 2 === 0) {
-      addTx(
-        checking.id, 'Insurance', -125, 'Landlord Insurance Co',
-        monthsAgo(m, 10),
-        { propertyId: rentalProperty.id }
-      )
-    }
-  }
-  // Rental maintenance one-offs
-  addTx(checking.id, 'Home Improvement', -450, 'Home Depot — Rental Repairs', monthsAgo(2, 18), { propertyId: rentalProperty.id })
-  addTx(checking.id, 'Home Improvement', -180, 'Roto-Rooter', monthsAgo(4, 8), { propertyId: rentalProperty.id })
-
-  // Write property-attributed transactions separately (main batch was already written)
-  const propertyTxs = allTransactions.filter(tx => tx.propertyId)
-  if (propertyTxs.length > 0) {
-    await db.transaction.createMany({ data: propertyTxs })
-    for (const tx of propertyTxs) {
-      await db.account.update({
-        where: { id: tx.accountId },
-        data: { balance: { increment: tx.amount } },
-      })
-    }
-  }
-
-  // ─── Change 5: Monthly Snapshots (6 months) ──────────────────────
+  // ─── Monthly Snapshots (6 months) ──────────────────────────────────
   const snapshotData = [
-    { monthsBack: 5, totalIncome: 14583, totalExpenses: 11200, netWorth: 38500, totalDebt: 347290, savingsRate: 0.23 },
-    { monthsBack: 4, totalIncome: 14583, totalExpenses: 11850, netWorth: 41200, totalDebt: 346800, savingsRate: 0.19 },
-    { monthsBack: 3, totalIncome: 15083, totalExpenses: 12100, netWorth: 44100, totalDebt: 346200, savingsRate: 0.20 },
-    { monthsBack: 2, totalIncome: 14583, totalExpenses: 11400, netWorth: 47300, totalDebt: 345600, savingsRate: 0.22 },
-    { monthsBack: 1, totalIncome: 14583, totalExpenses: 12400, netWorth: 49600, totalDebt: 345000, savingsRate: 0.15 },
-    { monthsBack: 0, totalIncome: 14583, totalExpenses: 10800, netWorth: 53400, totalDebt: 344400, savingsRate: 0.26 },
+    { monthsBack: 5, totalIncome: 5416, totalExpenses: 4500, netWorth: -249800, totalDebt: 261000, savingsRate: 0.08 },
+    { monthsBack: 4, totalIncome: 5416, totalExpenses: 4600, netWorth: -249200, totalDebt: 260200, savingsRate: 0.07 },
+    { monthsBack: 3, totalIncome: 6800, totalExpenses: 4400, netWorth: -247000, totalDebt: 259400, savingsRate: 0.15 },
+    { monthsBack: 2, totalIncome: 5416, totalExpenses: 4300, netWorth: -246000, totalDebt: 258600, savingsRate: 0.10 },
+    { monthsBack: 1, totalIncome: 5416, totalExpenses: 4800, netWorth: -245600, totalDebt: 258000, savingsRate: 0.05 },
+    { monthsBack: 0, totalIncome: 5416, totalExpenses: 4200, netWorth: -244400, totalDebt: 257200, savingsRate: 0.12 },
   ]
 
   for (const snap of snapshotData) {
@@ -755,38 +525,37 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         savingsRate: snap.savingsRate,
         netSurplus,
         annualFundedPct: 0.45 + snap.monthsBack * 0.05,
-        budgetsOnTrack: randInt(8, 12),
-        budgetsTotal: 14,
-        fixedPaid: randInt(6, 8),
-        fixedTotal: 8,
+        budgetsOnTrack: randInt(6, 10),
+        budgetsTotal: 12,
+        fixedPaid: randInt(4, 6),
+        fixedTotal: 6,
         flexOverBudget: randInt(0, 2),
-        transactionCount: randInt(55, 80),
+        transactionCount: randInt(35, 55),
         avgDailySpend: snap.totalExpenses / 30,
         totalDebt: snap.totalDebt,
-        totalDebtPayments: 2827,
+        totalDebtPayments: 863,
         debtPaidDown: randAmount(400, 600),
         netWorth: snap.netWorth,
-        personBreakdown: JSON.stringify({ Alex: Math.round(snap.totalExpenses * 0.7), Taylor: Math.round(snap.totalExpenses * 0.3) }),
-        propertyBreakdown: JSON.stringify({ '456 Oak Ave': 2350, '123 Main St': 1925 }),
+        personBreakdown: JSON.stringify({ Alex: snap.totalExpenses }),
       },
     })
   }
 
-  // ─── Change 6: Seed AI Insights ───────────────────────────────────
+  // ─── AI Insights ────────────────────────────────────────────────────
   await db.insight.createMany({
     data: [
       {
         userId: DEMO_USER_ID,
-        category: 'spending',
+        category: 'debt',
         type: 'optimization',
         priority: 'high',
-        title: 'Dining spending trending up',
-        description: 'Your restaurant & bar spending has increased 18% over the last 3 months, averaging $285/mo vs your $250 budget. Consider meal-prepping 2 extra dinners per week to save ~$120/month.',
-        savingsAmount: 120,
+        title: 'Student loan payoff acceleration',
+        description: 'Your student loan interest costs $1,398/mo. Once your attending salary starts in Jul 2028, directing 15% of your raise to loans pays them off 12 years early.',
+        savingsAmount: 1398,
         actionItems: JSON.stringify([
-          'Review dining transactions from the past 30 days',
-          'Identify weekday vs weekend dining patterns',
-          'Set a weekly dining budget of $55',
+          'Set a calendar reminder for Jul 2028 to increase loan payments',
+          'Research income-driven repayment vs standard plan',
+          'Consider refinancing once attending salary begins',
         ]),
         status: 'active',
         generatedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
@@ -796,29 +565,29 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         category: 'savings',
         type: 'alert',
         priority: 'medium',
-        title: 'On track for emergency fund goal',
-        description: "At your current savings rate of 22%, you're projected to reach your $25K emergency fund target by February 2027 — 4 months ahead of schedule. Great progress!",
+        title: 'Strong savings habits for a resident',
+        description: "You're doing well on a resident salary — your savings rate of 10% puts you ahead of most PGY-2 residents. Focus on building habits now.",
         savingsAmount: null,
         actionItems: JSON.stringify([
           'Continue current savings trajectory',
-          'Consider increasing 401(k) contributions after hitting $25K',
-          'Review target once the raise kicks in',
+          'Max out Roth IRA contributions while in a low tax bracket',
+          'Build emergency fund to 3 months of expenses',
         ]),
         status: 'active',
         generatedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
       },
       {
         userId: DEMO_USER_ID,
-        category: 'subscription',
-        type: 'waste',
+        category: 'spending',
+        type: 'optimization',
         priority: 'low',
-        title: 'Subscription creep detected',
-        description: 'Your recurring subscriptions total $96.96/mo ($1,163/yr). NYT Digital ($17/mo) has the lowest engagement based on transaction frequency. Consider if all subscriptions still provide value.',
-        savingsAmount: 17,
+        title: 'Stealth wealth strategy',
+        description: "Consider keeping your residency-level spending for 2 years after becoming an attending. This 'stealth wealth' period could eliminate your loans entirely.",
+        savingsAmount: null,
         actionItems: JSON.stringify([
-          'Audit all active subscriptions',
-          'Check if NYT Digital can be shared or downgraded',
-          'Set a calendar reminder to review subscriptions quarterly',
+          'Document current monthly spending as your baseline',
+          'Plan to live on resident salary for 2 years post-residency',
+          'Direct the entire salary increase to debt payoff',
         ]),
         status: 'active',
         generatedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
@@ -826,11 +595,11 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
     ],
   })
 
-  // ─── Change 7: Seed Efficiency Scores ─────────────────────────────
+  // ─── Efficiency Scores ──────────────────────────────────────────────
   const efficiencyData = [
-    { monthsBack: 2, overall: 68, spending: 65, savings: 72, debt: 67 },
-    { monthsBack: 1, overall: 72, spending: 69, savings: 76, debt: 71 },
-    { monthsBack: 0, overall: 77, spending: 74, savings: 81, debt: 76 },
+    { monthsBack: 2, overall: 52, spending: 58, savings: 42, debt: 56 },
+    { monthsBack: 1, overall: 55, spending: 60, savings: 45, debt: 60 },
+    { monthsBack: 0, overall: 59, spending: 63, savings: 48, debt: 66 },
   ]
 
   for (const eff of efficiencyData) {
@@ -846,8 +615,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         period: periodStr,
         breakdown: JSON.stringify({
           spending: { score: eff.spending, benchmarkPct: 0.72, topCategory: 'Dining' },
-          savings: { score: eff.savings, rate: 0.22, targetRate: 0.25 },
-          debt: { score: eff.debt, dtiRatio: 0.31, paydownRate: 0.04 },
+          savings: { score: eff.savings, rate: 0.10, targetRate: 0.15 },
+          debt: { score: eff.debt, dtiRatio: 0.55, paydownRate: 0.02 },
         }),
       },
     })
