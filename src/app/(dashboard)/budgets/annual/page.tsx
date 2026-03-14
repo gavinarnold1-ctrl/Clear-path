@@ -22,7 +22,9 @@ export default async function AnnualPlanningPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const [expenses, categories, allBudgets, incomeAgg, monthExpenses, properties] = await Promise.all([
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+
+  const [expenses, categories, allBudgets, incomeAgg, monthExpenses, properties, userProfile, priorIncomeAgg] = await Promise.all([
     db.annualExpense.findMany({
       where: { userId: session.userId },
       include: {
@@ -66,10 +68,24 @@ export default async function AnnualPlanningPage() {
       select: { id: true, name: true, type: true },
       orderBy: { name: 'asc' },
     }),
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { expectedMonthlyIncome: true },
+    }),
+    db.transaction.aggregate({
+      where: {
+        userId: session.userId,
+        date: { gte: threeMonthsAgo, lte: startOfMonth },
+        classification: 'income',
+      },
+      _sum: { amount: true },
+    }),
   ])
 
-  // Compute True Remaining (mirrors budgets page TrueRemainingBanner logic)
-  const income = incomeAgg._sum.amount ?? 0
+  // Compute True Remaining — use same income resolution as dashboard and budgets page
+  const currentMonthIncome = incomeAgg._sum.amount ?? 0
+  const autoExpectedIncome = (priorIncomeAgg._sum.amount ?? 0) / 3
+  const income = userProfile?.expectedMonthlyIncome ?? (autoExpectedIncome > 0 ? autoExpectedIncome : currentMonthIncome)
 
   // Build flexible-specific spent map that excludes annual-plan-linked transactions
   const flexSpentByCategory = new Map<string, number>()
