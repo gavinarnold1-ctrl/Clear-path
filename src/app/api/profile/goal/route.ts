@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import type { PrimaryGoal } from '@/types'
 
 const VALID_GOALS: PrimaryGoal[] = [
@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
     previousGoals = existing.previousGoals as Prisma.InputJsonValue
   }
 
+  // Clear stale goalTarget when archetype changes — prevents absurd targets
+  // from the old goal persisting on the forecast page
+  const isGoalChanging = existing?.primaryGoal && existing.primaryGoal !== primaryGoal
+
   const profile = await db.userProfile.upsert({
     where: { userId: session.userId },
     create: {
@@ -59,6 +63,7 @@ export async function POST(req: NextRequest) {
       primaryGoal,
       goalSetAt: now,
       previousGoals,
+      ...(isGoalChanging ? { goalTarget: Prisma.JsonNull } : {}),
     },
     select: {
       primaryGoal: true,

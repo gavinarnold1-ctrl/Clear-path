@@ -983,6 +983,20 @@ function SingleDebtCard({
         </div>
       </div>
 
+      {/* Negative amortization warning: payment doesn't cover interest */}
+      {debt.monthsRemaining === null && debt.currentBalance > 0 && debt.interestRate > 0 && debt.minimumPayment > 0 && debt.monthlyPrincipal === 0 && (
+        <div className="mt-2 rounded-button border border-ember/30 bg-ember/5 px-3 py-2 text-xs text-ember">
+          Payment of {formatCurrency(debt.minimumPayment)}/mo does not cover monthly interest of {formatCurrency(debt.monthlyInterest)}. Balance is growing each month. Consider increasing your payment above {formatCurrency(debt.monthlyInterest)}/mo.
+        </div>
+      )}
+
+      {/* Plaid-imported debt with missing rate/payment */}
+      {debt.currentBalance > 0 && debt.interestRate === 0 && debt.minimumPayment === 0 && (
+        <div className="mt-2 rounded-button border border-birch/30 bg-birch/5 px-3 py-2 text-xs text-stone">
+          Rate and payment data not available from your bank. Edit this debt to add your interest rate and minimum payment for accurate payoff tracking.
+        </div>
+      )}
+
       {/* PITI breakdown */}
       <DebtPITIBreakdown debt={debt} properties={properties} />
 
