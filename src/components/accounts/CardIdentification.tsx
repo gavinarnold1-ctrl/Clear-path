@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { CardSuggestion, CardProgram } from '@/types'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, normalizeAccountName } from '@/lib/utils'
 
 interface UnidentifiedAccount {
   id: string
@@ -275,7 +275,7 @@ export default function CardIdentification() {
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fjord">
-                  {account.name}
+                  {normalizeAccountName(account.name)}
                   {account.institution && (
                     <span className="ml-1 text-xs text-stone">
                       ({account.institution})

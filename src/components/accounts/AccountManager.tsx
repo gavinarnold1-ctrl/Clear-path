@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, normalizeAccountName } from '@/lib/utils'
 import { usePlaidLink } from 'react-plaid-link'
 
 interface HouseholdMemberOption {
@@ -690,7 +690,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-fjord">{acct.name}</p>
+                            <p className="font-semibold text-fjord">{normalizeAccountName(acct.name)}</p>
                             {!acct.isManual ? (
                               <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">Connected</span>
                             ) : (
@@ -740,7 +740,7 @@ export default function AccountManager({ accounts: initial, householdMembers, pr
                   <div className="hidden md:flex md:items-center md:justify-between">
                     <Link href={`/transactions?accountId=${acct.id}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-fjord">{acct.name}</p>
+                        <p className="font-semibold text-fjord">{normalizeAccountName(acct.name)}</p>
                         {!acct.isManual ? (
                           <span className="rounded-badge bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">Connected</span>
                         ) : (

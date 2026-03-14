@@ -46,9 +46,10 @@ export default function MonthlyChart({ data, goalMonthlySurplus }: Props) {
             <YAxis
               tick={{ fontSize: 12 }}
               tickFormatter={(v: number) => {
-                if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`
+                if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(0)}k`
                 return `$${v}`
               }}
+              domain={['auto', 'auto']}
             />
             <Tooltip
               formatter={(value: number | undefined, name: string | undefined) => [

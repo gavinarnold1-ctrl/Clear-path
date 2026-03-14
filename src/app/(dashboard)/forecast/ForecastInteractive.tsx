@@ -5,7 +5,7 @@ import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
 import type { ForecastPoint, ForecastScenario, IncomeTransition, VelocityBreakdown, AssetGrowthProjection } from '@/types'
 import type { Forecast } from '@/types'
-import { parseLocalDate } from '@/lib/utils'
+import { parseLocalDate, normalizeAccountName } from '@/lib/utils'
 import { trackIncomeTransitionViewed } from '@/lib/analytics'
 
 interface CombinedScenarioMetrics {
@@ -120,6 +120,17 @@ export default function ForecastInteractive({
   const [activeScenarioIds, setActiveScenarioIds] = useState<string[]>([])
   const [growthProfile, setGrowthProfile] = useState<string>('current')
   const [dismissedScenarioIds, setDismissedScenarioIds] = useState<string[]>([])
+  const [editingRateId, setEditingRateId] = useState<string | null>(null)
+  const [editingRateValue, setEditingRateValue] = useState<string>('')
+  const [overriddenRates, setOverriddenRates] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {}
+    for (const ag of assetGrowth) {
+      if (ag.expectedReturn != null) {
+        initial[ag.accountId] = Math.round(ag.expectedReturn * 1000) / 10
+      }
+    }
+    return initial
+  })
 
   // Track income transition viewed on mount
   useEffect(() => {
@@ -170,6 +181,41 @@ export default function ForecastInteractive({
   const handleScenarioDismiss = useCallback((id: string) => {
     setDismissedScenarioIds(prev => [...prev, id])
     setActiveScenarioIds(prev => prev.filter(sid => sid !== id))
+  }, [])
+
+  const handleRateSave = useCallback(async (accountId: string) => {
+    const parsed = parseFloat(editingRateValue)
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+      setEditingRateId(null)
+      return
+    }
+    const decimal = parsed / 100
+    try {
+      const res = await fetch(`/api/accounts/${accountId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedReturn: decimal }),
+      })
+      if (res.ok) {
+        setOverriddenRates(prev => ({ ...prev, [accountId]: parsed }))
+      }
+    } catch { /* ignore */ }
+    setEditingRateId(null)
+  }, [editingRateValue])
+
+  const handleRateReset = useCallback(async (accountId: string) => {
+    try {
+      await fetch(`/api/accounts/${accountId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedReturn: null }),
+      })
+      setOverriddenRates(prev => {
+        const next = { ...prev }
+        delete next[accountId]
+        return next
+      })
+    } catch { /* ignore */ }
   }, [])
 
   // Compute combined timeline from active scenarios using delta stacking (Approach A)
@@ -532,24 +578,77 @@ export default function ForecastInteractive({
             : GROWTH_PROFILES.find(p => p.id === growthProfile)?.description + ' — checking/savings rates unchanged.'}
         </p>
 
-        {/* Per-account growth rates with projected gain */}
+        {/* Per-account growth rates with projected gain — inline editable */}
         {assetGrowth.length > 0 && (
           <div className="mt-3 space-y-2 border-t border-mist pt-3">
             {assetGrowth.map(ag => {
               const defaultRate = GROWTH_DEFAULTS_BY_CLASS[ag.assetClass] ?? 3
-              const profileRate = growthProfile === 'current'
-                ? defaultRate
-                : (GROWTH_PROFILES_BY_CLASS[growthProfile]?.[ag.assetClass] ?? defaultRate)
-              const adjustedGrowth = ag.currentBalance * (profileRate / 100)
+              const hasOverride = ag.accountId in overriddenRates
+              const displayRate = hasOverride
+                ? overriddenRates[ag.accountId]
+                : growthProfile === 'current'
+                  ? defaultRate
+                  : (GROWTH_PROFILES_BY_CLASS[growthProfile]?.[ag.assetClass] ?? defaultRate)
+              const adjustedGrowth = ag.currentBalance * (displayRate / 100)
+              const isEditing = editingRateId === ag.accountId
               return (
                 <div key={ag.accountId} className="flex items-center justify-between text-xs">
                   <div className="min-w-0 flex-1">
-                    <span className="text-fjord">{ag.accountName}</span>
+                    <span className="text-fjord">{normalizeAccountName(ag.accountName)}</span>
                     <span className="ml-1 text-stone">({formatCurrency(ag.currentBalance)})</span>
                   </div>
-                  <span className="font-mono text-stone">
-                    {profileRate}% → <span className={adjustedGrowth > 0 ? 'text-pine' : ''}>{adjustedGrowth > 0 ? '+' : ''}{formatCurrency(adjustedGrowth)}/yr</span>
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {isEditing ? (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); handleRateSave(ag.accountId) }}
+                        className="flex items-center gap-1"
+                      >
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          autoFocus
+                          value={editingRateValue}
+                          onChange={(e) => setEditingRateValue(e.target.value)}
+                          onBlur={() => handleRateSave(ag.accountId)}
+                          className="w-14 rounded-badge border border-mist bg-snow px-1.5 py-0.5 text-right font-mono text-xs text-fjord focus:border-fjord focus:outline-none"
+                        />
+                        <span className="text-stone">%</span>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingRateId(ag.accountId)
+                          setEditingRateValue(String(displayRate))
+                        }}
+                        className="group flex items-center gap-1 font-mono text-stone transition-colors hover:text-fjord"
+                        title="Click to edit growth rate"
+                      >
+                        <span>{displayRate}%</span>
+                        {hasOverride && (
+                          <span className="rounded-badge bg-pine/10 px-1 text-[9px] text-pine">custom</span>
+                        )}
+                        <svg className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                        </svg>
+                      </button>
+                    )}
+                    <span className="font-mono text-stone">
+                      → <span className={adjustedGrowth > 0 ? 'text-pine' : ''}>{adjustedGrowth > 0 ? '+' : ''}{formatCurrency(adjustedGrowth)}/yr</span>
+                    </span>
+                    {hasOverride && !isEditing && (
+                      <button
+                        onClick={() => handleRateReset(ag.accountId)}
+                        className="ml-0.5 text-stone/50 transition-colors hover:text-ember"
+                        title="Reset to default"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -584,7 +683,7 @@ export default function ForecastInteractive({
             {adjustedAssetGrowth.map((ag) => (
               <div key={ag.accountId} className="flex items-center justify-between rounded-lg border border-mist bg-frost/30 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-fjord">{ag.accountName}</p>
+                  <p className="text-sm font-medium text-fjord">{normalizeAccountName(ag.accountName)}</p>
                   <p className="text-xs text-stone">
                     {assetClassLabels[ag.assetClass] ?? ag.assetClass}
                   </p>

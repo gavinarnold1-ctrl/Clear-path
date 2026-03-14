@@ -350,6 +350,7 @@ export function projectAssetGrowth(
       low: round2(conservative),
       high: round2(optimistic),
     },
+    expectedReturn: account.expectedReturn,
   }
 }
 
@@ -418,7 +419,7 @@ export function computeForecast(input: ForecastInput): Forecast {
   // 5. Project timeline — use blended velocity (without rental, since
   //    projectTimeline adds rental internally) so the chart reflects the blend
   const timelineVelocity = blendedVelocity
-  const timeline = projectTimeline(goal, snapshots, timelineVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
+  const timeline = projectTimeline(goal, snapshots, timelineVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions, debts)
 
   // 6. Compute projected date
   // When income transitions exist, derive from the timeline (which accounts for
@@ -838,6 +839,47 @@ function determinePace(
   return { pace, paceDetail, daysAhead }
 }
 
+/**
+ * Project total debt balance month-by-month with interest accrual.
+ * Returns an array of remaining balances indexed by month offset.
+ */
+function projectDebtsWithInterest(
+  debts: DebtForForecast[],
+  months: number,
+  extraMonthlyPayment: number = 0,
+): number[] {
+  // Track each debt's remaining balance
+  const balances = debts.map(d => d.balance)
+  const result: number[] = [balances.reduce((s, b) => s + b, 0)]
+
+  for (let m = 1; m <= months; m++) {
+    let totalExtra = extraMonthlyPayment
+    for (let i = 0; i < debts.length; i++) {
+      if (balances[i] <= 0) continue
+      const monthlyRate = debts[i].interestRate / 12
+      const interest = balances[i] * monthlyRate
+      const payment = debts[i].minimumPayment
+      const principal = Math.max(0, payment - interest)
+      balances[i] = Math.max(0, balances[i] - principal)
+    }
+    // Apply extra payment to smallest balance first (avalanche-ish)
+    if (totalExtra > 0) {
+      const sorted = debts
+        .map((_, i) => i)
+        .filter(i => balances[i] > 0)
+        .sort((a, b) => balances[a] - balances[b])
+      for (const i of sorted) {
+        if (totalExtra <= 0) break
+        const apply = Math.min(totalExtra, balances[i])
+        balances[i] -= apply
+        totalExtra -= apply
+      }
+    }
+    result.push(balances.reduce((s, b) => s + b, 0))
+  }
+  return result
+}
+
 function projectTimeline(
   goal: GoalTarget,
   snapshots: MonthlySnapshotData[],
@@ -847,6 +889,7 @@ function projectTimeline(
   properties?: PropertyForForecast[],
   budgets?: BudgetSummaryForForecast,
   incomeTransitions?: IncomeTransition[],
+  debts?: DebtForForecast[],
 ): ForecastPoint[] {
   const points: ForecastPoint[] = []
   const startDate = new Date(goal.startDate)
@@ -907,6 +950,13 @@ function projectTimeline(
     (sum, prop) => sum + (prop.monthlyRentalIncome ?? 0), 0
   )
 
+  // Pre-compute interest-aware debt projection for debt goals
+  const isDebtGoal = goal.metric === 'debt_payoff' || goal.metric === 'debt_total'
+  const totalMonths = Math.ceil((endDate.getTime() - current.getTime()) / (30.44 * 24 * 60 * 60 * 1000)) + 1
+  const debtProjection = isDebtGoal && debts && debts.length > 0
+    ? projectDebtsWithInterest(debts, totalMonths)
+    : null
+
   // Accumulator for income-adjusted projection (cumulative velocity adjustments)
   let cumulativeIncomeAdj = 0
 
@@ -940,9 +990,29 @@ function projectTimeline(
     let onPlan = startValue + requiredVelocity * monthIndex
     const equityAdj = monthlyEquityGrowth * monthIndex
     const rentalAdj = totalMonthlyRentalIncome * monthIndex
-    let projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj + rentalAdj + cumulativeIncomeAdj
-    let optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2 + rentalAdj * 1.1 + cumulativeIncomeAdj * 1.1
-    let conservative = startValue + velocity * 0.8 * monthIndex + monthlyAssetGrowthRate * 0.7 * monthIndex + equityAdj * 0.6 + rentalAdj * 0.8 + cumulativeIncomeAdj * 0.8
+
+    let projected: number
+    let optimistic: number
+    let conservative: number
+
+    if (debtProjection && !isHistorical && monthIndex < debtProjection.length) {
+      // Interest-aware debt projection — use amortized balances
+      // For debt_payoff, currentValue tracks how much has been paid down (startValue - remaining)
+      const remaining = debtProjection[monthIndex]
+      projected = goal.metric === 'debt_payoff'
+        ? startValue - remaining + (startValue - remaining > 0 ? 0 : 0) // progress = startValue - currentDebt
+        : remaining
+      // Optimistic: 20% faster paydown (extra payments)
+      const optimisticRemaining = Math.max(0, remaining * 0.85)
+      optimistic = goal.metric === 'debt_payoff' ? startValue - optimisticRemaining : optimisticRemaining
+      // Conservative: slower paydown (minimum payments only, some interest growth)
+      const conservativeRemaining = Math.min(debtProjection[0], remaining * 1.1)
+      conservative = goal.metric === 'debt_payoff' ? startValue - conservativeRemaining : conservativeRemaining
+    } else {
+      projected = startValue + velocity * monthIndex + monthlyAssetGrowthRate * monthIndex + equityAdj + rentalAdj + cumulativeIncomeAdj
+      optimistic = startValue + velocity * 1.2 * monthIndex + monthlyAssetGrowthRate * 1.3 * monthIndex + equityAdj * 1.2 + rentalAdj * 1.1 + cumulativeIncomeAdj * 1.1
+      conservative = startValue + velocity * 0.8 * monthIndex + monthlyAssetGrowthRate * 0.7 * monthIndex + equityAdj * 0.6 + rentalAdj * 0.8 + cumulativeIncomeAdj * 0.8
+    }
 
     // Savings can't go below zero — floor projected values
     if (goal.metric === 'savings_amount') {
@@ -952,7 +1022,7 @@ function projectTimeline(
     }
 
     // Debt can't go below zero
-    if (goal.metric === 'debt_payoff' || goal.metric === 'debt_total') {
+    if (isDebtGoal) {
       projected = Math.max(0, projected)
       optimistic = Math.max(0, optimistic)
       conservative = Math.max(0, conservative)
@@ -1065,8 +1135,9 @@ function generateTabSummaries(
   if (debts.length === 0) {
     debtMsg = 'No outstanding debts tracked.'
   } else {
-    // Compute actual payoff date from amortization, not goal projected date
+    // Compute actual payoff date and total interest from amortization
     let latestPayoff: Date | null = null
+    let totalInterestCost = 0
     const now = new Date()
     for (const d of debts) {
       if (d.balance <= 0 || d.minimumPayment <= 0) continue
@@ -1074,12 +1145,17 @@ function generateTabSummaries(
       if (pi.monthsRemaining != null && pi.monthsRemaining > 0) {
         const payoff = new Date(now.getFullYear(), now.getMonth() + pi.monthsRemaining, 1)
         if (!latestPayoff || payoff > latestPayoff) latestPayoff = payoff
+        // Total interest = total payments - principal
+        totalInterestCost += (d.minimumPayment * pi.monthsRemaining) - d.balance
       }
     }
     const payoffLabel = latestPayoff
       ? `Payoff projected ${latestPayoff.toISOString().slice(0, 7)}.`
       : 'Payoff date not projected.'
-    debtMsg = `${debts.length} debt${debts.length > 1 ? 's' : ''} totaling ${formatDollar(totalDebt)}. ${payoffLabel}`
+    const interestNote = totalInterestCost > 100
+      ? ` Total interest cost: ~${formatDollar(totalInterestCost)}.`
+      : ''
+    debtMsg = `${debts.length} debt${debts.length > 1 ? 's' : ''} totaling ${formatDollar(totalDebt)}. ${payoffLabel}${interestNote}`
   }
 
   const annualPlan = budgets.annualSetAside > 0

@@ -417,6 +417,7 @@ export interface AssetGrowthProjection {
   projectedBalance12mo: number
   expectedGrowth: number
   uncertaintyRange: { low: number; high: number }
+  expectedReturn?: number | null
 }
 
 export interface ForecastAccuracyPoint {

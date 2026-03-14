@@ -466,6 +466,11 @@ export async function POST(request: Request) {
       console.error('AI categorization pass failed (non-fatal):', aiErr)
     }
 
+    // Fire-and-forget CC intelligence analysis after sync
+    import('@/lib/cc-intelligence')
+      .then(({ analyzeAllCreditCards }) => analyzeAllCreditCards(session.userId))
+      .catch(() => {})
+
     return NextResponse.json({
       added: totalAdded,
       modified: totalModified,

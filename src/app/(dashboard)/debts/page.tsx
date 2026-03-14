@@ -96,6 +96,13 @@ export default async function DebtsPage() {
       ? debts.reduce((sum, d) => sum + d.currentBalance * d.interestRate, 0) / totalDebt
       : 0
 
+  // CC vs installment breakdown
+  const ccDebts = debts.filter(d => d.type === 'CREDIT_CARD')
+  const installmentDebts = debts.filter(d => d.type !== 'CREDIT_CARD')
+  const ccTotal = ccDebts.reduce((s, d) => s + d.currentBalance, 0)
+  const installmentTotal = installmentDebts.reduce((s, d) => s + d.currentBalance, 0)
+  const ccPaidInFull = ccDebts.filter(d => d.ccBehavior === 'pays_in_full').length
+
   // Serialize for client component
   const serializedDebts = debts.map((d) => {
     const pi = piBreakdown(d.currentBalance, d.interestRate, d.minimumPayment, d.escrowAmount)
@@ -126,6 +133,10 @@ export default async function DebtsPage() {
       monthlyInterest: pi.monthlyInterest,
       monthlyPrincipal: pi.monthlyPrincipal,
       monthsRemaining: pi.monthsRemaining,
+      ccBehavior: d.ccBehavior ?? null,
+      observedInterestRate: d.observedInterestRate ?? null,
+      avgMonthlySpend: d.avgMonthlySpend ?? null,
+      monthsCarried: d.monthsCarried ?? null,
     }
   })
 
@@ -160,6 +171,13 @@ export default async function DebtsPage() {
               <p className="mt-1 font-mono text-2xl font-bold text-fjord">{(weightedRate * 100).toFixed(2)}%</p>
             </div>
           </div>
+          {(ccDebts.length > 0 && installmentDebts.length > 0) && (
+            <p className="mt-3 border-t border-mist pt-3 text-xs text-stone">
+              {installmentDebts.length} installment {installmentDebts.length === 1 ? 'debt' : 'debts'} ({formatCurrency(installmentTotal)})
+              {' · '}
+              {ccDebts.length} credit {ccDebts.length === 1 ? 'card' : 'cards'} ({formatCurrency(ccTotal)} balance{ccPaidInFull > 0 ? `, ${ccPaidInFull} paid in full` : ''})
+            </p>
+          )}
         </div>
       )}
 

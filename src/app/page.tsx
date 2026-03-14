@@ -122,6 +122,97 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Section 1b: Dashboard Mockup ──────────────────────────────────── */}
+      <section className="bg-snow px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-4xl">
+          <p className="mb-8 text-center text-sm font-medium uppercase tracking-widest text-stone">
+            What your dashboard looks like
+          </p>
+
+          {/* Browser frame */}
+          <div className="overflow-hidden rounded-card border border-mist bg-frost shadow-lg">
+            {/* Title bar */}
+            <div className="flex items-center gap-2 border-b border-mist bg-snow px-4 py-2.5">
+              <span className="h-3 w-3 rounded-full bg-ember/50" />
+              <span className="h-3 w-3 rounded-full bg-birch" />
+              <span className="h-3 w-3 rounded-full bg-pine/50" />
+              <span className="ml-3 flex-1 rounded-badge bg-frost px-3 py-0.5 text-center font-mono text-xs text-stone">
+                oversikt.io/dashboard
+              </span>
+            </div>
+
+            {/* Dashboard content */}
+            <div className="p-4 sm:p-6">
+              {/* Top row: True Remaining hero + stats */}
+              <div className="mb-4 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-card bg-gradient-to-br from-fjord to-midnight p-4 sm:col-span-2">
+                  <p className="text-xs font-medium uppercase tracking-wider text-snow/50">True Remaining</p>
+                  <p className="mt-1 font-display text-3xl tracking-tight text-snow sm:text-4xl">$2,847</p>
+                  <p className="mt-1 text-xs text-snow/50">Safe to spend until Mar 31</p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="flex-1 rounded-card bg-snow p-3">
+                    <p className="text-xs text-stone">Income</p>
+                    <p className="font-mono text-lg font-semibold text-pine">$8,450</p>
+                  </div>
+                  <div className="flex-1 rounded-card bg-snow p-3">
+                    <p className="text-xs text-stone">Spent</p>
+                    <p className="font-mono text-lg font-semibold text-fjord/80">$5,603</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom row: budget bars + mini chart */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Budget pulse */}
+                <div className="rounded-card bg-snow p-4">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-stone">Budget Pulse</p>
+                  {[
+                    { name: 'Groceries', pct: 72, color: 'bg-pine' },
+                    { name: 'Dining', pct: 91, color: 'bg-ember/70' },
+                    { name: 'Transport', pct: 45, color: 'bg-pine' },
+                    { name: 'Shopping', pct: 60, color: 'bg-pine' },
+                  ].map((b) => (
+                    <div key={b.name} className="mb-2 last:mb-0">
+                      <div className="mb-0.5 flex justify-between text-xs">
+                        <span className="text-fjord">{b.name}</span>
+                        <span className="font-mono text-stone">{b.pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-bar bg-frost">
+                        <div className={`h-full rounded-bar ${b.color}`} style={{ width: `${b.pct}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mini spending chart */}
+                <div className="rounded-card bg-snow p-4">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-stone">Monthly Trend</p>
+                  <div className="flex h-24 items-end gap-2">
+                    {[65, 72, 58, 80, 68, 75, 62].map((h, i) => (
+                      <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                        <div
+                          className="w-full rounded-bar bg-fjord/20"
+                          style={{ height: `${h}%` }}
+                        >
+                          <div
+                            className="w-full rounded-bar bg-fjord"
+                            style={{ height: `${Math.min(100, h + 10)}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-stone">
+                          {['S', 'O', 'N', 'D', 'J', 'F', 'M'][i]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Section 2: The Five Goals ────────────────────────────────────── */}
       <section className="bg-frost px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-5xl">
@@ -276,7 +367,10 @@ export default function HomePage() {
             you there. That&apos;s it. No prescriptive systems. No judgment.
             Just clarity &mdash; and the freedom to decide what to do with it.
           </p>
-          <p className="mx-auto mt-6 max-w-lg text-sm text-stone/70">
+          <p className="mx-auto mt-6 max-w-lg font-medium text-fjord/70">
+            Built for households earning $110&ndash;200K with real financial complexity.
+          </p>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-stone/70">
             Works on any device. Connects via Plaid. Tracks what others don&apos;t &mdash;
             credit card benefits, property equity, annual expenses.
           </p>
