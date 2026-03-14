@@ -239,6 +239,13 @@ export type GoalMetric =
   | 'net_worth_increase'
   | 'net_worth_target'
 
+export interface GoalPhase {
+  label: string            // e.g. "During residency", "After attending salary"
+  monthlyNeeded: number    // required contribution in this phase
+  startDate: string        // ISO date
+  endDate: string          // ISO date
+}
+
 export interface GoalTarget {
   archetype?: PrimaryGoal
   metric: GoalMetric
@@ -251,6 +258,7 @@ export interface GoalTarget {
   monthlyNeeded?: number    // computed: what monthly contribution keeps you on pace
   linkedDebtId?: string
   linkedCategoryId?: string
+  phases?: GoalPhase[]      // income-transition-aware phased contribution schedule
 }
 
 // ─── Income Transitions ─────────────────────────────────────────────────

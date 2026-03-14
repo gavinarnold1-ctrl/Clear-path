@@ -1,4 +1,4 @@
-import type { PrimaryGoal, GoalTarget } from '@/types'
+import type { PrimaryGoal, GoalTarget, GoalPhase, IncomeTransition } from '@/types'
 
 interface GoalTargetContext {
   monthlyIncome: number
@@ -143,4 +143,78 @@ export function projectedDate(target: GoalTarget): string {
   const projected = new Date()
   projected.setMonth(projected.getMonth() + monthsNeeded)
   return projected.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+/**
+ * Compute goal phases from income transitions.
+ * Splits the goal timeline into phases where each has a different
+ * monthly contribution based on the income available in that period.
+ * The sum of all phase contributions equals the remaining goal amount.
+ */
+export function computeGoalPhases(
+  target: GoalTarget,
+  currentMonthlyIncome: number,
+  currentMonthlyExpenses: number,
+  incomeTransitions: IncomeTransition[],
+): GoalPhase[] {
+  const now = new Date()
+  const targetDate = new Date(target.targetDate)
+  const remaining = target.targetValue - (target.currentValue ?? target.startValue)
+  if (remaining <= 0) return []
+
+  const futureTransitions = incomeTransitions
+    .filter((t) => {
+      const d = new Date(t.date)
+      return d > now && d < targetDate
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  if (futureTransitions.length === 0) return []
+
+  // Build phase boundaries
+  const boundaries: { date: Date; income: number; label: string }[] = [
+    { date: now, income: currentMonthlyIncome, label: 'Current phase' },
+    ...futureTransitions.map((t) => ({
+      date: new Date(t.date),
+      income: t.monthlyIncome,
+      label: t.label,
+    })),
+  ]
+
+  // Compute months in each phase
+  const phases: { label: string; months: number; income: number; startDate: string; endDate: string }[] = []
+  for (let i = 0; i < boundaries.length; i++) {
+    const start = boundaries[i].date
+    const end = i < boundaries.length - 1 ? boundaries[i + 1].date : targetDate
+    const months = Math.max(0, monthsBetween(start.toISOString(), end.toISOString()))
+    if (months > 0) {
+      phases.push({
+        label: boundaries[i].label,
+        months,
+        income: boundaries[i].income,
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+      })
+    }
+  }
+
+  if (phases.length === 0) return []
+
+  // Distribute the remaining amount across phases proportionally to income
+  // Higher income phases contribute more
+  const totalIncomeMonths = phases.reduce((sum, p) => sum + p.income * p.months, 0)
+  if (totalIncomeMonths <= 0) return []
+
+  return phases.map((p) => {
+    const phaseShare = (p.income * p.months) / totalIncomeMonths
+    const phaseContribution = remaining * phaseShare
+    const monthlyNeeded = p.months > 0 ? Math.round(phaseContribution / p.months) : 0
+
+    return {
+      label: p.label,
+      monthlyNeeded,
+      startDate: p.startDate,
+      endDate: p.endDate,
+    }
+  })
 }

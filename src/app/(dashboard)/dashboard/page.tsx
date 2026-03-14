@@ -12,7 +12,7 @@ import { getValueSummary } from '@/lib/value-tracker'
 import { getGoalContext } from '@/lib/goal-context'
 import { checkRecalibration } from '@/lib/goal-recalibration'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
-import type { PrimaryGoal, GoalTarget } from '@/types'
+import type { PrimaryGoal, GoalTarget, IncomeTransition } from '@/types'
 import { updateGoalPaceStatus } from '@/lib/ai-context'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
@@ -186,7 +186,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     // User profile for expected income + goal target
     db.userProfile.findUnique({
       where: { userId: session.userId },
-      select: { expectedMonthlyIncome: true, primaryGoal: true, goalTarget: true },
+      select: { expectedMonthlyIncome: true, primaryGoal: true, goalTarget: true, incomeTransitions: true },
     }),
     // Value tracker — cumulative savings identified by AI insights
     getValueSummary(session.userId),
@@ -315,8 +315,9 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   // Check if goal needs recalibration
   const goalTargetData = userProfile?.goalTarget as GoalTarget | null
+  const profileTransitions = (userProfile?.incomeTransitions as IncomeTransition[] | null) ?? undefined
   const recalibration = goalTargetData && userProfile?.primaryGoal
-    ? await checkRecalibration(session.userId, goalTargetData, userProfile.primaryGoal as PrimaryGoal)
+    ? await checkRecalibration(session.userId, goalTargetData, userProfile.primaryGoal as PrimaryGoal, profileTransitions)
     : null
 
   // Update AI context with goal pace status (fire-and-forget)

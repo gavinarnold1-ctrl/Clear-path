@@ -420,11 +420,36 @@ export function computeForecast(input: ForecastInput): Forecast {
   const timelineVelocity = blendedVelocity
   const timeline = projectTimeline(goal, snapshots, timelineVelocity, requiredVelocity, accounts, properties, budgets, input.incomeTransitions)
 
-  // 6. Compute projected date (uses rental-adjusted velocity)
-  const projectedDate = computeProjectedDate(currentValue, goal.targetValue, monthlyVelocity, now)
+  // 6. Compute projected date
+  // When income transitions exist, derive from the timeline (which accounts for
+  // step changes) instead of the constant-velocity estimate
+  const hasTransitions = (input.incomeTransitions ?? []).length > 0
+  let projectedDate: string | null
+  if (hasTransitions) {
+    // Walk the timeline to find the first future month where projected >= target
+    projectedDate = null
+    for (const point of timeline) {
+      if (!point.isHistorical && point.projected >= goal.targetValue) {
+        // Convert YYYY-MM key to ISO date
+        projectedDate = `${point.month}-01`
+        break
+      }
+    }
+  } else {
+    projectedDate = computeProjectedDate(currentValue, goal.targetValue, monthlyVelocity, now)
+  }
 
   // 7. Projected value at target date (uses rental-adjusted velocity)
-  const projectedValue = currentValue + monthlyVelocity * Math.max(0, monthsToTarget)
+  // When income transitions exist, read from timeline at target month for accuracy
+  let projectedValue: number
+  if (hasTransitions && monthsToTarget > 0) {
+    // Find the timeline point closest to the target date
+    const targetKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`
+    const targetPoint = timeline.find((p) => p.month === targetKey)
+    projectedValue = targetPoint?.projected ?? (currentValue + monthlyVelocity * Math.max(0, monthsToTarget))
+  } else {
+    projectedValue = currentValue + monthlyVelocity * Math.max(0, monthsToTarget)
+  }
 
   // 8. Asset growth projections (non-liability accounts only)
   const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
@@ -1088,6 +1113,115 @@ function generateTabSummaries(
     spending,
     properties,
   }
+}
+
+// ── 3G2: Debt payoff acceleration with income transitions ──────────────────
+
+export interface DebtPayoffAcceleration {
+  debtName: string
+  debtId: string
+  balance: number
+  /** Payoff date without income transitions */
+  baselinePayoffDate: string | null
+  baselineMonthsRemaining: number
+  baselineTotalInterest: number
+  /** Payoff date with income transitions (extra surplus goes to debt) */
+  acceleratedPayoffDate: string | null
+  acceleratedMonthsRemaining: number
+  acceleratedTotalInterest: number
+  /** Savings from acceleration */
+  monthsSaved: number
+  interestSaved: number
+}
+
+/**
+ * Compute how income transitions affect debt payoff timelines.
+ * For each debt, projects payoff with and without the extra surplus
+ * from income transitions applied as extra payments.
+ */
+export function computeDebtPayoffAcceleration(
+  debts: DebtForForecast[],
+  currentMonthlyExpenses: number,
+  currentMonthlyIncome: number,
+  incomeTransitions: IncomeTransition[],
+  debtPaymentRatio: number = 0.5, // fraction of surplus applied to debt
+): DebtPayoffAcceleration[] {
+  if (debts.length === 0 || incomeTransitions.length === 0) return []
+
+  const sortedTransitions = [...incomeTransitions]
+    .filter((t) => new Date(t.date) > new Date() && t.monthlyIncome > 0)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  if (sortedTransitions.length === 0) return []
+
+  const results: DebtPayoffAcceleration[] = []
+  const now = new Date()
+
+  for (const debt of debts) {
+    if (debt.balance <= 0 || debt.minimumPayment <= 0) continue
+
+    // Baseline: payoff at minimum payments
+    const baselinePI = piBreakdown(debt.balance, debt.interestRate, debt.minimumPayment)
+    const baselineMonths = baselinePI.monthsRemaining ?? 360
+    const baselineDate = new Date(now)
+    baselineDate.setMonth(baselineDate.getMonth() + baselineMonths)
+    const baselineTotalInterest = baselineMonths > 0
+      ? debt.minimumPayment * baselineMonths - debt.balance
+      : 0
+
+    // Accelerated: walk month by month, applying extra surplus after transitions
+    let remaining = debt.balance
+    let totalInterest = 0
+    let month = 0
+    const maxMonths = 600 // 50 year cap
+
+    while (remaining > 0 && month < maxMonths) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() + month, 1)
+
+      // Find active income for this month
+      let activeIncome = currentMonthlyIncome
+      for (const t of sortedTransitions) {
+        if (new Date(t.date).getTime() <= monthDate.getTime()) {
+          activeIncome = t.monthlyIncome
+        } else {
+          break
+        }
+      }
+
+      // Extra payment from surplus
+      const surplus = Math.max(0, activeIncome - currentMonthlyExpenses - debt.minimumPayment)
+      const extraPayment = surplus * debtPaymentRatio
+
+      // Monthly interest
+      const monthlyInterest = remaining * (debt.interestRate / 12)
+      totalInterest += monthlyInterest
+
+      // Total payment this month
+      const totalPayment = debt.minimumPayment + extraPayment
+      const principalPayment = totalPayment - monthlyInterest
+      remaining = Math.max(0, remaining - principalPayment)
+      month++
+    }
+
+    const acceleratedDate = new Date(now)
+    acceleratedDate.setMonth(acceleratedDate.getMonth() + month)
+
+    results.push({
+      debtName: debt.name,
+      debtId: debt.id,
+      balance: debt.balance,
+      baselinePayoffDate: baselineMonths < 360 ? baselineDate.toISOString().slice(0, 10) : null,
+      baselineMonthsRemaining: baselineMonths,
+      baselineTotalInterest: round2(Math.max(0, baselineTotalInterest)),
+      acceleratedPayoffDate: month < maxMonths ? acceleratedDate.toISOString().slice(0, 10) : null,
+      acceleratedMonthsRemaining: month,
+      acceleratedTotalInterest: round2(Math.max(0, totalInterest)),
+      monthsSaved: Math.max(0, baselineMonths - month),
+      interestSaved: round2(Math.max(0, baselineTotalInterest - totalInterest)),
+    })
+  }
+
+  return results
 }
 
 /** Lightweight forecast computation for scenario diffs (skips scenarios to avoid recursion) */
