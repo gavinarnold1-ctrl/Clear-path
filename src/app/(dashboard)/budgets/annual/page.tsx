@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { computeTrueRemaining } from '@/lib/true-remaining'
+import { getTrueRemainingData } from '@/lib/true-remaining'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
 import AnnualOverview from '@/components/annual/AnnualOverview'
 import AnnualAlerts from '@/components/annual/AnnualAlerts'
@@ -22,9 +22,7 @@ export default async function AnnualPlanningPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-
-  const [expenses, categories, allBudgets, incomeAgg, monthExpenses, properties, userProfile, priorIncomeAgg] = await Promise.all([
+  const [expenses, categories, properties] = await Promise.all([
     db.annualExpense.findMany({
       where: { userId: session.userId },
       include: {
@@ -42,79 +40,16 @@ export default async function AnnualPlanningPage() {
       },
       orderBy: [{ group: 'asc' }, { name: 'asc' }],
     }),
-    db.budget.findMany({
-      where: { userId: session.userId },
-      include: { annualExpense: true },
-    }),
-    db.transaction.aggregate({
-      where: {
-        userId: session.userId,
-        date: { gte: startOfMonth, lte: endOfMonth },
-        classification: 'income',
-      },
-      _sum: { amount: true },
-    }),
-    db.transaction.findMany({
-      where: {
-        userId: session.userId,
-        date: { gte: startOfMonth, lte: endOfMonth },
-        classification: 'expense',
-        amount: { lt: 0 },
-      },
-      select: { categoryId: true, amount: true, annualExpenseId: true },
-    }),
     db.property.findMany({
       where: { userId: session.userId },
       select: { id: true, name: true, type: true },
       orderBy: { name: 'asc' },
     }),
-    db.userProfile.findUnique({
-      where: { userId: session.userId },
-      select: { expectedMonthlyIncome: true },
-    }),
-    db.transaction.aggregate({
-      where: {
-        userId: session.userId,
-        date: { gte: threeMonthsAgo, lte: startOfMonth },
-        classification: 'income',
-      },
-      _sum: { amount: true },
-    }),
   ])
 
-  // Compute True Remaining — use same income resolution as dashboard and budgets page
-  const currentMonthIncome = incomeAgg._sum.amount ?? 0
-  const autoExpectedIncome = (priorIncomeAgg._sum.amount ?? 0) / 3
-  const income = userProfile?.expectedMonthlyIncome ?? (autoExpectedIncome > 0 ? autoExpectedIncome : currentMonthIncome)
-
-  // Build flexible-specific spent map that excludes annual-plan-linked transactions
-  const flexSpentByCategory = new Map<string, number>()
-  for (const tx of monthExpenses) {
-    if (tx.categoryId && !tx.annualExpenseId) {
-      flexSpentByCategory.set(
-        tx.categoryId,
-        (flexSpentByCategory.get(tx.categoryId) ?? 0) + Math.abs(tx.amount)
-      )
-    }
-  }
-
-  const fixedTotal = allBudgets
-    .filter((b) => b.tier === 'FIXED')
-    .reduce((sum, b) => sum + b.amount, 0)
-  const flexibleSpent = allBudgets
-    .filter((b) => b.tier === 'FLEXIBLE')
-    .reduce((sum, b) => sum + (b.categoryId ? (flexSpentByCategory.get(b.categoryId) ?? 0) : 0), 0)
-  const annualSetAside = allBudgets
-    .filter((b) => b.tier === 'ANNUAL')
-    .reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
-
-  // Compute unbudgeted spending (expenses with no category or whose category has no budget)
-  const claimedCategoryIds = new Set(allBudgets.filter(b => b.categoryId).map(b => b.categoryId!))
-  const unbudgetedSpent = monthExpenses
-    .filter((tx) => !tx.annualExpenseId && (!tx.categoryId || !claimedCategoryIds.has(tx.categoryId)))
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-
-  const trueRemaining = computeTrueRemaining({ income, fixedTotal, flexibleSpent, unbudgetedSpent, annualSetAside })
+  // True Remaining — use shared function so all 3 surfaces show the same number
+  const trData = await getTrueRemainingData(session.userId, startOfMonth, endOfMonth)
+  const trueRemaining = trData.trueRemaining
 
   // Compute dynamic fields for each expense
   const enriched = expenses.map((exp) => {

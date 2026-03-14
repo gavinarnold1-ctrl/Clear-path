@@ -15,7 +15,7 @@ import { persistGoalCurrentValue } from '@/lib/goal-utils'
 import RecalibrationWrapper from '@/components/dashboard/RecalibrationWrapper'
 import type { PrimaryGoal, GoalTarget, IncomeTransition } from '@/types'
 import { updateGoalPaceStatus } from '@/lib/ai-context'
-import { computeTrueRemaining } from '@/lib/true-remaining'
+import { getTrueRemainingData } from '@/lib/true-remaining'
 import { computeBenefitAlerts } from '@/lib/engines/benefit-alerts'
 import type { BenefitAlertInput } from '@/lib/engines/benefit-alerts'
 import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
@@ -66,7 +66,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     accounts,
     incomeAgg,
     expenseAgg,
-    prevIncomeAgg,
+    _prevIncomeAgg,
     _prevExpenseAgg,
     _recent,
     rawBudgets,
@@ -334,38 +334,26 @@ export default async function DashboardPage({ searchParams }: Props) {
     return <GetStarted />
   }
 
-  // Compute live budget spent from current-month expense transactions.
-  // Annual-plan-linked transactions are excluded from ALL budget tiers
-  // to prevent double-counting (they are tracked on the annual plan itself).
-  // Additionally, transactions in annual-tier budget categories are excluded
-  // even if not yet linked to an annual expense (prevents leakage).
-  const annualCategoryIds = new Set(
-    rawBudgets
-      .filter((b) => b.tier === 'ANNUAL' && b.categoryId)
-      .map((b) => b.categoryId!)
-  )
+  // True Remaining — use shared function so dashboard/budgets/annual all show the same number
+  const trData = await getTrueRemainingData(session.userId, startDate, endDate)
+
+  // Dashboard-specific: budget spent for health cards and over-budget items
+  // Uses the dashboard's own budget query (with startDate/endDate filter for display purposes)
   const budgetSpentMap = new Map<string, number>()
   const spentByCatName = new Map<string, number>()
-  const catNameToIdMap = new Map<string, string>()
   for (const tx of budgetExpenses) {
-    if (tx.annualExpenseId) continue // annual-linked → tracked on annual plan only
-    if (annualCategoryIds.has(tx.categoryId ?? '')) continue // annual-tier category → exclude
+    if (tx.annualExpenseId) continue
     if (tx.categoryId) {
       budgetSpentMap.set(tx.categoryId, (budgetSpentMap.get(tx.categoryId) ?? 0) + Math.abs(tx.amount))
     }
     if (tx.category?.name) {
       const nameKey = tx.category.name.toLowerCase()
       spentByCatName.set(nameKey, (spentByCatName.get(nameKey) ?? 0) + Math.abs(tx.amount))
-      if (tx.categoryId) catNameToIdMap.set(nameKey, tx.categoryId)
     }
   }
 
   const allBudgetsWithSpent = rawBudgets.map((b) => {
-    // Primary: match by categoryId
     let spent = b.categoryId ? (budgetSpentMap.get(b.categoryId) ?? 0) : 0
-
-    // TODO: V1.1 — remove fuzzy name matching once all budgets have categoryId
-    // Fallback: match by category/budget name when categoryId is null
     if (spent === 0 && !b.categoryId) {
       const catName = b.category?.name?.toLowerCase()
       if (catName && spentByCatName.has(catName)) {
@@ -375,35 +363,14 @@ export default async function DashboardPage({ searchParams }: Props) {
         spent = spentByCatName.get(budgetNameKey) ?? 0
       }
     }
-
     return { ...b, spent }
   })
 
-  // Unbudgeted spending: transactions in categories not covered by any budget
-  const budgetedCategoryIds = new Set(
-    rawBudgets.map((b) => b.categoryId).filter(Boolean) as string[]
-  )
-  const unbudgetedSpent = budgetExpenses
-    .filter(
-      (tx) =>
-        !tx.annualExpenseId &&
-        !annualCategoryIds.has(tx.categoryId ?? '') &&
-        tx.categoryId &&
-        !budgetedCategoryIds.has(tx.categoryId)
-    )
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-
-  // True Remaining computation: income - fixed committed - flexible spent - annual set-asides
   const fixedBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'FIXED')
   const flexibleBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'FLEXIBLE')
   const annualBudgets = allBudgetsWithSpent.filter((b) => b.tier === 'ANNUAL')
 
   const monthlyIncome = incomeAgg._sum.amount ?? 0
-  const fixedTotal = fixedBudgets.reduce((sum, b) => sum + b.amount, 0)
-  const flexibleSpent = flexibleBudgets.reduce((sum, b) => sum + b.spent, 0)
-  const annualSetAside = annualBudgets.reduce((sum, b) => sum + (b.annualExpense?.monthlySetAside ?? 0), 0)
-
-  const prevIncome = prevIncomeAgg._sum.amount ?? 0
 
   // Build chart data - group transactions by month
   const chartMonths: Record<string, { income: number; expenses: number }> = {}
@@ -445,12 +412,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Goal target for goal-driven dashboard
   const goalTarget = userProfile?.goalTarget as GoalTarget | null
   const hasGoal = !!goalContext && !!userProfile?.primaryGoal
-  // True Remaining: use expectedMonthlyIncome if set; fall back to 3-month avg (matching budgets page)
-  const autoExpectedIncome = prevIncome / 3
-  const displayIncome = userProfile?.expectedMonthlyIncome ?? (autoExpectedIncome > 0 ? autoExpectedIncome : monthlyIncome)
-  const trueRemaining = computeTrueRemaining({ income: displayIncome, fixedTotal, flexibleSpent, unbudgetedSpent, annualSetAside })
+  // True Remaining from shared function — guaranteed identical to budgets page
+  const trueRemaining = trData.trueRemaining
+  const displayIncome = trData.income
 
-  // Budget health card data
+  // Budget health card data (uses dashboard's own budget spent for display)
+  const flexibleSpent = flexibleBudgets.reduce((sum, b) => sum + b.spent, 0)
   const fixedPaidCount = fixedBudgets.filter(b => b.spent > 0).length
   const flexibleUnderBudget = Math.max(0, flexibleBudgets.reduce((sum, b) => sum + b.amount, 0) - flexibleSpent)
 
@@ -512,13 +479,13 @@ export default async function DashboardPage({ searchParams }: Props) {
         <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
           <Link href="/budgets" className="block lg:col-span-7 rounded-card cursor-pointer hover:ring-1 hover:ring-pine/20 transition-all">
             <TrueRemainingBanner
-              income={monthlyIncome}
-              expectedIncome={displayIncome}
-              fixedTotal={fixedTotal}
-              flexibleSpent={flexibleSpent}
-              flexibleBudget={flexibleBudgetTotal}
-              annualSetAside={annualSetAside}
-              unbudgetedSpent={unbudgetedSpent}
+              income={trData.rawIncome}
+              expectedIncome={trData.income}
+              fixedTotal={trData.fixedTotal}
+              flexibleSpent={trData.flexibleSpent}
+              flexibleBudget={trData.flexibleBudget}
+              annualSetAside={trData.annualSetAside}
+              unbudgetedSpent={trData.unbudgetedSpent}
               primaryGoal={primaryGoal}
             />
           </Link>
@@ -593,7 +560,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         overBudgetItems={overBudgetItems}
         recalibration={recalibration}
         benefitAlerts={benefitAlerts}
-        unbudgetedSpent={unbudgetedSpent}
+        unbudgetedSpent={trData.unbudgetedSpent}
         unidentifiedCards={unidentifiedCards}
       />
 
