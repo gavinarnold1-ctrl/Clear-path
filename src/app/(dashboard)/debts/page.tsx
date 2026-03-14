@@ -3,10 +3,13 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate, parseLocalDate } from '@/lib/utils'
 import { piBreakdown } from '@/lib/engines/amortization'
 import { getForecastSummaries } from '@/lib/forecast-helpers'
+import { computeDebtPayoffAcceleration } from '@/lib/engines/forecast'
+import type { IncomeTransition, DebtForForecast } from '@/types'
 import DebtManager from '@/components/debts/DebtManager'
+import { DebtAccelerationTracker } from '@/components/debts/DebtAccelerationTracker'
 
 export const metadata: Metadata = { title: 'Debts' }
 
@@ -45,6 +48,45 @@ export default async function DebtsPage() {
   ])
 
   const forecastSummary = await getForecastSummaries(session.userId)
+
+  // Payoff acceleration data
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const [profile, expenseAgg, incomeAgg] = await Promise.all([
+    db.userProfile.findUnique({
+      where: { userId: session.userId },
+      select: { expectedMonthlyIncome: true, incomeTransitions: true },
+    }),
+    db.transaction.aggregate({
+      where: { userId: session.userId, date: { gte: monthStart, lt: monthEnd }, amount: { lt: 0 } },
+      _sum: { amount: true },
+    }),
+    db.transaction.aggregate({
+      where: { userId: session.userId, date: { gte: monthStart, lt: monthEnd }, amount: { gt: 0 } },
+      _sum: { amount: true },
+    }),
+  ])
+
+  const incomeTransitions = (profile?.incomeTransitions as IncomeTransition[] | null) ?? []
+
+  const accelerationResults = (() => {
+    if (debts.length === 0 || incomeTransitions.length === 0) return []
+    const currentMonthlyExpenses = Math.abs(expenseAgg._sum.amount ?? 0)
+    const currentMonthlyIncome = profile?.expectedMonthlyIncome ?? (incomeAgg._sum.amount ?? 0)
+    const debtInputs: DebtForForecast[] = debts.map((d) => ({
+      id: d.id,
+      name: d.name,
+      type: d.type,
+      balance: d.currentBalance,
+      interestRate: d.interestRate,
+      minimumPayment: d.minimumPayment,
+      escrowAmount: d.escrowAmount ?? 0,
+      propertyGroupId: d.property?.groupId ?? null,
+    }))
+    return computeDebtPayoffAcceleration(debtInputs, currentMonthlyExpenses, currentMonthlyIncome, incomeTransitions)
+  })()
 
   // Compute summary
   const totalDebt = debts.reduce((sum, d) => sum + d.currentBalance, 0)
@@ -122,6 +164,54 @@ export default async function DebtsPage() {
       )}
 
       <DebtManager debts={serializedDebts} properties={properties} categories={categories} />
+
+      {/* Payoff Acceleration */}
+      {accelerationResults.length > 0 && (
+        <div className="mt-6">
+          <DebtAccelerationTracker
+            debtCount={accelerationResults.length}
+            monthsSaved={accelerationResults.reduce((s, a) => s + a.monthsSaved, 0)}
+            interestSaved={accelerationResults.reduce((s, a) => s + a.interestSaved, 0)}
+          />
+          <h2 className="font-display text-lg font-bold text-fjord mb-3">Payoff Acceleration</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {accelerationResults.map((a) => (
+              <div key={a.debtId} className="card">
+                <p className="font-display text-sm font-semibold text-fjord">{a.debtName}</p>
+                <p className="mt-1 font-mono text-xs text-stone">
+                  Balance: {formatCurrency(a.balance)}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <p className="text-stone">Baseline payoff</p>
+                    <p className="font-mono text-ember">
+                      {a.baselinePayoffDate ? formatDate(parseLocalDate(a.baselinePayoffDate)) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-stone">Accelerated payoff</p>
+                    <p className="font-mono text-fjord">
+                      {a.acceleratedPayoffDate ? formatDate(parseLocalDate(a.acceleratedPayoffDate)) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-stone">Months saved</p>
+                    <p className={`font-mono ${a.monthsSaved > 0 ? 'text-pine' : 'text-fjord'}`}>
+                      {a.monthsSaved}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-stone">Interest saved</p>
+                    <p className={`font-mono ${a.interestSaved > 0 ? 'text-pine' : 'text-fjord'}`}>
+                      {formatCurrency(a.interestSaved)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Cross-links */}
       {debts.length > 0 && (

@@ -565,7 +565,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       />
 
       {/* Goal Recalibration Banner */}
-      {recalibration && <RecalibrationWrapper suggestion={recalibration} />}
+      {recalibration && <RecalibrationWrapper suggestion={recalibration} goalArchetype={primaryGoal ?? undefined} />}
 
       {/* Chart */}
       <div className="mb-8">

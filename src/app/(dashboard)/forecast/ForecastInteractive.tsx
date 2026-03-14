@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import ForecastTimeline from './ForecastTimelineLazy'
 import ForecastScenarios from './ForecastScenarios'
 import type { ForecastPoint, ForecastScenario, IncomeTransition, VelocityBreakdown, AssetGrowthProjection } from '@/types'
 import type { Forecast } from '@/types'
+import { parseLocalDate } from '@/lib/utils'
+import { trackIncomeTransitionViewed } from '@/lib/analytics'
 
 interface CombinedScenarioMetrics {
   monthlyDelta: number
@@ -118,6 +120,19 @@ export default function ForecastInteractive({
   const [activeScenarioIds, setActiveScenarioIds] = useState<string[]>([])
   const [growthProfile, setGrowthProfile] = useState<string>('current')
   const [dismissedScenarioIds, setDismissedScenarioIds] = useState<string[]>([])
+
+  // Track income transition viewed on mount
+  useEffect(() => {
+    if (incomeTransitions.length > 0) {
+      const nextTransition = incomeTransitions
+        .filter(t => new Date(t.date) > new Date())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
+      const monthsUntil = nextTransition
+        ? Math.round((new Date(nextTransition.date).getTime() - Date.now()) / (30.44 * 24 * 60 * 60 * 1000))
+        : 0
+      trackIncomeTransitionViewed(incomeTransitions.length, monthsUntil)
+    }
+  }, []) // Only fire once on mount
 
   // All scenarios including custom ones added by ForecastScenarios
   const [customScenarios, setCustomScenarios] = useState<ForecastScenario[]>([])
@@ -305,7 +320,7 @@ export default function ForecastInteractive({
           : baselineMonthlyVelocity
 
         const isIncrease = nextTransition.monthlyIncome > currentIncome
-        const transitionDate = new Date(nextTransition.date)
+        const transitionDate = parseLocalDate(nextTransition.date)
         const monthsAway = Math.max(0, Math.round((transitionDate.getTime() - now.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
 
         return (

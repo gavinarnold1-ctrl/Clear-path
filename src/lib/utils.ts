@@ -12,6 +12,16 @@ export function formatDate(date: Date | string): string {
   }).format(new Date(date))
 }
 
+/**
+ * Parse a YYYY-MM-DD date string as local noon to prevent timezone
+ * off-by-one errors. `new Date('2028-07-01')` is UTC midnight, which
+ * rolls back to June 30 in western timezones.
+ */
+export function parseLocalDate(iso: string): Date {
+  if (iso.includes('T')) return new Date(iso)
+  return new Date(iso + 'T12:00:00')
+}
+
 /** Return the percentage of spent vs. budgeted, capped at 100. */
 export function budgetProgress(spent: number, total: number): number {
   if (total === 0) return 0

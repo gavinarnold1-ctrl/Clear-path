@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getCachedForecast, getForecastAccuracy } from '@/lib/forecast-helpers'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { ASSET_CLASS_DEFAULTS } from '@/lib/engines/forecast'
 import { piBreakdown, amortizationSchedule } from '@/lib/engines/amortization'
 import { db } from '@/lib/db'
@@ -353,7 +353,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
             {incomeTransitions
               .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
               .map((t) => {
-                const transitionDate = new Date(t.date)
+                const transitionDate = parseLocalDate(t.date)
                 const isPast = transitionDate <= new Date()
                 const incomeDelta = t.monthlyIncome - (profile?.expectedMonthlyIncome ?? 0)
                 return (

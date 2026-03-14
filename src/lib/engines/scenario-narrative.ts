@@ -14,15 +14,20 @@ export interface NarrativeInput {
   baselineProjectedDate?: string | null
   budgetCategoriesAffected: string[]
   totalInterestImpact?: number
+  scenarioType?: string
 }
 
 export function buildNarrativeSummary(input: NarrativeInput): string {
   const parts: string[] = []
 
-  // 1. Monthly impact magnitude
+  // 1. Monthly impact magnitude — use context-appropriate framing
   const monthly = input.monthlyImpactOnTrueRemaining
   if (monthly > 0) {
-    parts.push(`Saves ${formatCurrency(monthly)}/month`)
+    if (input.scenarioType === 'income_change') {
+      parts.push(`Adds ${formatCurrency(monthly)}/month to your surplus`)
+    } else {
+      parts.push(`Saves ${formatCurrency(monthly)}/month`)
+    }
   } else if (monthly < 0) {
     parts.push(`Costs ${formatCurrency(Math.abs(monthly))}/month`)
   } else {

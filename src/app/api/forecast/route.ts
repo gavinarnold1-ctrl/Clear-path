@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   // Build modified input based on scenario type
   const modifiedInput = applyScenario(input, scenarioType, params)
-  const impact = computeScenarioImpact(baseline, modifiedInput)
+  let impact = computeScenarioImpact(baseline, modifiedInput)
 
   // Compute the full modified forecast (for timeline + projected date)
   const modifiedForecast = computeForecast(modifiedInput)
@@ -89,6 +89,39 @@ export async function POST(req: NextRequest) {
       ...modifiedForecast,
       timeline: hybridTimeline,
       projectedDate: hybridProjectedDate,
+    }
+
+    // Recompute impact from the hybrid forecast so metrics reflect the delay.
+    // Without this, a change deferred past the forecast window still shows
+    // full immediate impact (e.g. "+$23K/mo") which is misleading.
+    const effectiveVelocity = hybridProjectedDate
+      ? effectiveForecast.monthlyVelocity
+      : baseline.monthlyVelocity
+    const baselineDays = baseline.projectedDate
+      ? Math.round((new Date(baseline.projectedDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      : 0
+    const hybridDays = hybridProjectedDate
+      ? Math.round((new Date(hybridProjectedDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      : 0
+    const velocityDelta = effectiveVelocity - baseline.monthlyVelocity
+    impact = {
+      ...impact,
+      daysSaved: baselineDays > 0 && hybridDays > 0 ? baselineDays - hybridDays : impact.daysSaved,
+      velocityChange: Math.round(velocityDelta * 100) / 100,
+      monthlyImpactOnTrueRemaining: Math.round(velocityDelta * 100) / 100,
+      newProjectedDate: hybridProjectedDate,
+    }
+  }
+
+  // If delay exceeds the forecast window, zero out the impact — the change
+  // doesn't take effect within the visible timeline
+  if (delayMonths > 0 && delayMonths >= baseline.timeline.length) {
+    impact = {
+      ...impact,
+      daysSaved: 0,
+      velocityChange: 0,
+      monthlyImpactOnTrueRemaining: 0,
+      newProjectedDate: baseline.projectedDate,
     }
   }
 
@@ -134,6 +167,7 @@ export async function POST(req: NextRequest) {
   const narrativeSummary = buildNarrativeSummary({
     ...impact,
     baselineProjectedDate: baseline.projectedDate ?? null,
+    scenarioType,
   })
 
   const scenario = {

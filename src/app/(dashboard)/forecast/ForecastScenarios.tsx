@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { ForecastScenario, IncomeTransition } from '@/types'
 import { trackScenarioCustomized } from '@/lib/analytics'
+import { parseLocalDate } from '@/lib/utils'
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable'
 
 interface DebtSummary {
@@ -53,7 +54,7 @@ function formatCurrency(amount: number): string {
 }
 
 function formatGoalDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return parseLocalDate(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
 function humanizeScenarioLabel(label: string): string {
@@ -438,7 +439,7 @@ export default function ForecastScenarios({
                                 >
                                   {t.label} — {formatCurrency(t.monthlyIncome)}/mo
                                   <span className="ml-1 text-stone">
-                                    ({new Date(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})
+                                    ({parseLocalDate(t.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})
                                   </span>
                                 </button>
                               )
@@ -639,19 +640,46 @@ export default function ForecastScenarios({
               {/* When does this start? (delay) */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-stone">When does this start?</label>
-                <select
-                  value={customDelayMonths}
-                  onChange={(e) => setCustomDelayMonths(e.target.value)}
-                  className="input w-full text-sm"
-                >
-                  <option value="0">Immediately</option>
-                  <option value="1">In 1 month</option>
-                  <option value="2">In 2 months</option>
-                  <option value="3">In 3 months</option>
-                  <option value="6">In 6 months</option>
-                  <option value="12">In 1 year</option>
-                  <option value="24">In 2 years</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={customDelayMonths}
+                    onChange={(e) => setCustomDelayMonths(e.target.value)}
+                    className="input w-20 text-sm text-center"
+                  />
+                  <span className="text-xs text-stone">months from now</span>
+                  {parseInt(customDelayMonths) > 0 && (
+                    <span className="text-xs text-fjord">
+                      ({new Date(new Date().getFullYear(), new Date().getMonth() + parseInt(customDelayMonths), 1)
+                        .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {[
+                    { label: 'Now', value: '0' },
+                    { label: '3mo', value: '3' },
+                    { label: '6mo', value: '6' },
+                    { label: '1yr', value: '12' },
+                    { label: '2yr', value: '24' },
+                    { label: '3yr', value: '36' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setCustomDelayMonths(opt.value)}
+                      className={`rounded-badge px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                        customDelayMonths === opt.value
+                          ? 'bg-fjord text-snow'
+                          : 'border border-mist text-stone hover:bg-frost'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex gap-2 pt-1">

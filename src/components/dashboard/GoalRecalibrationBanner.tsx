@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { RecalibrationSuggestion } from '@/lib/goal-recalibration'
 import { formatCurrency } from '@/lib/utils'
+import { trackGoalDeferAccelerationShown } from '@/lib/analytics'
 
 interface Props {
   suggestion: RecalibrationSuggestion
+  goalArchetype?: string
   onAccept: (type: 'extend' | 'increase') => Promise<void>
   onDismiss: () => void
 }
@@ -14,8 +16,17 @@ function formatMonth(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
-export default function GoalRecalibrationBanner({ suggestion, onAccept, onDismiss }: Props) {
+export default function GoalRecalibrationBanner({ suggestion, goalArchetype, onAccept, onDismiss }: Props) {
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (suggestion.type === 'defer_acceleration' && goalArchetype) {
+      trackGoalDeferAccelerationShown(
+        goalArchetype,
+        suggestion.phasedContributions?.length ?? 0
+      )
+    }
+  }, [suggestion.type, goalArchetype, suggestion.phasedContributions?.length])
 
   if (suggestion.type === 'defer_acceleration') {
     return (

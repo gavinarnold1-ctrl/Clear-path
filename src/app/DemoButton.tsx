@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { trackLogin, trackCtaClicked } from '@/lib/analytics'
+import { trackLogin, trackCtaClicked, trackDemoPhysicianLoaded } from '@/lib/analytics'
 
 export function DemoButton() {
   const router = useRouter()
@@ -15,6 +15,7 @@ export function DemoButton() {
       const res = await fetch('/api/auth/demo', { method: 'POST' })
       if (res.ok) {
         trackLogin('demo')
+        trackDemoPhysicianLoaded()
         router.push('/dashboard')
         return
       }
