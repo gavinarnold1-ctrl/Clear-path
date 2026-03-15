@@ -601,7 +601,7 @@ export default async function DashboardPage({ searchParams }: Props) {
 
       {/* Growth Sections */}
       <div className="mt-8 space-y-6">
-        <BudgetPerformanceCard />
+        <BudgetPerformanceCard goalMonthlySurplus={goalTarget?.monthlyNeeded} />
         <WealthGrowthCard />
       </div>
     </div>

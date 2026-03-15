@@ -28,7 +28,7 @@ function formatCurrency(value: number): string {
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-export default function BudgetPerformanceCard() {
+export default function BudgetPerformanceCard({ goalMonthlySurplus }: { goalMonthlySurplus?: number | null }) {
   const [period, setPeriod] = useState<Period>('6mo')
   const [data, setData] = useState<DashboardGrowthResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -105,6 +105,15 @@ export default function BudgetPerformanceCard() {
             labelFormatter={((label: string) => monthLabel(label)) as any}
           />
           <ReferenceLine y={0} stroke="#8B9A8E" strokeWidth={1} />
+          {goalMonthlySurplus != null && goalMonthlySurplus > 0 && (
+            <ReferenceLine
+              y={goalMonthlySurplus}
+              stroke="#2D5F3E"
+              strokeDasharray="6 3"
+              strokeWidth={1.5}
+              label={{ value: 'Goal', position: 'right', fill: '#2D5F3E', fontSize: 10 }}
+            />
+          )}
           <Bar dataKey="surplus" radius={[3, 3, 0, 0]}>
             {bp.months.map((m, i) => (
               <Cell key={i} fill={m.surplus >= 0 ? '#2D5F3E' : '#C4704B'} />

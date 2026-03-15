@@ -3,7 +3,7 @@
  * and the cron reset API route.
  */
 import type { PrismaClient } from '@prisma/client'
-import { AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
+import { Prisma, AccountType, BudgetPeriod, BudgetTier } from '@prisma/client'
 import { hashPassword } from '@/lib/password'
 import { DEMO_USER_ID, DEMO_USER_EMAIL } from '@/lib/demo'
 import { DEFAULT_CATEGORIES } from '@/lib/seed-categories'
@@ -81,7 +81,7 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
           goalSetAt: new Date(),
           goalTarget: {
             archetype: 'pay_off_debt',
-            metric: 'total_debt',
+            metric: 'debt_payoff',
             targetValue: 0,
             targetDate: '2033-06-01',
             startValue: 267000,
@@ -570,8 +570,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         debtPaidDown: randAmount(400, 600),
         netWorth: snap.netWorth,
         personBreakdown: JSON.stringify({ Alex: snap.totalExpenses }),
-        balanceHistory: JSON.stringify({ cash: snap.cash, investments: snap.investments, debt: snap.debtBal }),
-        categoryBreakdown: JSON.stringify(demoCategoryBreakdown),
+        balanceHistory: { cash: snap.cash, investments: snap.investments, debt: snap.debtBal },
+        categoryBreakdown: demoCategoryBreakdown,
       },
     })
   }

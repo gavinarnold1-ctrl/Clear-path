@@ -338,11 +338,18 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
 
                 {/* Progress bar */}
                 {(() => {
-                  const goalPct = Math.min(100, Math.round(((goalTarget.currentValue ?? 0) / (goalTarget.targetValue || 1)) * 100))
+                  const isDebtPayoff = goalTarget.metric === 'debt_payoff'
+                  const goalPct = isDebtPayoff && goalTarget.startValue > 0
+                    ? Math.min(100, Math.round(((goalTarget.startValue - (goalTarget.currentValue ?? goalTarget.startValue)) / goalTarget.startValue) * 100))
+                    : Math.min(100, Math.round(((goalTarget.currentValue ?? 0) / (goalTarget.targetValue || 1)) * 100))
                   return (
                     <div className="mt-4">
                       <div className="flex justify-between text-sm text-stone">
-                        <span>{formatCurrency(goalTarget.currentValue ?? 0)} of {formatCurrency(goalTarget.targetValue)} ({goalPct}%)</span>
+                        <span>
+                          {isDebtPayoff
+                            ? `${formatCurrency(goalTarget.currentValue ?? 0)} remaining (${goalPct}% paid off)`
+                            : `${formatCurrency(goalTarget.currentValue ?? 0)} of ${formatCurrency(goalTarget.targetValue)} (${goalPct}%)`}
+                        </span>
                       </div>
                       <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-birch/30">
                         <div

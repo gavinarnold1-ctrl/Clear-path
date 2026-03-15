@@ -1366,3 +1366,35 @@ Four roadmap items reviewed and resolved.
 
 - **611 total tests**: 611 passed, 0 failed (timezone test fixed)
 - TypeScript: zero errors (`npx tsc --noEmit` clean)
+
+---
+
+## Bug Tracker Sprint #3 (Mar 15, 2026)
+
+Bugs from the Claude Code Queue view in the Bug Tracker database.
+
+### P0 Fix
+
+| Bug | Fix | Files Changed | Status |
+|-----|-----|---------------|--------|
+| Goal progress broken for pay_off_debt — shows 100% with $260K remaining | Root cause: demo seed used `metric: 'total_debt'` instead of `'debt_payoff'`, causing all `isDebtPayoff` checks to fail. Fixed seed metric. Also fixed Monthly Review progress calculation (was dividing by targetValue=0) and forecast engine progress percent for debt goals. | `src/lib/seed-demo.ts`, `src/app/(dashboard)/monthly-review/page.tsx`, `src/lib/engines/forecast.ts` | Done |
+
+### P1 Fix
+
+| Bug | Fix | Files Changed | Status |
+|-----|-----|---------------|--------|
+| Wealth Growth section shows +$0 in demo mode | Demo seed used `JSON.stringify()` on Prisma `Json` fields (balanceHistory, categoryBreakdown), double-serializing the data. API read strings instead of objects, so `.cash`/`.investments`/`.debt` returned undefined. Fixed seed to pass plain objects. | `src/lib/seed-demo.ts` | Done |
+
+### P2 Fixes
+
+| Bug | Fix | Files Changed | Status |
+|-----|-----|---------------|--------|
+| Dashboard goal card contradictory "Behind" + "Achieved →" | Same root cause as P0 — wrong metric value caused `projectedDate()` to return "Achieved" when debt was $260K remaining | (same seed fix) | Done |
+| Unallocated flexible does not link to transactions | Verified working — link uses `catchAll=true`, transactions page handles via claiming engine, TransactionList shows "Unallocated Flexible" header | No changes needed | Done (verified) |
+| Budget performance should be tied to goal | Added `goalMonthlySurplus` prop to BudgetPerformanceCard. Dashboard passes `goalTarget.monthlyNeeded`. Chart shows dashed green reference line at goal surplus target. | `src/components/dashboard/BudgetPerformanceCard.tsx`, `src/app/(dashboard)/dashboard/page.tsx` | Done |
+| Smart category list when recategorizing | Feature request — deferred to Roadmap. UserCategoryMapping infrastructure exists but needs UX design. | No changes | Deferred |
+
+### Test Results
+
+- **611 total tests**: 611 passed, 0 failed
+- TypeScript: zero errors (`npx tsc --noEmit` clean)

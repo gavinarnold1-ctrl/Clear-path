@@ -483,9 +483,15 @@ export function computeForecast(input: ForecastInput): Forecast {
   )
 
   // 12. Compute progress percent
-  const totalRange = goal.targetValue - goal.startValue
-  const progressPercent =
-    totalRange !== 0 ? Math.min(100, Math.max(0, ((currentValue - goal.startValue) / totalRange) * 100)) : 0
+  // For debt_payoff: currentValue = remaining debt, progress = (startValue - currentValue) / startValue
+  const isDebtGoal = goal.metric === 'debt_payoff'
+  let progressPercent: number
+  if (isDebtGoal && goal.startValue > 0) {
+    progressPercent = Math.min(100, Math.max(0, ((goal.startValue - currentValue) / goal.startValue) * 100))
+  } else {
+    const totalRange = goal.targetValue - goal.startValue
+    progressPercent = totalRange !== 0 ? Math.min(100, Math.max(0, ((currentValue - goal.startValue) / totalRange) * 100)) : 0
+  }
 
   return {
     currentValue: round2(currentValue),
