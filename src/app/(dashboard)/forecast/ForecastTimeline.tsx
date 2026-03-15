@@ -177,7 +177,7 @@ export default function ForecastTimeline({ timeline, targetValue, targetDate, in
                 strokeDasharray="4 2"
                 strokeWidth={1.5}
                 label={{
-                  value: t.label.length > 15 ? t.label.slice(0, 14) + '…' : t.label,
+                  value: t.label.length > 25 ? t.label.slice(0, 24) + '…' : t.label,
                   position: 'top',
                   fill: '#8B9A8E',
                   fontSize: 10,

@@ -171,7 +171,7 @@ export function projectedDate(target: GoalTarget): string {
     return target.targetDate ? new Date(target.targetDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown'
   }
   const remaining = target.targetValue - target.currentValue
-  if (remaining <= 0) return 'Achieved!'
+  if (remaining <= 0) return 'Achieved'
   const monthsNeeded = Math.ceil(remaining / target.monthlyNeeded)
   const projected = new Date()
   projected.setMonth(projected.getMonth() + monthsNeeded)

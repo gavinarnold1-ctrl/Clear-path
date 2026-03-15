@@ -184,7 +184,7 @@ async function computeStartValue(
     case 'categorization_pct':
       return categorizationPct
     case 'net_worth_increase':
-      return 0 // Tracking delta from now
+      return netWorth // Baseline liquid NW — delta = current NW minus this
     case 'category_spend':
       return 0
     default:
