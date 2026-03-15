@@ -15,7 +15,6 @@ export async function GET() {
     if (programCount === 0) {
       try {
         await seedCardPrograms(db)
-        console.log('Auto-seeded card programs on first API access')
       } catch (seedErr) {
         console.error('Failed to auto-seed card programs:', seedErr)
       }

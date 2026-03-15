@@ -1348,3 +1348,21 @@ Bugs from the Claude Code Queue view in the Bug Tracker database.
 | Category rows have 4 competing click targets | P2 | Same fix as progress bar — removed right column links, reduced to 2 click targets (row + edit icon) | Done |
 | Progress bar too thin + pace marker barely visible | P2 | ProgressBar height 6px→8px, pace marker 2px→4px, opacity 50%→70% | Done |
 | Brand voice copy tweaks | P3 | Subtitle reworded, "pool" badge→"catch-all", percentage hidden when ≥100% | Done |
+
+---
+
+## Roadmap Items Sprint (Mar 15, 2026)
+
+Four roadmap items reviewed and resolved.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Transaction filtering | Verified correct — fixed budgets use direct categoryId filter, flexible budgets use claiming engine. No code changes needed. | Done (verified) |
+| AI Context Layer | Verified `assembleAIContext()` already wired into both AI endpoints: insights (insights.ts:346) and budget builder (budgets/generate/route.ts:82). All 6 signal capture functions wired to UI handlers. | Done (verified) |
+| Launch polish | Verified all items complete: BottomTabBar receives showCardBenefits from layout.tsx:143, EmptyState adopted in accounts, debts, properties, and budgets pages. | Done (verified) |
+| UAT Round 5 | Fixed timezone-dependent `formatDate` test using `parseLocalDate()` for date-only strings. Removed debug `console.log` from cards/suggestions/route.ts. | Done |
+
+### Test Results
+
+- **611 total tests**: 611 passed, 0 failed (timezone test fixed)
+- TypeScript: zero errors (`npx tsc --noEmit` clean)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCurrency, formatDate, budgetProgress, cn } from '@/lib/utils'
+import { formatCurrency, formatDate, parseLocalDate, budgetProgress, cn } from '@/lib/utils'
 
 describe('formatCurrency', () => {
   it('formats a positive USD amount', () => {
@@ -26,11 +26,11 @@ describe('formatCurrency', () => {
 
 describe('formatDate', () => {
   it('formats a Date object', () => {
-    expect(formatDate(new Date('2026-02-21'))).toMatch(/Feb 2(0|1), 2026/)
+    expect(formatDate(parseLocalDate('2026-02-21'))).toMatch(/Feb 21, 2026/)
   })
 
   it('accepts an ISO date string', () => {
-    expect(formatDate('2026-01-01')).toMatch(/Jan 1, 2026/)
+    expect(formatDate(parseLocalDate('2026-01-01'))).toMatch(/Jan 1, 2026/)
   })
 
   it('accepts a full ISO datetime string', () => {
