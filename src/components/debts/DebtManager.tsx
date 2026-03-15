@@ -806,8 +806,13 @@ function GroupedDebtExtras({
   // Effective rate (P&I only — excludes escrow)
   const totalEscrow = debts.reduce((s, d) => s + (d.escrowAmount ?? 0), 0)
   const piOnlyPayment = totalPayment - totalEscrow
+  const maxMonthsRemaining = debts.reduce<number | null>((max, d) => {
+    if (d.monthsRemaining == null) return max
+    if (max == null) return d.monthsRemaining
+    return Math.max(max, d.monthsRemaining)
+  }, null)
   const effRate = totalBalance > 0
-    ? calcEffectiveRate(totalBalance, piOnlyPayment)
+    ? calcEffectiveRate(totalBalance, piOnlyPayment, maxMonthsRemaining)
     : null
 
   // Combined equity/LTV across all units
@@ -1157,7 +1162,7 @@ function DebtPITIBreakdown({ debt, properties }: { debt: DebtRow; properties: Pr
   // Effective rate (P&I only — excludes escrow)
   const piPayment = debt.minimumPayment - (debt.escrowAmount ?? 0)
   const effRate = debt.type === 'MORTGAGE' && debt.currentBalance > 0
-    ? calcEffectiveRate(debt.currentBalance, piPayment)
+    ? calcEffectiveRate(debt.currentBalance, piPayment, debt.monthsRemaining)
     : null
 
   // Equity / LTV

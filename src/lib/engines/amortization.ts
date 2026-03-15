@@ -240,13 +240,14 @@ export function pitiBreakdown(
 export function effectiveRate(
   currentBalance: number,
   monthlyPIPayment: number,
+  remainingMonths?: number | null,
 ): number {
   if (currentBalance <= 0 || monthlyPIPayment <= 0) return 0
-  // If payment doesn't even cover interest at any reasonable rate, fall back
-  if (monthlyPIPayment <= 0) return 0
 
-  // Estimate remaining months: balance / payment gives lower bound
-  const estMonths = Math.ceil(currentBalance / monthlyPIPayment)
+  // Use provided remaining months, or estimate from balance / payment
+  const estMonths = remainingMonths && remainingMonths > 1
+    ? remainingMonths
+    : Math.ceil(currentBalance / monthlyPIPayment)
   if (estMonths <= 1) return 0
 
   // Newton's method to solve for monthly rate r

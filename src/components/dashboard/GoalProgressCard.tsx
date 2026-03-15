@@ -24,9 +24,13 @@ export default function GoalProgressCard({
     return <GoalTargetProposal goal={goal} goalLabel={goalLabel} />
   }
 
-  const progress = target.currentValue !== undefined && target.targetValue > 0
-    ? Math.min(100, Math.round((target.currentValue / target.targetValue) * 100))
-    : 0
+  // For debt_payoff goals, progress is how much debt has been paid off (startValue → 0)
+  const isDebtPayoff = target.metric === 'debt_payoff'
+  const progress = isDebtPayoff && target.startValue > 0
+    ? Math.min(100, Math.round(((target.startValue - (target.currentValue ?? target.startValue)) / target.startValue) * 100))
+    : target.currentValue !== undefined && target.targetValue > 0
+      ? Math.min(100, Math.round((target.currentValue / target.targetValue) * 100))
+      : 0
 
   const now = new Date().toISOString()
   const monthsElapsed = monthsBetween(target.startDate, now)
@@ -59,9 +63,13 @@ export default function GoalProgressCard({
           />
         </div>
         <div className="mt-1.5 flex items-center justify-between text-xs text-stone">
-          <span>{formatMetricValue(target, target.currentValue ?? 0)} of {formatMetricValue(target, target.targetValue)}</span>
+          <span>
+            {isDebtPayoff
+              ? `${formatMetricValue(target, target.currentValue ?? 0)} remaining`
+              : `${formatMetricValue(target, target.currentValue ?? 0)} of ${formatMetricValue(target, target.targetValue)}`}
+          </span>
           <Link href="/forecast" className="font-medium text-fjord hover:underline">
-            {projectedDate(target)} &rarr;
+            {projectedDate(target) === 'Achieved' ? 'Achieved' : `${projectedDate(target)}`} &rarr;
           </Link>
         </div>
       </div>
