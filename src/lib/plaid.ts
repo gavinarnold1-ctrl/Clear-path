@@ -138,6 +138,20 @@ export function mapPlaidCategory(
     return { group: 'Income', name: 'Other Income', type: 'income' }
   }
 
+  // FOOD_AND_DRINK sub-categories: use detailed to distinguish groceries from restaurants
+  if (primary === 'FOOD_AND_DRINK') {
+    if (detailed?.includes('GROCERIES')) {
+      return { group: 'Food', name: 'Groceries', type: 'expense' }
+    }
+    if (detailed?.includes('COFFEE')) {
+      return { group: 'Food', name: 'Coffee Shops', type: 'expense' }
+    }
+    // Known grocery merchants that Plaid may misclassify as FOOD_AND_DRINK
+    if (/\b(whole\s*foods|trader\s*joe|aldi|costco|kroger|safeway|publix|wegmans|h[- ]?e[- ]?b|sprouts)\b/i.test(merchantLower)) {
+      return { group: 'Food', name: 'Groceries', type: 'expense' }
+    }
+  }
+
   const mapping: Record<string, { group: string; name: string; type: string }> = {
     'INCOME': { group: 'Income', name: 'Other Income', type: 'income' },
     'TRANSFER_IN': { group: 'Transfers', name: 'Transfer', type: 'transfer' },

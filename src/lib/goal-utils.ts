@@ -34,20 +34,18 @@ export async function computeCurrentValue(userId: string, target: GoalTarget): P
       return Math.max(0, target.startValue - (debtAgg._sum.currentBalance ?? 0))
     }
     case 'net_worth_increase': {
+      // Track liquid financial assets only — excludes property equity so entering
+      // properties doesn't inflate "wealth growth" from budgeting work.
       const accounts = await db.account.findMany({
         where: { userId },
         select: { type: true, balance: true },
       })
-      const properties = await db.property.findMany({
-        where: { userId },
-        select: { currentValue: true, loanBalance: true },
-      })
       const LIABILITY_TYPES = new Set(['CREDIT_CARD', 'MORTGAGE', 'AUTO_LOAN', 'STUDENT_LOAN'])
-      const nw = accounts.reduce((sum, a) => {
+      const liquidNW = accounts.reduce((sum, a) => {
         if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
         return sum + a.balance
-      }, 0) + properties.reduce((sum, p) => sum + (p.currentValue ?? 0) - (p.loanBalance ?? 0), 0)
-      return Math.max(0, nw - target.startValue)
+      }, 0)
+      return Math.max(0, liquidNW - target.startValue)
     }
     case 'categorization_pct': {
       const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)

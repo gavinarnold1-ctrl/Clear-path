@@ -93,7 +93,7 @@ export const CATEGORY_GROUPS: CategoryGroupDef[] = [
     blsMajorCategory: 'Food',
     defaultCategories: [
       'Groceries',
-      'Restaurants & Dining',
+      'Restaurants & Bars',
       'Coffee & Tea',
       'Fast Food & Delivery',
       'Alcohol & Bars',
