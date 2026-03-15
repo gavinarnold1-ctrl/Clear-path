@@ -4,11 +4,19 @@ import { db } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
 import { plaidClient } from '@/lib/plaid'
 import { decrypt } from '@/lib/encryption'
+import { DEMO_USER_ID } from '@/lib/demo'
 
 // POST delete account permanently
 export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (session.userId === DEMO_USER_ID) {
+    return NextResponse.json(
+      { error: 'Demo accounts cannot be deleted. Sign up for your own account to get started!' },
+      { status: 403 }
+    )
+  }
 
   const body = await req.json()
   const { password } = body as { password?: string }

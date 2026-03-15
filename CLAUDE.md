@@ -129,6 +129,8 @@ Clear-path/
 │   │   │   ├── category-mappings/
 │   │   │   │   ├── route.ts             # GET all learned merchant→category mappings
 │   │   │   │   └── [id]/route.ts        # DELETE a learned mapping
+│   │   │   ├── dashboard/
+│   │   │   │   └── growth/route.ts      # GET: budget performance + wealth growth data (period=6mo|12mo|all)
 │   │   │   ├── cron/
 │   │   │   │   ├── reset-demo/route.ts        # Daily demo data reset (Vercel cron)
 │   │   │   │   ├── monthly-snapshot/route.ts  # Monthly snapshot cron (1st of month)
@@ -159,7 +161,7 @@ Clear-path/
 │   │   ├── budget-builder/  # AI budget proposal UI (BudgetBuilderCTA, BudgetProposal, ProposalSections)
 │   │   ├── budgets/         # Tiered budget sections (Fixed, Flexible, Annual) + TrueRemainingBanner + BudgetHealth + UncategorizedReviewBanner
 │   │   ├── categories/      # CategoryManager (inline edit/delete)
-│   │   ├── dashboard/       # MonthlyChart, SpendingBreakdown
+│   │   ├── dashboard/       # MonthlyChart, SpendingBreakdown, BudgetPerformanceCard, WealthGrowthCard
 │   │   ├── debts/           # DebtManager (debt cards with P&I/PITI breakdown, amortization schedule)
 │   │   ├── forms/           # TransactionForm, BudgetForm, AccountForm, CategoryForm, LoginForm, RegisterForm
 │   │   ├── import/          # CsvUploader, ColumnMapper, ImportPreview, ImportSummary
@@ -249,7 +251,7 @@ User
  ├── PropertyGroup[]         (groups properties for split allocation — e.g. multi-unit building)
  ├── Debt[]                  (mortgages, student loans, auto loans, credit cards — with P&I tracking)
  ├── UserCategoryMapping[]   (learned merchant→category mappings for auto-categorization)
- └── MonthlySnapshot[]       (monthly metrics snapshot: income, expenses, savings rate, debt, property breakdown)
+ └── MonthlySnapshot[]       (monthly metrics snapshot: income, expenses, savings rate, debt, property breakdown, balance history, category breakdown)
 
 PropertyGroup children:
  ├── SplitRule[]              (default allocation percentage per property within group)

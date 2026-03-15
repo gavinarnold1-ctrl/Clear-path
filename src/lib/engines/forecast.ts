@@ -615,6 +615,12 @@ export function generateSmartRecommendation(input: ForecastInput): ForecastScena
             totalBudgeted: budgets.totalBudgeted - oldPmt + newPmt,
             projectedSurplus: budgets.projectedSurplus + savings,
           },
+          // Update property equity projection to reflect new rate/payment
+          properties: input.properties?.map((p) =>
+            debt.propertyId && p.id === debt.propertyId
+              ? { ...p, interestRate: newRate, monthlyPayment: newPmt }
+              : p,
+          ),
         }
         const s = buildScenario(
           `smart-refinance-${debt.id}`,

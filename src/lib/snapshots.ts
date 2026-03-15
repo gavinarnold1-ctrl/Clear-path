@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { calculateDepreciation } from '@/lib/engines/tax'
 
 /**
@@ -287,6 +288,38 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
     }
   }
 
+  // Balance history: sum account balances by type bucket
+  const CASH_TYPES = new Set(['CHECKING', 'SAVINGS', 'CASH'])
+  const INVESTMENT_TYPES = new Set(['INVESTMENT'])
+  const cashBalance = accounts.filter(a => CASH_TYPES.has(a.type)).reduce((s, a) => s + a.balance, 0)
+  const investmentBalance = accounts.filter(a => INVESTMENT_TYPES.has(a.type)).reduce((s, a) => s + a.balance, 0)
+  const debtBalance = accounts.filter(a => LIABILITY_TYPES.has(a.type)).reduce((s, a) => s + Math.abs(a.balance), 0)
+    + debts.filter(d => !accounts.some(a => a.type === d.type)).reduce((s, d) => s + d.currentBalance, 0)
+  const balanceHistory: Prisma.InputJsonValue | typeof Prisma.JsonNull = accounts.length > 0
+    ? { cash: Math.round(cashBalance * 100) / 100, investments: Math.round(investmentBalance * 100) / 100, debt: Math.round(debtBalance * 100) / 100 }
+    : Prisma.JsonNull
+
+  // Category breakdown: merge budgets with actual spending
+  const categories = await db.category.findMany({
+    where: { OR: [{ userId }, { userId: null, isDefault: true }] },
+    select: { id: true, name: true, group: true },
+  })
+  const categoryMap = new Map(categories.map(c => [c.id, c]))
+  const categoryBreakdownItems: Array<{ categoryName: string; group: string; budgeted: number; spent: number }> = []
+  for (const b of [...fixedBudgets, ...flexBudgets]) {
+    if (!b.categoryId) continue
+    const cat = categoryMap.get(b.categoryId)
+    if (!cat) continue
+    const spent = spentByCategory.get(b.categoryId) ?? 0
+    categoryBreakdownItems.push({
+      categoryName: cat.name,
+      group: cat.group,
+      budgeted: Math.round(b.amount * 100) / 100,
+      spent: Math.round(spent * 100) / 100,
+    })
+  }
+  const categoryBreakdown: Prisma.InputJsonValue | typeof Prisma.JsonNull = categoryBreakdownItems.length > 0 ? categoryBreakdownItems as unknown as Prisma.InputJsonValue : Prisma.JsonNull
+
   const snapshotMonth = new Date(year, month - 1, 1)
 
   await db.monthlySnapshot.upsert({
@@ -318,6 +351,8 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       spendingScore: latestScore ? Math.round(latestScore.spendingScore) : null,
       savingsScore: latestScore ? Math.round(latestScore.savingsScore) : null,
       debtScore: latestScore ? Math.round(latestScore.debtScore) : null,
+      balanceHistory,
+      categoryBreakdown,
     },
     update: {
       trueRemaining,
@@ -344,6 +379,8 @@ export async function createMonthlySnapshot(userId: string, year: number, month:
       spendingScore: latestScore ? Math.round(latestScore.spendingScore) : null,
       savingsScore: latestScore ? Math.round(latestScore.savingsScore) : null,
       debtScore: latestScore ? Math.round(latestScore.debtScore) : null,
+      balanceHistory,
+      categoryBreakdown,
     },
   })
 }

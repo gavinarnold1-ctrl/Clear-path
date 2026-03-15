@@ -1259,3 +1259,57 @@ Created `scripts/reset-plaid-cursors.ts` — clears sandbox `plaidCursor` values
 3. Go to Settings → Accounts → "Connect Bank" to re-link real bank accounts
 4. Click "Sync Now" for first production transaction pull
 5. Existing sandbox accounts can be deleted manually or superseded by real data
+
+---
+
+## Dashboard Growth Sections (Mar 15, 2026)
+
+### Overview Tab — Budget Performance & Wealth Growth
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Schema | Added `balanceHistory Json?` and `categoryBreakdown Json?` to MonthlySnapshot | Done |
+| Types | New types: BalanceHistory, CategoryBreakdownItem, BudgetPerformanceMonth, CategoryPerformanceItem, WealthGrowthMonth, GrowthBreakdownItem, DashboardGrowthResponse | Done |
+| Snapshot | Updated `createMonthlySnapshot()` to compute and store balanceHistory (cash/investments/debt buckets) and categoryBreakdown (per-category budgeted vs spent) | Done |
+| API | `GET /api/dashboard/growth?period=6mo|12mo|all` — returns budget performance months, category breakdown, wealth growth months, breakdown table | Done |
+| BudgetPerformanceCard | Diverging surplus/deficit bar chart (Recharts), 4 KPIs (avg surplus, avg savings rate, best/worst month), category breakdown with overflow bars, status icons | Done |
+| WealthGrowthCard | Stacked area chart (cash savings, investments, debt paydown), growth breakdown table, total growth headline | Done |
+| Dashboard integration | Dynamic imports with loading skeletons, placed after ValueTracker | Done |
+| Period pills | Toggle between 6M/12M/All with data-aware disabling (12M requires 7+ months) | Done |
+| Empty states | Graceful message when <2 months of snapshot data | Done |
+| Demo seed | 6 months of balance history data added to demo snapshots | Done |
+
+---
+
+## Bug Sprint — Security, Live Testing, Monthly Review (Mar 15, 2026)
+
+### Security Hardening (P0)
+
+All 5 steps verified already implemented — no new code changes required:
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 1 | Token rotation TTL (30s enforcement in middleware) | Already done |
+| 2 | Encryption key validation (fail-fast in prod, warn in dev) | Already done |
+| 3 | Plaid item revocation on last account delete | Already done |
+| 4 | CSV size validation (10MB content limit, 50K row limit) | Already done |
+| 5 | Composite DB indexes on Transaction table (10 indexes) | Already done |
+
+**Additional hardening**: Added `DEMO_USER_ID` guards to `POST /api/profile/delete` and `POST /api/profile/reset` — demo users can no longer delete or reset accounts. All destructive API routes now have demo guards.
+
+### Live Testing Fixes (P0)
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Items 1-2 | Previously fixed in earlier sprint | Already done |
+| Demo guards | Added guards to profile/delete and profile/reset routes | Done |
+| Refi scenario | Fixed `forecast.ts` to map `properties` array in `refiInput` so property equity projection updates with new rate/payment | Done |
+| Net worth consistency | Verified dashboard, accounts page, and AccountManager all use same logic (exclude linked property accounts, subtract liabilities, add property equity) | Verified |
+
+### Monthly Review Data Accuracy (P1)
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Items 1-3 | Monthly scoping, budget context month param, snapshot computation — all previously fixed | Already done |
+| Oversikt Value label | Changed "Your Oversikt Value" → "Savings Opportunities" with reframed description ("potential savings identified") | Done |
+| Trajectory chart | Already implemented | Already done |

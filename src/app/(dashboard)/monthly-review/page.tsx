@@ -494,13 +494,13 @@ export default async function MonthlyReviewPage({ searchParams }: Props) {
               return (
                 <div className="rounded-xl border border-birch/30 bg-birch/5 px-5 py-4">
                   <div>
-                    <p className="text-xs font-medium text-stone">Your Oversikt Value</p>
+                    <p className="text-xs font-medium text-stone">Savings Opportunities</p>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="font-mono text-2xl font-semibold text-birch">
                         {formatCurrency(valueSummary.totalIdentified)}
                       </span>
                       <span className="text-sm text-stone">
-                        in savings opportunities found — take action to start tracking your returns
+                        in potential savings identified — act on insights to start saving
                       </span>
                     </div>
                   </div>
