@@ -22,6 +22,14 @@ import BudgetHealthCards from '@/components/dashboard/BudgetHealthCards'
 import AttentionItems from '@/components/dashboard/AttentionItems'
 import GoalProgressCard from '@/components/dashboard/GoalProgressCard'
 import BackgroundSyncTrigger from '@/components/dashboard/BackgroundSyncTrigger'
+import dynamic from 'next/dynamic'
+
+const BudgetPerformanceCard = dynamic(() => import('@/components/dashboard/BudgetPerformanceCard'), {
+  loading: () => <div className="card animate-pulse"><div className="h-5 w-40 rounded bg-mist mb-4" /><div className="h-48 rounded bg-mist/50" /></div>,
+})
+const WealthGrowthCard = dynamic(() => import('@/components/dashboard/WealthGrowthCard'), {
+  loading: () => <div className="card animate-pulse"><div className="h-5 w-36 rounded bg-mist mb-4" /><div className="h-48 rounded bg-mist/50" /></div>,
+})
 
 export const metadata: Metadata = { title: 'Overview' }
 export const revalidate = 60
@@ -588,6 +596,12 @@ export default async function DashboardPage({ searchParams }: Props) {
       {/* Value tracker — at bottom */}
       <div>
         <ValueTracker value={valueSummary} />
+      </div>
+
+      {/* Growth Sections */}
+      <div className="mt-8 space-y-6">
+        <BudgetPerformanceCard />
+        <WealthGrowthCard />
       </div>
     </div>
   )

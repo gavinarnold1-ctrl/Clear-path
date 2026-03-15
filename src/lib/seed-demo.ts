@@ -526,12 +526,23 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
 
   // ─── Monthly Snapshots (6 months) ──────────────────────────────────
   const snapshotData = [
-    { monthsBack: 5, totalIncome: 5416, totalExpenses: 4500, netWorth: -249800, totalDebt: 261000, savingsRate: 0.08 },
-    { monthsBack: 4, totalIncome: 5416, totalExpenses: 4600, netWorth: -249200, totalDebt: 260200, savingsRate: 0.07 },
-    { monthsBack: 3, totalIncome: 6800, totalExpenses: 4400, netWorth: -247000, totalDebt: 259400, savingsRate: 0.15 },
-    { monthsBack: 2, totalIncome: 5416, totalExpenses: 4300, netWorth: -246000, totalDebt: 258600, savingsRate: 0.10 },
-    { monthsBack: 1, totalIncome: 5416, totalExpenses: 4800, netWorth: -245600, totalDebt: 258000, savingsRate: 0.05 },
-    { monthsBack: 0, totalIncome: 5416, totalExpenses: 4200, netWorth: -244400, totalDebt: 257200, savingsRate: 0.12 },
+    { monthsBack: 5, totalIncome: 5416, totalExpenses: 4500, netWorth: -249800, totalDebt: 261000, savingsRate: 0.08, cash: 3200, investments: 8500, debtBal: 261000 },
+    { monthsBack: 4, totalIncome: 5416, totalExpenses: 4600, netWorth: -249200, totalDebt: 260200, savingsRate: 0.07, cash: 3050, investments: 8600, debtBal: 260200 },
+    { monthsBack: 3, totalIncome: 6800, totalExpenses: 4400, netWorth: -247000, totalDebt: 259400, savingsRate: 0.15, cash: 5200, investments: 8750, debtBal: 259400 },
+    { monthsBack: 2, totalIncome: 5416, totalExpenses: 4300, netWorth: -246000, totalDebt: 258600, savingsRate: 0.10, cash: 5800, investments: 8850, debtBal: 258600 },
+    { monthsBack: 1, totalIncome: 5416, totalExpenses: 4800, netWorth: -245600, totalDebt: 258000, savingsRate: 0.05, cash: 5400, investments: 9000, debtBal: 258000 },
+    { monthsBack: 0, totalIncome: 5416, totalExpenses: 4200, netWorth: -244400, totalDebt: 257200, savingsRate: 0.12, cash: 6200, investments: 9100, debtBal: 257200 },
+  ]
+
+  const demoCategoryBreakdown = [
+    { categoryName: 'Rent', group: 'Housing', budgeted: 1850, spent: 1850 },
+    { categoryName: 'Groceries', group: 'Food & Dining', budgeted: 500, spent: 480 },
+    { categoryName: 'Restaurants', group: 'Food & Dining', budgeted: 200, spent: 245 },
+    { categoryName: 'Transportation', group: 'Transportation', budgeted: 150, spent: 130 },
+    { categoryName: 'Utilities', group: 'Housing', budgeted: 180, spent: 175 },
+    { categoryName: 'Entertainment', group: 'Entertainment', budgeted: 100, spent: 135 },
+    { categoryName: 'Shopping', group: 'Shopping', budgeted: 150, spent: 190 },
+    { categoryName: 'Health & Fitness', group: 'Health', budgeted: 80, spent: 65 },
   ]
 
   for (const snap of snapshotData) {
@@ -559,6 +570,8 @@ export async function seedDemoData(db: PrismaClient): Promise<void> {
         debtPaidDown: randAmount(400, 600),
         netWorth: snap.netWorth,
         personBreakdown: JSON.stringify({ Alex: snap.totalExpenses }),
+        balanceHistory: JSON.stringify({ cash: snap.cash, investments: snap.investments, debt: snap.debtBal }),
+        categoryBreakdown: JSON.stringify(demoCategoryBreakdown),
       },
     })
   }

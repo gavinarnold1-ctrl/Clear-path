@@ -549,6 +549,70 @@ export interface CardSuggestion {
   matchReason: string
 }
 
+// ─── Dashboard Growth Section Types ─────────────────────────────────────────
+
+export interface BalanceHistory {
+  cash: number
+  investments: number
+  debt: number
+}
+
+export interface CategoryBreakdownItem {
+  categoryName: string
+  group: string
+  budgeted: number
+  spent: number
+}
+
+export interface BudgetPerformanceMonth {
+  month: string          // "2026-01"
+  income: number
+  expenses: number
+  surplus: number        // income - expenses (positive = surplus, negative = deficit)
+  savingsRate: number
+}
+
+export interface CategoryPerformanceItem {
+  categoryName: string
+  group: string
+  budgeted: number
+  spent: number
+  delta: number          // budgeted - spent (positive = under, negative = over)
+  pctOfBudget: number    // spent / budgeted * 100
+}
+
+export interface WealthGrowthMonth {
+  month: string          // "2026-01"
+  cash: number
+  investments: number
+  debtReduction: number  // positive = debt paid down
+  total: number          // cash + investments + debtReduction
+}
+
+export interface GrowthBreakdownItem {
+  label: string
+  currentValue: number
+  changeAbs: number
+  changePct: number
+}
+
+export interface DashboardGrowthResponse {
+  budgetPerformance: {
+    months: BudgetPerformanceMonth[]
+    avgSurplus: number
+    avgSavingsRate: number
+    bestMonth: string | null
+    worstMonth: string | null
+    categoryBreakdown: CategoryPerformanceItem[]
+  }
+  wealthGrowth: {
+    months: WealthGrowthMonth[]
+    totalGrowth: number
+    breakdown: GrowthBreakdownItem[]
+  }
+  availableMonths: number
+}
+
 // ─── API response shapes ──────────────────────────────────────────────────────
 
 export interface ApiError {

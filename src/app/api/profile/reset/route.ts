@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { seedUserCategories } from '@/lib/seed-categories'
+import { DEMO_USER_ID } from '@/lib/demo'
 
 /**
  * POST /api/profile/reset
@@ -14,6 +15,13 @@ import { seedUserCategories } from '@/lib/seed-categories'
 export async function POST() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (session.userId === DEMO_USER_ID) {
+    return NextResponse.json(
+      { error: 'Demo accounts cannot be reset. Sign up for your own account to get started!' },
+      { status: 403 }
+    )
+  }
 
   const userId = session.userId
 
