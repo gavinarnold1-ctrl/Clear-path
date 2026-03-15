@@ -90,7 +90,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
               {formatCurrency(rollupBudget)}/mo
             </span>
           </div>
-          <p className="mb-3 text-xs text-stone">Variable spending you control — track against a monthly limit</p>
+          <p className="mb-3 text-xs text-stone">Day-to-day spending you can adjust</p>
 
           <div className="mb-1 flex items-center justify-between">
             <span className="font-mono text-sm font-semibold text-fjord">
@@ -134,7 +134,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
       {rollupBudget <= 0 && (
         <div className="mb-3">
           <h2 className="font-display text-lg font-semibold text-fjord">Flexible Spending</h2>
-          <p className="text-sm text-stone">Variable spending you control — track against a monthly limit</p>
+          <p className="text-sm text-stone">Day-to-day spending you can adjust</p>
         </div>
       )}
 
@@ -186,7 +186,7 @@ export default function FlexibleBudgetSection({ budgets, unallocatedAmount, unal
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-fjord">Unallocated Flexible</span>
-                  <span className="rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">pool</span>
+                  <span className="rounded-badge bg-mist px-1.5 py-0.5 text-[10px] font-medium text-stone">catch-all</span>
                 </div>
                 <span className="text-sm text-stone">
                   <span className={pctColor}>{formatCurrency(spent)}</span>

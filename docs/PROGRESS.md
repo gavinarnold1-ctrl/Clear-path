@@ -1336,3 +1336,15 @@ Bugs from the Claude Code Queue view in the Bug Tracker database.
 | Historic view of growth | Already implemented via Dashboard Growth Sections (WealthGrowthCard shows cash/investment/debt history) | Done |
 | Smart category list when recategorizing | Feature request — set to Needs Work, recommend moving to Roadmap | Deferred |
 | Pay off Debt goal shows "Achieved!" with outstanding debt | Fixed inverted `remaining` calculation in `projectedDate()`, `simulateImpact()`, `computeGoalPhases()` for debt_payoff metric. Fixed progress bar and display in GoalProgressCard | Done |
+
+---
+
+## Budget Engine UX Sprint (Mar 15, 2026)
+
+| Bug | Severity | Fix | Status |
+|-----|----------|-----|--------|
+| Progress bar width inconsistent across rows | P0 | Removed variable-width right column links from FlexibleBudgetRow; row is now a single Link element | Done |
+| Unbudgeted section has no quick-assign flow | P2 | Added inline budget creation (click "+ Budget" to enter amount) and "Budget all N" batch button | Done |
+| Category rows have 4 competing click targets | P2 | Same fix as progress bar — removed right column links, reduced to 2 click targets (row + edit icon) | Done |
+| Progress bar too thin + pace marker barely visible | P2 | ProgressBar height 6px→8px, pace marker 2px→4px, opacity 50%→70% | Done |
+| Brand voice copy tweaks | P3 | Subtitle reworded, "pool" badge→"catch-all", percentage hidden when ≥100% | Done |

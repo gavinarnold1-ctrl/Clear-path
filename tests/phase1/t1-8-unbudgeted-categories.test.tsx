@@ -18,6 +18,11 @@ vi.mock('next/link', () => ({
   },
 }))
 
+// Mock next/navigation for useRouter
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+}))
+
 // Mock @/lib/utils to provide formatCurrency
 vi.mock('@/lib/utils', () => ({
   formatCurrency: (amount: number) => {
@@ -169,9 +174,9 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
       })
     })
 
-    // ── 5. Shows a "Budget" link for each unbudgeted category ───────────────
-    describe('5. Shows a Budget link for each unbudgeted category', () => {
-      it('renders a link to /budgets/new with categoryId for each category', async () => {
+    // ── 5. Shows a "Budget" button for each unbudgeted category ─────────────
+    describe('5. Shows a Budget button for each unbudgeted category', () => {
+      it('renders a "+ Budget" button for each category', async () => {
         const { render, screen } = await import('@testing-library/react')
         const categories = [
           { categoryId: 'cat-1', categoryName: 'Groceries', spent: 350.5 },
@@ -187,21 +192,11 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
           <UnbudgetedSection categories={categories} />
         )
 
-        const links = screen.getAllByRole('link')
-        const budgetLinks = links.filter((link: HTMLElement) =>
-          link.getAttribute('href')?.includes('/budgets/new')
-        )
-        expect(budgetLinks.length).toBe(2)
-
-        expect(budgetLinks[0].getAttribute('href')).toContain(
-          'categoryId=cat-1'
-        )
-        expect(budgetLinks[1].getAttribute('href')).toContain(
-          'categoryId=cat-2'
-        )
+        const budgetButtons = screen.getAllByText('+ Budget')
+        expect(budgetButtons.length).toBe(2)
       })
 
-      it('renders a single category link correctly', async () => {
+      it('renders a single category with budget button correctly', async () => {
         const { render, screen } = await import('@testing-library/react')
         const categories = [
           {
@@ -220,21 +215,14 @@ describe('T1.8 — Unbudgeted categories on Budgets page', () => {
         // Amount may appear in both the row and the summary
         expect(screen.getAllByText(/87\.25/).length).toBeGreaterThan(0)
 
-        const links = screen.getAllByRole('link')
-        const budgetLinks = links.filter((link: HTMLElement) =>
-          link.getAttribute('href')?.includes('/budgets/new')
-        )
-        expect(budgetLinks.length).toBe(1)
-        expect(budgetLinks[0].getAttribute('href')).toContain(
-          'categoryId=cat-99'
-        )
+        const budgetButtons = screen.getAllByText('+ Budget')
+        expect(budgetButtons.length).toBe(1)
       })
 
-      it('source contains Link component referencing /budgets/new', () => {
+      it('source contains inline budget creation with categoryId', () => {
         const source = fs.readFileSync(UNBUDGETED_SECTION_PATH, 'utf-8')
-        expect(source).toMatch(/\/budgets\/new/)
         expect(source).toMatch(/categoryId/)
-        expect(source).toMatch(/Link/)
+        expect(source).toMatch(/\+ Budget/)
       })
     })
 

@@ -15,7 +15,7 @@ export default function ProgressBar({ value, className, paceMarker }: Props) {
 
   return (
     <div
-      className={`relative h-1.5 w-full overflow-hidden rounded-bar bg-mist ${className ?? ''}`}
+      className={`relative h-2 w-full overflow-hidden rounded-bar bg-mist ${className ?? ''}`}
       role="progressbar"
       aria-valuenow={capped}
       aria-valuemin={0}
@@ -27,7 +27,7 @@ export default function ProgressBar({ value, className, paceMarker }: Props) {
       />
       {markerPos !== undefined && markerPos > 0 && markerPos < 100 && (
         <div
-          className="absolute top-0 h-full w-0.5 bg-fjord/50"
+          className="absolute top-0 h-full w-1 bg-fjord/70"
           style={{ left: `${markerPos}%` }}
           title={`Expected pace: ${markerPos}%`}
         />
