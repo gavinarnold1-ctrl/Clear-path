@@ -125,7 +125,9 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
 
   const projectedDateLabel = projectedDate
     ? new Date(projectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : 'Not projected'
+    : progressPercent >= 100
+      ? 'Already achieved'
+      : 'Not projected'
 
   const goalTarget = profile?.goalTarget as GoalTarget | null
   const isSavingsGoal = goalTarget?.metric === 'savings_amount'
@@ -145,8 +147,10 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
     projectedDate: projectedDate ?? null,
     projectedDateLabel,
     monthsDiff,
-    confidence,
-    confidenceReason: velocityBreakdown && velocityBreakdown.monthsOfData < 3
+    confidence: progressPercent >= 100 ? 'high' : confidence,
+    confidenceReason: progressPercent >= 100
+      ? 'Goal target has been reached'
+      : velocityBreakdown && velocityBreakdown.monthsOfData < 3
       ? 'Based on your budget plan \u2014 forecast will calibrate as data accumulates'
       : velocityBreakdown && velocityBreakdown.monthsOfData < 6
         ? 'Blending your budget plan with recent spending patterns'

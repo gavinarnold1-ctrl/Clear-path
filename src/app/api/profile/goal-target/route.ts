@@ -127,11 +127,9 @@ async function proposeTarget(
     if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
     return sum + a.balance
   }, 0)
-  const propertyEquity = properties.reduce((sum, p) => {
-    if (!p.currentValue) return sum
-    return sum + p.currentValue - (p.loanBalance ?? 0)
-  }, 0)
-  const netWorth = accountNetWorth + propertyEquity
+  // Use liquid net worth (financial accounts only) for goal targets.
+  // Property equity is tracked separately — entering properties shouldn't inflate goals.
+  const netWorth = accountNetWorth
 
   // Compute balance-weighted average interest rate across all debts
   const totalDebtBalance = debtsForRate.reduce((s, d) => s + d.currentBalance, 0)
@@ -186,7 +184,7 @@ async function computeStartValue(
     case 'categorization_pct':
       return categorizationPct
     case 'net_worth_increase':
-      return 0 // Tracking delta from now
+      return netWorth // Baseline liquid NW — delta = current NW minus this
     case 'category_spend':
       return 0
     default:

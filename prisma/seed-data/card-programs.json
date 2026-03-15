@@ -360,7 +360,7 @@
         "isTransactionTrackable": true,
         "eligibleMerchants": ["uber", "uber eats"],
         "creditMerchantPatterns": ["uber cash", "amex uber"],
-        "description": "$15/month Uber Cash plus $20 in December"
+        "description": "$15/month Uber Cash ($35 in December)"
       },
       {
         "name": "Walmart+ Credit",
@@ -388,12 +388,12 @@
         "name": "Clear Plus Credit",
         "type": "statement_credit",
         "category": "Travel",
-        "creditAmount": 199,
+        "creditAmount": 189,
         "creditCycle": "CALENDAR_YEAR",
         "isTransactionTrackable": true,
         "eligibleMerchants": ["clear", "clearme"],
         "creditMerchantPatterns": ["clear credit", "amex clear"],
-        "description": "Up to $199 CLEAR Plus credit"
+        "description": "Up to $189 CLEAR Plus credit"
       },
       {
         "name": "Equinox Credit",

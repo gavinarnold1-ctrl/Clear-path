@@ -322,7 +322,7 @@ const BUDGET_SCAFFOLD = {
   ],
   flexible: [
     { name: 'Groceries', category: 'Food & Dining' },
-    { name: 'Restaurants & Dining', category: 'Food & Dining' },
+    { name: 'Restaurants & Bars', category: 'Food & Dining' },
     { name: 'Coffee Shops', category: 'Food & Dining' },
     { name: 'Gas & Fuel', category: 'Auto & Transport' },
     { name: 'Shopping', category: 'Shopping' },

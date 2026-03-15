@@ -6,12 +6,13 @@ import { DemoButton } from './DemoButton'
 export const metadata: Metadata = {
   title: 'Oversikt — Budgeting for Households with Real Financial Complexity',
   description:
-    'Free budgeting app with True Remaining, goal-driven budgets, property tracking, and AI insights. Built for dual-income households earning $110K–$200K who have outgrown YNAB and Mint.',
+    'Budgeting app with True Remaining, goal-driven budgets, property tracking, and AI insights. Built for households with real financial complexity who have outgrown YNAB and Mint.',
   keywords: [
     'budgeting app',
     'personal finance',
     'budget tracker',
     'YNAB alternative',
+    'Monarch alternative',
     'household budget',
     'rental property budget',
     'True Remaining',
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Oversikt — Budgeting for Real Financial Complexity',
     description:
-      'See what\'s true about your money. Free budgeting with True Remaining, property tracking, and AI insights.',
+      'See what\'s true about your money. Budgeting with True Remaining, property tracking, and AI insights.',
     url: 'https://oversikt.io',
     siteName: 'Oversikt',
     type: 'website',
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Oversikt — Budgeting for Real Financial Complexity',
     description:
-      'Free budgeting app with True Remaining, goal-driven budgets, and property tracking. Built for households that have outgrown YNAB.',
+      'Budgeting app with True Remaining, goal-driven budgets, and property tracking. Built for households that have outgrown YNAB.',
   },
   alternates: {
     canonical: 'https://oversikt.io',
@@ -69,7 +70,7 @@ export default function HomePage() {
             '@type': 'Offer',
             price: '0',
             priceCurrency: 'USD',
-            description: 'Free during early access. No credit card required.',
+            description: 'Founding member pricing for early users.',
           },
         }}
       />
@@ -101,11 +102,11 @@ export default function HomePage() {
             href="/register"
             className="inline-flex items-center justify-center rounded-button bg-pine px-8 py-3 text-base font-medium text-snow shadow-sm transition-colors hover:bg-pine/90"
           >
-            Start budgeting — free
+            Start budgeting
           </Link>
           <DemoButton />
         </div>
-        <p className="mt-4 text-xs text-snow/50">No credit card required</p>
+        <p className="mt-4 text-xs text-snow/50">Founding member pricing for early users</p>
 
         {/* Norwegian etymology */}
         <div className="mt-auto pt-16 text-center">
@@ -191,13 +192,10 @@ export default function HomePage() {
                   <div className="flex h-24 items-end gap-2">
                     {[65, 72, 58, 80, 68, 75, 62].map((h, i) => (
                       <div key={i} className="flex flex-1 flex-col items-center gap-1">
-                        <div
-                          className="w-full rounded-bar bg-fjord/20"
-                          style={{ height: `${h}%` }}
-                        >
+                        <div className="relative w-full flex-1">
                           <div
-                            className="w-full rounded-bar bg-fjord"
-                            style={{ height: `${Math.min(100, h + 10)}%` }}
+                            className="absolute bottom-0 w-full rounded-bar bg-fjord"
+                            style={{ height: `${h}%` }}
                           />
                         </div>
                         <span className="text-[9px] text-stone">
@@ -368,7 +366,7 @@ export default function HomePage() {
             Just clarity &mdash; and the freedom to decide what to do with it.
           </p>
           <p className="mx-auto mt-6 max-w-lg font-medium text-fjord/70">
-            Built for households earning $110&ndash;200K with real financial complexity.
+            Built for households with real financial complexity.
           </p>
           <p className="mx-auto mt-3 max-w-lg text-sm text-stone/70">
             Works on any device. Connects via Plaid. Tracks what others don&apos;t &mdash;
@@ -392,11 +390,11 @@ export default function HomePage() {
               href="/register"
               className="inline-flex items-center justify-center rounded-button bg-pine px-8 py-3 text-base font-medium text-snow shadow-sm transition-colors hover:bg-pine/90"
             >
-              Start budgeting — free
+              Start budgeting
             </Link>
             <DemoButton />
           </div>
-          <p className="text-xs text-snow/50">Free during early access</p>
+          <p className="text-xs text-snow/50">Founding member pricing for early users</p>
         </div>
       </section>
 

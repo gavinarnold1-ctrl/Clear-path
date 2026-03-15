@@ -16,6 +16,8 @@ interface Props {
   benchmarkScore?: number
   categorizationPct?: number
   netWorth?: number
+  liquidNetWorth?: number
+  propertyEquity?: number
   hasStaleBalances?: boolean
   staleAccountCount?: number
 }
@@ -34,6 +36,8 @@ export default function BudgetHealthCards({
   benchmarkScore,
   categorizationPct,
   netWorth,
+  liquidNetWorth,
+  propertyEquity,
   hasStaleBalances,
   staleAccountCount,
 }: Props) {
@@ -80,6 +84,8 @@ export default function BudgetHealthCards({
         benchmarkScore={benchmarkScore}
         categorizationPct={categorizationPct}
         netWorth={netWorth}
+        liquidNetWorth={liquidNetWorth}
+        propertyEquity={propertyEquity}
       />
 
       {/* Card 4: Net worth (always visible unless build_wealth archetype already shows it) */}
@@ -120,6 +126,8 @@ function ArchetypeCard({
   benchmarkScore,
   categorizationPct,
   netWorth,
+  liquidNetWorth,
+  propertyEquity,
 }: Omit<Props, 'fixedPaid' | 'fixedTotal' | 'flexibleSpent' | 'flexibleBudget' | 'flexibleUnderBudget'>) {
   switch (primaryGoal) {
     case 'save_more': {
@@ -176,9 +184,14 @@ function ArchetypeCard({
     case 'build_wealth':
       return (
         <Link href="/accounts" className="card border-l-4 border-l-fjord transition-colors hover:border-fjord/30">
-          <p className="text-xs font-medium text-stone">Net worth</p>
-          <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(netWorth ?? 0)}</p>
-          <p className="mt-1 text-xs text-stone">total assets minus liabilities</p>
+          <p className="text-xs font-medium text-stone">Financial assets</p>
+          <p className="mt-1 text-2xl font-bold text-fjord">{formatCurrency(liquidNetWorth ?? 0)}</p>
+          <p className="mt-1 text-xs text-stone">cash, savings &amp; investments</p>
+          {(propertyEquity ?? 0) > 0 && (
+            <p className="mt-0.5 text-xs text-stone">
+              +{formatCurrency(propertyEquity ?? 0)} property equity
+            </p>
+          )}
         </Link>
       )
 

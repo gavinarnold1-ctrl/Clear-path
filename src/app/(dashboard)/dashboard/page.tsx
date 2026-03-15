@@ -441,6 +441,12 @@ export default async function DashboardPage({ searchParams }: Props) {
     return sum + a.balance
   }, 0)
   const netWorth = accountBalance + propertyEquity
+  // Liquid net worth — financial accounts only (no property equity).
+  // Used by "Build Wealth" card to show growth from budgeting, not property entry.
+  const liquidNetWorth = accounts.reduce((sum, a) => {
+    if (LIABILITY_TYPES.has(a.type)) return sum - Math.abs(a.balance)
+    return sum + a.balance
+  }, 0)
 
   // Check for stale account data (any Plaid account >24h since last sync)
   const STALE_DISPLAY_MS = 24 * 60 * 60 * 1000 // 24 hours
@@ -544,6 +550,8 @@ export default async function DashboardPage({ searchParams }: Props) {
             debtPayments={debtPayments}
             categorizationPct={categorizationPct}
             netWorth={netWorth}
+            liquidNetWorth={liquidNetWorth}
+            propertyEquity={propertyEquity}
             hasStaleBalances={hasStaleBalances}
             staleAccountCount={staleAccounts.length}
           />

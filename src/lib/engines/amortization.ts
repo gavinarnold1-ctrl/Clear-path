@@ -231,13 +231,44 @@ export function pitiBreakdown(
 }
 
 /**
- * Effective interest rate based on P&I payment (excludes escrow).
- * (P&I monthly payment / loan balance) × 12
+ * Effective (implied) annual interest rate derived from the remaining balance
+ * and P&I payment using Newton's method on the standard amortization formula.
+ *
+ * Solves: payment = balance * r / (1 - (1+r)^-n)
+ * where r = monthly rate, n = remaining months (estimated from payment stream).
  */
 export function effectiveRate(
   currentBalance: number,
   monthlyPIPayment: number,
 ): number {
   if (currentBalance <= 0 || monthlyPIPayment <= 0) return 0
-  return Math.round(((monthlyPIPayment * 12) / currentBalance) * 10000) / 10000
+  // If payment doesn't even cover interest at any reasonable rate, fall back
+  if (monthlyPIPayment <= 0) return 0
+
+  // Estimate remaining months: balance / payment gives lower bound
+  const estMonths = Math.ceil(currentBalance / monthlyPIPayment)
+  if (estMonths <= 1) return 0
+
+  // Newton's method to solve for monthly rate r
+  let r = 0.005 // Initial guess: 6% annual = 0.5% monthly
+  for (let i = 0; i < 100; i++) {
+    const powTerm = Math.pow(1 + r, -estMonths)
+    const f = currentBalance * r / (1 - powTerm) - monthlyPIPayment
+    // Derivative of f with respect to r
+    const dPow = -estMonths * Math.pow(1 + r, -estMonths - 1)
+    const denom = 1 - powTerm
+    const df = currentBalance * (denom - r * dPow) / (denom * denom)
+    if (Math.abs(df) < 1e-12) break
+    const rNew = r - f / df
+    if (Math.abs(rNew - r) < 1e-8) {
+      r = rNew
+      break
+    }
+    r = Math.max(rNew, 1e-8) // Keep positive
+  }
+
+  const annualRate = r * 12
+  // Sanity check: rate should be between 0% and 50%
+  if (annualRate < 0 || annualRate > 0.5) return 0
+  return Math.round(annualRate * 10000) / 10000
 }
