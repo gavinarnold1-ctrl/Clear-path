@@ -134,7 +134,10 @@ export function computeBudgetChangeImpact(
 } | null {
   if (!goalTarget.monthlyNeeded || goalTarget.monthlyNeeded <= 0) return null
 
-  const remaining = goalTarget.targetValue - (goalTarget.currentValue ?? goalTarget.startValue)
+  const isDebtPayoff = goalTarget.metric === 'debt_payoff'
+  const remaining = isDebtPayoff
+    ? (goalTarget.currentValue ?? goalTarget.startValue)  // debt left to pay off
+    : goalTarget.targetValue - (goalTarget.currentValue ?? goalTarget.startValue)
   if (remaining <= 0) return null
 
   // Current projection
@@ -170,7 +173,14 @@ export function projectedDate(target: GoalTarget): string {
   if (!target.currentValue || !target.monthlyNeeded || target.monthlyNeeded <= 0) {
     return target.targetDate ? new Date(target.targetDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown'
   }
-  const remaining = target.targetValue - target.currentValue
+
+  // For debt_payoff, currentValue is remaining debt (higher = worse) and targetValue is 0.
+  // "Remaining" means how much debt is left to pay off, not target - current.
+  const isDebtPayoff = target.metric === 'debt_payoff'
+  const remaining = isDebtPayoff
+    ? target.currentValue  // debt left to pay off
+    : target.targetValue - target.currentValue
+
   if (remaining <= 0) return 'Achieved'
   const monthsNeeded = Math.ceil(remaining / target.monthlyNeeded)
   const projected = new Date()
@@ -192,7 +202,10 @@ export function computeGoalPhases(
 ): GoalPhase[] {
   const now = new Date()
   const targetDate = new Date(target.targetDate)
-  const remaining = target.targetValue - (target.currentValue ?? target.startValue)
+  const isDebtPayoff = target.metric === 'debt_payoff'
+  const remaining = isDebtPayoff
+    ? (target.currentValue ?? target.startValue)  // debt left to pay off
+    : target.targetValue - (target.currentValue ?? target.startValue)
   if (remaining <= 0) return []
 
   const futureTransitions = incomeTransitions

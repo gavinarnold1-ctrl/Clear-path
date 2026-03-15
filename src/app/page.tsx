@@ -192,10 +192,9 @@ export default function HomePage() {
                   <div className="flex h-24 items-end gap-2">
                     {[65, 72, 58, 80, 68, 75, 62].map((h, i) => (
                       <div key={i} className="flex flex-1 flex-col items-center gap-1">
-                        <div className="relative w-full flex-1">
+                        <div className="relative w-full" style={{ height: `${h}%` }}>
                           <div
-                            className="absolute bottom-0 w-full rounded-bar bg-fjord"
-                            style={{ height: `${h}%` }}
+                            className="absolute inset-0 rounded-bar bg-fjord"
                           />
                         </div>
                         <span className="text-[9px] text-stone">

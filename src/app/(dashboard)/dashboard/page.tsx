@@ -271,12 +271,13 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Check for accounts with repeated sync failures
   const syncFailingAccounts = accounts.filter(a => (a.syncFailCount ?? 0) >= 3)
 
-  // Count unidentified credit cards for dashboard nudge
+  // Count unidentified credit cards for dashboard nudge (exclude dismissed)
   const unidentifiedCards = await db.account.count({
     where: {
       userId: session.userId,
       type: 'CREDIT_CARD',
       userCard: null,
+      cardDismissed: false,
     },
   })
 

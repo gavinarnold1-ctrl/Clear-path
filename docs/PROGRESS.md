@@ -1313,3 +1313,38 @@ All 5 steps verified already implemented — no new code changes required:
 | Items 1-3 | Monthly scoping, budget context month param, snapshot computation — all previously fixed | Already done |
 | Oversikt Value label | Changed "Your Oversikt Value" → "Savings Opportunities" with reframed description ("potential savings identified") | Done |
 | Trajectory chart | Already implemented | Already done |
+
+---
+
+## Bug Tracker Sprint (Mar 15, 2026)
+
+Bugs from the Claude Code Queue view in the Bug Tracker database.
+
+### P1 Fixes
+
+| Bug | Fix | Status |
+|-----|-----|--------|
+| Dismissed credit cards still show in Needs Attention | Added `cardDismissed: false` filter to dashboard unidentified cards count query | Done |
+| AMEX Platinum data stale (Sept 2025 refresh) | Updated card-programs.json: annual fee $695→$895, Hotel $200→$600, Entertainment $240→$300, CLEAR+ $189→$209, Global Entry $100→$120/4yr. Added Resy ($400), Lululemon ($300), Oura ($200), Uber One ($120) credits and Delta Sky Club, Hilton Gold, Marriott Gold perks | Done |
+| Landing page Monthly Trend chart empty | Fixed CSS flex layout: moved percentage height to parent wrapper, bar uses `inset-0` fill | Done |
+
+### P2 Fixes
+
+| Bug | Fix | Status |
+|-----|-----|--------|
+| Effective Rate shows monthly rate instead of annual | Added `remainingMonths` param to `effectiveRate()` so Newton's method uses actual loan term; updated both DebtManager call sites | Done |
+| Historic view of growth | Already implemented via Dashboard Growth Sections (WealthGrowthCard shows cash/investment/debt history) | Done |
+| Smart category list when recategorizing | Feature request — set to Needs Work, recommend moving to Roadmap | Deferred |
+| Pay off Debt goal shows "Achieved!" with outstanding debt | Fixed inverted `remaining` calculation in `projectedDate()`, `simulateImpact()`, `computeGoalPhases()` for debt_payoff metric. Fixed progress bar and display in GoalProgressCard | Done |
+
+---
+
+## Budget Engine UX Sprint (Mar 15, 2026)
+
+| Bug | Severity | Fix | Status |
+|-----|----------|-----|--------|
+| Progress bar width inconsistent across rows | P0 | Removed variable-width right column links from FlexibleBudgetRow; row is now a single Link element | Done |
+| Unbudgeted section has no quick-assign flow | P2 | Added inline budget creation (click "+ Budget" to enter amount) and "Budget all N" batch button | Done |
+| Category rows have 4 competing click targets | P2 | Same fix as progress bar — removed right column links, reduced to 2 click targets (row + edit icon) | Done |
+| Progress bar too thin + pace marker barely visible | P2 | ProgressBar height 6px→8px, pace marker 2px→4px, opacity 50%→70% | Done |
+| Brand voice copy tweaks | P3 | Subtitle reworded, "pool" badge→"catch-all", percentage hidden when ≥100% | Done |

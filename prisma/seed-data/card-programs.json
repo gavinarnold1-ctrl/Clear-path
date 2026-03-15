@@ -288,7 +288,7 @@
     "issuer": "American Express",
     "name": "Platinum Card",
     "tier": "ULTRA_PREMIUM",
-    "annualFee": 695,
+    "annualFee": 895,
     "rewardsCurrency": "Membership Rewards",
     "signUpBonus": "80,000 points after $8,000 in 6 months",
     "foreignTxFee": 0,
@@ -333,23 +333,23 @@
         "name": "Hotel Credit",
         "type": "statement_credit",
         "category": "Travel",
-        "creditAmount": 200,
+        "creditAmount": 600,
         "creditCycle": "CALENDAR_YEAR",
         "isTransactionTrackable": true,
         "eligibleMerchants": ["hilton", "marriott", "hyatt", "ihg"],
         "creditMerchantPatterns": ["hotel credit", "amex hotel", "fine hotels credit"],
-        "description": "$200 hotel credit for Fine Hotels + Resorts or Hotel Collection bookings"
+        "description": "$300 semi-annually for Fine Hotels + Resorts or Hotel Collection bookings"
       },
       {
         "name": "Digital Entertainment Credit",
         "type": "statement_credit",
         "category": "Subscriptions",
-        "creditAmount": 240,
+        "creditAmount": 300,
         "creditCycle": "CALENDAR_YEAR",
         "isTransactionTrackable": true,
-        "eligibleMerchants": ["audible", "nytimes", "new york times", "sirius", "peacock", "espn+", "disney+", "disney plus", "hulu"],
+        "eligibleMerchants": ["nytimes", "new york times", "peacock", "espn+", "disney+", "disney plus", "hulu", "paramount+", "paramount plus", "wsj", "wall street journal", "youtube premium", "youtube tv"],
         "creditMerchantPatterns": ["amex entertainment", "digital entertainment credit", "nytimes credit", "new york times credit"],
-        "description": "$20/month for Disney+, Hulu, ESPN+, Peacock, NYT, and more"
+        "description": "$25/month for Disney+, Hulu, ESPN+, Peacock, NYT, Paramount+, WSJ, YouTube Premium/TV, and more"
       },
       {
         "name": "Uber Cash",
@@ -385,15 +385,15 @@
         "description": "$50 Saks credit semi-annually"
       },
       {
-        "name": "Clear Plus Credit",
+        "name": "CLEAR+ Credit",
         "type": "statement_credit",
         "category": "Travel",
-        "creditAmount": 189,
+        "creditAmount": 209,
         "creditCycle": "CALENDAR_YEAR",
         "isTransactionTrackable": true,
         "eligibleMerchants": ["clear", "clearme"],
         "creditMerchantPatterns": ["clear credit", "amex clear"],
-        "description": "Up to $189 CLEAR Plus credit"
+        "description": "Up to $209 CLEAR+ credit"
       },
       {
         "name": "Equinox Credit",
@@ -407,21 +407,83 @@
         "description": "Up to $25/month Equinox credit"
       },
       {
+        "name": "Resy Dining Credit",
+        "type": "statement_credit",
+        "category": "Dining",
+        "creditAmount": 400,
+        "creditCycle": "QUARTERLY",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["resy"],
+        "creditMerchantPatterns": ["resy dining credit", "amex resy"],
+        "description": "$100/quarter at eligible U.S. restaurants booked via Resy"
+      },
+      {
+        "name": "Lululemon Credit",
+        "type": "statement_credit",
+        "category": "Shopping",
+        "creditAmount": 300,
+        "creditCycle": "QUARTERLY",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["lululemon"],
+        "creditMerchantPatterns": ["lululemon credit", "amex lululemon"],
+        "description": "$75/quarter at U.S. lululemon retail stores or lululemon.com"
+      },
+      {
+        "name": "Oura Ring Credit",
+        "type": "statement_credit",
+        "category": "Health",
+        "creditAmount": 200,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["oura", "ouraring"],
+        "creditMerchantPatterns": ["oura credit", "amex oura"],
+        "description": "$200 annual credit for purchases at ouraring.com"
+      },
+      {
+        "name": "Uber One Membership",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 120,
+        "creditCycle": "CALENDAR_YEAR",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["uber one", "uber"],
+        "creditMerchantPatterns": ["uber one credit", "amex uber one"],
+        "description": "$120 annual auto-renewing Uber One membership credit"
+      },
+      {
+        "name": "Global Entry / TSA PreCheck Credit",
+        "type": "statement_credit",
+        "category": "Travel",
+        "creditAmount": 120,
+        "creditCycle": "CARDMEMBER_YEAR_4",
+        "isTransactionTrackable": true,
+        "eligibleMerchants": ["global entry", "tsa precheck"],
+        "creditMerchantPatterns": ["global entry credit", "tsa credit"],
+        "description": "$120 credit every 4 years for Global Entry or TSA PreCheck"
+      },
+      {
         "name": "Centurion Lounge Access",
         "type": "perk",
         "category": null,
         "description": "Complimentary access to Centurion Lounges and Priority Pass lounges"
       },
       {
-        "name": "Global Entry / TSA PreCheck Credit",
-        "type": "statement_credit",
-        "category": "Travel",
-        "creditAmount": 100,
-        "creditCycle": "CARDMEMBER_YEAR",
-        "isTransactionTrackable": true,
-        "eligibleMerchants": ["global entry", "tsa precheck"],
-        "creditMerchantPatterns": ["global entry credit", "tsa credit"],
-        "description": "$100 credit for Global Entry or TSA PreCheck"
+        "name": "Delta Sky Club Access",
+        "type": "perk",
+        "category": null,
+        "description": "10 complimentary Delta Sky Club visits per year when flying eligible Delta flights"
+      },
+      {
+        "name": "Hilton Honors Gold Status",
+        "type": "perk",
+        "category": null,
+        "description": "Automatic Hilton Honors Gold status"
+      },
+      {
+        "name": "Marriott Bonvoy Gold Status",
+        "type": "perk",
+        "category": null,
+        "description": "Automatic Marriott Bonvoy Gold Elite status"
       }
     ]
   },

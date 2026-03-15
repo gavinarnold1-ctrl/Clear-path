@@ -107,33 +107,14 @@ export default function FlexibleBudgetRow({ id, name, amount, spent, categoryId,
             </span>
           </span>
         )}
-        <span className={`font-semibold ${pctColor}`}>{pct}%</span>
+        {pct < 100 && <span className={`font-semibold ${pctColor}`}>{pct}%</span>}
       </div>
     </>
   )
 
   return (
-    <div className="flex items-center gap-2 rounded-lg px-3 py-3 hover:bg-snow">
-      <Link href={href} className="block min-w-0 flex-1">{content}</Link>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        {categoryId && (
-          <Link
-            href={`/transactions?categoryId=${categoryId}&month=${effectiveMonth}`}
-            className="text-xs text-stone hover:text-fjord"
-            title={`View all transactions in ${category?.name ?? name} (across all budgets)`}
-          >
-            All {category?.name ?? name}
-          </Link>
-        )}
-        {categoryId && (
-          <Link
-            href={`/spending?category=${encodeURIComponent(category?.name ?? name)}`}
-            className="text-xs text-stone hover:text-pine"
-          >
-            Spending detail →
-          </Link>
-        )}
-      </div>
-    </div>
+    <Link href={href} className="block rounded-lg px-3 py-3 hover:bg-snow">
+      {content}
+    </Link>
   )
 }
